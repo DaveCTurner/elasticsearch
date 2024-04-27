@@ -598,7 +598,7 @@ public class TransportReplicationActionTests extends ESTestCase {
             clusterStateChanges.closeIndices(
                 clusterStateChanges.createIndex(
                     clusterService.state(),
-                    new CreateIndexRequest(index).waitForActiveShards(ActiveShardCount.NONE)
+                    new CreateIndexRequest(masterNodeTimeout, index).waitForActiveShards(ActiveShardCount.NONE)
                 ),
                 new CloseIndexRequest(index)
             )

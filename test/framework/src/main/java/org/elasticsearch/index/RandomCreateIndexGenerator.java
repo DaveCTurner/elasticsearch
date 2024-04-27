@@ -37,7 +37,7 @@ public final class RandomCreateIndexGenerator {
      */
     public static CreateIndexRequest randomCreateIndexRequest() {
         String index = randomAlphaOfLength(5);
-        CreateIndexRequest request = new CreateIndexRequest(index);
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, index);
         randomAliases(request);
         if (randomBoolean()) {
             request.mapping(randomMapping(MapperService.SINGLE_MAPPING_NAME));

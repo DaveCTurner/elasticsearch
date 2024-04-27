@@ -40,7 +40,7 @@ public class SystemIndexAliasIT extends ESIntegTestCase {
         assertAcked(indicesAdmin().prepareAliases().addAlias(PRIMARY_INDEX_NAME, INDEX_NAME + "-system-alias"));
 
         final GetAliasesResponse getAliasesResponse = indicesAdmin().getAliases(
-            new GetAliasesRequest().indicesOptions(IndicesOptions.strictExpandHidden())
+            new GetAliasesRequest(masterNodeTimeout).indicesOptions(IndicesOptions.strictExpandHidden())
         ).get();
 
         assertThat(getAliasesResponse.getAliases().size(), equalTo(1));

@@ -73,7 +73,7 @@ public class ResizeRequestTests extends AbstractWireSerializingTestCase<ResizeRe
         }
         {
             ResizeRequest request = new ResizeRequest();
-            CreateIndexRequest target = new CreateIndexRequest("target");
+            CreateIndexRequest target = new CreateIndexRequest(masterNodeTimeout, "target");
             Alias alias = new Alias("test_alias");
             alias.routing("1");
             alias.filter("""

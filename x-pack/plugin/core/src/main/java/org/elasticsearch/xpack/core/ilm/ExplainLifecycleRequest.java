@@ -28,7 +28,7 @@ public class ExplainLifecycleRequest extends ClusterInfoRequest<ExplainLifecycle
     private boolean onlyManaged = false;
 
     public ExplainLifecycleRequest() {
-        super();
+        super(masterNodeTimeout);
     }
 
     public ExplainLifecycleRequest(StreamInput in) throws IOException {

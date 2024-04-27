@@ -758,7 +758,7 @@ public class AutoFollowIT extends CcrIntegTestCase {
     }
 
     private void createLeaderIndex(String index, Settings settings) {
-        CreateIndexRequest request = new CreateIndexRequest(index);
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, index);
         request.settings(settings);
         leaderClient().admin().indices().create(request).actionGet();
     }

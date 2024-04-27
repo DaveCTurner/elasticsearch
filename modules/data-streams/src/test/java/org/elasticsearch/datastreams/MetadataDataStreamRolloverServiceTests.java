@@ -102,7 +102,7 @@ public class MetadataDataStreamRolloverServiceTests extends ESTestCase {
             );
             MaxDocsCondition condition = new MaxDocsCondition(randomNonNegativeLong());
             List<Condition<?>> metConditions = Collections.singletonList(condition);
-            CreateIndexRequest createIndexRequest = new CreateIndexRequest("_na_");
+            CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, "_na_");
             IndexMetadataStats indexStats = new IndexMetadataStats(IndexWriteLoad.builder(1).build(), 10, 10);
 
             long before = testThreadPool.absoluteTimeInMillis();
@@ -200,7 +200,7 @@ public class MetadataDataStreamRolloverServiceTests extends ESTestCase {
             );
             MaxDocsCondition condition = new MaxDocsCondition(randomNonNegativeLong());
             List<Condition<?>> metConditions = Collections.singletonList(condition);
-            CreateIndexRequest createIndexRequest = new CreateIndexRequest("_na_");
+            CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, "_na_");
 
             MetadataRolloverService.RolloverResult rolloverResult = rolloverService.rolloverClusterState(
                 clusterState,
@@ -288,7 +288,7 @@ public class MetadataDataStreamRolloverServiceTests extends ESTestCase {
             );
             MaxDocsCondition condition = new MaxDocsCondition(randomNonNegativeLong());
             List<Condition<?>> metConditions = Collections.singletonList(condition);
-            CreateIndexRequest createIndexRequest = new CreateIndexRequest("_na_");
+            CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, "_na_");
 
             MetadataRolloverService.RolloverResult rolloverResult = rolloverService.rolloverClusterState(
                 clusterState,
@@ -355,7 +355,7 @@ public class MetadataDataStreamRolloverServiceTests extends ESTestCase {
             );
             MaxDocsCondition condition = new MaxDocsCondition(randomNonNegativeLong());
             List<Condition<?>> metConditions = Collections.singletonList(condition);
-            CreateIndexRequest createIndexRequest = new CreateIndexRequest("_na_");
+            CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, "_na_");
             IndexMetadataStats indexStats = new IndexMetadataStats(IndexWriteLoad.builder(1).build(), 10, 10);
 
             long before = testThreadPool.absoluteTimeInMillis();
@@ -437,7 +437,7 @@ public class MetadataDataStreamRolloverServiceTests extends ESTestCase {
             );
             MaxDocsCondition condition = new MaxDocsCondition(randomNonNegativeLong());
             List<Condition<?>> metConditions = Collections.singletonList(condition);
-            CreateIndexRequest createIndexRequest = new CreateIndexRequest("_na_");
+            CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, "_na_");
             IndexMetadataStats indexStats = new IndexMetadataStats(IndexWriteLoad.builder(1).build(), 10, 10);
 
             Exception e = expectThrows(

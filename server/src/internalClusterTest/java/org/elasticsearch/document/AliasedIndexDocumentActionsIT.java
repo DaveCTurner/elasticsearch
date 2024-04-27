@@ -22,8 +22,9 @@ public class AliasedIndexDocumentActionsIT extends DocumentActionsIT {
             // ignore
         }
         logger.info("--> creating index test");
-        indicesAdmin().create(new CreateIndexRequest("test1").simpleMapping("name", "type=keyword,store=true").alias(new Alias("test")))
-            .actionGet();
+        indicesAdmin().create(
+            new CreateIndexRequest(masterNodeTimeout, "test1").simpleMapping("name", "type=keyword,store=true").alias(new Alias("test"))
+        ).actionGet();
     }
 
     @Override

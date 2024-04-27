@@ -114,7 +114,7 @@ public class CreateSystemIndicesIT extends ESIntegTestCase {
 
         // Check that a non-primary system index is not assigned as the write index for the alias
         final GetAliasesResponse getAliasesResponse = indicesAdmin().getAliases(
-            new GetAliasesRequest().indicesOptions(IndicesOptions.strictExpandHidden())
+            new GetAliasesRequest(masterNodeTimeout).indicesOptions(IndicesOptions.strictExpandHidden())
         ).actionGet();
 
         assertThat(getAliasesResponse.getAliases().size(), equalTo(1));
@@ -321,7 +321,7 @@ public class CreateSystemIndicesIT extends ESIntegTestCase {
      */
     private void assertAliases(String concreteIndex) {
         final GetAliasesResponse getAliasesResponse = indicesAdmin().getAliases(
-            new GetAliasesRequest().indicesOptions(IndicesOptions.strictExpandHidden())
+            new GetAliasesRequest(masterNodeTimeout).indicesOptions(IndicesOptions.strictExpandHidden())
         ).actionGet();
 
         assertThat(getAliasesResponse.getAliases().size(), equalTo(1));
@@ -333,7 +333,7 @@ public class CreateSystemIndicesIT extends ESIntegTestCase {
     private void assertHasAliases(Set<String> aliasNames, String name, String primaryName, int aliasCount) throws InterruptedException,
         java.util.concurrent.ExecutionException {
         final GetAliasesResponse getAliasesResponse = indicesAdmin().getAliases(
-            new GetAliasesRequest().indicesOptions(IndicesOptions.strictExpandHidden())
+            new GetAliasesRequest(masterNodeTimeout).indicesOptions(IndicesOptions.strictExpandHidden())
         ).get();
 
         assertThat(getAliasesResponse.getAliases().size(), equalTo(1));

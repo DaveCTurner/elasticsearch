@@ -438,7 +438,9 @@ public class SecurityIndexManager implements ClusterStateListener {
                     );
                     // Although `TransportCreateIndexAction` is capable of automatically applying the right mappings, settings and aliases
                     // for system indices, we nonetheless specify them here so that the values from `descriptorForVersion` are used.
-                    CreateIndexRequest request = new CreateIndexRequest(state.concreteIndexName).origin(descriptorForVersion.getOrigin())
+                    CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, state.concreteIndexName).origin(
+                        descriptorForVersion.getOrigin()
+                    )
                         .mapping(descriptorForVersion.getMappings())
                         .settings(descriptorForVersion.getSettings())
                         .alias(new Alias(descriptorForVersion.getAliasName()))

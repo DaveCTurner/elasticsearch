@@ -208,7 +208,7 @@ public final class MlIndexAndAlias {
             }
         });
 
-        CreateIndexRequest createIndexRequest = new CreateIndexRequest(primaryIndex);
+        CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, primaryIndex);
         createIndexRequest.settings(descriptor.getSettings());
         createIndexRequest.mapping(descriptor.getMappings());
         createIndexRequest.origin(ML_ORIGIN);

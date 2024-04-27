@@ -173,7 +173,9 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
         );
 
         logger.info("Creating index [test]");
-        CreateIndexResponse createIndexResponse = indicesAdmin().create(new CreateIndexRequest("test").settings(settings)).actionGet();
+        CreateIndexResponse createIndexResponse = indicesAdmin().create(
+            new CreateIndexRequest(masterNodeTimeout, "test").settings(settings)
+        ).actionGet();
         assertAcked(createIndexResponse);
         ClusterState clusterState = clusterAdmin().prepareState().get().getState();
         RoutingNode routingNodeEntry1 = clusterState.getRoutingNodes().node(node1);
@@ -253,7 +255,9 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
         long actualModifiedDate = Instant.from(ISO_ZONED_DATE_TIME.parse(responseItem.getModifiedDate())).toEpochMilli();
 
         logger.info("Creating index [test]");
-        CreateIndexResponse createIndexResponse = indicesAdmin().create(new CreateIndexRequest("test").settings(settings)).actionGet();
+        CreateIndexResponse createIndexResponse = indicesAdmin().create(
+            new CreateIndexRequest(masterNodeTimeout, "test").settings(settings)
+        ).actionGet();
         assertAcked(createIndexResponse);
 
         // using AtomicLong only to extract a value from a lambda rather than the more traditional atomic update use-case
@@ -327,7 +331,7 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
         String indexName = "test-2019.09.14";
         logger.info("Creating index [{}]", indexName);
         CreateIndexResponse createIndexResponse = indicesAdmin().create(
-            new CreateIndexRequest(indexName).settings(
+            new CreateIndexRequest(masterNodeTimeout, indexName).settings(
                 Settings.builder().put(settings).put(IndexSettings.LIFECYCLE_PARSE_ORIGINATION_DATE, true)
             )
         ).actionGet();
@@ -405,7 +409,9 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
         PutLifecycleRequest putLifecycleRequest = new PutLifecycleRequest(lifecyclePolicy);
         assertAcked(client().execute(ILMActions.PUT, putLifecycleRequest).get());
         logger.info("Creating index [test]");
-        CreateIndexResponse createIndexResponse = indicesAdmin().create(new CreateIndexRequest("test").settings(settings)).actionGet();
+        CreateIndexResponse createIndexResponse = indicesAdmin().create(
+            new CreateIndexRequest(masterNodeTimeout, "test").settings(settings)
+        ).actionGet();
         assertAcked(createIndexResponse);
 
         ClusterState clusterState = clusterAdmin().prepareState().get().getState();

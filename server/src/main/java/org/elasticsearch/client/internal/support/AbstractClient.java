@@ -1095,7 +1095,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public IndicesAliasesRequestBuilder prepareAliases() {
-            return new IndicesAliasesRequestBuilder(this);
+            return new IndicesAliasesRequestBuilder(masterNodeTimeout, this);
         }
 
         @Override
@@ -1445,7 +1445,8 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public ResizeRequestBuilder prepareResizeIndex(String sourceIndex, String targetIndex) {
-            return new ResizeRequestBuilder(this).setSourceIndex(sourceIndex).setTargetIndex(new CreateIndexRequest(targetIndex));
+            return new ResizeRequestBuilder(this).setSourceIndex(sourceIndex)
+                .setTargetIndex(new CreateIndexRequest(masterNodeTimeout, targetIndex));
         }
 
         @Override

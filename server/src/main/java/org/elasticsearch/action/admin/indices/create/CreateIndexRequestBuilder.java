@@ -29,11 +29,11 @@ public class CreateIndexRequestBuilder extends AcknowledgedRequestBuilder<
     CreateIndexRequestBuilder> {
 
     public CreateIndexRequestBuilder(ElasticsearchClient client) {
-        super(client, TransportCreateIndexAction.TYPE, new CreateIndexRequest());
+        super(client, TransportCreateIndexAction.TYPE, new CreateIndexRequest(masterNodeTimeout));
     }
 
     public CreateIndexRequestBuilder(ElasticsearchClient client, String index) {
-        super(client, TransportCreateIndexAction.TYPE, new CreateIndexRequest(index));
+        super(client, TransportCreateIndexAction.TYPE, new CreateIndexRequest(masterNodeTimeout, index));
     }
 
     /**

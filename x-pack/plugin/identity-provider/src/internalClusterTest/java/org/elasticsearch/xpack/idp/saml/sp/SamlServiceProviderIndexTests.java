@@ -132,7 +132,7 @@ public class SamlServiceProviderIndexTests extends ESSingleNodeTestCase {
 
         // Create an index that will trigger the template, but isn't the standard index name
         final String customIndexName = SamlServiceProviderIndex.INDEX_NAME + "-test";
-        indicesAdmin().create(new CreateIndexRequest(customIndexName)).actionGet();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, customIndexName)).actionGet();
 
         final IndexMetadata indexMetadata = clusterService.state().metadata().index(customIndexName);
         assertThat(indexMetadata, notNullValue());
@@ -158,7 +158,7 @@ public class SamlServiceProviderIndexTests extends ESSingleNodeTestCase {
     public void testInstallTemplateAutomaticallyOnClusterChange() throws Exception {
         // Create an index that will trigger a cluster state change
         final String indexName = randomAlphaOfLength(7).toLowerCase(Locale.ROOT);
-        indicesAdmin().create(new CreateIndexRequest(indexName)).actionGet();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, indexName)).actionGet();
 
         ensureGreen(indexName);
 

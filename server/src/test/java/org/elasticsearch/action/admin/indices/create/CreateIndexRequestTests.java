@@ -30,7 +30,7 @@ import static org.hamcrest.Matchers.containsString;
 public class CreateIndexRequestTests extends AbstractWireSerializingTestCase<CreateIndexRequest> {
 
     public void testSimpleSerialization() throws IOException {
-        CreateIndexRequest request = new CreateIndexRequest("foo");
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, "foo");
         String mapping = Strings.toString(JsonXContent.contentBuilder().startObject().startObject("_doc").endObject().endObject());
         request.mapping(mapping);
 
@@ -62,7 +62,7 @@ public class CreateIndexRequestTests extends AbstractWireSerializingTestCase<Cre
               }
             }""";
 
-        CreateIndexRequest request = new CreateIndexRequest();
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout);
         ElasticsearchParseException e = expectThrows(
             ElasticsearchParseException.class,
             () -> { request.source(createIndex, XContentType.JSON); }
@@ -71,8 +71,8 @@ public class CreateIndexRequestTests extends AbstractWireSerializingTestCase<Cre
     }
 
     public void testMappingKeyedByType() throws IOException {
-        CreateIndexRequest request1 = new CreateIndexRequest("foo");
-        CreateIndexRequest request2 = new CreateIndexRequest("bar");
+        CreateIndexRequest request1 = new CreateIndexRequest(masterNodeTimeout, "foo");
+        CreateIndexRequest request2 = new CreateIndexRequest(masterNodeTimeout, "bar");
         {
             XContentBuilder builder = XContentFactory.contentBuilder(randomFrom(XContentType.values()));
             builder.startObject()
@@ -116,7 +116,7 @@ public class CreateIndexRequestTests extends AbstractWireSerializingTestCase<Cre
         XContentBuilder builder = XContentFactory.contentBuilder(randomFrom(XContentType.values()));
         builder.startObject().startArray("settings").endArray().endObject();
 
-        CreateIndexRequest parsedCreateIndexRequest = new CreateIndexRequest();
+        CreateIndexRequest parsedCreateIndexRequest = new CreateIndexRequest(masterNodeTimeout);
         ElasticsearchParseException e = expectThrows(ElasticsearchParseException.class, () -> parsedCreateIndexRequest.source(builder));
         assertThat(e.getMessage(), equalTo("key [settings] must be an object"));
     }
@@ -136,7 +136,10 @@ public class CreateIndexRequestTests extends AbstractWireSerializingTestCase<Cre
             .endObject()
             .endObject()
             .endObject();
-        IllegalArgumentException e = expectThrows(IllegalArgumentException.class, () -> new CreateIndexRequest().source(aliases1));
+        IllegalArgumentException e = expectThrows(
+            IllegalArgumentException.class,
+            () -> new CreateIndexRequest(masterNodeTimeout).source(aliases1)
+        );
         assertThat(e.getMessage(), containsString("Unknown field [bool] in alias [filtered-data]"));
 
         XContentBuilder aliases2 = XContentFactory.jsonBuilder()
@@ -153,7 +156,7 @@ public class CreateIndexRequestTests extends AbstractWireSerializingTestCase<Cre
             .endObject()
             .endObject()
             .endObject();
-        e = expectThrows(IllegalArgumentException.class, () -> new CreateIndexRequest().source(aliases2));
+        e = expectThrows(IllegalArgumentException.class, () -> new CreateIndexRequest(masterNodeTimeout).source(aliases2));
         assertThat(e.getMessage(), containsString("Unknown token [START_ARRAY] in alias [filtered-data]"));
     }
 

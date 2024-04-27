@@ -206,7 +206,7 @@ public class ProfilingIndexManager extends AbstractProfilingPersistenceManager<P
     private void putIndex(final String index, final String alias, final ActionListener<? super ActionResponse> listener) {
         final Executor executor = threadPool.generic();
         executor.execute(() -> {
-            CreateIndexRequest request = new CreateIndexRequest(index);
+            CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, index);
             if (alias != null) {
                 try {
                     Map<String, Object> sourceAsMap = Map.of("aliases", Map.of(alias, Map.of("is_write_index", true)));

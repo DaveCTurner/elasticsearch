@@ -1234,6 +1234,7 @@ public class IndexStatsIT extends ESIntegTestCase {
 
         // increasing the number of shards increases the number of chances any one stats request will hit a race
         final CreateIndexRequest createIndexRequest = new CreateIndexRequest(
+            masterNodeTimeout,
             "test",
             Settings.builder().put("index.number_of_shards", 10).build()
         );

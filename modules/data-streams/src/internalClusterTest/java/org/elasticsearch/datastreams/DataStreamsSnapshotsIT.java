@@ -176,7 +176,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertEquals(1, ds.getDataStreams().get(0).getDataStream().getIndices().size());
         assertEquals(dsBackingIndexName, ds.getDataStreams().get(0).getDataStream().getIndices().get(0).getName());
 
-        GetAliasesResponse getAliasesResponse = client.admin().indices().getAliases(new GetAliasesRequest("my-alias")).actionGet();
+        GetAliasesResponse getAliasesResponse = client.admin()
+            .indices()
+            .getAliases(new GetAliasesRequest(masterNodeTimeout, "my-alias"))
+            .actionGet();
         assertThat(getAliasesResponse.getDataStreamAliases().keySet(), containsInAnyOrder("ds", "other-ds"));
         assertThat(getAliasesResponse.getDataStreamAliases().get("ds").size(), equalTo(1));
         assertThat(getAliasesResponse.getDataStreamAliases().get("ds").get(0).getName(), equalTo("my-alias"));
@@ -369,7 +372,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertEquals(1, ds.getDataStreams().get(0).getDataStream().getIndices().size());
         assertEquals(backingIndexName, ds.getDataStreams().get(0).getDataStream().getIndices().get(0).getName());
 
-        GetAliasesResponse getAliasesResponse = client.admin().indices().getAliases(new GetAliasesRequest("my-alias")).actionGet();
+        GetAliasesResponse getAliasesResponse = client.admin()
+            .indices()
+            .getAliases(new GetAliasesRequest(masterNodeTimeout, "my-alias"))
+            .actionGet();
         assertThat(getAliasesResponse.getDataStreamAliases().keySet(), contains(dataStreamToSnapshot));
         assertThat(
             getAliasesResponse.getDataStreamAliases().get(dataStreamToSnapshot),
@@ -422,7 +428,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             containsInAnyOrder("ds", "other-ds")
         );
 
-        GetAliasesResponse getAliasesResponse = client.admin().indices().getAliases(new GetAliasesRequest("my-alias")).actionGet();
+        GetAliasesResponse getAliasesResponse = client.admin()
+            .indices()
+            .getAliases(new GetAliasesRequest(masterNodeTimeout, "my-alias"))
+            .actionGet();
         assertThat(getAliasesResponse.getDataStreamAliases().keySet(), containsInAnyOrder("ds", "other-ds"));
         assertThat(getAliasesResponse.getDataStreamAliases().get("ds").size(), equalTo(1));
         assertThat(getAliasesResponse.getDataStreamAliases().get("ds").get(0).getName(), equalTo("my-alias"));
@@ -477,7 +486,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertEquals(1, ds.getDataStreams().get(1).getDataStream().getIndices().size());
         assertEquals(otherDsBackingIndexName, ds.getDataStreams().get(1).getDataStream().getIndices().get(0).getName());
 
-        GetAliasesResponse getAliasesResponse = client.admin().indices().getAliases(new GetAliasesRequest("my-alias")).actionGet();
+        GetAliasesResponse getAliasesResponse = client.admin()
+            .indices()
+            .getAliases(new GetAliasesRequest(masterNodeTimeout, "my-alias"))
+            .actionGet();
         assertThat(getAliasesResponse.getDataStreamAliases().keySet(), containsInAnyOrder("ds", "other-ds"));
 
         assertThat(getAliasesResponse.getDataStreamAliases().get("ds").size(), equalTo(1));
@@ -535,7 +547,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertEquals(1, ds.getDataStreams().get(1).getDataStream().getIndices().size());
         assertEquals(otherDsBackingIndexName, ds.getDataStreams().get(1).getDataStream().getIndices().get(0).getName());
 
-        GetAliasesResponse getAliasesResponse = client.admin().indices().getAliases(new GetAliasesRequest("*")).actionGet();
+        GetAliasesResponse getAliasesResponse = client.admin()
+            .indices()
+            .getAliases(new GetAliasesRequest(masterNodeTimeout, "*"))
+            .actionGet();
         assertThat(getAliasesResponse.getDataStreamAliases(), anEmptyMap());
         assertAcked(client().execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "ds" })).get());
     }
@@ -579,7 +594,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         );
         assertEquals(DOCUMENT_SOURCE, client.prepareGet(ds2BackingIndexName, id).get().getSourceAsMap());
 
-        GetAliasesResponse getAliasesResponse = client.admin().indices().getAliases(new GetAliasesRequest("my-alias")).actionGet();
+        GetAliasesResponse getAliasesResponse = client.admin()
+            .indices()
+            .getAliases(new GetAliasesRequest(masterNodeTimeout, "my-alias"))
+            .actionGet();
         assertThat(getAliasesResponse.getDataStreamAliases().keySet(), containsInAnyOrder("ds", "ds2", "other-ds"));
         assertThat(getAliasesResponse.getDataStreamAliases().get("ds2").size(), equalTo(1));
         assertThat(getAliasesResponse.getDataStreamAliases().get("ds2").get(0).getName(), equalTo("my-alias"));
@@ -632,7 +650,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertEquals(1, ds.getDataStreams().get(0).getDataStream().getIndices().size());
         assertEquals(otherDs2BackingIndexName, ds.getDataStreams().get(0).getDataStream().getIndices().get(0).getName());
 
-        GetAliasesResponse getAliasesResponse = client.admin().indices().getAliases(new GetAliasesRequest("my-alias")).actionGet();
+        GetAliasesResponse getAliasesResponse = client.admin()
+            .indices()
+            .getAliases(new GetAliasesRequest(masterNodeTimeout, "my-alias"))
+            .actionGet();
         assertThat(getAliasesResponse.getDataStreamAliases().keySet(), containsInAnyOrder("ds", "other-ds", "other-ds2"));
         assertThat(getAliasesResponse.getDataStreamAliases().get("other-ds2").size(), equalTo(1));
         assertThat(getAliasesResponse.getDataStreamAliases().get("other-ds2").get(0).getName(), equalTo("my-alias"));
@@ -1083,7 +1104,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         var snapshotName = "test-snapshot";
         createFullSnapshot(REPO, snapshotName);
         client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request("*")).actionGet();
-        CreateIndexRequest createIndexRequest = new CreateIndexRequest("my-index").alias(new Alias("my-alias"));
+        CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, "my-index").alias(new Alias("my-alias"));
         assertAcked(client.admin().indices().create(createIndexRequest).actionGet());
 
         var e = expectThrows(

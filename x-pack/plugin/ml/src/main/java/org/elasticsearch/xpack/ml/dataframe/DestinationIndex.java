@@ -206,7 +206,7 @@ public final class DestinationIndex {
             Map<String, Object> runtimeMappings = getOrPutDefault(mappingsAsMap, RUNTIME, HashMap::new);
             runtimeMappings.putAll(config.getSource().getRuntimeMappings());
         }
-        return new CreateIndexRequest(destinationIndex, settings).mapping(mappingsAsMap);
+        return new CreateIndexRequest(masterNodeTimeout, destinationIndex, settings).mapping(mappingsAsMap);
     }
 
     private static Settings settings(GetSettingsResponse settingsResponse, String[] destIndexAllowedSettings) {

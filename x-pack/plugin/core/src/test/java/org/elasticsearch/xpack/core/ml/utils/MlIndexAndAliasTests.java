@@ -96,7 +96,7 @@ public class MlIndexAndAliasTests extends ESTestCase {
             new CreateIndexRequestBuilder(client, FIRST_CONCRETE_INDEX)
         );
         doAnswer(withResponse(new CreateIndexResponse(true, true, FIRST_CONCRETE_INDEX))).when(indicesAdminClient).create(any(), any());
-        when(indicesAdminClient.prepareAliases()).thenReturn(new IndicesAliasesRequestBuilder(client));
+        when(indicesAdminClient.prepareAliases()).thenReturn(new IndicesAliasesRequestBuilder(masterNodeTimeout, client));
         doAnswer(withResponse(IndicesAliasesResponse.ACKNOWLEDGED_NO_ERRORS)).when(indicesAdminClient).aliases(any(), any());
         doAnswer(withResponse(IndicesAliasesResponse.ACKNOWLEDGED_NO_ERRORS)).when(indicesAdminClient).putTemplate(any(), any());
 

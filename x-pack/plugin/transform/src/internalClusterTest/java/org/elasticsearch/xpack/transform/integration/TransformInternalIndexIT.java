@@ -57,7 +57,9 @@ public class TransformInternalIndexIT extends TransformSingleNodeTestCase {
             TransformInternalIndex.addTransformsConfigMappings(builder);
             builder.endObject();
             builder.endObject();
-            indicesAdmin().create(new CreateIndexRequest(OLD_INDEX).mapping(builder).origin(ClientHelper.TRANSFORM_ORIGIN)).actionGet();
+            indicesAdmin().create(
+                new CreateIndexRequest(masterNodeTimeout, OLD_INDEX).mapping(builder).origin(ClientHelper.TRANSFORM_ORIGIN)
+            ).actionGet();
         }
         String transformIndex = "transform-index-deletes-old";
         createSourceIndex(transformIndex);
@@ -132,6 +134,6 @@ public class TransformInternalIndexIT extends TransformSingleNodeTestCase {
     }
 
     private void createSourceIndex(String index) {
-        indicesAdmin().create(new CreateIndexRequest(index)).actionGet();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, index)).actionGet();
     }
 }

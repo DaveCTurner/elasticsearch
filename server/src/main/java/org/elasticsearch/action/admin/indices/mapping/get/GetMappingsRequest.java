@@ -20,7 +20,9 @@ import java.util.Map;
 
 public class GetMappingsRequest extends ClusterInfoRequest<GetMappingsRequest> {
 
-    public GetMappingsRequest() {}
+    public GetMappingsRequest() {
+        super(masterNodeTimeout);
+    }
 
     public GetMappingsRequest(StreamInput in) throws IOException {
         super(in);

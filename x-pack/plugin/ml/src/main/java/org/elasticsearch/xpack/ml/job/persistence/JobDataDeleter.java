@@ -475,7 +475,7 @@ public class JobDataDeleter {
         final String writeAliasName = AnomalyDetectorsIndex.resultsWriteAlias(jobId);
 
         // first find the concrete indices associated with the aliases
-        GetAliasesRequest aliasesRequest = new GetAliasesRequest().aliases(readAliasName, writeAliasName)
+        GetAliasesRequest aliasesRequest = new GetAliasesRequest(masterNodeTimeout).aliases(readAliasName, writeAliasName)
             .indicesOptions(IndicesOptions.lenientExpandOpenHidden());
         executeAsyncWithOrigin(
             client.threadPool().getThreadContext(),

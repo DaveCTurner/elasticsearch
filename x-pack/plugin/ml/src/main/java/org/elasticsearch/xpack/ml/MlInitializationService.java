@@ -212,7 +212,7 @@ public final class MlInitializationService implements ClusterStateListener {
                 logger.warn("One or more of the ML internal indices could not be made hidden.");
                 return;
             }
-            GetAliasesRequest getAliasesRequest = new GetAliasesRequest().indices(mlHiddenIndexPatterns)
+            GetAliasesRequest getAliasesRequest = new GetAliasesRequest(masterNodeTimeout).indices(mlHiddenIndexPatterns)
                 .indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN);
             executeAsyncWithOrigin(client, ML_ORIGIN, GetAliasesAction.INSTANCE, getAliasesRequest, getAliasesResponseListener);
         }, finalListener::onFailure);

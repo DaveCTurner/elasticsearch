@@ -45,24 +45,24 @@ public class AutoCreateActionTests extends ESTestCase {
             metadata = mdBuilder.build();
         }
 
-        CreateIndexRequest request = new CreateIndexRequest("logs-foobar");
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, "logs-foobar");
         ComposableIndexTemplate result = AutoCreateAction.resolveTemplate(request, metadata);
         assertThat(result, notNullValue());
         assertThat(result.getDataStreamTemplate(), notNullValue());
 
-        request = new CreateIndexRequest("logs-barbaz");
+        request = new CreateIndexRequest(masterNodeTimeout, "logs-barbaz");
         result = AutoCreateAction.resolveTemplate(request, metadata);
         assertThat(result, notNullValue());
         assertThat(result.getDataStreamTemplate(), notNullValue());
 
         // An index that matches with a template without a data steam definition
-        request = new CreateIndexRequest("legacy-logs-foobaz");
+        request = new CreateIndexRequest(masterNodeTimeout, "legacy-logs-foobaz");
         result = AutoCreateAction.resolveTemplate(request, metadata);
         assertThat(result, notNullValue());
         assertThat(result.getDataStreamTemplate(), nullValue());
 
         // An index that doesn't match with an index template
-        request = new CreateIndexRequest("my-index");
+        request = new CreateIndexRequest(masterNodeTimeout, "my-index");
         result = AutoCreateAction.resolveTemplate(request, metadata);
         assertThat(result, nullValue());
     }

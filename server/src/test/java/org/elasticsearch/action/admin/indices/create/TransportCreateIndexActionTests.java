@@ -135,7 +135,7 @@ public class TransportCreateIndexActionTests extends ESTestCase {
     }
 
     public void testSystemIndicesCannotBeCreatedUnhidden() {
-        CreateIndexRequest request = new CreateIndexRequest();
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout);
         request.settings(Settings.builder().put(IndexMetadata.SETTING_INDEX_HIDDEN, false).build());
         request.index(UNMANAGED_SYSTEM_INDEX_NAME);
 
@@ -154,7 +154,7 @@ public class TransportCreateIndexActionTests extends ESTestCase {
     }
 
     public void testSystemIndicesCreatedHiddenByDefault() {
-        CreateIndexRequest request = new CreateIndexRequest();
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout);
         request.index(UNMANAGED_SYSTEM_INDEX_NAME);
 
         @SuppressWarnings("unchecked")
@@ -173,7 +173,7 @@ public class TransportCreateIndexActionTests extends ESTestCase {
     }
 
     public void testSystemAliasCreatedHiddenByDefault() {
-        CreateIndexRequest request = new CreateIndexRequest();
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout);
         request.index(UNMANAGED_SYSTEM_INDEX_NAME);
         request.alias(new Alias(SYSTEM_ALIAS_NAME));
 
@@ -193,7 +193,7 @@ public class TransportCreateIndexActionTests extends ESTestCase {
     }
 
     public void testErrorWhenCreatingNonPrimarySystemIndex() {
-        CreateIndexRequest request = new CreateIndexRequest();
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout);
         request.index(MANAGED_SYSTEM_INDEX_NAME + "-alternate");
 
         IllegalArgumentException e = expectThrows(

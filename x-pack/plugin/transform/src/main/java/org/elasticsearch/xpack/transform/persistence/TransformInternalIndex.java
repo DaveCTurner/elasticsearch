@@ -429,9 +429,10 @@ public final class TransformInternalIndex {
 
         // Creating the index involves communication with the master node, so it's more expensive but much rarer
         try {
-            CreateIndexRequest request = new CreateIndexRequest(TransformInternalIndexConstants.LATEST_INDEX_VERSIONED_NAME).settings(
-                settings(transformInternalIndexAdditionalSettings)
-            )
+            CreateIndexRequest request = new CreateIndexRequest(
+                masterNodeTimeout,
+                TransformInternalIndexConstants.LATEST_INDEX_VERSIONED_NAME
+            ).settings(settings(transformInternalIndexAdditionalSettings))
                 .mapping(mappings())
                 .origin(TRANSFORM_ORIGIN)
                 // explicitly wait for the primary shard (although this might be default)

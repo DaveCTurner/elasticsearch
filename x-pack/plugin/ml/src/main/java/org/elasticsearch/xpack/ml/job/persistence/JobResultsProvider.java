@@ -354,7 +354,7 @@ public class JobResultsProvider {
         // already in the CS
         if (state.getMetadata().hasIndex(indexName) == false) {
             LOGGER.trace("ES API CALL: create index {}", indexName);
-            CreateIndexRequest createIndexRequest = new CreateIndexRequest(indexName);
+            CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, indexName);
             executeAsyncWithOrigin(
                 client.threadPool().getThreadContext(),
                 ML_ORIGIN,

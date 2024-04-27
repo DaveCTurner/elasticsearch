@@ -1416,7 +1416,7 @@ public class AuthorizationServiceTests extends ESTestCase {
     }
 
     public void testCreateIndexWithAliasWithoutPermissions() {
-        CreateIndexRequest request = new CreateIndexRequest("a");
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, "a");
         request.alias(new Alias("a2"));
         ClusterState state = mockEmptyMetadata();
         RoleDescriptor role = new RoleDescriptor(
@@ -1454,7 +1454,7 @@ public class AuthorizationServiceTests extends ESTestCase {
     }
 
     public void testCreateIndexWithAlias() {
-        CreateIndexRequest request = new CreateIndexRequest("a");
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, "a");
         request.alias(new Alias("a2"));
         ClusterState state = mockEmptyMetadata();
         RoleDescriptor role = new RoleDescriptor(

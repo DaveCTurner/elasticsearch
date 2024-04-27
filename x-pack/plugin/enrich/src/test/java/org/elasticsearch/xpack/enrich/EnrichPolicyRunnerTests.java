@@ -847,7 +847,7 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
 
     public void testRunnerNoSourceMapping() throws Exception {
         final String sourceIndex = "source-index";
-        CreateIndexResponse createResponse = indicesAdmin().create(new CreateIndexRequest(sourceIndex)).actionGet();
+        CreateIndexResponse createResponse = indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, sourceIndex)).actionGet();
         assertTrue(createResponse.isAcknowledged());
 
         List<String> enrichFields = List.of("field2", "field5");
@@ -904,7 +904,9 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject()
             .endObject();
-        CreateIndexResponse createResponse = indicesAdmin().create(new CreateIndexRequest(sourceIndex).mapping(mappingBuilder)).actionGet();
+        CreateIndexResponse createResponse = indicesAdmin().create(
+            new CreateIndexRequest(masterNodeTimeout, sourceIndex).mapping(mappingBuilder)
+        ).actionGet();
         assertTrue(createResponse.isAcknowledged());
 
         String policyName = "test1";
@@ -965,7 +967,9 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject()
             .endObject();
-        CreateIndexResponse createResponse = indicesAdmin().create(new CreateIndexRequest(sourceIndex).mapping(mappingBuilder)).actionGet();
+        CreateIndexResponse createResponse = indicesAdmin().create(
+            new CreateIndexRequest(masterNodeTimeout, sourceIndex).mapping(mappingBuilder)
+        ).actionGet();
         assertTrue(createResponse.isAcknowledged());
 
         String policyName = "test1";
@@ -1029,7 +1033,9 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject()
             .endObject();
-        CreateIndexResponse createResponse = indicesAdmin().create(new CreateIndexRequest(sourceIndex).mapping(mappingBuilder)).actionGet();
+        CreateIndexResponse createResponse = indicesAdmin().create(
+            new CreateIndexRequest(masterNodeTimeout, sourceIndex).mapping(mappingBuilder)
+        ).actionGet();
         assertTrue(createResponse.isAcknowledged());
 
         DocWriteResponse indexRequest = client().index(
@@ -1144,7 +1150,9 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject()
             .endObject();
-        CreateIndexResponse createResponse = indicesAdmin().create(new CreateIndexRequest(sourceIndex).mapping(mappingBuilder)).actionGet();
+        CreateIndexResponse createResponse = indicesAdmin().create(
+            new CreateIndexRequest(masterNodeTimeout, sourceIndex).mapping(mappingBuilder)
+        ).actionGet();
         assertTrue(createResponse.isAcknowledged());
 
         DocWriteResponse indexRequest = client().index(
@@ -1257,7 +1265,9 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject()
             .endObject();
-        CreateIndexResponse createResponse = indicesAdmin().create(new CreateIndexRequest(sourceIndex).mapping(mappingBuilder)).actionGet();
+        CreateIndexResponse createResponse = indicesAdmin().create(
+            new CreateIndexRequest(masterNodeTimeout, sourceIndex).mapping(mappingBuilder)
+        ).actionGet();
         assertTrue(createResponse.isAcknowledged());
 
         DocWriteResponse indexRequest = client().index(new IndexRequest().index(sourceIndex).id("id").source("""
@@ -1377,7 +1387,9 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject()
             .endObject();
-        CreateIndexResponse createResponse = indicesAdmin().create(new CreateIndexRequest(sourceIndex).mapping(mappingBuilder)).actionGet();
+        CreateIndexResponse createResponse = indicesAdmin().create(
+            new CreateIndexRequest(masterNodeTimeout, sourceIndex).mapping(mappingBuilder)
+        ).actionGet();
         assertTrue(createResponse.isAcknowledged());
 
         DocWriteResponse indexRequest = client().index(new IndexRequest().index(sourceIndex).id("id").source("""
@@ -1506,7 +1518,9 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject()
             .endObject();
-        CreateIndexResponse createResponse = indicesAdmin().create(new CreateIndexRequest(sourceIndex).mapping(mappingBuilder)).actionGet();
+        CreateIndexResponse createResponse = indicesAdmin().create(
+            new CreateIndexRequest(masterNodeTimeout, sourceIndex).mapping(mappingBuilder)
+        ).actionGet();
         assertTrue(createResponse.isAcknowledged());
 
         DocWriteResponse indexRequest = client().index(new IndexRequest().index(sourceIndex).id("id").source("""
@@ -1634,7 +1648,9 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject()
             .endObject();
-        CreateIndexResponse createResponse = indicesAdmin().create(new CreateIndexRequest(sourceIndex).mapping(mappingBuilder)).actionGet();
+        CreateIndexResponse createResponse = indicesAdmin().create(
+            new CreateIndexRequest(masterNodeTimeout, sourceIndex).mapping(mappingBuilder)
+        ).actionGet();
         assertTrue(createResponse.isAcknowledged());
 
         DocWriteResponse indexRequest = client().index(new IndexRequest().index(sourceIndex).id("id").source("""
@@ -1785,7 +1801,9 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject()
             .endObject();
-        CreateIndexResponse createResponse = indicesAdmin().create(new CreateIndexRequest(sourceIndex).mapping(mappingBuilder)).actionGet();
+        CreateIndexResponse createResponse = indicesAdmin().create(
+            new CreateIndexRequest(masterNodeTimeout, sourceIndex).mapping(mappingBuilder)
+        ).actionGet();
         assertTrue(createResponse.isAcknowledged());
 
         DocWriteResponse indexRequest = client().index(
@@ -2308,7 +2326,9 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject()
             .endObject();
-        CreateIndexResponse createResponse = indicesAdmin().create(new CreateIndexRequest(sourceIndex).mapping(mappingBuilder)).actionGet();
+        CreateIndexResponse createResponse = indicesAdmin().create(
+            new CreateIndexRequest(masterNodeTimeout, sourceIndex).mapping(mappingBuilder)
+        ).actionGet();
         assertTrue(createResponse.isAcknowledged());
 
         String policyName = "test1";

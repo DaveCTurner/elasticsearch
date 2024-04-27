@@ -380,7 +380,9 @@ public class IndicesClusterStateServiceRandomUpdatesTests extends AbstractIndice
             } else {
                 settingsBuilder.put(SETTING_NUMBER_OF_REPLICAS, randomInt(2));
             }
-            CreateIndexRequest request = new CreateIndexRequest(name, settingsBuilder.build()).waitForActiveShards(ActiveShardCount.NONE);
+            CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, name, settingsBuilder.build()).waitForActiveShards(
+                ActiveShardCount.NONE
+            );
             state = cluster.createIndex(state, request);
             assertTrue(state.metadata().hasIndex(name));
         }

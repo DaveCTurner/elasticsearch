@@ -205,7 +205,7 @@ public class RestGetAliasesAction extends BaseRestHandler {
 
         final boolean namesProvided = request.hasParam("name");
         final String[] aliases = request.paramAsStringArrayOrEmptyIfAll("name");
-        final GetAliasesRequest getAliasesRequest = new GetAliasesRequest(aliases);
+        final GetAliasesRequest getAliasesRequest = new GetAliasesRequest(masterNodeTimeout, aliases);
         final String[] indices = Strings.splitStringByCommaToArray(request.param("index"));
         getAliasesRequest.indices(indices);
         getAliasesRequest.indicesOptions(IndicesOptions.fromRequest(request, getAliasesRequest.indicesOptions()));

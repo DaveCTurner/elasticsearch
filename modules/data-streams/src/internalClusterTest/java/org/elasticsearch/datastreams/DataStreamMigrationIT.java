@@ -47,8 +47,8 @@ public class DataStreamMigrationIT extends ESIntegTestCase {
     public void testBasicMigration() throws Exception {
         putComposableIndexTemplate("id1", List.of("migrate*"));
 
-        indicesAdmin().create(new CreateIndexRequest("index1")).get();
-        indicesAdmin().create(new CreateIndexRequest("index2")).get();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, "index1")).get();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, "index2")).get();
 
         int numDocs1 = randomIntBetween(2, 16);
         indexDocs("index1", numDocs1);
@@ -86,8 +86,8 @@ public class DataStreamMigrationIT extends ESIntegTestCase {
     }
 
     public void testMigrationWithoutTemplate() throws Exception {
-        indicesAdmin().create(new CreateIndexRequest("index1")).get();
-        indicesAdmin().create(new CreateIndexRequest("index2")).get();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, "index1")).get();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, "index2")).get();
 
         int numDocs1 = randomIntBetween(2, 16);
         indexDocs("index1", numDocs1);
@@ -123,8 +123,8 @@ public class DataStreamMigrationIT extends ESIntegTestCase {
     public void testMigrationWithoutIndexMappings() throws Exception {
         putComposableIndexTemplate("id1", List.of("migrate*"));
 
-        indicesAdmin().create(new CreateIndexRequest("index1")).get();
-        indicesAdmin().create(new CreateIndexRequest("index2")).get();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, "index1")).get();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, "index2")).get();
 
         String alias = "migrate-to-data-stream";
         IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
@@ -153,8 +153,8 @@ public class DataStreamMigrationIT extends ESIntegTestCase {
     public void testMigrationWithoutTimestampMapping() throws Exception {
         putComposableIndexTemplate("id1", List.of("migrate*"));
 
-        indicesAdmin().create(new CreateIndexRequest("index1")).get();
-        indicesAdmin().create(new CreateIndexRequest("index2")).get();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, "index1")).get();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, "index2")).get();
 
         int numDocs1 = randomIntBetween(2, 16);
         indexDocs("index1", numDocs1, "foo");
@@ -188,8 +188,8 @@ public class DataStreamMigrationIT extends ESIntegTestCase {
     public void testMigrationWithoutWriteIndex() throws Exception {
         putComposableIndexTemplate("id1", List.of("migrate*"));
 
-        indicesAdmin().create(new CreateIndexRequest("index1")).get();
-        indicesAdmin().create(new CreateIndexRequest("index2")).get();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, "index1")).get();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, "index2")).get();
 
         int numDocs1 = randomIntBetween(2, 16);
         indexDocs("index1", numDocs1);

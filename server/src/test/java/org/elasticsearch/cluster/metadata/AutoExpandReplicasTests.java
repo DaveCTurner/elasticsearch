@@ -131,6 +131,7 @@ public class AutoExpandReplicasTests extends ESTestCase {
             ClusterState state = ClusterStateCreationUtils.state(localNode, localNode, allNodes.toArray(new DiscoveryNode[0]));
 
             CreateIndexRequest request = new CreateIndexRequest(
+                masterNodeTimeout,
                 "index",
                 Settings.builder().put(SETTING_NUMBER_OF_SHARDS, 1).put(SETTING_AUTO_EXPAND_REPLICAS, "0-all").build()
             ).waitForActiveShards(ActiveShardCount.NONE);

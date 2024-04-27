@@ -48,7 +48,7 @@ public class NetNewSystemIndexAliasIT extends ESIntegTestCase {
         }
         ensureGreen();
 
-        GetAliasesRequest getAliasesRequest = new GetAliasesRequest();
+        GetAliasesRequest getAliasesRequest = new GetAliasesRequest(masterNodeTimeout);
         GetAliasesResponse aliasResponse = indicesAdmin().getAliases(getAliasesRequest).get();
         assertThat(aliasResponse.getAliases().size(), is(0));
     }

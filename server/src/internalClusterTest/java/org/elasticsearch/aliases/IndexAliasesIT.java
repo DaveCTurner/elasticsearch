@@ -693,7 +693,7 @@ public class IndexAliasesIT extends ESIntegTestCase {
 
     public void testWaitForAliasCreationSingleShard() throws Exception {
         logger.info("--> creating index [test]");
-        assertAcked(indicesAdmin().create(new CreateIndexRequest("test").settings(indexSettings(1, 0))).get());
+        assertAcked(indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, "test").settings(indexSettings(1, 0))).get());
 
         ensureGreen();
 

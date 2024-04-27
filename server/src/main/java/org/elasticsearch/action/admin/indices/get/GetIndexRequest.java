@@ -101,7 +101,8 @@ public class GetIndexRequest extends ClusterInfoRequest<GetIndexRequest> {
                         IndicesOptions.FailureStoreOptions.builder().includeRegularIndices(true).includeFailureIndices(true)
                     )
                     .build()
-                : IndicesOptions.strictExpandOpen()
+                : IndicesOptions.strictExpandOpen(),
+            masterNodeTimeout
         );
     }
 

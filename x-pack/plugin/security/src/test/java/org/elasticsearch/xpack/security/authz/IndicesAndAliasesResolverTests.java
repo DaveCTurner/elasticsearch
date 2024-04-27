@@ -1061,7 +1061,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveGetAliasesRequestStrict() {
-        GetAliasesRequest request = new GetAliasesRequest("alias1").indices("foo", "foofoo");
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout, "alias1").indices("foo", "foofoo");
         request.indicesOptions(IndicesOptions.fromOptions(false, randomBoolean(), randomBoolean(), randomBoolean()));
         final AuthorizedIndices authorizedIndices = buildAuthorizedIndices(user, GetAliasesAction.NAME);
         List<String> indices = resolveIndices(request, authorizedIndices).getLocal();
@@ -1074,7 +1074,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveGetAliasesRequestIgnoreUnavailable() {
-        GetAliasesRequest request = new GetAliasesRequest("alias1").indices("foo", "foofoo");
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout, "alias1").indices("foo", "foofoo");
         request.indicesOptions(IndicesOptions.fromOptions(true, randomBoolean(), randomBoolean(), randomBoolean()));
         final AuthorizedIndices authorizedIndices = buildAuthorizedIndices(user, GetAliasesAction.NAME);
         List<String> indices = resolveIndices(request, authorizedIndices).getLocal();
@@ -1086,7 +1086,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveGetAliasesRequestMissingIndexStrict() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.indicesOptions(IndicesOptions.fromOptions(false, randomBoolean(), true, randomBoolean()));
         request.indices("missing");
         request.aliases("alias2");
@@ -1105,7 +1105,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testGetAliasesRequestMissingIndexIgnoreUnavailableDisallowNoIndices() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.indicesOptions(IndicesOptions.fromOptions(true, false, randomBoolean(), randomBoolean()));
         request.indices("missing");
         request.aliases("alias2");
@@ -1123,7 +1123,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testGetAliasesRequestMissingIndexIgnoreUnavailableAllowNoIndices() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.indicesOptions(IndicesOptions.fromOptions(true, true, randomBoolean(), randomBoolean()));
         request.indices("missing");
         request.aliases("alias2");
@@ -1137,7 +1137,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testGetAliasesRequestMissingIndexStrict() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.indicesOptions(IndicesOptions.fromOptions(false, randomBoolean(), randomBoolean(), randomBoolean()));
         request.indices("missing");
         request.aliases("alias2");
@@ -1151,7 +1151,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveWildcardsGetAliasesRequestStrictExpand() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.indicesOptions(IndicesOptions.fromOptions(false, randomBoolean(), true, true));
         request.aliases("alias1");
         request.indices("foo*");
@@ -1167,7 +1167,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveWildcardsGetAliasesRequestStrictExpandOpen() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.indicesOptions(IndicesOptions.fromOptions(false, randomBoolean(), true, false));
         request.aliases("alias1");
         request.indices("foo*");
@@ -1183,7 +1183,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveWildcardsGetAliasesRequestLenientExpandOpen() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.indicesOptions(IndicesOptions.fromOptions(randomBoolean(), randomBoolean(), true, false));
         request.aliases("alias1");
         request.indices("foo*", "bar", "missing");
@@ -1197,7 +1197,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testWildcardsGetAliasesRequestNoMatchingIndicesDisallowNoIndices() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.indicesOptions(IndicesOptions.fromOptions(randomBoolean(), false, true, randomBoolean()));
         request.aliases("alias3");
         request.indices("non_matching_*");
@@ -1209,7 +1209,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testWildcardsGetAliasesRequestNoMatchingIndicesAllowNoIndices() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.indicesOptions(IndicesOptions.fromOptions(randomBoolean(), true, true, randomBoolean()));
         request.aliases("alias3");
         request.indices("non_matching_*");
@@ -1217,7 +1217,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAllGetAliasesRequest() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         // even if not set, empty means _all
         if (randomBoolean()) {
             request.indices("_all");
@@ -1260,7 +1260,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAllGetAliasesRequestExpandWildcardsOpenOnly() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         // set indices options to have wildcards resolved to open indices only (default is open and closed)
         request.indicesOptions(IndicesOptions.fromOptions(true, false, true, false));
         // even if not set, empty means _all
@@ -1281,7 +1281,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testAllGetAliasesRequestNoAuthorizedIndicesAllowNoIndices() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.indicesOptions(IndicesOptions.fromOptions(randomBoolean(), true, true, randomBoolean()));
         request.aliases("alias1");
         request.indices("_all");
@@ -1289,7 +1289,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testAllGetAliasesRequestNoAuthorizedIndicesDisallowNoIndices() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.indicesOptions(IndicesOptions.fromOptions(randomBoolean(), false, true, randomBoolean()));
         request.aliases("alias1");
         request.indices("_all");
@@ -1301,7 +1301,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testWildcardsGetAliasesRequestNoAuthorizedIndicesAllowNoIndices() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.aliases("alias1");
         request.indices("foo*");
         request.indicesOptions(IndicesOptions.fromOptions(randomBoolean(), true, true, randomBoolean()));
@@ -1309,7 +1309,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testWildcardsGetAliasesRequestNoAuthorizedIndicesDisallowNoIndices() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.indicesOptions(IndicesOptions.fromOptions(randomBoolean(), false, true, randomBoolean()));
         request.aliases("alias1");
         request.indices("foo*");
@@ -1322,7 +1322,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAllAliasesGetAliasesRequest() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         if (randomBoolean()) {
             request.aliases("_all");
         }
@@ -1352,7 +1352,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAllAndExplicitAliasesGetAliasesRequest() {
-        GetAliasesRequest request = new GetAliasesRequest(new String[] { "_all", "explicit" });
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout, new String[] { "_all", "explicit" });
         if (randomBoolean()) {
             request.indices("_all");
         }
@@ -1397,7 +1397,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAllAndWildcardsAliasesGetAliasesRequest() {
-        GetAliasesRequest request = new GetAliasesRequest(new String[] { "_all", "foo*", "non_matching_*" });
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout, new String[] { "_all", "foo*", "non_matching_*" });
         if (randomBoolean()) {
             request.indices("_all");
         }
@@ -1424,7 +1424,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAliasesWildcardsGetAliasesRequest() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.indices("*bar");
         request.aliases("foo*");
         final AuthorizedIndices authorizedIndices = buildAuthorizedIndices(user, GetAliasesAction.NAME);
@@ -1440,7 +1440,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAliasesWildcardsGetAliasesRequestNoAuthorizedIndices() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         // no authorized aliases match bar*, hence aliases are replaced with the no-aliases-expression
         request.aliases("bar*");
         request.indices("*bar");
@@ -1449,7 +1449,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAliasesExclusionWildcardsGetAliasesRequest() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         request.aliases("foo*", "-foobar*");
         final AuthorizedIndices authorizedIndices = buildAuthorizedIndices(user, GetAliasesAction.NAME);
         List<String> indices = resolveIndices(request, authorizedIndices).getLocal();
@@ -1493,7 +1493,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAliasesAllGetAliasesRequestNoAuthorizedIndices() {
-        GetAliasesRequest request = new GetAliasesRequest();
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout);
         if (randomBoolean()) {
             request.aliases("_all");
         }
@@ -1756,7 +1756,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
                 null
             )
         );
-        GetAliasesRequest request = new GetAliasesRequest("<datetime-{now/M}>").indices("foo", "foofoo");
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout, "<datetime-{now/M}>").indices("foo", "foofoo");
         List<String> indices = resolveIndices(request, buildAuthorizedIndices(user, GetAliasesAction.NAME)).getLocal();
         // the union of all indices and aliases gets returned
         String[] expectedIndices = new String[] { "<datetime-{now/M}>", "foo", "foofoo" };
@@ -2066,7 +2066,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
 
     public void testDataStreamsAreNotVisibleWhenNotIncludedByRequestWithWildcard() {
         final User user = new User("data-stream-tester2", "data_stream_test2");
-        GetAliasesRequest request = new GetAliasesRequest("*");
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout, "*");
         assertThat(request, instanceOf(IndicesRequest.Replaceable.class));
         assertThat(request.includeDataStreams(), is(true));
 
@@ -2107,7 +2107,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     public void testDataStreamsAreNotVisibleWhenNotIncludedByRequestWithoutWildcard() {
         final User user = new User("data-stream-tester2", "data_stream_test2");
         String dataStreamName = "logs-foobar";
-        GetAliasesRequest request = new GetAliasesRequest(dataStreamName);
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout, dataStreamName);
         assertThat(request, instanceOf(IndicesRequest.Replaceable.class));
         assertThat(request.includeDataStreams(), is(true));
 
@@ -2250,7 +2250,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     public void testBackingIndicesAreNotVisibleWhenNotIncludedByRequestWithoutWildcard() {
         final User user = new User("data-stream-tester2", "data_stream_test2");
         String dataStreamName = "logs-foobar";
-        GetAliasesRequest request = new GetAliasesRequest(dataStreamName);
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout, dataStreamName);
         assertThat(request, instanceOf(IndicesRequest.Replaceable.class));
         assertThat(request.includeDataStreams(), is(true));
 
@@ -2346,7 +2346,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     public void testDataStreamNotAuthorizedWhenBackingIndicesAreAuthorizedViaWildcardAndRequestThatExcludesDataStreams() {
         final User user = new User("data-stream-tester2", "backing_index_test_wildcards");
         String indexName = ".ds-logs-foobar-*";
-        GetAliasesRequest request = new GetAliasesRequest(indexName);
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout, indexName);
         assertThat(request, instanceOf(IndicesRequest.Replaceable.class));
         assertThat(request.includeDataStreams(), is(true));
 
@@ -2381,7 +2381,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     public void testDataStreamNotAuthorizedWhenBackingIndicesAreAuthorizedViaNameAndRequestThatExcludesDataStreams() {
         final User user = new User("data-stream-tester2", "backing_index_test_name");
         String indexName = ".ds-logs-foobar-*";
-        GetAliasesRequest request = new GetAliasesRequest(indexName);
+        GetAliasesRequest request = new GetAliasesRequest(masterNodeTimeout, indexName);
         assertThat(request, instanceOf(IndicesRequest.Replaceable.class));
         assertThat(request.includeDataStreams(), is(true));
 

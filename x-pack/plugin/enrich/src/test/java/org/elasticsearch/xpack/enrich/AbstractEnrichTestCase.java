@@ -64,7 +64,7 @@ public abstract class AbstractEnrichTestCase extends ESSingleNodeTestCase {
 
     protected static void createSourceIndices(Client client, EnrichPolicy policy) {
         for (String sourceIndex : policy.getIndices()) {
-            CreateIndexRequest createIndexRequest = new CreateIndexRequest(sourceIndex);
+            CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, sourceIndex);
             createIndexRequest.simpleMapping(policy.getMatchField(), "type=keyword");
             try {
                 client.admin().indices().create(createIndexRequest).actionGet();

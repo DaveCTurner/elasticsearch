@@ -338,7 +338,8 @@ public class TransformConfigManagerTests extends TransformSingleNodeTestCase {
         String oldIndex = TransformInternalIndexConstants.INDEX_PATTERN + "001";
         String docId = TransformConfig.documentId(transformConfig2.getId());
         TransformConfig transformConfig = TransformConfigTests.randomTransformConfig(transformConfig2.getId());
-        indicesAdmin().create(new CreateIndexRequest(oldIndex).mapping(mappings()).origin(ClientHelper.TRANSFORM_ORIGIN)).actionGet();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, oldIndex).mapping(mappings()).origin(ClientHelper.TRANSFORM_ORIGIN))
+            .actionGet();
 
         try (XContentBuilder builder = XContentFactory.jsonBuilder()) {
             XContentBuilder source = transformConfig.toXContent(builder, new ToXContent.MapParams(TO_XCONTENT_PARAMS));
@@ -403,7 +404,8 @@ public class TransformConfigManagerTests extends TransformSingleNodeTestCase {
         String transformId = "transform_42";
         String docId = TransformConfig.documentId(transformId);
         TransformConfig transformConfig = TransformConfigTests.randomTransformConfig(transformId);
-        indicesAdmin().create(new CreateIndexRequest(oldIndex).mapping(mappings()).origin(ClientHelper.TRANSFORM_ORIGIN)).actionGet();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, oldIndex).mapping(mappings()).origin(ClientHelper.TRANSFORM_ORIGIN))
+            .actionGet();
 
         try (XContentBuilder builder = XContentFactory.jsonBuilder()) {
             XContentBuilder source = transformConfig.toXContent(builder, new ToXContent.MapParams(TO_XCONTENT_PARAMS));
@@ -528,7 +530,8 @@ public class TransformConfigManagerTests extends TransformSingleNodeTestCase {
         String transformId = "transform_test_delete_old_configurations";
         String docId = TransformConfig.documentId(transformId);
         TransformConfig transformConfig = TransformConfigTests.randomTransformConfig("transform_test_delete_old_configurations");
-        indicesAdmin().create(new CreateIndexRequest(oldIndex).mapping(mappings()).origin(ClientHelper.TRANSFORM_ORIGIN)).actionGet();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, oldIndex).mapping(mappings()).origin(ClientHelper.TRANSFORM_ORIGIN))
+            .actionGet();
 
         try (XContentBuilder builder = XContentFactory.jsonBuilder()) {
             XContentBuilder source = transformConfig.toXContent(builder, new ToXContent.MapParams(TO_XCONTENT_PARAMS));
@@ -561,7 +564,8 @@ public class TransformConfigManagerTests extends TransformSingleNodeTestCase {
         String transformId = "transform_test_delete_old_stored_documents";
         String docId = TransformStoredDoc.documentId(transformId);
         TransformStoredDoc transformStoredDoc = TransformStoredDocTests.randomTransformStoredDoc(transformId);
-        indicesAdmin().create(new CreateIndexRequest(oldIndex).mapping(mappings()).origin(ClientHelper.TRANSFORM_ORIGIN)).actionGet();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, oldIndex).mapping(mappings()).origin(ClientHelper.TRANSFORM_ORIGIN))
+            .actionGet();
 
         try (XContentBuilder builder = XContentFactory.jsonBuilder()) {
             XContentBuilder source = transformStoredDoc.toXContent(builder, new ToXContent.MapParams(TO_XCONTENT_PARAMS));
@@ -698,7 +702,8 @@ public class TransformConfigManagerTests extends TransformSingleNodeTestCase {
         TransformConfig transformConfigNew = TransformConfigTests.randomTransformConfig(transformId);
 
         // create config in old index
-        indicesAdmin().create(new CreateIndexRequest(oldIndex).mapping(mappings()).origin(ClientHelper.TRANSFORM_ORIGIN)).actionGet();
+        indicesAdmin().create(new CreateIndexRequest(masterNodeTimeout, oldIndex).mapping(mappings()).origin(ClientHelper.TRANSFORM_ORIGIN))
+            .actionGet();
 
         try (XContentBuilder builder = XContentFactory.jsonBuilder()) {
             XContentBuilder source = transformConfigOld.toXContent(builder, new ToXContent.MapParams(TO_XCONTENT_PARAMS));

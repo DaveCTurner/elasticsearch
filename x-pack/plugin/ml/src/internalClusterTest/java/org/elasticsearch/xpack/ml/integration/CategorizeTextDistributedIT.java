@@ -48,7 +48,7 @@ public class CategorizeTextDistributedIT extends BaseMlIntegTestCase {
         // System indices may affect the distribution of shards of this index,
         // but it has so many that it should have shards on all the nodes
         String indexName = "data";
-        CreateIndexRequest createIndexRequest = new CreateIndexRequest(indexName).settings(
+        CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, indexName).settings(
             Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, "9").put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, "0")
         );
         client().admin().indices().create(createIndexRequest).actionGet();

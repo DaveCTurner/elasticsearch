@@ -577,7 +577,7 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
     }
 
     void createIndex(String index, boolean requireDataStream, TimeValue timeout, ActionListener<CreateIndexResponse> listener) {
-        CreateIndexRequest createIndexRequest = new CreateIndexRequest();
+        CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout);
         createIndexRequest.index(index);
         createIndexRequest.requireDataStream(requireDataStream);
         createIndexRequest.cause("auto(bulk api)");

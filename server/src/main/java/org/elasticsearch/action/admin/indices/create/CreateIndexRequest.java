@@ -26,6 +26,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.xcontent.DeprecationHandler;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
@@ -111,26 +112,28 @@ public class CreateIndexRequest extends AcknowledgedRequest<CreateIndexRequest> 
         }
     }
 
-    public CreateIndexRequest() {
+    public CreateIndexRequest(TimeValue masterNodeTimeout) {
         super(masterNodeTimeout);
     }
 
     /**
      * Constructs a request to create an index.
      *
-     * @param index the name of the index
+     * @param masterNodeTimeout
+     * @param index             the name of the index
      */
-    public CreateIndexRequest(String index) {
-        this(index, Settings.EMPTY);
+    public CreateIndexRequest(TimeValue masterNodeTimeout, String index) {
+        this(masterNodeTimeout, index, Settings.EMPTY);
     }
 
     /**
      * Constructs a request to create an index.
      *
-     * @param index the name of the index
-     * @param settings the settings to apply to the index
+     * @param masterNodeTimeout
+     * @param index             the name of the index
+     * @param settings          the settings to apply to the index
      */
-    public CreateIndexRequest(String index, Settings settings) {
+    public CreateIndexRequest(TimeValue masterNodeTimeout, String index, Settings settings) {
         super(masterNodeTimeout);
         this.index = index;
         this.settings = settings;

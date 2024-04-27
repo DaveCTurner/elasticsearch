@@ -321,7 +321,7 @@ public class DataStreamGetWriteIndexTests extends ESTestCase {
     private MetadataRolloverService.RolloverResult rolloverOver(ClusterState state, String name, Instant time) throws Exception {
         MaxDocsCondition condition = new MaxDocsCondition(randomNonNegativeLong());
         List<Condition<?>> metConditions = Collections.singletonList(condition);
-        CreateIndexRequest createIndexRequest = new CreateIndexRequest("_na_");
+        CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, "_na_");
         return rolloverService.rolloverClusterState(
             state,
             name,

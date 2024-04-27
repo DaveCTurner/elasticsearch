@@ -694,7 +694,7 @@ public class IndexResolver {
     }
 
     private static GetAliasesRequest createGetAliasesRequest(FieldCapabilitiesResponse response, boolean includeFrozen) {
-        return new GetAliasesRequest().aliases("*")
+        return new GetAliasesRequest(masterNodeTimeout).aliases("*")
             .indices(response.getIndices())
             .indicesOptions(includeFrozen ? FIELD_CAPS_FROZEN_INDICES_OPTIONS : FIELD_CAPS_INDICES_OPTIONS);
     }

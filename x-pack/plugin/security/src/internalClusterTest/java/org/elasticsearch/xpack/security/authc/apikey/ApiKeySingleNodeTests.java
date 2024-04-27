@@ -212,7 +212,7 @@ public class ApiKeySingleNodeTests extends SecuritySingleNodeTestCase {
             () -> client().filterWithHeader(Map.of("Authorization", "ApiKey " + base64ApiKeyKeyValue))
                 .execute(
                     TransportCreateIndexAction.TYPE,
-                    new CreateIndexRequest(randomFrom(randomAlphaOfLengthBetween(3, 8), SECURITY_MAIN_ALIAS))
+                    new CreateIndexRequest(masterNodeTimeout, randomFrom(randomAlphaOfLengthBetween(3, 8), SECURITY_MAIN_ALIAS))
                 )
                 .actionGet()
         );

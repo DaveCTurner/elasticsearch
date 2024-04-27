@@ -23,7 +23,7 @@ public abstract class BaseAliasesRequestBuilder<
         Builder> {
 
     public BaseAliasesRequestBuilder(ElasticsearchClient client, ActionType<Response> action, String... aliases) {
-        super(client, action, new GetAliasesRequest(aliases));
+        super(client, action, new GetAliasesRequest(masterNodeTimeout, aliases));
     }
 
     @SuppressWarnings("unchecked")

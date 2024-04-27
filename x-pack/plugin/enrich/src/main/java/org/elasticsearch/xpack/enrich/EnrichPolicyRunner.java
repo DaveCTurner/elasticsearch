@@ -443,7 +443,7 @@ public class EnrichPolicyRunner implements Runnable {
             // This disables eager global ordinals loading for all fields:
             .put("index.warmer.enabled", false)
             .build();
-        CreateIndexRequest createEnrichIndexRequest = new CreateIndexRequest(enrichIndexName, enrichIndexSettings);
+        CreateIndexRequest createEnrichIndexRequest = new CreateIndexRequest(masterNodeTimeout, enrichIndexName, enrichIndexSettings);
         createEnrichIndexRequest.mapping(createEnrichMapping(mappings));
         logger.debug("Policy [{}]: Creating new enrich index [{}]", policyName, enrichIndexName);
         enrichOriginClient().admin()
@@ -686,7 +686,7 @@ public class EnrichPolicyRunner implements Runnable {
     private void updateEnrichPolicyAlias(final String destinationIndexName) {
         String enrichIndexBase = EnrichPolicy.getBaseName(policyName);
         logger.debug("Policy [{}]: Promoting new enrich index [{}] to alias [{}]", policyName, destinationIndexName, enrichIndexBase);
-        GetAliasesRequest aliasRequest = new GetAliasesRequest(enrichIndexBase);
+        GetAliasesRequest aliasRequest = new GetAliasesRequest(masterNodeTimeout, enrichIndexBase);
         ClusterState clusterState = clusterService.state();
         validateIndexBeforePromotion(destinationIndexName, clusterState);
         String[] concreteIndices = indexNameExpressionResolver.concreteIndexNamesWithSystemIndexAccess(clusterState, aliasRequest);

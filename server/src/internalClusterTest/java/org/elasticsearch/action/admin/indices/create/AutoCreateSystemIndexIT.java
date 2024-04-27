@@ -67,7 +67,7 @@ public class AutoCreateSystemIndexIT extends ESIntegTestCase {
     }
 
     public void testAutoCreatePrimaryIndex() throws Exception {
-        CreateIndexRequest request = new CreateIndexRequest(PRIMARY_INDEX_NAME);
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, PRIMARY_INDEX_NAME);
         client().execute(AutoCreateAction.INSTANCE, request).get();
 
         GetIndexResponse response = indicesAdmin().prepareGetIndex().addIndices(PRIMARY_INDEX_NAME).get();
@@ -81,7 +81,7 @@ public class AutoCreateSystemIndexIT extends ESIntegTestCase {
     }
 
     public void testAutoCreatePrimaryIndexFromAlias() throws Exception {
-        CreateIndexRequest request = new CreateIndexRequest(INDEX_NAME);
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, INDEX_NAME);
         client().execute(AutoCreateAction.INSTANCE, request).get();
 
         GetIndexResponse response = indicesAdmin().prepareGetIndex().addIndices(PRIMARY_INDEX_NAME).get();
@@ -95,7 +95,7 @@ public class AutoCreateSystemIndexIT extends ESIntegTestCase {
     }
 
     public void testAutoCreateNonPrimaryIndex() throws Exception {
-        CreateIndexRequest request = new CreateIndexRequest(INDEX_NAME + "-2");
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, INDEX_NAME + "-2");
         client().execute(AutoCreateAction.INSTANCE, request).get();
 
         GetIndexResponse response = indicesAdmin().prepareGetIndex().addIndices(INDEX_NAME + "-2").get();
@@ -107,12 +107,12 @@ public class AutoCreateSystemIndexIT extends ESIntegTestCase {
 
     public void testWriteToAliasPrimaryAutoCreatedFirst() throws Exception {
         {
-            CreateIndexRequest request = new CreateIndexRequest(PRIMARY_INDEX_NAME);
+            CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, PRIMARY_INDEX_NAME);
             client().execute(AutoCreateAction.INSTANCE, request).get();
         }
 
         {
-            CreateIndexRequest request = new CreateIndexRequest(INDEX_NAME + "-2");
+            CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, INDEX_NAME + "-2");
             client().execute(AutoCreateAction.INSTANCE, request).get();
         }
 
@@ -126,12 +126,12 @@ public class AutoCreateSystemIndexIT extends ESIntegTestCase {
      */
     public void testWriteToAliasSecondaryAutoCreatedFirst() throws Exception {
         {
-            CreateIndexRequest request = new CreateIndexRequest(INDEX_NAME + "-2");
+            CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, INDEX_NAME + "-2");
             client().execute(AutoCreateAction.INSTANCE, request).get();
         }
 
         {
-            CreateIndexRequest request = new CreateIndexRequest(PRIMARY_INDEX_NAME);
+            CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, PRIMARY_INDEX_NAME);
             client().execute(AutoCreateAction.INSTANCE, request).get();
         }
 
@@ -140,7 +140,7 @@ public class AutoCreateSystemIndexIT extends ESIntegTestCase {
     }
 
     public void testSystemIndicesAutoCreatedAsHidden() throws Exception {
-        CreateIndexRequest request = new CreateIndexRequest(UnmanagedSystemIndexTestPlugin.SYSTEM_INDEX_NAME);
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, UnmanagedSystemIndexTestPlugin.SYSTEM_INDEX_NAME);
         client().execute(AutoCreateAction.INSTANCE, request).get();
 
         GetIndexResponse response = indicesAdmin().prepareGetIndex().addIndices(UnmanagedSystemIndexTestPlugin.SYSTEM_INDEX_NAME).get();
@@ -151,7 +151,7 @@ public class AutoCreateSystemIndexIT extends ESIntegTestCase {
     }
 
     public void testSystemIndicesAutoCreateRejectedWhenNotHidden() {
-        CreateIndexRequest request = new CreateIndexRequest(UnmanagedSystemIndexTestPlugin.SYSTEM_INDEX_NAME);
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, UnmanagedSystemIndexTestPlugin.SYSTEM_INDEX_NAME);
         request.settings(Settings.builder().put(SETTING_INDEX_HIDDEN, false).build());
         assertThat(
             expectThrows(IllegalStateException.class, client().execute(AutoCreateAction.INSTANCE, request)).getMessage(),
@@ -167,7 +167,7 @@ public class AutoCreateSystemIndexIT extends ESIntegTestCase {
         );
 
         String nonPrimaryIndex = indexName + "-2";
-        CreateIndexRequest request = new CreateIndexRequest(nonPrimaryIndex);
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, nonPrimaryIndex);
         assertAcked(client().execute(AutoCreateAction.INSTANCE, request).get());
         assertTrue(indexExists(nonPrimaryIndex));
 
@@ -222,7 +222,7 @@ public class AutoCreateSystemIndexIT extends ESIntegTestCase {
         );
 
         String nonPrimaryIndex = indexName + "-2";
-        CreateIndexRequest request = new CreateIndexRequest(nonPrimaryIndex);
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, nonPrimaryIndex);
         assertAcked(client().execute(AutoCreateAction.INSTANCE, request).get());
 
         assertTrue(indexExists(nonPrimaryIndex));
@@ -272,7 +272,7 @@ public class AutoCreateSystemIndexIT extends ESIntegTestCase {
     private void assertAliasesHidden(String nonPrimaryIndex, Set<String> aliasNames, int aliasCount) throws InterruptedException,
         ExecutionException {
         final GetAliasesResponse getAliasesResponse = indicesAdmin().getAliases(
-            new GetAliasesRequest().indicesOptions(IndicesOptions.strictExpandHidden())
+            new GetAliasesRequest(masterNodeTimeout).indicesOptions(IndicesOptions.strictExpandHidden())
         ).get();
 
         assertThat(getAliasesResponse.getAliases().size(), equalTo(1));

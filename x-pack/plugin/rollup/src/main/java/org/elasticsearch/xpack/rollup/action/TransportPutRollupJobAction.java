@@ -155,7 +155,7 @@ public class TransportPutRollupJobAction extends AcknowledgedTransportMasterNode
         Logger logger
     ) {
 
-        CreateIndexRequest request = new CreateIndexRequest(job.getConfig().getRollupIndex());
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, job.getConfig().getRollupIndex());
         try {
             XContentBuilder mapping = createMappings(job.getConfig());
             request.source(mapping);

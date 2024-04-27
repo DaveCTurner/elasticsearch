@@ -158,7 +158,9 @@ public class AnnotationIndex {
                     )
                 );
 
-                CreateIndexRequest createIndexRequest = new CreateIndexRequest(LATEST_INDEX_NAME).mapping(annotationsMapping())
+                CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, LATEST_INDEX_NAME).mapping(
+                    annotationsMapping()
+                )
                     .settings(
                         Settings.builder()
                             .put(IndexMetadata.SETTING_AUTO_EXPAND_REPLICAS, "0-1")

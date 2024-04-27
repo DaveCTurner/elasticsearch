@@ -100,7 +100,7 @@ public class RolloverRequest extends AcknowledgedRequest<RolloverRequest> implem
     private boolean lazy;
     private RolloverConditions conditions = new RolloverConditions();
     // the index name "_na_" is never read back, what matters are settings, mappings and aliases
-    private CreateIndexRequest createIndexRequest = new CreateIndexRequest("_na_");
+    private CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, "_na_");
     private IndicesOptions indicesOptions = IndicesOptions.strictSingleIndexNoExpandForbidClosed();
 
     public RolloverRequest(StreamInput in) throws IOException {

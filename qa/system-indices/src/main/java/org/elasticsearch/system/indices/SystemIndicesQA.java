@@ -158,7 +158,7 @@ public class SystemIndicesQA extends Plugin implements SystemIndexPlugin, Action
         protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
             return channel -> client.admin()
                 .indices()
-                .create(new CreateIndexRequest(".net-new-system-index-primary"), new RestToXContentListener<>(channel));
+                .create(new CreateIndexRequest(masterNodeTimeout, ".net-new-system-index-primary"), new RestToXContentListener<>(channel));
         }
 
         @Override

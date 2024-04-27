@@ -233,7 +233,9 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
 
         // Create an old annotations index with both read and write aliases pointing at it.
         String oldIndex = randomFrom(AnnotationIndex.OLD_INDEX_NAMES);
-        CreateIndexRequest createIndexRequest = new CreateIndexRequest(oldIndex).mapping(AnnotationIndex.annotationsMapping())
+        CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, oldIndex).mapping(
+            AnnotationIndex.annotationsMapping()
+        )
             .settings(
                 Settings.builder()
                     .put(IndexMetadata.SETTING_AUTO_EXPAND_REPLICAS, "0-1")
@@ -346,7 +348,9 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
     }
 
     private void createReindexedIndex(String reindexedIndexName) {
-        CreateIndexRequest createIndexRequest = new CreateIndexRequest(reindexedIndexName).mapping(AnnotationIndex.annotationsMapping())
+        CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, reindexedIndexName).mapping(
+            AnnotationIndex.annotationsMapping()
+        )
             .settings(
                 Settings.builder()
                     .put(IndexMetadata.SETTING_AUTO_EXPAND_REPLICAS, "0-1")

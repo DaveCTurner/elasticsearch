@@ -180,7 +180,7 @@ public final class TransformIndex {
         TransformDestIndexSettings destIndexSettings,
         ActionListener<Boolean> listener
     ) {
-        CreateIndexRequest request = new CreateIndexRequest(config.getDestination().getIndex());
+        CreateIndexRequest request = new CreateIndexRequest(masterNodeTimeout, config.getDestination().getIndex());
         request.settings(destIndexSettings.getSettings());
         request.mapping(destIndexSettings.getMappings());
         for (Alias alias : destIndexSettings.getAliases()) {

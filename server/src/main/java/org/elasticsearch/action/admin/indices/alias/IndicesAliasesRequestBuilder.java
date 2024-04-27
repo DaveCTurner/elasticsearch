@@ -11,6 +11,7 @@ package org.elasticsearch.action.admin.indices.alias;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.support.master.AcknowledgedRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.query.QueryBuilder;
 
 import java.util.Map;
@@ -23,7 +24,7 @@ public class IndicesAliasesRequestBuilder extends AcknowledgedRequestBuilder<
     IndicesAliasesResponse,
     IndicesAliasesRequestBuilder> {
 
-    public IndicesAliasesRequestBuilder(ElasticsearchClient client) {
+    public IndicesAliasesRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client) {
         super(client, TransportIndicesAliasesAction.TYPE, new IndicesAliasesRequest(masterNodeTimeout));
     }
 

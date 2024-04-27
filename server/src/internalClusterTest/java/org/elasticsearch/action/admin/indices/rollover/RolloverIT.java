@@ -864,7 +864,7 @@ public class RolloverIT extends ESIntegTestCase {
 
         for (int i = 0; i < numOfThreads; i++) {
             var aliasName = "test-" + i;
-            var response = indicesAdmin().getAliases(new GetAliasesRequest(aliasName)).get();
+            var response = indicesAdmin().getAliases(new GetAliasesRequest(masterNodeTimeout, aliasName)).get();
             List<Map.Entry<String, List<AliasMetadata>>> actual = response.getAliases().entrySet().stream().toList();
             List<Map.Entry<String, List<AliasMetadata>>> expected = new ArrayList<>(numberOfRolloversPerThread);
             int numOfIndices = numberOfRolloversPerThread + 1;

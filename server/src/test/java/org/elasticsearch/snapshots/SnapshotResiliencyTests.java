@@ -855,7 +855,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
             // finalization
             final GroupedActionListener<CreateIndexResponse> listener = new GroupedActionListener<>(indices, createIndicesListener);
             for (int i = 0; i < indices; ++i) {
-                client().admin().indices().create(new CreateIndexRequest("index-" + i), listener);
+                client().admin().indices().create(new CreateIndexRequest(masterNodeTimeout, "index-" + i), listener);
             }
         });
 
@@ -881,7 +881,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 public void onResponse(AcknowledgedResponse acknowledgedResponse) {
                     if (partialSnapshot) {
                         // Recreate index by the same name to test that we don't snapshot conflicting metadata in this scenario
-                        client().admin().indices().create(new CreateIndexRequest(index), ActionListener.noop());
+                        client().admin().indices().create(new CreateIndexRequest(masterNodeTimeout, index), ActionListener.noop());
                     }
                 }
 
@@ -1311,7 +1311,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
                         client.admin()
                             .indices()
                             .create(
-                                new CreateIndexRequest(index).waitForActiveShards(ActiveShardCount.ALL).settings(defaultIndexSettings(1)),
+                                new CreateIndexRequest(masterNodeTimeout, index).waitForActiveShards(ActiveShardCount.ALL)
+                                    .settings(defaultIndexSettings(1)),
                                 listeners.acquire(createIndexResponse -> {})
                             );
                     }
@@ -1412,7 +1413,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                 l -> client().admin()
                                     .indices()
                                     .create(
-                                        new CreateIndexRequest(index).waitForActiveShards(ActiveShardCount.NONE)
+                                        new CreateIndexRequest(masterNodeTimeout, index).waitForActiveShards(ActiveShardCount.NONE)
                                             .settings(defaultIndexSettings(1)),
                                         l
                                     )
@@ -1646,7 +1647,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
             acknowledgedResponse -> client().admin()
                 .indices()
                 .create(
-                    new CreateIndexRequest(index).waitForActiveShards(ActiveShardCount.ALL).settings(defaultIndexSettings(shards)),
+                    new CreateIndexRequest(masterNodeTimeout, index).waitForActiveShards(ActiveShardCount.ALL)
+                        .settings(defaultIndexSettings(shards)),
                     createIndexResponseStepListener
                 )
         );
