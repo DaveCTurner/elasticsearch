@@ -35,7 +35,7 @@ public class RestDeleteSnapshotLifecycleAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
         String lifecycleId = request.param("name");
-        DeleteSnapshotLifecycleAction.Request req = new DeleteSnapshotLifecycleAction.Request(lifecycleId);
+        DeleteSnapshotLifecycleAction.Request req = new DeleteSnapshotLifecycleAction.Request(masterNodeTimeout, lifecycleId);
         req.ackTimeout(request.paramAsTime("timeout", req.ackTimeout()));
         req.masterNodeTimeout(request.paramAsTime("master_timeout", req.masterNodeTimeout()));
 

@@ -39,7 +39,7 @@ public class RestMigrateToDataTiersAction extends BaseRestHandler {
                 migrateRequest = MigrateToDataTiersRequest.parse(parser);
             }
         } else {
-            migrateRequest = new MigrateToDataTiersRequest();
+            migrateRequest = new MigrateToDataTiersRequest(masterNodeTimeout);
         }
         migrateRequest.setDryRun(request.paramAsBoolean("dry_run", false));
         return channel -> client.execute(MigrateToDataTiersAction.INSTANCE, migrateRequest, new RestToXContentListener<>(channel));

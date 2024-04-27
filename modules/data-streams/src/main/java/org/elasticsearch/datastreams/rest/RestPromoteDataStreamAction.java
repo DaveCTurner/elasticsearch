@@ -8,6 +8,7 @@
 package org.elasticsearch.datastreams.rest;
 
 import org.elasticsearch.action.datastreams.PromoteDataStreamAction;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
@@ -31,7 +32,10 @@ public class RestPromoteDataStreamAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest restRequest, NodeClient client) throws IOException {
-        PromoteDataStreamAction.Request request = new PromoteDataStreamAction.Request(masterNodeTimeout, restRequest.param("name"));
+        PromoteDataStreamAction.Request request = new PromoteDataStreamAction.Request(
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */,
+            restRequest.param("name")
+        );
         return channel -> client.execute(PromoteDataStreamAction.INSTANCE, request, new RestToXContentListener<>(channel));
     }
 }

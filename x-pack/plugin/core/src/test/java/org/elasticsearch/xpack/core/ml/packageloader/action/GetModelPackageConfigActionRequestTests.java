@@ -13,7 +13,7 @@ import org.elasticsearch.test.AbstractWireSerializingTestCase;
 public class GetModelPackageConfigActionRequestTests extends AbstractWireSerializingTestCase<GetTrainedModelPackageConfigAction.Request> {
 
     public static GetTrainedModelPackageConfigAction.Request randomGetModelPackageConfigRequest() {
-        return new GetTrainedModelPackageConfigAction.Request(randomAlphaOfLength(10));
+        return new GetTrainedModelPackageConfigAction.Request(masterNodeTimeout, randomAlphaOfLength(10));
     }
 
     @Override
@@ -28,7 +28,10 @@ public class GetModelPackageConfigActionRequestTests extends AbstractWireSeriali
 
     @Override
     protected GetTrainedModelPackageConfigAction.Request mutateInstance(GetTrainedModelPackageConfigAction.Request instance) {
-        return new GetTrainedModelPackageConfigAction.Request(instance.getPackagedModelId() + randomAlphaOfLengthBetween(1, 5));
+        return new GetTrainedModelPackageConfigAction.Request(
+            masterNodeTimeout,
+            instance.getPackagedModelId() + randomAlphaOfLengthBetween(1, 5)
+        );
     }
 
 }

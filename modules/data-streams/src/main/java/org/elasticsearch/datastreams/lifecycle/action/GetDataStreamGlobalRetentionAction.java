@@ -26,6 +26,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -47,7 +48,7 @@ public class GetDataStreamGlobalRetentionAction {
 
     public static final class Request extends MasterNodeReadRequest<Request> {
 
-        public Request() {
+        public Request(TimeValue masterNodeTimeout) {
             super(masterNodeTimeout);
         }
 

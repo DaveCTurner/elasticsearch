@@ -20,6 +20,7 @@ import org.elasticsearch.action.ingest.PutPipelineRequest;
 import org.elasticsearch.action.ingest.PutPipelineTransportAction;
 import org.elasticsearch.action.support.GroupedActionListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
@@ -464,11 +465,8 @@ public abstract class IndexTemplateRegistry implements ClusterStateListener {
         executor.execute(() -> {
             final String templateName = config.getTemplateName();
 
-            PutIndexTemplateRequest request = new PutIndexTemplateRequest(masterNodeTimeout, templateName).source(
-                config.loadBytes(),
-                XContentType.JSON
-            );
-            request.masterNodeTimeout(TimeValue.MAX_VALUE);
+            PutIndexTemplateRequest request = new PutIndexTemplateRequest(MasterNodeRequest.VERY_LONG_MASTER_NODE_TIMEOUT, templateName)
+                .source(config.loadBytes(), XContentType.JSON);
             executeAsyncWithOrigin(
                 client.threadPool().getThreadContext(),
                 getOrigin(),
@@ -500,9 +498,10 @@ public abstract class IndexTemplateRegistry implements ClusterStateListener {
     private void putComponentTemplate(final String templateName, final ComponentTemplate template, final AtomicBoolean creationCheck) {
         final Executor executor = threadPool.generic();
         executor.execute(() -> {
-            PutComponentTemplateAction.Request request = new PutComponentTemplateAction.Request(masterNodeTimeout, templateName)
-                .componentTemplate(template);
-            request.masterNodeTimeout(TimeValue.MAX_VALUE);
+            PutComponentTemplateAction.Request request = new PutComponentTemplateAction.Request(
+                MasterNodeRequest.VERY_LONG_MASTER_NODE_TIMEOUT,
+                templateName
+            ).componentTemplate(template);
             executeAsyncWithOrigin(
                 client.threadPool().getThreadContext(),
                 getOrigin(),
@@ -541,10 +540,9 @@ public abstract class IndexTemplateRegistry implements ClusterStateListener {
         final Executor executor = threadPool.generic();
         executor.execute(() -> {
             TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
-                masterNodeTimeout,
+                MasterNodeRequest.VERY_LONG_MASTER_NODE_TIMEOUT,
                 templateName
             ).indexTemplate(indexTemplate);
-            request.masterNodeTimeout(TimeValue.MAX_VALUE);
             executeAsyncWithOrigin(
                 client.threadPool().getThreadContext(),
                 getOrigin(),
@@ -729,12 +727,11 @@ public abstract class IndexTemplateRegistry implements ClusterStateListener {
         final Executor executor = threadPool.generic();
         executor.execute(() -> {
             PutPipelineRequest request = new PutPipelineRequest(
-                masterNodeTimeout,
+                MasterNodeRequest.VERY_LONG_MASTER_NODE_TIMEOUT,
                 pipelineConfig.getId(),
                 pipelineConfig.loadConfig(),
                 pipelineConfig.getXContentType()
             );
-            request.masterNodeTimeout(TimeValue.MAX_VALUE);
 
             executeAsyncWithOrigin(
                 client.threadPool().getThreadContext(),
@@ -820,9 +817,8 @@ public abstract class IndexTemplateRegistry implements ClusterStateListener {
                         getOrigin(),
                         templateName
                     );
-                    RolloverRequest request = new RolloverRequest(masterNodeTimeout, rolloverTarget, null);
+                    RolloverRequest request = new RolloverRequest(MasterNodeRequest.VERY_LONG_MASTER_NODE_TIMEOUT, rolloverTarget, null);
                     request.lazy(true);
-                    request.masterNodeTimeout(TimeValue.MAX_VALUE);
                     executeAsyncWithOrigin(
                         client.threadPool().getThreadContext(),
                         getOrigin(),

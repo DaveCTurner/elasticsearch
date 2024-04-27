@@ -345,7 +345,7 @@ public abstract class BaseMlIntegTestCase extends ESIntegTestCase {
     }
 
     public static GetDatafeedsStatsAction.Response.DatafeedStats getDatafeedStats(String datafeedId) {
-        GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(datafeedId);
+        GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
         GetDatafeedsStatsAction.Response response = client().execute(GetDatafeedsStatsAction.INSTANCE, request).actionGet();
         if (response.getResponse().results().isEmpty()) {
             return null;
@@ -379,7 +379,7 @@ public abstract class BaseMlIntegTestCase extends ESIntegTestCase {
         for (final DatafeedConfig datafeed : datafeeds.results()) {
             assertBusy(() -> {
                 try {
-                    GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(datafeed.getId());
+                    GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeed.getId());
                     GetDatafeedsStatsAction.Response r = client.execute(GetDatafeedsStatsAction.INSTANCE, request).get();
                     assertThat(r.getResponse().results().get(0).getDatafeedState(), equalTo(DatafeedState.STOPPED));
                 } catch (InterruptedException | ExecutionException e) {

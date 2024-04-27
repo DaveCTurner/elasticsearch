@@ -23,6 +23,7 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.template.put.TransportPutComposableIndexTemplateAction;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
@@ -245,7 +246,9 @@ public final class MlIndexAndAlias {
         ActionListener<Boolean> listener
     ) {
         logger.info("About to create first concrete index [{}] with alias [{}]", index, alias);
-        CreateIndexRequestBuilder requestBuilder = client.admin().indices().prepareCreate(masterNodeTimeout, index);
+        CreateIndexRequestBuilder requestBuilder = client.admin()
+            .indices()
+            .prepareCreate(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */, index);
         if (addAlias) {
             requestBuilder.addAlias(new Alias(alias).isHidden(true));
         }
@@ -285,7 +288,7 @@ public final class MlIndexAndAlias {
         logger.info("About to move write alias [{}] from index [{}] to index [{}]", alias, currentIndex, newIndex);
         IndicesAliasesRequestBuilder requestBuilder = client.admin()
             .indices()
-            .prepareAliases(masterNodeTimeout)
+            .prepareAliases(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */)
             .addAliasAction(IndicesAliasesRequest.AliasActions.add().index(newIndex).alias(alias).isHidden(true));
         if (currentIndex != null) {
             requestBuilder.removeAlias(currentIndex, alias);
@@ -331,9 +334,9 @@ public final class MlIndexAndAlias {
 
         TransportPutComposableIndexTemplateAction.Request request;
         try (var parser = JsonXContent.jsonXContent.createParser(XContentParserConfiguration.EMPTY, templateConfig.loadBytes())) {
-            request = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, templateConfig.getTemplateName())
-                .indexTemplate(ComposableIndexTemplate.parse(parser))
-                .masterNodeTimeout(masterTimeout);
+            request = new TransportPutComposableIndexTemplateAction.Request(masterTimeout, templateConfig.getTemplateName()).indexTemplate(
+                ComposableIndexTemplate.parse(parser)
+            );
         } catch (IOException e) {
             throw new ElasticsearchParseException("unable to parse composable template " + templateConfig.getTemplateName(), e);
         }

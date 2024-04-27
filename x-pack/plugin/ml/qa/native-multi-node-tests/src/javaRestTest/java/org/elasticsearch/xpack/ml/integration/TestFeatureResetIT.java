@@ -208,6 +208,7 @@ public class TestFeatureResetIT extends MlNativeAutodetectIntegTestCase {
         client().execute(
             PutTrainedModelDefinitionPartAction.INSTANCE,
             new PutTrainedModelDefinitionPartAction.Request(
+                masterNodeTimeout,
                 TRAINED_MODEL_ID,
                 new BytesArray(Base64.getDecoder().decode(BASE_64_ENCODED_MODEL)),
                 0,

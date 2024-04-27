@@ -91,7 +91,7 @@ import static org.hamcrest.Matchers.notNullValue;
 abstract class MlNativeAutodetectIntegTestCase extends MlNativeIntegTestCase {
 
     protected PutJobAction.Response putJob(Job.Builder job) {
-        PutJobAction.Request request = new PutJobAction.Request(job);
+        PutJobAction.Request request = new PutJobAction.Request(masterNodeTimeout, job);
         return client().execute(PutJobAction.INSTANCE, request).actionGet();
     }
 
@@ -207,7 +207,7 @@ abstract class MlNativeAutodetectIntegTestCase extends MlNativeIntegTestCase {
     }
 
     protected RevertModelSnapshotAction.Response revertModelSnapshot(String jobId, String snapshotId, boolean deleteInterveningResults) {
-        RevertModelSnapshotAction.Request request = new RevertModelSnapshotAction.Request(jobId, snapshotId);
+        RevertModelSnapshotAction.Request request = new RevertModelSnapshotAction.Request(masterNodeTimeout, jobId, snapshotId);
         request.setDeleteInterveningResults(deleteInterveningResults);
         return client().execute(RevertModelSnapshotAction.INSTANCE, request).actionGet();
     }

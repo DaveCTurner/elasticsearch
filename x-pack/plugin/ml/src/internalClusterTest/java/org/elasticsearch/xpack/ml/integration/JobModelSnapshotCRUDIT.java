@@ -97,7 +97,7 @@ public class JobModelSnapshotCRUDIT extends MlSingleNodeTestCase {
             ElasticsearchStatusException.class,
             () -> client().execute(
                 UpgradeJobModelSnapshotAction.INSTANCE,
-                new UpgradeJobModelSnapshotAction.Request(jobId, "snap_1", TimeValue.timeValueMinutes(10), true)
+                new UpgradeJobModelSnapshotAction.Request(masterNodeTimeout, jobId, "snap_1", TimeValue.timeValueMinutes(10), true)
             ).actionGet()
         );
         assertThat(ex.status(), equalTo(RestStatus.CONFLICT));
@@ -169,7 +169,8 @@ public class JobModelSnapshotCRUDIT extends MlSingleNodeTestCase {
         ).actionGet();
         assertThat(getResponse.getResources().results(), hasSize(1));
 
-        client().execute(RevertModelSnapshotAction.INSTANCE, new RevertModelSnapshotAction.Request(jobId, "snap_1")).actionGet();
+        client().execute(RevertModelSnapshotAction.INSTANCE, new RevertModelSnapshotAction.Request(masterNodeTimeout, jobId, "snap_1"))
+            .actionGet();
 
         // should fail?
         IllegalArgumentException ex = expectThrows(
@@ -193,7 +194,7 @@ public class JobModelSnapshotCRUDIT extends MlSingleNodeTestCase {
         builder.setAnalysisConfig(ac);
         builder.setDataDescription(dc);
 
-        PutJobAction.Request request = new PutJobAction.Request(builder);
+        PutJobAction.Request request = new PutJobAction.Request(masterNodeTimeout, builder);
         client().execute(PutJobAction.INSTANCE, request).actionGet();
         return builder;
     }

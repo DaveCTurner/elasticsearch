@@ -38,7 +38,7 @@ public class RestUpdateSecuritySettingsAction extends SecurityBaseRestHandler {
     protected RestChannelConsumer innerPrepareRequest(RestRequest request, NodeClient client) throws IOException {
         UpdateSecuritySettingsAction.Request req;
         try (var parser = request.contentParser()) {
-            req = UpdateSecuritySettingsAction.Request.parse(parser);
+            req = UpdateSecuritySettingsAction.Request.parse(request, parser);
         }
         return restChannel -> client.execute(UpdateSecuritySettingsAction.INSTANCE, req, new RestToXContentListener<>(restChannel));
     }

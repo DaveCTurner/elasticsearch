@@ -11,6 +11,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ConstructingObjectParser;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.XContentParser;
@@ -27,7 +28,7 @@ public class MigrateToDataTiersRequest extends AcknowledgedRequest<MigrateToData
     public static final ConstructingObjectParser<MigrateToDataTiersRequest, Void> PARSER = new ConstructingObjectParser<>(
         "index_template",
         false,
-        a -> new MigrateToDataTiersRequest((String) a[0], (String) a[1])
+        a -> new MigrateToDataTiersRequest(masterNodeTimeout, (String) a[0], (String) a[1])
     );
 
     static {
@@ -52,14 +53,18 @@ public class MigrateToDataTiersRequest extends AcknowledgedRequest<MigrateToData
         return PARSER.parse(parser, null);
     }
 
-    public MigrateToDataTiersRequest(@Nullable String legacyTemplateToDelete, @Nullable String nodeAttributeName) {
+    public MigrateToDataTiersRequest(
+        TimeValue masterNodeTimeout,
+        @Nullable String legacyTemplateToDelete,
+        @Nullable String nodeAttributeName
+    ) {
         super(masterNodeTimeout);
         this.legacyTemplateToDelete = legacyTemplateToDelete;
         this.nodeAttributeName = nodeAttributeName;
     }
 
-    public MigrateToDataTiersRequest() {
-        this(null, null);
+    public MigrateToDataTiersRequest(TimeValue masterNodeTimeout) {
+        this(masterNodeTimeout, null, null);
     }
 
     public MigrateToDataTiersRequest(StreamInput in) throws IOException {

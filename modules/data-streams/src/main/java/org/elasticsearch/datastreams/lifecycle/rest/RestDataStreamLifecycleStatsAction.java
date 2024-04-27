@@ -36,8 +36,9 @@ public class RestDataStreamLifecycleStatsAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest restRequest, NodeClient client) {
-        GetDataStreamLifecycleStatsAction.Request request = new GetDataStreamLifecycleStatsAction.Request(masterNodeTimeout);
-        request.masterNodeTimeout(getMasterNodeTimeout(restRequest));
+        GetDataStreamLifecycleStatsAction.Request request = new GetDataStreamLifecycleStatsAction.Request(
+            getMasterNodeTimeout(restRequest)
+        );
         return channel -> client.execute(
             GetDataStreamLifecycleStatsAction.INSTANCE,
             request,

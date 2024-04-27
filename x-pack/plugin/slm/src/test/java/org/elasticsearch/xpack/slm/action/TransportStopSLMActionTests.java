@@ -51,7 +51,7 @@ public class TransportStopSLMActionTests extends ESTestCase {
             new TaskId(randomLong() + ":" + randomLong()),
             emptyMap()
         );
-        StopSLMAction.Request request = new StopSLMAction.Request();
+        StopSLMAction.Request request = new StopSLMAction.Request(masterNodeTimeout);
         transportStopSLMAction.masterOperation(task, request, ClusterState.EMPTY_STATE, ActionListener.noop());
 
         verify(clusterService).submitUnbatchedStateUpdateTask(

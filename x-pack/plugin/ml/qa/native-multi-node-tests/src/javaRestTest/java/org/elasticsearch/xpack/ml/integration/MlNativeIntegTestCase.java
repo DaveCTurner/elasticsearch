@@ -274,8 +274,10 @@ abstract class MlNativeIntegTestCase extends ESIntegTestCase {
     }
 
     protected void setUpgradeModeTo(boolean enabled) {
-        AcknowledgedResponse response = client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(enabled))
-            .actionGet();
+        AcknowledgedResponse response = client().execute(
+            SetUpgradeModeAction.INSTANCE,
+            new SetUpgradeModeAction.Request(masterNodeTimeout, enabled)
+        ).actionGet();
         assertThat(response.isAcknowledged(), is(true));
         assertThat(upgradeMode(), is(enabled));
     }

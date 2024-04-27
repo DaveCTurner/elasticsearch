@@ -12,6 +12,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -33,11 +34,11 @@ public class DeleteSnapshotLifecycleAction extends ActionType<AcknowledgedRespon
             lifecycleId = in.readString();
         }
 
-        public Request() {
+        public Request(TimeValue masterNodeTimeout) {
             super(masterNodeTimeout);
         }
 
-        public Request(String lifecycleId) {
+        public Request(TimeValue masterNodeTimeout, String lifecycleId) {
             super(masterNodeTimeout);
             this.lifecycleId = Objects.requireNonNull(lifecycleId, "id may not be null");
         }

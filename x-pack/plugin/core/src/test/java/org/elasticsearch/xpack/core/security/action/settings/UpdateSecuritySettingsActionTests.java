@@ -28,7 +28,12 @@ import static org.hamcrest.Matchers.nullValue;
 public class UpdateSecuritySettingsActionTests extends ESTestCase {
 
     public void testValidateSettingsEmpty() {
-        var req = new UpdateSecuritySettingsAction.Request(Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
+        var req = new UpdateSecuritySettingsAction.Request(
+            masterNodeTimeout,
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            Collections.emptyMap()
+        );
         var ex = req.validate();
         assertThat(ex, notNullValue());
         assertThat(ex.getMessage(), containsString("No settings given to update"));
@@ -40,17 +45,37 @@ public class UpdateSecuritySettingsActionTests extends ESTestCase {
         for (String allowedSetting : ALLOWED_SETTING_KEYS) {
             Map<String, Object> allowedSettingMap = Map.of(allowedSetting, randomAlphaOfLength(5));
             allAllowedSettingsMap.put(allowedSetting, randomAlphaOfLength(5));
-            var req = new UpdateSecuritySettingsAction.Request(allowedSettingMap, Collections.emptyMap(), Collections.emptyMap());
+            var req = new UpdateSecuritySettingsAction.Request(
+                masterNodeTimeout,
+                allowedSettingMap,
+                Collections.emptyMap(),
+                Collections.emptyMap()
+            );
             assertThat(req.validate(), nullValue());
 
-            req = new UpdateSecuritySettingsAction.Request(Collections.emptyMap(), allowedSettingMap, Collections.emptyMap());
+            req = new UpdateSecuritySettingsAction.Request(
+                masterNodeTimeout,
+                Collections.emptyMap(),
+                allowedSettingMap,
+                Collections.emptyMap()
+            );
             assertThat(req.validate(), nullValue());
 
-            req = new UpdateSecuritySettingsAction.Request(Collections.emptyMap(), Collections.emptyMap(), allowedSettingMap);
+            req = new UpdateSecuritySettingsAction.Request(
+                masterNodeTimeout,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                allowedSettingMap
+            );
             assertThat(req.validate(), nullValue());
         }
 
-        var req = new UpdateSecuritySettingsAction.Request(allAllowedSettingsMap, allAllowedSettingsMap, allAllowedSettingsMap);
+        var req = new UpdateSecuritySettingsAction.Request(
+            masterNodeTimeout,
+            allAllowedSettingsMap,
+            allAllowedSettingsMap,
+            allAllowedSettingsMap
+        );
         assertThat(req.validate(), nullValue());
     }
 
@@ -63,7 +88,12 @@ public class UpdateSecuritySettingsActionTests extends ESTestCase {
             Map.of(randomFrom(ALLOWED_SETTING_KEYS), randomAlphaOfLength(5))
         );
         {
-            var req = new UpdateSecuritySettingsAction.Request(validOrEmptySettingMap, disallowedSettingMap, validOrEmptySettingMap);
+            var req = new UpdateSecuritySettingsAction.Request(
+                masterNodeTimeout,
+                validOrEmptySettingMap,
+                disallowedSettingMap,
+                validOrEmptySettingMap
+            );
             List<String> errors = req.validate().validationErrors();
             assertThat(errors, hasSize(1));
             for (String errorMsg : errors) {
@@ -81,7 +111,12 @@ public class UpdateSecuritySettingsActionTests extends ESTestCase {
         }
 
         {
-            var req = new UpdateSecuritySettingsAction.Request(disallowedSettingMap, validOrEmptySettingMap, disallowedSettingMap);
+            var req = new UpdateSecuritySettingsAction.Request(
+                masterNodeTimeout,
+                disallowedSettingMap,
+                validOrEmptySettingMap,
+                disallowedSettingMap
+            );
             List<String> errors = req.validate().validationErrors();
             assertThat(errors, hasSize(2));
             for (String errorMsg : errors) {
@@ -101,7 +136,12 @@ public class UpdateSecuritySettingsActionTests extends ESTestCase {
         }
 
         {
-            var req = new UpdateSecuritySettingsAction.Request(disallowedSettingMap, disallowedSettingMap, disallowedSettingMap);
+            var req = new UpdateSecuritySettingsAction.Request(
+                masterNodeTimeout,
+                disallowedSettingMap,
+                disallowedSettingMap,
+                disallowedSettingMap
+            );
             List<String> errors = req.validate().validationErrors();
             assertThat(errors, hasSize(3));
             for (String errorMsg : errors) {

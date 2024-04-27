@@ -8,8 +8,10 @@ package org.elasticsearch.xpack.ml.rest.modelsnapshots;
 
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.core.RestApiVersion;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestUtils;
 import org.elasticsearch.rest.Scope;
 import org.elasticsearch.rest.ServerlessScope;
 import org.elasticsearch.rest.action.RestToXContentListener;
@@ -52,12 +54,13 @@ public class RestRevertModelSnapshotAction extends BaseRestHandler {
     protected RestChannelConsumer prepareRequest(RestRequest restRequest, NodeClient client) throws IOException {
         String jobId = restRequest.param(Job.ID.getPreferredName());
         String snapshotId = restRequest.param(SNAPSHOT_ID.getPreferredName());
+        TimeValue masterNodeTimeout = RestUtils.getMasterNodeTimeout(restRequest);
         RevertModelSnapshotAction.Request request;
         if (restRequest.hasContentOrSourceParam()) {
             XContentParser parser = restRequest.contentOrSourceParamParser();
-            request = RevertModelSnapshotAction.Request.parseRequest(jobId, snapshotId, parser);
+            request = RevertModelSnapshotAction.Request.parseRequest(masterNodeTimeout, jobId, snapshotId, parser);
         } else {
-            request = new RevertModelSnapshotAction.Request(jobId, snapshotId);
+            request = new RevertModelSnapshotAction.Request(masterNodeTimeout, jobId, snapshotId);
             request.setDeleteInterveningResults(
                 restRequest.paramAsBoolean(
                     RevertModelSnapshotAction.Request.DELETE_INTERVENING.getPreferredName(),
@@ -66,7 +69,6 @@ public class RestRevertModelSnapshotAction extends BaseRestHandler {
             );
         }
         request.ackTimeout(restRequest.paramAsTime("timeout", request.ackTimeout()));
-        request.masterNodeTimeout(restRequest.paramAsTime("master_timeout", request.masterNodeTimeout()));
 
         return channel -> client.execute(RevertModelSnapshotAction.INSTANCE, request, new RestToXContentListener<>(channel));
     }

@@ -13,6 +13,7 @@ import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xpack.core.ml.utils.ExceptionsHelper;
 
 import java.io.IOException;
@@ -29,7 +30,7 @@ public class DeleteTrainedModelAssignmentAction extends ActionType<AcknowledgedR
     public static class Request extends MasterNodeRequest<Request> {
         private final String modelId;
 
-        public Request(String modelId) {
+        public Request(TimeValue masterNodeTimeout, String modelId) {
             super(masterNodeTimeout);
             this.modelId = ExceptionsHelper.requireNonNull(modelId, "model_id");
         }

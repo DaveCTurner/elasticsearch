@@ -241,6 +241,7 @@ public class CrudDataStreamLifecycleIT extends ESIntegTestCase {
         // Remove lifecycle from concrete data stream
         {
             DeleteDataStreamLifecycleAction.Request deleteDataLifecycleRequest = new DeleteDataStreamLifecycleAction.Request(
+                masterNodeTimeout,
                 new String[] { "with-lifecycle-1" }
             );
             assertThat(
@@ -267,6 +268,7 @@ public class CrudDataStreamLifecycleIT extends ESIntegTestCase {
         // Remove lifecycle from all data streams
         {
             DeleteDataStreamLifecycleAction.Request deleteDataLifecycleRequest = new DeleteDataStreamLifecycleAction.Request(
+                masterNodeTimeout,
                 new String[] { "*" }
             );
             assertThat(

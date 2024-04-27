@@ -16,7 +16,7 @@ public class WatcherServiceRequestBuilder extends MasterNodeOperationRequestBuil
     WatcherServiceRequestBuilder> {
 
     public WatcherServiceRequestBuilder(ElasticsearchClient client) {
-        super(client, WatcherServiceAction.INSTANCE, new WatcherServiceRequest());
+        super(client, WatcherServiceAction.INSTANCE, new WatcherServiceRequest(masterNodeTimeout));
     }
 
     /**

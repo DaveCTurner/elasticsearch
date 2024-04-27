@@ -21,6 +21,6 @@ public class XPackUsageRequestBuilder extends MasterNodeOperationRequestBuilder<
     }
 
     public XPackUsageRequestBuilder(ElasticsearchClient client, ActionType<XPackUsageResponse> action) {
-        super(client, action, new XPackUsageRequest());
+        super(client, action, new XPackUsageRequest(masterNodeTimeout));
     }
 }

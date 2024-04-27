@@ -92,7 +92,11 @@ public class TrainedModelAssignmentService {
     }
 
     public void deleteModelAssignment(String modelId, ActionListener<AcknowledgedResponse> listener) {
-        client.execute(DeleteTrainedModelAssignmentAction.INSTANCE, new DeleteTrainedModelAssignmentAction.Request(modelId), listener);
+        client.execute(
+            DeleteTrainedModelAssignmentAction.INSTANCE,
+            new DeleteTrainedModelAssignmentAction.Request(masterNodeTimeout, modelId),
+            listener
+        );
     }
 
     public void waitForAssignmentCondition(

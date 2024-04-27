@@ -96,7 +96,7 @@ public class PrevalidateNodeRemovalRequest extends MasterNodeReadRequest<Prevali
     public PrevalidateNodeRemovalRequest timeout(TimeValue timeout) {
         this.timeout = timeout;
         // TODO hmm needs better handling?
-        if (masterNodeTimeout() == TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT) {
+        if (masterNodeTimeout().equals(TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT)) {
             masterNodeTimeout(timeout);
         }
         return this;

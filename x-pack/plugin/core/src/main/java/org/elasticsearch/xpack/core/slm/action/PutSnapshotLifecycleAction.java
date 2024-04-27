@@ -14,6 +14,7 @@ import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentParser;
@@ -35,7 +36,7 @@ public class PutSnapshotLifecycleAction extends ActionType<AcknowledgedResponse>
         private String lifecycleId;
         private SnapshotLifecyclePolicy lifecycle;
 
-        public Request(String lifecycleId, SnapshotLifecyclePolicy lifecycle) {
+        public Request(TimeValue masterNodeTimeout, String lifecycleId, SnapshotLifecyclePolicy lifecycle) {
             super(masterNodeTimeout);
             this.lifecycleId = lifecycleId;
             this.lifecycle = lifecycle;
@@ -47,7 +48,7 @@ public class PutSnapshotLifecycleAction extends ActionType<AcknowledgedResponse>
             lifecycle = new SnapshotLifecyclePolicy(in);
         }
 
-        public Request() {
+        public Request(TimeValue masterNodeTimeout) {
             super(masterNodeTimeout);
         }
 
@@ -59,8 +60,8 @@ public class PutSnapshotLifecycleAction extends ActionType<AcknowledgedResponse>
             return this.lifecycle;
         }
 
-        public static Request parseRequest(String lifecycleId, XContentParser parser) {
-            return new Request(lifecycleId, SnapshotLifecyclePolicy.parse(parser, lifecycleId));
+        public static Request parseRequest(TimeValue masterNodeTimeout, String lifecycleId, XContentParser parser) {
+            return new Request(masterNodeTimeout, lifecycleId, SnapshotLifecyclePolicy.parse(parser, lifecycleId));
         }
 
         @Override

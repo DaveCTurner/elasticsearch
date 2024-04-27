@@ -38,8 +38,9 @@ public class IndexLayoutIT extends BaseMlIntegTestCase {
         String jobId = "index-layout-job";
         String jobId2 = "index-layout-job2";
 
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(createJob(jobId, ByteSizeValue.ofMb(2)))).get();
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(createJob(jobId2, ByteSizeValue.ofMb(2)))).get();
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, createJob(jobId, ByteSizeValue.ofMb(2)))).get();
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, createJob(jobId2, ByteSizeValue.ofMb(2))))
+            .get();
 
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(jobId)).get();
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(jobId2)).get();
@@ -105,7 +106,10 @@ public class IndexLayoutIT extends BaseMlIntegTestCase {
 
         client().execute(
             PutJobAction.INSTANCE,
-            new PutJobAction.Request(createJob(jobId, ByteSizeValue.ofMb(2)).setDataDescription(new DataDescription.Builder()))
+            new PutJobAction.Request(
+                masterNodeTimeout,
+                createJob(jobId, ByteSizeValue.ofMb(2)).setDataDescription(new DataDescription.Builder())
+            )
         ).get();
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(jobId)).get();
         assertBusy(() -> {

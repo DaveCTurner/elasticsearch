@@ -36,7 +36,7 @@ public class RestGetSecuritySettingsAction extends SecurityBaseRestHandler {
 
     @Override
     protected RestChannelConsumer innerPrepareRequest(RestRequest request, NodeClient client) throws IOException {
-        GetSecuritySettingsAction.Request req = new GetSecuritySettingsAction.Request();
+        GetSecuritySettingsAction.Request req = new GetSecuritySettingsAction.Request(masterNodeTimeout);
         return restChannel -> client.execute(GetSecuritySettingsAction.INSTANCE, req, new RestToXContentListener<>(restChannel));
     }
 }

@@ -250,7 +250,7 @@ public class EstablishedMemUsageIT extends BaseMlIntegTestCase {
         ensureStableCluster(1);
 
         Job.Builder job = createJob(jobId);
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
     }
 

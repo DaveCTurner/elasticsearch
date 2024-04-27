@@ -127,7 +127,7 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
         assertBusy(() -> {
             GetSnapshotLifecycleAction.Response getResp = client().execute(
                 GetSnapshotLifecycleAction.INSTANCE,
-                new GetSnapshotLifecycleAction.Request(policyName)
+                new GetSnapshotLifecycleAction.Request(masterNodeTimeout, policyName)
             ).get();
             logger.info("--> checking for in progress snapshot...");
 
@@ -215,7 +215,7 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
                 logger.info("--> at least one data node has hit the block");
                 GetSnapshotLifecycleAction.Response getResp = client().execute(
                     GetSnapshotLifecycleAction.INSTANCE,
-                    new GetSnapshotLifecycleAction.Request(policyId)
+                    new GetSnapshotLifecycleAction.Request(masterNodeTimeout, policyId)
                 ).get();
                 logger.info("--> checking for in progress snapshot...");
 
@@ -235,7 +235,7 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
             // Run retention
             logger.info("--> triggering retention");
             assertTrue(
-                client().execute(ExecuteSnapshotRetentionAction.INSTANCE, new ExecuteSnapshotRetentionAction.Request())
+                client().execute(ExecuteSnapshotRetentionAction.INSTANCE, new ExecuteSnapshotRetentionAction.Request(masterNodeTimeout))
                     .get()
                     .isAcknowledged()
             );
@@ -313,7 +313,8 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
             new SnapshotRetentionConfiguration(null, 1, 2)
         );
         logger.info("-->  start snapshot");
-        client().execute(ExecuteSnapshotLifecycleAction.INSTANCE, new ExecuteSnapshotLifecycleAction.Request(policyId)).get();
+        client().execute(ExecuteSnapshotLifecycleAction.INSTANCE, new ExecuteSnapshotLifecycleAction.Request(masterNodeTimeout, policyId))
+            .get();
         // make sure the SLM history data stream is green and won't not be green for long because of delayed allocation when data nodes
         // are stopped
         ensureGreen(SLM_HISTORY_DATA_STREAM);
@@ -360,7 +361,7 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
                 logger.info("-->  start snapshot");
                 ActionFuture<ExecuteSnapshotLifecycleAction.Response> snapshotFuture = client().execute(
                     ExecuteSnapshotLifecycleAction.INSTANCE,
-                    new ExecuteSnapshotLifecycleAction.Request(policyId)
+                    new ExecuteSnapshotLifecycleAction.Request(masterNodeTimeout, policyId)
                 );
 
                 waitForBlock(internalCluster().getMasterName(), REPO);
@@ -395,7 +396,10 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
         // Run retention - we'll check the results later to make sure it's had time to run.
         {
             logger.info("--> executing SLM retention");
-            assertAcked(client().execute(ExecuteSnapshotRetentionAction.INSTANCE, new ExecuteSnapshotRetentionAction.Request()).get());
+            assertAcked(
+                client().execute(ExecuteSnapshotRetentionAction.INSTANCE, new ExecuteSnapshotRetentionAction.Request(masterNodeTimeout))
+                    .get()
+            );
         }
 
         // Take a successful snapshot
@@ -413,7 +417,7 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
 
             ActionFuture<ExecuteSnapshotLifecycleAction.Response> snapshotResponse = client().execute(
                 ExecuteSnapshotLifecycleAction.INSTANCE,
-                new ExecuteSnapshotLifecycleAction.Request(policyId)
+                new ExecuteSnapshotLifecycleAction.Request(masterNodeTimeout, policyId)
             );
             logger.info("--> waiting for snapshot to complete");
             successfulSnapshotName.set(snapshotResponse.get().getSnapshotName());
@@ -446,7 +450,10 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
         // Run retention again and make sure the failure was deleted
         {
             logger.info("--> executing SLM retention");
-            assertAcked(client().execute(ExecuteSnapshotRetentionAction.INSTANCE, new ExecuteSnapshotRetentionAction.Request()).get());
+            assertAcked(
+                client().execute(ExecuteSnapshotRetentionAction.INSTANCE, new ExecuteSnapshotRetentionAction.Request(masterNodeTimeout))
+                    .get()
+            );
             logger.info("--> waiting for {} snapshot [{}] to be deleted", expectedUnsuccessfulState, failedSnapshotName.get());
             assertBusy(() -> {
                 try {
@@ -497,7 +504,7 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
         assertBusy(() -> {
             GetSnapshotLifecycleAction.Response getResp = client().execute(
                 GetSnapshotLifecycleAction.INSTANCE,
-                new GetSnapshotLifecycleAction.Request(policyName)
+                new GetSnapshotLifecycleAction.Request(masterNodeTimeout, policyName)
             ).get();
             logger.info("--> checking for in progress snapshot...");
 
@@ -518,7 +525,9 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
         assertThat(resp.status(), equalTo(RestStatus.OK));
 
         logger.info("--> executing SLM retention");
-        assertAcked(client().execute(ExecuteSnapshotRetentionAction.INSTANCE, new ExecuteSnapshotRetentionAction.Request()).get());
+        assertAcked(
+            client().execute(ExecuteSnapshotRetentionAction.INSTANCE, new ExecuteSnapshotRetentionAction.Request(masterNodeTimeout)).get()
+        );
         logger.info("--> waiting for {} snapshot to be deleted", snapshotName);
         assertBusy(() -> {
             try {
@@ -597,7 +606,7 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
             retention
         );
 
-        PutSnapshotLifecycleAction.Request putLifecycle = new PutSnapshotLifecycleAction.Request(policyName, policy);
+        PutSnapshotLifecycleAction.Request putLifecycle = new PutSnapshotLifecycleAction.Request(masterNodeTimeout, policyName, policy);
         try {
             client().execute(PutSnapshotLifecycleAction.INSTANCE, putLifecycle).get();
         } catch (Exception e) {
@@ -610,7 +619,7 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
      * Execute the given policy and return the generated snapshot name
      */
     private String executePolicy(String policyId) {
-        ExecuteSnapshotLifecycleAction.Request executeReq = new ExecuteSnapshotLifecycleAction.Request(policyId);
+        ExecuteSnapshotLifecycleAction.Request executeReq = new ExecuteSnapshotLifecycleAction.Request(masterNodeTimeout, policyId);
         ExecuteSnapshotLifecycleAction.Response resp = null;
         try {
             resp = client().execute(ExecuteSnapshotLifecycleAction.INSTANCE, executeReq).get();

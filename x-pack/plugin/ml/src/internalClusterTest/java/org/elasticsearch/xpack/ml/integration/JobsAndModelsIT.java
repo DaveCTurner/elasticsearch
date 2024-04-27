@@ -85,7 +85,7 @@ public class JobsAndModelsIT extends BaseMlIntegTestCase {
         String jobId = "test-node-goes-down-while-running-job";
         Job.Builder job = createJob(jobId, ByteSizeValue.ofBytes((long) (0.8 * maxNativeBytesPerNode)));
 
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(job.getId())).actionGet();
 

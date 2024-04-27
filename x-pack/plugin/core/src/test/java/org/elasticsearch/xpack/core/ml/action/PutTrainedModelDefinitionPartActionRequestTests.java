@@ -22,6 +22,7 @@ public class PutTrainedModelDefinitionPartActionRequestTests extends AbstractBWC
     @Override
     protected Request createTestInstance() {
         return new Request(
+            masterNodeTimeout,
             randomAlphaOfLength(20),
             new BytesArray(randomAlphaOfLength(20)),
             randomIntBetween(0, 10),
@@ -37,19 +38,36 @@ public class PutTrainedModelDefinitionPartActionRequestTests extends AbstractBWC
     }
 
     public void testValidate() {
-        Request badRequest = new Request(randomAlphaOfLength(10), new BytesArray(randomAlphaOfLength(10)), -1, -1, -1, randomBoolean());
+        Request badRequest = new Request(
+            masterNodeTimeout,
+            randomAlphaOfLength(10),
+            new BytesArray(randomAlphaOfLength(10)),
+            -1,
+            -1,
+            -1,
+            randomBoolean()
+        );
 
         ValidationException exception = badRequest.validate();
         assertThat(exception.getMessage(), containsString("[part] must be greater or equal to 0"));
         assertThat(exception.getMessage(), containsString("[total_parts] must be greater than 0"));
         assertThat(exception.getMessage(), containsString("[total_definition_length] must be greater than 0"));
 
-        badRequest = new Request(randomAlphaOfLength(10), new BytesArray(randomAlphaOfLength(10)), 5, 10, 5, randomBoolean());
+        badRequest = new Request(
+            masterNodeTimeout,
+            randomAlphaOfLength(10),
+            new BytesArray(randomAlphaOfLength(10)),
+            5,
+            10,
+            5,
+            randomBoolean()
+        );
 
         exception = badRequest.validate();
         assertThat(exception.getMessage(), containsString("[part] must be less than total_parts"));
 
         badRequest = new Request(
+            masterNodeTimeout,
             randomAlphaOfLength(10),
             new BytesArray(randomAlphaOfLength(10)),
             5,
@@ -74,6 +92,7 @@ public class PutTrainedModelDefinitionPartActionRequestTests extends AbstractBWC
     protected Request mutateInstanceForVersion(Request instance, TransportVersion version) {
         if (version.before(TransportVersions.V_8_10_X)) {
             return new Request(
+                masterNodeTimeout,
                 instance.getModelId(),
                 instance.getDefinition(),
                 instance.getPart(),

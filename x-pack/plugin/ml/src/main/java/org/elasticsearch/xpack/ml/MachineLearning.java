@@ -2013,7 +2013,7 @@ public class MachineLearning extends Plugin
         Client originClient = new OriginSettingClient(client, ML_ORIGIN);
         originClient.execute(
             SetUpgradeModeAction.INSTANCE,
-            new SetUpgradeModeAction.Request(true),
+            new SetUpgradeModeAction.Request(masterNodeTimeout, true),
             listener.delegateFailureAndWrap((l, r) -> l.onResponse(Collections.singletonMap("already_in_upgrade_mode", false)))
         );
     }
@@ -2035,7 +2035,7 @@ public class MachineLearning extends Plugin
         Client originClient = new OriginSettingClient(client, ML_ORIGIN);
         originClient.execute(
             SetUpgradeModeAction.INSTANCE,
-            new SetUpgradeModeAction.Request(false),
+            new SetUpgradeModeAction.Request(masterNodeTimeout, false),
             listener.delegateFailureAndWrap((l, r) -> l.onResponse(r.isAcknowledged()))
         );
     }

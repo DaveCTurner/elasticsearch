@@ -87,6 +87,7 @@ public class TrainedModelCRUDIT extends MlSingleNodeTestCase {
         client().execute(
             PutTrainedModelDefinitionPartAction.INSTANCE,
             new PutTrainedModelDefinitionPartAction.Request(
+                masterNodeTimeout,
                 modelId,
                 new BytesArray(Base64.getDecoder().decode(BASE_64_ENCODED_MODEL)),
                 0,
@@ -106,7 +107,7 @@ public class TrainedModelCRUDIT extends MlSingleNodeTestCase {
             equalTo(1)
         );
 
-        client().execute(DeleteTrainedModelAction.INSTANCE, new DeleteTrainedModelAction.Request(modelId)).actionGet();
+        client().execute(DeleteTrainedModelAction.INSTANCE, new DeleteTrainedModelAction.Request(masterNodeTimeout, modelId)).actionGet();
 
         assertHitCount(client().prepareSearch(InferenceIndexConstants.nativeDefinitionStore()).setTrackTotalHitsUpTo(1).setSize(0), 0);
     }

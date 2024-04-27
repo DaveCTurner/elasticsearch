@@ -41,9 +41,16 @@ public class UpgradeJobModelSnapshotAction extends ActionType<UpgradeJobModelSna
         public static final ParseField TIMEOUT = new ParseField("timeout");
         public static final ParseField WAIT_FOR_COMPLETION = new ParseField("wait_for_completion");
 
+        // Only used in tests -- TODO move to test suite
         private static final ConstructingObjectParser<Request, Void> PARSER = new ConstructingObjectParser<>(
             NAME,
-            a -> new UpgradeJobModelSnapshotAction.Request((String) a[0], (String) a[1], (String) a[2], (Boolean) a[3])
+            a -> new UpgradeJobModelSnapshotAction.Request(
+                MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT,
+                (String) a[0],
+                (String) a[1],
+                (String) a[2],
+                (Boolean) a[3]
+            )
         );
         static {
             PARSER.declareString(ConstructingObjectParser.constructorArg(), Job.ID);
@@ -61,8 +68,9 @@ public class UpgradeJobModelSnapshotAction extends ActionType<UpgradeJobModelSna
         private final TimeValue timeout;
         private final boolean waitForCompletion;
 
-        Request(String jobId, String snapshotId, String timeout, Boolean waitForCompletion) {
+        Request(TimeValue masterNodeTimeout, String jobId, String snapshotId, String timeout, Boolean waitForCompletion) {
             this(
+                masterNodeTimeout,
                 jobId,
                 snapshotId,
                 timeout == null ? null : TimeValue.parseTimeValue(timeout, TIMEOUT.getPreferredName()),
@@ -70,7 +78,7 @@ public class UpgradeJobModelSnapshotAction extends ActionType<UpgradeJobModelSna
             );
         }
 
-        public Request(String jobId, String snapshotId, TimeValue timeValue, boolean waitForCompletion) {
+        public Request(TimeValue masterNodeTimeout, String jobId, String snapshotId, TimeValue timeValue, boolean waitForCompletion) {
             super(masterNodeTimeout);
             this.jobId = ExceptionsHelper.requireNonNull(jobId, Job.ID);
             this.snapshotId = ExceptionsHelper.requireNonNull(snapshotId, SNAPSHOT_ID);

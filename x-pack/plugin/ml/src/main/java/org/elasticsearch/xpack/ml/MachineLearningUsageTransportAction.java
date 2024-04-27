@@ -243,7 +243,7 @@ public class MachineLearningUsageTransportAction extends XPackUsageFeatureTransp
         });
 
         // Step 1. Extract usage from jobs stats and then request stats for all datafeeds
-        GetDatafeedsStatsAction.Request datafeedStatsRequest = new GetDatafeedsStatsAction.Request(Metadata.ALL);
+        GetDatafeedsStatsAction.Request datafeedStatsRequest = new GetDatafeedsStatsAction.Request(masterNodeTimeout, Metadata.ALL);
         ActionListener<GetJobsStatsAction.Response> jobStatsListener = ActionListener.wrap(
             response -> jobManagerHolder.getJobManager().expandJobs(Metadata.ALL, true, ActionListener.wrap(jobs -> {
                 addJobsUsage(response, jobs.results(), jobsUsage);

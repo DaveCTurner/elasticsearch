@@ -21,7 +21,7 @@ public class PutJobActionRequestTests extends AbstractWireSerializingTestCase<Re
     @Override
     protected Request createTestInstance() {
         Job.Builder jobConfiguration = buildJobBuilder(jobId, null);
-        return new Request(jobConfiguration);
+        return new Request(masterNodeTimeout, jobConfiguration);
     }
 
     @Override

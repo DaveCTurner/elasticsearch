@@ -33,7 +33,7 @@ public class RestUpdateWatcherSettingsAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        UpdateWatcherSettingsAction.Request req = new UpdateWatcherSettingsAction.Request(request.contentParser().map());
+        UpdateWatcherSettingsAction.Request req = new UpdateWatcherSettingsAction.Request(masterNodeTimeout, request.contentParser().map());
         return channel -> client.execute(UpdateWatcherSettingsAction.INSTANCE, req, new RestToXContentListener<>(channel));
     }
 }

@@ -483,7 +483,7 @@ public class AutodetectResultProcessorIT extends MlSingleNodeTestCase {
         Job.Builder jobBuilder = new Job.Builder(JOB_ID);
         jobBuilder.setDataDescription(new DataDescription.Builder());
         jobBuilder.setAnalysisConfig(new AnalysisConfig.Builder(Collections.singletonList(detector)));
-        PutJobAction.Request request = new PutJobAction.Request(jobBuilder);
+        PutJobAction.Request request = new PutJobAction.Request(masterNodeTimeout, jobBuilder);
         client().execute(PutJobAction.INSTANCE, request).actionGet();
     }
 

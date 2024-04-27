@@ -129,7 +129,7 @@ public class MlMemoryIT extends MlNativeDataFrameAnalyticsIntegTestCase {
 
     private void openAnomalyDetectionJob() throws Exception {
         Job.Builder job = BaseMlIntegTestCase.createFareQuoteJob("ad", ByteSizeValue.ofMb(20));
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(job)).actionGet();
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, job)).actionGet();
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(job.getId())).actionGet();
         assertBusy(() -> {
             GetJobsStatsAction.Response response = client().execute(
@@ -174,6 +174,7 @@ public class MlMemoryIT extends MlNativeDataFrameAnalyticsIntegTestCase {
         client().execute(
             PutTrainedModelDefinitionPartAction.INSTANCE,
             new PutTrainedModelDefinitionPartAction.Request(
+                masterNodeTimeout,
                 modelId,
                 new BytesArray(Base64.getDecoder().decode(BASE_64_ENCODED_MODEL)),
                 0,

@@ -51,6 +51,7 @@ public class RestUpgradeJobModelSnapshotAction extends BaseRestHandler {
             false
         );
         UpgradeJobModelSnapshotAction.Request request = new UpgradeJobModelSnapshotAction.Request(
+            masterNodeTimeout,
             jobId,
             snapshotId,
             timeout,

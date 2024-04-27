@@ -192,7 +192,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
         GetJobsStatsAction.Response jobStatsResponse = client().execute(GetJobsStatsAction.INSTANCE, jobStatsRequest).actionGet();
         assertEquals(JobState.OPENED, jobStatsResponse.getResponse().results().get(0).getState());
 
-        GetDatafeedsStatsAction.Request datafeedStatsRequest = new GetDatafeedsStatsAction.Request(datafeedId);
+        GetDatafeedsStatsAction.Request datafeedStatsRequest = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
         GetDatafeedsStatsAction.Response datafeedStatsResponse = client().execute(GetDatafeedsStatsAction.INSTANCE, datafeedStatsRequest)
             .actionGet();
         assertEquals(DatafeedState.STARTED, datafeedStatsResponse.getResponse().results().get(0).getDatafeedState());
@@ -322,7 +322,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
 
         // Confirm the datafeed state is now stopping - this may take a while to update in cluster state
         assertBusy(() -> {
-            GetDatafeedsStatsAction.Request datafeedStatsRequest = new GetDatafeedsStatsAction.Request(datafeedId);
+            GetDatafeedsStatsAction.Request datafeedStatsRequest = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
             GetDatafeedsStatsAction.Response datafeedStatsResponse = client().execute(
                 GetDatafeedsStatsAction.INSTANCE,
                 datafeedStatsRequest
@@ -343,7 +343,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
 
         // Confirm the datafeed state is now stopped - shouldn't need a busy check here as
         // the stop endpoint shouldn't return until its effects are externally visible
-        GetDatafeedsStatsAction.Request datafeedStatsRequest2 = new GetDatafeedsStatsAction.Request(datafeedId);
+        GetDatafeedsStatsAction.Request datafeedStatsRequest2 = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
         GetDatafeedsStatsAction.Response datafeedStatsResponse2 = client().execute(GetDatafeedsStatsAction.INSTANCE, datafeedStatsRequest2)
             .actionGet();
         assertEquals(DatafeedState.STOPPED, datafeedStatsResponse2.getResponse().results().get(0).getDatafeedState());
@@ -376,7 +376,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
         setupJobAndDatafeed(jobId, datafeedId, TimeValue.timeValueHours(1));
         waitForJobToHaveProcessedExactly(jobId, numDocs1);
 
-        GetDatafeedsStatsAction.Request datafeedStatsRequest = new GetDatafeedsStatsAction.Request(datafeedId);
+        GetDatafeedsStatsAction.Request datafeedStatsRequest = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
         GetDatafeedsStatsAction.Response datafeedStatsResponse = client().execute(GetDatafeedsStatsAction.INSTANCE, datafeedStatsRequest)
             .actionGet();
         assertEquals(DatafeedState.STARTED, datafeedStatsResponse.getResponse().results().get(0).getDatafeedState());
@@ -502,7 +502,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
         String datafeedId = jobId + "-datafeed";
 
         Job.Builder job = createScheduledJob(jobId);
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         DatafeedConfig config = createDatafeed(datafeedId, job.getId(), Collections.singletonList("data"), TimeValue.timeValueHours(1));
@@ -570,7 +570,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
         String datafeedId = jobId + "-datafeed";
 
         Job.Builder job = createScheduledJob(jobId);
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         DatafeedConfig config = createDatafeed(datafeedId, job.getId(), Collections.singletonList("data"), TimeValue.timeValueHours(1));
@@ -605,7 +605,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
         assertBusy(() -> {
             GetDatafeedsStatsAction.Response statsResponse = client().execute(
                 GetDatafeedsStatsAction.INSTANCE,
-                new GetDatafeedsStatsAction.Request(config.getId())
+                new GetDatafeedsStatsAction.Request(masterNodeTimeout, config.getId())
             ).actionGet();
             assertEquals(DatafeedState.STARTED, statsResponse.getResponse().results().get(0).getDatafeedState());
         }, 30, TimeUnit.SECONDS);
@@ -641,7 +641,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
         assertBusy(() -> {
             GetDatafeedsStatsAction.Response statsResponse = client().execute(
                 GetDatafeedsStatsAction.INSTANCE,
-                new GetDatafeedsStatsAction.Request(config.getId())
+                new GetDatafeedsStatsAction.Request(masterNodeTimeout, config.getId())
             ).actionGet();
             assertEquals(DatafeedState.STOPPED, statsResponse.getResponse().results().get(0).getDatafeedState());
         }, 30, TimeUnit.SECONDS);
@@ -652,7 +652,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
 
     private void setupJobWithoutDatafeed(String jobId, ByteSizeValue modelMemoryLimit) throws Exception {
         Job.Builder job = createFareQuoteJob(jobId, modelMemoryLimit);
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(job.getId())).actionGet();
@@ -667,7 +667,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
 
     private void setupJobAndDatafeed(String jobId, String datafeedId, TimeValue datafeedFrequency) throws Exception {
         Job.Builder job = createScheduledJob(jobId);
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         DatafeedConfig config = createDatafeed(datafeedId, job.getId(), Collections.singletonList("data"), datafeedFrequency);
@@ -743,7 +743,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
             assertEquals(JobState.OPENED, jobStats.getState());
             assertNotNull(jobStats.getNode());
 
-            GetDatafeedsStatsAction.Request datafeedStatsRequest = new GetDatafeedsStatsAction.Request("data_feed_id");
+            GetDatafeedsStatsAction.Request datafeedStatsRequest = new GetDatafeedsStatsAction.Request(masterNodeTimeout, "data_feed_id");
             DatafeedStats datafeedStats = client().execute(GetDatafeedsStatsAction.INSTANCE, datafeedStatsRequest)
                 .actionGet()
                 .getResponse()

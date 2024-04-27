@@ -12,6 +12,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.ToXContentFragment;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -47,7 +48,7 @@ public class DeleteTrainedModelAction extends ActionType<AcknowledgedResponse> {
             }
         }
 
-        public Request(String id) {
+        public Request(TimeValue masterNodeTimeout, String id) {
             super(masterNodeTimeout);
             this.id = ExceptionsHelper.requireNonNull(id, TrainedModelConfig.MODEL_ID);
         }

@@ -21,7 +21,6 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.scheduler.SchedulerEngine;
 import org.elasticsearch.core.SuppressForbidden;
-import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.snapshots.SnapshotException;
 import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.xcontent.ToXContent;
@@ -91,8 +90,7 @@ public class SnapshotLifecycleTask implements SchedulerEngine.Listener {
     ) {
         Optional<SnapshotLifecyclePolicyMetadata> maybeMetadata = getSnapPolicyMetadata(jobId, clusterService.state());
         String snapshotName = maybeMetadata.map(policyMetadata -> {
-            // don't time out on this request to not produce failed SLM runs in case of a temporarily slow master node
-            CreateSnapshotRequest request = policyMetadata.getPolicy().toRequest().masterNodeTimeout(TimeValue.MAX_VALUE);
+            CreateSnapshotRequest request = policyMetadata.getPolicy().tRequest();
             final LifecyclePolicySecurityClient clientWithHeaders = new LifecyclePolicySecurityClient(
                 client,
                 ClientHelper.INDEX_LIFECYCLE_ORIGIN,

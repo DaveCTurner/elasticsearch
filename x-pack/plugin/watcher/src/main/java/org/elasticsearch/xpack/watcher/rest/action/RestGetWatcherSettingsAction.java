@@ -33,7 +33,7 @@ public class RestGetWatcherSettingsAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        GetWatcherSettingsAction.Request req = new GetWatcherSettingsAction.Request();
+        GetWatcherSettingsAction.Request req = new GetWatcherSettingsAction.Request(masterNodeTimeout);
         return channel -> client.execute(GetWatcherSettingsAction.INSTANCE, req, new RestToXContentListener<>(channel));
     }
 }

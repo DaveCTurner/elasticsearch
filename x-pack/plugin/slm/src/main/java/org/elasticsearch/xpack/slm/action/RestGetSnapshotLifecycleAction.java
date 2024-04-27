@@ -36,7 +36,7 @@ public class RestGetSnapshotLifecycleAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
         String[] lifecycleNames = Strings.splitStringByCommaToArray(request.param("name"));
-        GetSnapshotLifecycleAction.Request req = new GetSnapshotLifecycleAction.Request(lifecycleNames);
+        GetSnapshotLifecycleAction.Request req = new GetSnapshotLifecycleAction.Request(masterNodeTimeout, lifecycleNames);
         req.ackTimeout(request.paramAsTime("timeout", req.ackTimeout()));
         req.masterNodeTimeout(request.paramAsTime("master_timeout", req.masterNodeTimeout()));
 

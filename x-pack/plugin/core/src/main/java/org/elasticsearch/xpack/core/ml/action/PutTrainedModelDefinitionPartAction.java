@@ -16,6 +16,7 @@ import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ObjectParser;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.XContentParser;
@@ -54,8 +55,8 @@ public class PutTrainedModelDefinitionPartAction extends ActionType<Acknowledged
             PARSER.declareInt(Builder::setTotalParts, TOTAL_PARTS);
         }
 
-        public static Request parseRequest(String modelId, int part, XContentParser parser) {
-            return PARSER.apply(parser, null).build(modelId, part, false);
+        public static Request parseRequest(TimeValue masterNodeTimeout, String modelId, int part, XContentParser parser) {
+            return PARSER.apply(parser, null).build(masterNodeTimeout, modelId, part, false);
         }
 
         private final String modelId;
@@ -69,6 +70,7 @@ public class PutTrainedModelDefinitionPartAction extends ActionType<Acknowledged
         private final boolean allowOverwriting;
 
         public Request(
+            TimeValue masterNodeTimeout,
             String modelId,
             BytesReference definition,
             int part,
@@ -198,8 +200,8 @@ public class PutTrainedModelDefinitionPartAction extends ActionType<Acknowledged
                 return this;
             }
 
-            public Request build(String modelId, int part, boolean allowOverwriting) {
-                return new Request(modelId, definition, part, totalDefinitionLength, totalParts, allowOverwriting);
+            public Request build(TimeValue masterNodeTimeout, String modelId, int part, boolean allowOverwriting) {
+                return new Request(masterNodeTimeout, modelId, definition, part, totalDefinitionLength, totalParts, allowOverwriting);
             }
         }
     }

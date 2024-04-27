@@ -16,6 +16,7 @@ public class RevertModelSnapshotActionRequestTests extends AbstractXContentSeria
     @Override
     protected Request createTestInstance() {
         RevertModelSnapshotAction.Request request = new RevertModelSnapshotAction.Request(
+            masterNodeTimeout,
             randomAlphaOfLengthBetween(1, 20),
             randomAlphaOfLengthBetween(1, 20)
         );
@@ -40,6 +41,6 @@ public class RevertModelSnapshotActionRequestTests extends AbstractXContentSeria
 
     @Override
     protected Request doParseInstance(XContentParser parser) {
-        return RevertModelSnapshotAction.Request.parseRequest(null, null, parser);
+        return RevertModelSnapshotAction.Request.parseRequest(masterNodeTimeout, null, null, parser);
     }
 }

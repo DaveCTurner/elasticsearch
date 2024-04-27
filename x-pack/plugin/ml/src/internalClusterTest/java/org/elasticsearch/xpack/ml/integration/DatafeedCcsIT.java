@@ -214,7 +214,7 @@ public class DatafeedCcsIT extends AbstractMultiClustersTestCase {
      */
     private void setupJobAndDatafeed(String jobId, String datafeedId, Long endTimeMs) throws Exception {
         Job.Builder job = BaseMlIntegTestCase.createScheduledJob(jobId, ByteSizeValue.ofMb(20));
-        client(LOCAL_CLUSTER).execute(PutJobAction.INSTANCE, new PutJobAction.Request(job)).actionGet();
+        client(LOCAL_CLUSTER).execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, job)).actionGet();
 
         // Default frequency is 1 second, which avoids the test sleeping excessively
         DatafeedConfig.Builder config = BaseMlIntegTestCase.createDatafeedBuilder(

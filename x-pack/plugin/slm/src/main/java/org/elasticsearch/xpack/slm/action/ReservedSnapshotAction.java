@@ -52,7 +52,7 @@ public class ReservedSnapshotAction implements ReservedClusterStateHandler<List<
         List<Exception> exceptions = new ArrayList<>();
 
         for (var policy : policies) {
-            PutSnapshotLifecycleAction.Request request = new PutSnapshotLifecycleAction.Request(policy.getId(), policy);
+            PutSnapshotLifecycleAction.Request request = new PutSnapshotLifecycleAction.Request(masterNodeTimeout, policy.getId(), policy);
             try {
                 validate(request);
                 SnapshotLifecycleService.validateRepositoryExists(request.getLifecycle().getRepository(), state);

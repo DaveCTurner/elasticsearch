@@ -13,6 +13,7 @@ import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xpack.core.ml.inference.trainedmodel.ModelPackageConfig;
 
 import java.io.IOException;
@@ -38,7 +39,7 @@ public class LoadTrainedModelPackageAction extends ActionType<AcknowledgedRespon
         private final ModelPackageConfig modelPackageConfig;
         private final boolean waitForCompletion;
 
-        public Request(String modelId, ModelPackageConfig modelPackageConfig, boolean waitForCompletion) {
+        public Request(TimeValue masterNodeTimeout, String modelId, ModelPackageConfig modelPackageConfig, boolean waitForCompletion) {
             super(masterNodeTimeout);
             this.modelId = modelId;
             this.modelPackageConfig = modelPackageConfig;

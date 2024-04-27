@@ -12,10 +12,12 @@ import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.set.Sets;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 import java.util.Map;
@@ -38,13 +40,13 @@ public class UpdateWatcherSettingsAction extends ActionType<AcknowledgedResponse
     public static class Request extends AcknowledgedRequest<Request> {
         private final Map<String, Object> settings;
 
-        public Request(Map<String, Object> settings) {
+        public Request(TimeValue masterNodeTimeout, Map<String, Object> settings) {
             super(masterNodeTimeout);
             this.settings = settings;
         }
 
         public Request(StreamInput in) throws IOException {
-            super(masterNodeTimeout);
+            super(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO bug!! should read this from the wire */);
             this.settings = in.readGenericMap();
         }
 

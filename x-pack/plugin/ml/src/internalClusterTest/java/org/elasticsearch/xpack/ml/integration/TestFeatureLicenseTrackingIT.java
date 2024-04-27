@@ -199,7 +199,7 @@ public class TestFeatureLicenseTrackingIT extends MlSingleNodeTestCase {
 
     private void putAndStartJob(String jobId) throws Exception {
         Job.Builder job = createScheduledJob(jobId);
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(job)).actionGet();
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, job)).actionGet();
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(jobId)).actionGet();
         assertBusy(() -> assertEquals(getJobStats(job.getId()).get(0).getState(), JobState.OPENED));
     }

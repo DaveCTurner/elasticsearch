@@ -15,7 +15,7 @@ public class SetResetModeActionRequestTests extends AbstractXContentSerializingT
     @Override
     protected SetResetModeActionRequest createTestInstance() {
         boolean enabled = randomBoolean();
-        return new SetResetModeActionRequest(enabled, enabled == false && randomBoolean());
+        return new SetResetModeActionRequest(masterNodeTimeout, enabled, enabled == false && randomBoolean());
     }
 
     @Override

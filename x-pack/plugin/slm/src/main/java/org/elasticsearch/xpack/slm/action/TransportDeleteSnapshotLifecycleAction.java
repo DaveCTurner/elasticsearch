@@ -89,7 +89,7 @@ public class TransportDeleteSnapshotLifecycleAction extends TransportMasterNodeA
          * {@link ReservedSnapshotAction}
          */
         DeleteSnapshotPolicyTask(String policyId) {
-            this(new DeleteSnapshotLifecycleAction.Request(policyId), null);
+            this(new DeleteSnapshotLifecycleAction.Request(masterNodeTimeout, policyId), null);
         }
 
         @Override

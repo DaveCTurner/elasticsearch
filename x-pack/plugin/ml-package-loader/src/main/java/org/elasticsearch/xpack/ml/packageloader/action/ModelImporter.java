@@ -79,6 +79,7 @@ class ModelImporter {
             BytesArray definition = chunkIterator.next();
 
             PutTrainedModelDefinitionPartAction.Request modelPartRequest = new PutTrainedModelDefinitionPartAction.Request(
+                masterNodeTimeout,
                 modelId,
                 definition,
                 part,
@@ -114,6 +115,7 @@ class ModelImporter {
         }
 
         PutTrainedModelDefinitionPartAction.Request finalModelPartRequest = new PutTrainedModelDefinitionPartAction.Request(
+            masterNodeTimeout,
             modelId,
             definition,
             totalParts - 1,

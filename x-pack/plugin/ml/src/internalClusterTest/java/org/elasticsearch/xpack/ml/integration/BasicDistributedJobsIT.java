@@ -70,7 +70,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
         ensureStableCluster(4);
 
         Job.Builder job = createJob("fail-over-basics-job", ByteSizeValue.ofMb(2));
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
         ensureYellow(); // at least the primary shards of the indices a job uses should be started
         OpenJobAction.Request openJobRequest = new OpenJobAction.Request(job.getId());
@@ -106,7 +106,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
         job.setAnalysisConfig(analysisConfig);
         job.setDataDescription(new DataDescription.Builder());
 
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
         DatafeedConfig.Builder configBuilder = createDatafeedBuilder("data_feed_id", job.getId(), Collections.singletonList("*"));
 
@@ -135,7 +135,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
         assertBusy(() -> {
             GetDatafeedsStatsAction.Response statsResponse = client().execute(
                 GetDatafeedsStatsAction.INSTANCE,
-                new GetDatafeedsStatsAction.Request(config.getId())
+                new GetDatafeedsStatsAction.Request(masterNodeTimeout, config.getId())
             ).actionGet();
             assertEquals(1, statsResponse.getResponse().results().size());
             assertEquals(DatafeedState.STARTED, statsResponse.getResponse().results().get(0).getDatafeedState());
@@ -148,7 +148,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
         assertBusy(() -> {
             GetDatafeedsStatsAction.Response statsResponse = client().execute(
                 GetDatafeedsStatsAction.INSTANCE,
-                new GetDatafeedsStatsAction.Request(config.getId())
+                new GetDatafeedsStatsAction.Request(masterNodeTimeout, config.getId())
             ).actionGet();
             assertEquals(1, statsResponse.getResponse().results().size());
             assertEquals(DatafeedState.STARTED, statsResponse.getResponse().results().get(0).getDatafeedState());
@@ -161,7 +161,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
         assertBusy(() -> {
             GetDatafeedsStatsAction.Response statsResponse = client().execute(
                 GetDatafeedsStatsAction.INSTANCE,
-                new GetDatafeedsStatsAction.Request(config.getId())
+                new GetDatafeedsStatsAction.Request(masterNodeTimeout, config.getId())
             ).actionGet();
             assertEquals(1, statsResponse.getResponse().results().size());
             assertEquals(DatafeedState.STARTED, statsResponse.getResponse().results().get(0).getDatafeedState());
@@ -187,7 +187,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
         refresh("*");
 
         Job.Builder job = createScheduledJob("job_id");
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         DatafeedConfig config = createDatafeed("data_feed_id", job.getId(), Collections.singletonList("data"));
@@ -223,7 +223,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
 
         String jobId = "dedicated-ml-node-job";
         Job.Builder job = createJob(jobId, ByteSizeValue.ofMb(2));
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         ensureYellow(); // at least the primary shards of the indices a job uses should be started
@@ -307,7 +307,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
         int numJobs = numMlNodes * 10;
         for (int i = 0; i < numJobs; i++) {
             Job.Builder job = createJob(Integer.toString(i), ByteSizeValue.ofMb(2));
-            PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+            PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
             client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
             OpenJobAction.Request openJobRequest = new OpenJobAction.Request(job.getId());
@@ -395,7 +395,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
 
         String jobId = "ml-indices-not-available-job";
         Job.Builder job = createFareQuoteJob(jobId);
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         OpenJobAction.Request openJobRequest = new OpenJobAction.Request(job.getId());
@@ -455,7 +455,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
         String datafeedId = jobId + "-datafeed";
         // Assume the test machine won't have space to assign a 2TB job
         Job.Builder job = createJob(jobId, ByteSizeValue.ofTb(2), true);
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         client().admin().indices().prepareCreate(masterNodeTimeout, "data").setMapping("time", "type=date").get();
@@ -477,7 +477,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
         client().execute(StartDatafeedAction.INSTANCE, startDataFeedRequest).actionGet();
 
         // Datafeed state should be starting while it waits for job assignment
-        GetDatafeedsStatsAction.Request datafeedStatsRequest = new GetDatafeedsStatsAction.Request(datafeedId);
+        GetDatafeedsStatsAction.Request datafeedStatsRequest = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
         GetDatafeedsStatsAction.Response datafeedStatsResponse = client().execute(GetDatafeedsStatsAction.INSTANCE, datafeedStatsRequest)
             .actionGet();
         assertEquals(DatafeedState.STARTING, datafeedStatsResponse.getResponse().results().get(0).getDatafeedState());

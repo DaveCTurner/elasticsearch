@@ -89,7 +89,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
             assertEquals(2, numberOfAnnotationsAliases());
         });
 
-        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(true)).actionGet();
+        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(masterNodeTimeout, true)).actionGet();
 
         String reindexedIndexName = ".reindexed-v7-ml-annotations-6";
         createReindexedIndex(reindexedIndexName);
@@ -108,7 +108,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
 
         indicesAdmin().aliases(indicesAliasesRequestBuilder.request()).actionGet();
 
-        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(false)).actionGet();
+        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(masterNodeTimeout, false)).actionGet();
 
         // Ask a few times to increase the chance of failure if the .ml-annotations index is created when no other ML index exists
         for (int i = 0; i < 10; ++i) {
@@ -129,7 +129,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
             assertEquals(2, numberOfAnnotationsAliases());
         });
 
-        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(true)).actionGet();
+        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(masterNodeTimeout, true)).actionGet();
 
         String reindexedIndexName = ".reindexed-v7-ml-annotations-6";
         createReindexedIndex(reindexedIndexName);
@@ -148,7 +148,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
 
         indicesAdmin().aliases(indicesAliasesRequestBuilder.request()).actionGet();
 
-        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(false)).actionGet();
+        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(masterNodeTimeout, false)).actionGet();
 
         // Ask a few times to increase the chance of failure if the .ml-annotations index is created when no other ML index exists
         for (int i = 0; i < 10; ++i) {
@@ -169,7 +169,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
             assertEquals(2, numberOfAnnotationsAliases());
         });
 
-        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(true)).actionGet();
+        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(masterNodeTimeout, true)).actionGet();
 
         String reindexedIndexName = ".reindexed-v7-ml-annotations-6";
         createReindexedIndex(reindexedIndexName);
@@ -184,7 +184,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
 
         indicesAdmin().aliases(indicesAliasesRequestBuilder.request()).actionGet();
 
-        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(false)).actionGet();
+        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(masterNodeTimeout, false)).actionGet();
 
         assertBusy(() -> {
             assertFalse(annotationsIndexExists(AnnotationIndex.LATEST_INDEX_NAME));
@@ -204,7 +204,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
             assertEquals(2, numberOfAnnotationsAliases());
         });
 
-        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(true)).actionGet();
+        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(masterNodeTimeout, true)).actionGet();
 
         String reindexedIndexName = ".reindexed-v7-ml-annotations-6";
         createReindexedIndex(reindexedIndexName);
@@ -219,7 +219,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
 
         indicesAdmin().aliases(indicesAliasesRequestBuilder.request()).actionGet();
 
-        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(false)).actionGet();
+        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(masterNodeTimeout, false)).actionGet();
 
         assertBusy(() -> {
             assertFalse(annotationsIndexExists(AnnotationIndex.LATEST_INDEX_NAME));
@@ -273,7 +273,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
 
     public void testNotCreatedWhenAfterOtherMlIndexAndUpgradeInProgress() throws Exception {
 
-        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(true)).actionGet();
+        client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(masterNodeTimeout, true)).actionGet();
 
         try {
             // Creating a document in the .ml-notifications-000002 index would normally cause .ml-annotations
@@ -294,7 +294,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
                 }
             });
         } finally {
-            client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(false)).actionGet();
+            client().execute(SetUpgradeModeAction.INSTANCE, new SetUpgradeModeAction.Request(masterNodeTimeout, false)).actionGet();
         }
     }
 

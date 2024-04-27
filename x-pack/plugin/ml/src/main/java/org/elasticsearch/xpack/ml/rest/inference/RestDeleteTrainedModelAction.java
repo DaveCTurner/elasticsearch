@@ -45,7 +45,7 @@ public class RestDeleteTrainedModelAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest restRequest, NodeClient client) throws IOException {
         String modelId = restRequest.param(TrainedModelConfig.MODEL_ID.getPreferredName());
-        DeleteTrainedModelAction.Request request = new DeleteTrainedModelAction.Request(modelId);
+        DeleteTrainedModelAction.Request request = new DeleteTrainedModelAction.Request(masterNodeTimeout, modelId);
         if (restRequest.hasParam(TIMEOUT.getPreferredName())) {
             TimeValue timeout = restRequest.paramAsTime(TIMEOUT.getPreferredName(), AcknowledgedRequest.DEFAULT_ACK_TIMEOUT);
             request.ackTimeout(timeout);

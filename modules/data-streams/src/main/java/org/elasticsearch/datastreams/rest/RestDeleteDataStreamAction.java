@@ -9,6 +9,7 @@ package org.elasticsearch.datastreams.rest;
 
 import org.elasticsearch.action.datastreams.DeleteDataStreamAction;
 import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -37,7 +38,7 @@ public class RestDeleteDataStreamAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
         DeleteDataStreamAction.Request deleteDataStreamRequest = new DeleteDataStreamAction.Request(
-            masterNodeTimeout,
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */,
             Strings.splitStringByCommaToArray(request.param("name"))
         );
         deleteDataStreamRequest.indicesOptions(IndicesOptions.fromRequest(request, deleteDataStreamRequest.indicesOptions()));

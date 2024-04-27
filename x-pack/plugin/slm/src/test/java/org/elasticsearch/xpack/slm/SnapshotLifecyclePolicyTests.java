@@ -8,6 +8,7 @@
 package org.elasticsearch.xpack.slm;
 
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.ValidationException;
 import org.elasticsearch.common.io.stream.Writeable;
@@ -43,7 +44,7 @@ public class SnapshotLifecyclePolicyTests extends AbstractXContentSerializingTes
             SnapshotRetentionConfiguration.EMPTY
         );
         CreateSnapshotRequest request = p.toRequest();
-        CreateSnapshotRequest expected = new CreateSnapshotRequest(masterNodeTimeout).userMetadata(
+        CreateSnapshotRequest expected = new CreateSnapshotRequest(MasterNodeRequest.VERY_LONG_MASTER_NODE_TIMEOUT).userMetadata(
             Collections.singletonMap("policy", "id")
         );
 

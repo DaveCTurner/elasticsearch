@@ -147,7 +147,7 @@ public class DatafeedWithAggsIT extends MlNativeAutodetectIntegTestCase {
         StopDatafeedAction.Response stopJobResponse = stopDatafeed(datafeedId);
         assertTrue(stopJobResponse.isStopped());
         assertBusy(() -> {
-            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(datafeedId);
+            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
             GetDatafeedsStatsAction.Response response = client().execute(GetDatafeedsStatsAction.INSTANCE, request).actionGet();
             assertThat(response.getResponse().results().get(0).getDatafeedState(), equalTo(DatafeedState.STOPPED));
         });

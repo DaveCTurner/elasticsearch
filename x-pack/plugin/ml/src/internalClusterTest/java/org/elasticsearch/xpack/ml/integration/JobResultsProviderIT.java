@@ -152,7 +152,7 @@ public class JobResultsProviderIT extends MlSingleNodeTestCase {
         job1.setDataDescription(new DataDescription.Builder());
 
         // Put fist job. This should create the results index as it's the first job.
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(job1)).actionGet();
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, job1)).actionGet();
 
         String sharedResultsIndex = AnomalyDetectorsIndexFields.RESULTS_INDEX_PREFIX + AnomalyDetectorsIndexFields.RESULTS_INDEX_DEFAULT;
         Map<String, Object> mappingProperties = getIndexMappingProperties(sharedResultsIndex);
@@ -178,7 +178,7 @@ public class JobResultsProviderIT extends MlSingleNodeTestCase {
         job2.setAnalysisConfig(createAnalysisConfig("by_field_2", Collections.emptyList()));
         job2.setDataDescription(new DataDescription.Builder());
 
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(job2)).actionGet();
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, job2)).actionGet();
 
         mappingProperties = getIndexMappingProperties(sharedResultsIndex);
 
@@ -205,7 +205,7 @@ public class JobResultsProviderIT extends MlSingleNodeTestCase {
         job.setAnalysisConfig(createAnalysisConfig("by_field", Collections.emptyList()));
         job.setDataDescription(new DataDescription.Builder());
 
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(job)).actionGet();
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, job)).actionGet();
 
         String customIndex = AnomalyDetectorsIndexFields.RESULTS_INDEX_PREFIX + "custom-bar";
         Map<String, Object> mappingProperties = getIndexMappingProperties(customIndex);
@@ -240,7 +240,7 @@ public class JobResultsProviderIT extends MlSingleNodeTestCase {
             builder.setAnalysisConfig(ac);
             builder.setDataDescription(dc);
 
-            requests.add(new PutJobAction.Request(builder));
+            requests.add(new PutJobAction.Request(masterNodeTimeout, builder));
         }
 
         // Start the requests as close together as possible, without waiting for each to complete before starting the next one.
@@ -422,7 +422,7 @@ public class JobResultsProviderIT extends MlSingleNodeTestCase {
         job.setDataDescription(new DataDescription.Builder());
 
         // Put first job. This should create the results index as it's the first job.
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(job)).actionGet();
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, job)).actionGet();
         AtomicReference<DataCounts> dataCountsAtomicReference = new AtomicReference<>();
         AtomicReference<ModelSizeStats> modelSizeStatsAtomicReference = new AtomicReference<>();
         AtomicReference<TimingStats> timingStatsAtomicReference = new AtomicReference<>();
@@ -451,7 +451,7 @@ public class JobResultsProviderIT extends MlSingleNodeTestCase {
         job.setDataDescription(new DataDescription.Builder());
 
         // Put first job. This should create the results index as it's the first job.
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(job)).actionGet();
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, job)).actionGet();
         AtomicReference<DataCounts> dataCountsAtomicReference = new AtomicReference<>();
         AtomicReference<ModelSizeStats> modelSizeStatsAtomicReference = new AtomicReference<>();
         AtomicReference<TimingStats> timingStatsAtomicReference = new AtomicReference<>();
@@ -1019,7 +1019,7 @@ public class JobResultsProviderIT extends MlSingleNodeTestCase {
         builder.setAnalysisConfig(ac);
         builder.setDataDescription(dc);
 
-        PutJobAction.Request request = new PutJobAction.Request(builder);
+        PutJobAction.Request request = new PutJobAction.Request(masterNodeTimeout, builder);
         client().execute(PutJobAction.INSTANCE, request).actionGet();
         return builder;
     }

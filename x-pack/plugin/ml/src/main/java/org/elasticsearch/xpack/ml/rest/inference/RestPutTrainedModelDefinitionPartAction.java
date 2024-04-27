@@ -6,6 +6,7 @@
  */
 package org.elasticsearch.xpack.ml.rest.inference;
 
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
@@ -50,7 +51,12 @@ public class RestPutTrainedModelDefinitionPartAction extends BaseRestHandler {
         String id = restRequest.param(TrainedModelConfig.MODEL_ID.getPreferredName());
         int part = Integer.parseInt(restRequest.param(PutTrainedModelDefinitionPartAction.Request.PART));
         XContentParser parser = restRequest.contentParser();
-        PutTrainedModelDefinitionPartAction.Request putRequest = PutTrainedModelDefinitionPartAction.Request.parseRequest(id, part, parser);
+        PutTrainedModelDefinitionPartAction.Request putRequest = PutTrainedModelDefinitionPartAction.Request.parseRequest(
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */,
+            id,
+            part,
+            parser
+        );
         return channel -> client.execute(PutTrainedModelDefinitionPartAction.INSTANCE, putRequest, new RestToXContentListener<>(channel));
     }
 }

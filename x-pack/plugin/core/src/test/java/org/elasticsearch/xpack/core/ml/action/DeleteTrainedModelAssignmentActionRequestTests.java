@@ -14,7 +14,7 @@ public class DeleteTrainedModelAssignmentActionRequestTests extends AbstractWire
 
     @Override
     protected Request createTestInstance() {
-        return new Request(randomAlphaOfLength(10));
+        return new Request(masterNodeTimeout, randomAlphaOfLength(10));
     }
 
     @Override

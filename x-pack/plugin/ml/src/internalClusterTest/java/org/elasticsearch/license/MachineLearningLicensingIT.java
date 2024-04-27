@@ -100,7 +100,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         // test that license restricted apis do not work
         ElasticsearchSecurityException e = expectThrows(ElasticsearchSecurityException.class, () -> {
             PlainActionFuture<PutJobAction.Response> listener = new PlainActionFuture<>();
-            client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(createJob(jobId)), listener);
+            client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, createJob(jobId)), listener);
             listener.actionGet();
         });
         assertThat(e.status(), is(RestStatus.FORBIDDEN));
@@ -113,7 +113,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         assertMLAllowed(true);
         // test that license restricted apis do now work
         PlainActionFuture<PutJobAction.Response> listener = new PlainActionFuture<>();
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(createJob(jobId)), listener);
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, createJob(jobId)), listener);
         PutJobAction.Response response = listener.actionGet();
         assertNotNull(response);
     }
@@ -123,7 +123,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         assertMLAllowed(true);
         // test that license restricted apis do now work
         PlainActionFuture<PutJobAction.Response> putJobListener = new PlainActionFuture<>();
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(createJob(jobId)), putJobListener);
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, createJob(jobId)), putJobListener);
         PutJobAction.Response response = putJobListener.actionGet();
         assertNotNull(response);
 
@@ -165,7 +165,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         assertMLAllowed(true);
         // test that license restricted apis do now work
         PlainActionFuture<PutJobAction.Response> putJobListener = new PlainActionFuture<>();
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(createJob(jobId)), putJobListener);
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, createJob(jobId)), putJobListener);
         PutJobAction.Response putJobResponse = putJobListener.actionGet();
         assertNotNull(putJobResponse);
 
@@ -212,7 +212,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
 
         // put job
         PlainActionFuture<PutJobAction.Response> putJobListener = new PlainActionFuture<>();
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(createJob(jobId)), putJobListener);
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, createJob(jobId)), putJobListener);
         PutJobAction.Response putJobResponse = putJobListener.actionGet();
         assertNotNull(putJobResponse);
         // put datafeed
@@ -311,7 +311,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
             {"_doc":{"properties":{"time":{"type":"date"}}}}""").get();
         // test that license restricted apis do now work
         PlainActionFuture<PutJobAction.Response> putJobListener = new PlainActionFuture<>();
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(createJob(jobId)), putJobListener);
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, createJob(jobId)), putJobListener);
         PutJobAction.Response putJobResponse = putJobListener.actionGet();
         assertNotNull(putJobResponse);
         PlainActionFuture<PutDatafeedAction.Response> putDatafeedListener = new PlainActionFuture<>();
@@ -377,7 +377,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
             {"_doc":{"properties":{"time":{"type":"date"}}}}""").get();
         // test that license restricted apis do now work
         PlainActionFuture<PutJobAction.Response> putJobListener = new PlainActionFuture<>();
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(createJob(jobId)), putJobListener);
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, createJob(jobId)), putJobListener);
         PutJobAction.Response putJobResponse = putJobListener.actionGet();
         assertNotNull(putJobResponse);
         PlainActionFuture<PutDatafeedAction.Response> putDatafeedListener = new PlainActionFuture<>();
@@ -411,7 +411,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
             assertBusy(() -> {
                 GetDatafeedsStatsAction.Response response = client().execute(
                     GetDatafeedsStatsAction.INSTANCE,
-                    new GetDatafeedsStatsAction.Request(datafeedId)
+                    new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId)
                 ).actionGet();
                 assertEquals(DatafeedState.STOPPED, response.getResponse().results().get(0).getDatafeedState());
             });
@@ -434,7 +434,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         assertMLAllowed(true);
         // test that license restricted apis do now work
         PlainActionFuture<PutJobAction.Response> putJobListener = new PlainActionFuture<>();
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(createJob(jobId)), putJobListener);
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, createJob(jobId)), putJobListener);
         PutJobAction.Response putJobResponse = putJobListener.actionGet();
         assertNotNull(putJobResponse);
         PlainActionFuture<NodeAcknowledgedResponse> openJobListener = new PlainActionFuture<>();
@@ -470,7 +470,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         assertMLAllowed(true);
         // test that license restricted apis do now work
         PlainActionFuture<PutJobAction.Response> putJobListener = new PlainActionFuture<>();
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(createJob(jobId)), putJobListener);
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, createJob(jobId)), putJobListener);
         PutJobAction.Response putJobResponse = putJobListener.actionGet();
         assertNotNull(putJobResponse);
 
@@ -489,7 +489,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         assertMLAllowed(true);
         // test that license restricted apis do now work
         PlainActionFuture<PutJobAction.Response> putJobListener = new PlainActionFuture<>();
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(createJob(jobId)), putJobListener);
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, createJob(jobId)), putJobListener);
         PutJobAction.Response putJobResponse = putJobListener.actionGet();
         assertNotNull(putJobResponse);
         PlainActionFuture<PutDatafeedAction.Response> putDatafeedListener = new PlainActionFuture<>();

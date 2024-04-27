@@ -171,7 +171,7 @@ public class JobAndDatafeedResilienceIT extends MlNativeAutodetectIntegTestCase 
 
         List<GetDatafeedsStatsAction.Response.DatafeedStats> dfStats = client().execute(
             GetDatafeedsStatsAction.INSTANCE,
-            new GetDatafeedsStatsAction.Request("*")
+            new GetDatafeedsStatsAction.Request(masterNodeTimeout, "*")
         ).get().getResponse().results();
         assertThat(dfStats.size(), equalTo(2));
         assertThat(dfStats.get(0).getDatafeedId(), equalTo(datafeedConfig2.getId()));

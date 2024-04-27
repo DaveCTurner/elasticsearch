@@ -15,6 +15,7 @@ public class LoadModelPackageActionRequestTests extends AbstractWireSerializingT
 
     public static LoadTrainedModelPackageAction.Request randomLoadModelPackageRequest() {
         return new LoadTrainedModelPackageAction.Request(
+            masterNodeTimeout,
             randomAlphaOfLength(10),
             ModelPackageConfigTests.randomModulePackageConfig(),
             randomBoolean()
@@ -35,16 +36,19 @@ public class LoadModelPackageActionRequestTests extends AbstractWireSerializingT
     protected LoadTrainedModelPackageAction.Request mutateInstance(LoadTrainedModelPackageAction.Request instance) {
         return switch (between(0, 2)) {
             case 0 -> new LoadTrainedModelPackageAction.Request(
+                masterNodeTimeout,
                 instance.getModelId(),
                 ModelPackageConfigTests.mutateModelPackageConfig(instance.getModelPackageConfig()),
                 instance.isWaitForCompletion()
             );
             case 1 -> new LoadTrainedModelPackageAction.Request(
+                masterNodeTimeout,
                 randomAlphaOfLength(15),
                 instance.getModelPackageConfig(),
                 instance.isWaitForCompletion()
             );
             case 2 -> new LoadTrainedModelPackageAction.Request(
+                masterNodeTimeout,
                 instance.getModelId(),
                 instance.getModelPackageConfig(),
                 instance.isWaitForCompletion() == false

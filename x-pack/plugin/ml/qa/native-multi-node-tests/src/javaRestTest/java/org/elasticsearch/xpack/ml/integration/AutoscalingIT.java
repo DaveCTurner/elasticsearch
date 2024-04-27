@@ -299,6 +299,7 @@ public class AutoscalingIT extends MlNativeAutodetectIntegTestCase {
         client().execute(
             PutTrainedModelDefinitionPartAction.INSTANCE,
             new PutTrainedModelDefinitionPartAction.Request(
+                masterNodeTimeout,
                 modelId,
                 new BytesArray(Base64.getDecoder().decode(BASE_64_ENCODED_MODEL)),
                 0,

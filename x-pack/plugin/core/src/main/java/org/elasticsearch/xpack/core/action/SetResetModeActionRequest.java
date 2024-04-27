@@ -8,8 +8,10 @@
 package org.elasticsearch.xpack.core.action;
 
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ConstructingObjectParser;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.ToXContent;
@@ -21,11 +23,11 @@ import java.util.Objects;
 
 public class SetResetModeActionRequest extends AcknowledgedRequest<SetResetModeActionRequest> implements ToXContentObject {
     public static SetResetModeActionRequest enabled() {
-        return new SetResetModeActionRequest(true, false);
+        return new SetResetModeActionRequest(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT, true, false);
     }
 
     public static SetResetModeActionRequest disabled(boolean deleteMetadata) {
-        return new SetResetModeActionRequest(false, deleteMetadata);
+        return new SetResetModeActionRequest(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT, false, deleteMetadata);
     }
 
     private final boolean enabled;
@@ -35,7 +37,7 @@ public class SetResetModeActionRequest extends AcknowledgedRequest<SetResetModeA
     private static final ParseField DELETE_METADATA = new ParseField("delete_metadata");
     public static final ConstructingObjectParser<SetResetModeActionRequest, Void> PARSER = new ConstructingObjectParser<>(
         "set_reset_mode_action_request",
-        a -> new SetResetModeActionRequest((Boolean) a[0], (Boolean) a[1])
+        a -> new SetResetModeActionRequest(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT, (Boolean) a[0], (Boolean) a[1])
     );
 
     static {
@@ -43,7 +45,7 @@ public class SetResetModeActionRequest extends AcknowledgedRequest<SetResetModeA
         PARSER.declareBoolean(ConstructingObjectParser.optionalConstructorArg(), DELETE_METADATA);
     }
 
-    SetResetModeActionRequest(boolean enabled, Boolean deleteMetadata) {
+    SetResetModeActionRequest(TimeValue masterNodeTimeout, boolean enabled, Boolean deleteMetadata) {
         super(masterNodeTimeout);
         this.enabled = enabled;
         this.deleteMetadata = deleteMetadata != null && deleteMetadata;

@@ -237,7 +237,7 @@ public class MlNodeShutdownIT extends BaseMlIntegTestCase {
 
     private void setupJobAndDatafeed(String jobId, ByteSizeValue modelMemoryLimit) throws Exception {
         Job.Builder job = createScheduledJob(jobId, modelMemoryLimit);
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         String datafeedId = jobId;

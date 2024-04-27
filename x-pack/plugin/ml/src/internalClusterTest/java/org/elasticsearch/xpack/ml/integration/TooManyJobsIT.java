@@ -37,7 +37,7 @@ public class TooManyJobsIT extends BaseMlIntegTestCase {
 
         // create and open first job, which succeeds:
         Job.Builder job = createJob("close-failed-job-1", ByteSizeValue.ofMb(2));
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).get();
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(job.getId())).get();
         assertBusy(() -> {
@@ -50,7 +50,7 @@ public class TooManyJobsIT extends BaseMlIntegTestCase {
 
         // create and try to open second job, which fails:
         job = createJob("close-failed-job-2", ByteSizeValue.ofMb(2));
-        putJobRequest = new PutJobAction.Request(job);
+        putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).get();
         expectThrows(
             ElasticsearchStatusException.class,
@@ -89,7 +89,7 @@ public class TooManyJobsIT extends BaseMlIntegTestCase {
         updateClusterSettings(Settings.builder().put(MachineLearning.MAX_LAZY_ML_NODES.getKey(), maxNumberOfLazyNodes));
         // create and open first job, which succeeds:
         Job.Builder job = createJob("lazy-node-validation-job-1", ByteSizeValue.ofMb(2));
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).get();
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(job.getId())).get();
         assertBusy(() -> {
@@ -102,7 +102,7 @@ public class TooManyJobsIT extends BaseMlIntegTestCase {
 
         // create and try to open second job, which succeeds due to lazy node number:
         job = createJob("lazy-node-validation-job-2", ByteSizeValue.ofMb(2));
-        putJobRequest = new PutJobAction.Request(job);
+        putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).get();
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(job.getId())).get(); // Should return while job is opening
 
@@ -154,7 +154,7 @@ public class TooManyJobsIT extends BaseMlIntegTestCase {
                 client().execute(ClusterUpdateSettingsAction.INSTANCE, clusterUpdateSettingsRequest).actionGet();
             }
             Job.Builder job = createJob("max-number-of-jobs-limit-job-" + Integer.toString(i), jobModelMemoryLimit);
-            PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+            PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
             client().execute(PutJobAction.INSTANCE, putJobRequest).get();
 
             OpenJobAction.Request openJobRequest = new OpenJobAction.Request(job.getId());

@@ -12,6 +12,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ObjectParser;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.ToXContentObject;
@@ -39,7 +40,7 @@ public class RevertModelSnapshotAction extends ActionType<RevertModelSnapshotAct
         public static final ParseField DELETE_INTERVENING = new ParseField("delete_intervening_results");
         private static final ParseField FORCE = new ParseField("force");
 
-        private static final ObjectParser<Request, Void> PARSER = new ObjectParser<>(NAME, Request::new);
+        private static final ObjectParser<Request, Void> PARSER = new ObjectParser<>(NAME);
         static {
             PARSER.declareString((request, jobId) -> request.jobId = jobId, Job.ID);
             PARSER.declareString((request, snapshotId) -> request.snapshotId = snapshotId, SNAPSHOT_ID);
@@ -47,8 +48,9 @@ public class RevertModelSnapshotAction extends ActionType<RevertModelSnapshotAct
             PARSER.declareBoolean(Request::setForce, FORCE);
         }
 
-        public static Request parseRequest(String jobId, String snapshotId, XContentParser parser) {
-            Request request = PARSER.apply(parser, null);
+        public static Request parseRequest(TimeValue masterNodeTimeout, String jobId, String snapshotId, XContentParser parser)
+            throws IOException {
+            Request request = PARSER.parse(parser, new Request(masterNodeTimeout), null);
             if (jobId != null) {
                 request.jobId = jobId;
             }
@@ -63,7 +65,7 @@ public class RevertModelSnapshotAction extends ActionType<RevertModelSnapshotAct
         private boolean deleteInterveningResults;
         private boolean force;
 
-        public Request() {
+        public Request(TimeValue masterNodeTimeout) {
             super(masterNodeTimeout);
         }
 
@@ -75,7 +77,7 @@ public class RevertModelSnapshotAction extends ActionType<RevertModelSnapshotAct
             force = in.readBoolean();
         }
 
-        public Request(String jobId, String snapshotId) {
+        public Request(TimeValue masterNodeTimeout, String jobId, String snapshotId) {
             super(masterNodeTimeout);
             this.jobId = ExceptionsHelper.requireNonNull(jobId, Job.ID.getPreferredName());
             this.snapshotId = ExceptionsHelper.requireNonNull(snapshotId, SNAPSHOT_ID.getPreferredName());

@@ -9,6 +9,7 @@ package org.elasticsearch.datastreams.lifecycle.rest;
 
 import org.elasticsearch.action.datastreams.lifecycle.GetDataStreamLifecycleAction;
 import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -37,7 +38,7 @@ public class RestGetDataStreamLifecycleAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
         GetDataStreamLifecycleAction.Request getDataLifecycleRequest = new GetDataStreamLifecycleAction.Request(
-            masterNodeTimeout,
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */,
             Strings.splitStringByCommaToArray(request.param("name"))
         );
         getDataLifecycleRequest.includeDefaults(request.paramAsBoolean("include_defaults", false));

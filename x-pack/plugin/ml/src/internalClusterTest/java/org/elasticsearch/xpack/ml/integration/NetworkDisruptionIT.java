@@ -42,7 +42,7 @@ public class NetworkDisruptionIT extends BaseMlIntegTestCase {
         ensureStableCluster(5);
 
         Job.Builder job = createJob("relocation-job", ByteSizeValue.ofMb(2));
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         OpenJobAction.Request openJobRequest = new OpenJobAction.Request(job.getId());

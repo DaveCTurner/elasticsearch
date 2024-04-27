@@ -15,6 +15,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.persistent.PersistentTasksCustomMetadata;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
@@ -69,7 +70,7 @@ public class GetDatafeedsStatsAction extends ActionType<GetDatafeedsStatsAction.
         private final String datafeedId;
         private boolean allowNoMatch = true;
 
-        public Request(String datafeedId) {
+        public Request(TimeValue masterNodeTimeout, String datafeedId) {
             super(masterNodeTimeout);
             this.datafeedId = ExceptionsHelper.requireNonNull(datafeedId, DatafeedConfig.ID.getPreferredName());
         }

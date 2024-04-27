@@ -431,7 +431,7 @@ public class TransportPutTrainedModelAction extends TransportMasterNodeAction<Re
     ) {
         client.execute(
             LoadTrainedModelPackageAction.INSTANCE,
-            new LoadTrainedModelPackageAction.Request(modelId, modelPackageConfig, waitForCompletion),
+            new LoadTrainedModelPackageAction.Request(masterNodeTimeout, modelId, modelPackageConfig, waitForCompletion),
             ActionListener.wrap(ack -> listener.onResponse(null), listener::onFailure)
         );
     }
@@ -439,7 +439,7 @@ public class TransportPutTrainedModelAction extends TransportMasterNodeAction<Re
     private void resolvePackageConfig(String modelId, ActionListener<ModelPackageConfig> listener) {
         client.execute(
             GetTrainedModelPackageConfigAction.INSTANCE,
-            new GetTrainedModelPackageConfigAction.Request(modelId.substring(1)),
+            new GetTrainedModelPackageConfigAction.Request(masterNodeTimeout, modelId.substring(1)),
             ActionListener.wrap(packageConfig -> listener.onResponse(packageConfig.getModelPackageConfig()), listener::onFailure)
         );
     }

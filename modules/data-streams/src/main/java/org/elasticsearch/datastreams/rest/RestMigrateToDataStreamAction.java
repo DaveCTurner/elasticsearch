@@ -8,6 +8,7 @@
 package org.elasticsearch.datastreams.rest;
 
 import org.elasticsearch.action.datastreams.MigrateToDataStreamAction;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
@@ -35,7 +36,10 @@ public class RestMigrateToDataStreamAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        MigrateToDataStreamAction.Request req = new MigrateToDataStreamAction.Request(masterNodeTimeout, request.param("name"));
+        MigrateToDataStreamAction.Request req = new MigrateToDataStreamAction.Request(
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */,
+            request.param("name")
+        );
         return channel -> client.execute(MigrateToDataStreamAction.INSTANCE, req, new RestToXContentListener<>(channel));
     }
 }

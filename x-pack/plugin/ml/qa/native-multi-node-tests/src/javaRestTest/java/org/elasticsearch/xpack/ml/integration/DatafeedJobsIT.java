@@ -113,7 +113,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
             assertThat(dataCounts.getProcessedRecordCount(), equalTo(numDocs + numDocs2));
             assertThat(dataCounts.getOutOfOrderTimeStampCount(), equalTo(0L));
 
-            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(datafeedConfig.getId());
+            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedConfig.getId());
             GetDatafeedsStatsAction.Response response = client().execute(GetDatafeedsStatsAction.INSTANCE, request).actionGet();
             assertThat(response.getResponse().results().get(0).getDatafeedState(), equalTo(DatafeedState.STOPPED));
         }, 60, TimeUnit.SECONDS);
@@ -159,7 +159,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
             assertThat(dataCounts.getProcessedRecordCount(), equalTo(numDocs));
             assertThat(dataCounts.getOutOfOrderTimeStampCount(), equalTo(0L));
 
-            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(datafeedConfig.getId());
+            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedConfig.getId());
             GetDatafeedsStatsAction.Response response = client().execute(GetDatafeedsStatsAction.INSTANCE, request).actionGet();
             assertThat(response.getResponse().results().get(0).getDatafeedState(), equalTo(DatafeedState.STOPPED));
         }, 60, TimeUnit.SECONDS);
@@ -216,7 +216,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
             assertThat(dataCounts.getOutOfOrderTimeStampCount(), equalTo(0L));
             assertThat(dataCounts.getMissingFieldCount(), equalTo(0L));
 
-            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(datafeedConfig.getId());
+            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedConfig.getId());
             GetDatafeedsStatsAction.Response response = client().execute(GetDatafeedsStatsAction.INSTANCE, request).actionGet();
             assertThat(response.getResponse().results().get(0).getDatafeedState(), equalTo(DatafeedState.STOPPED));
         }, 60, TimeUnit.SECONDS);
@@ -453,7 +453,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
     }
 
     private void assertDatafeedStats(String datafeedId, DatafeedState state, String jobId, Matcher<Long> searchCountMatcher) {
-        GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(datafeedId);
+        GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
         GetDatafeedsStatsAction.Response response = client().execute(GetDatafeedsStatsAction.INSTANCE, request).actionGet();
         assertThat(response.getResponse().results(), hasSize(1));
         GetDatafeedsStatsAction.Response.DatafeedStats stats = response.getResponse().results().get(0);
@@ -475,7 +475,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
             throw e;
         }
         assertBusy(() -> {
-            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(datafeedId);
+            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
             GetDatafeedsStatsAction.Response response = client().execute(GetDatafeedsStatsAction.INSTANCE, request).actionGet();
             assertThat(response.getResponse().results().get(0).getDatafeedState(), equalTo(DatafeedState.STOPPED));
         });
@@ -494,7 +494,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
             throw e;
         }
         assertBusy(() -> {
-            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(datafeedId);
+            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
             GetDatafeedsStatsAction.Response response = client().execute(GetDatafeedsStatsAction.INSTANCE, request).actionGet();
             assertThat(response.getResponse().results().get(0).getDatafeedState(), equalTo(DatafeedState.STOPPED));
         });
@@ -536,7 +536,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
             HotThreads.logLocalHotThreads(logger, Level.INFO, "hot threads at failure", ReferenceDocs.LOGGING);
             throw e;
         }
-        GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(datafeedId);
+        GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
         GetDatafeedsStatsAction.Response response = client().execute(GetDatafeedsStatsAction.INSTANCE, request).actionGet();
         assertThat(response.getResponse().results().get(0).getDatafeedState(), equalTo(DatafeedState.STOPPED));
 
@@ -560,7 +560,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
 
         // Datafeed should auto-stop...
         assertBusy(() -> {
-            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(datafeedId);
+            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
             GetDatafeedsStatsAction.Response response = client().execute(GetDatafeedsStatsAction.INSTANCE, request).actionGet();
             assertThat(response.getResponse().results().get(0).getDatafeedState(), equalTo(DatafeedState.STOPPED));
         });
@@ -589,7 +589,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
                 exceptions.put(Thread.currentThread().getId(), new AssertionError("Job is not stopped"));
             }
 
-            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(datafeedId);
+            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
             GetDatafeedsStatsAction.Response response = client().execute(GetDatafeedsStatsAction.INSTANCE, request).actionGet();
             if (response.getResponse().results().get(0).getDatafeedState() != DatafeedState.STOPPED) {
                 exceptions.put(
@@ -637,7 +637,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
                 request.setForce(true);
                 AcknowledgedResponse response = client().execute(DeleteDatafeedAction.INSTANCE, request).actionGet();
                 if (response.isAcknowledged()) {
-                    GetDatafeedsStatsAction.Request statsRequest = new GetDatafeedsStatsAction.Request(datafeedId);
+                    GetDatafeedsStatsAction.Request statsRequest = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
                     expectThrows(
                         ResourceNotFoundException.class,
                         () -> client().execute(GetDatafeedsStatsAction.INSTANCE, statsRequest).actionGet()
@@ -673,7 +673,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
         client().execute(KillProcessAction.INSTANCE, killRequest).actionGet();
 
         assertBusy(() -> {
-            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(datafeedId);
+            GetDatafeedsStatsAction.Request request = new GetDatafeedsStatsAction.Request(masterNodeTimeout, datafeedId);
             GetDatafeedsStatsAction.Response response = client().execute(GetDatafeedsStatsAction.INSTANCE, request).actionGet();
             assertThat(response.getResponse().results().get(0).getDatafeedState(), equalTo(DatafeedState.STOPPED));
         });

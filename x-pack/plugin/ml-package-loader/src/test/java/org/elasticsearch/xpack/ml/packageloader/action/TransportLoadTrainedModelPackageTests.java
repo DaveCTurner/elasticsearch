@@ -166,10 +166,10 @@ public class TransportLoadTrainedModelPackageTests extends ESTestCase {
     }
 
     private LoadTrainedModelPackageAction.Request createRequestWithWaiting() {
-        return new LoadTrainedModelPackageAction.Request("id", mock(ModelPackageConfig.class), true);
+        return new LoadTrainedModelPackageAction.Request(masterNodeTimeout, "id", mock(ModelPackageConfig.class), true);
     }
 
     private LoadTrainedModelPackageAction.Request createRequestWithoutWaiting() {
-        return new LoadTrainedModelPackageAction.Request("id", mock(ModelPackageConfig.class), false);
+        return new LoadTrainedModelPackageAction.Request(masterNodeTimeout, "id", mock(ModelPackageConfig.class), false);
     }
 }

@@ -15,7 +15,7 @@ public class SetUpgradeModeActionRequestTests extends AbstractXContentSerializin
 
     @Override
     protected Request createTestInstance() {
-        return new Request(randomBoolean());
+        return new Request(randomTimeValue(), randomBoolean());
     }
 
     @Override

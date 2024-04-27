@@ -9,8 +9,10 @@ package org.elasticsearch.xpack.core.ml.action;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ConstructingObjectParser;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.ToXContentObject;
@@ -33,16 +35,17 @@ public class SetUpgradeModeAction extends ActionType<AcknowledgedResponse> {
         private final boolean enabled;
 
         private static final ParseField ENABLED = new ParseField("enabled");
+        // only used in tests -- TODO move to test suite
         public static final ConstructingObjectParser<Request, Void> PARSER = new ConstructingObjectParser<>(
             NAME,
-            a -> new Request((Boolean) a[0])
+            a -> new Request(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT, (Boolean) a[0])
         );
 
         static {
             PARSER.declareBoolean(ConstructingObjectParser.constructorArg(), ENABLED);
         }
 
-        public Request(boolean enabled) {
+        public Request(TimeValue masterNodeTimeout, boolean enabled) {
             super(masterNodeTimeout);
             this.enabled = enabled;
         }

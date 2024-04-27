@@ -93,7 +93,7 @@ public class JobStorageDeletionTaskIT extends BaseMlIntegTestCase {
         enableIndexBlock(UNRELATED_INDEX, IndexMetadata.SETTING_READ_ONLY);
 
         Job.Builder job = createJob("delete-aliases-test-job", ByteSizeValue.ofMb(2));
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         OpenJobAction.Request openJobRequest = new OpenJobAction.Request(job.getId());
@@ -116,7 +116,7 @@ public class JobStorageDeletionTaskIT extends BaseMlIntegTestCase {
         String jobIdDedicated = "delete-test-job-dedicated";
 
         Job.Builder job = createJob(jobIdDedicated, ByteSizeValue.ofMb(2)).setResultsIndexName(jobIdDedicated);
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(job)).actionGet();
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, job)).actionGet();
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(job.getId())).actionGet();
         String dedicatedIndex = job.build().getInitialResultsIndexName();
         awaitJobOpenedAndAssigned(job.getId(), null);
@@ -124,7 +124,7 @@ public class JobStorageDeletionTaskIT extends BaseMlIntegTestCase {
 
         String jobIdShared = "delete-test-job-shared";
         job = createJob(jobIdShared, ByteSizeValue.ofMb(2));
-        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(job)).actionGet();
+        client().execute(PutJobAction.INSTANCE, new PutJobAction.Request(masterNodeTimeout, job)).actionGet();
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(job.getId())).actionGet();
         awaitJobOpenedAndAssigned(job.getId(), null);
         createBuckets(jobIdShared, 1, 10);

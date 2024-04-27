@@ -97,7 +97,7 @@ public class ModelSnapshotSearchIT extends MlNativeAutodetectIntegTestCase {
         Job.Builder builder = new Job.Builder().setId(jobId)
             .setAnalysisConfig(new AnalysisConfig.Builder(Collections.singletonList(detector)))
             .setDataDescription(new DataDescription.Builder());
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(builder);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, builder);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
     }
 

@@ -13,6 +13,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
@@ -35,7 +36,7 @@ public class ExecuteSnapshotLifecycleAction extends ActionType<ExecuteSnapshotLi
 
         private String lifecycleId;
 
-        public Request(String lifecycleId) {
+        public Request(TimeValue masterNodeTimeout, String lifecycleId) {
             super(masterNodeTimeout);
             this.lifecycleId = lifecycleId;
         }
@@ -45,7 +46,7 @@ public class ExecuteSnapshotLifecycleAction extends ActionType<ExecuteSnapshotLi
             lifecycleId = in.readString();
         }
 
-        public Request() {
+        public Request(TimeValue masterNodeTimeout) {
             super(masterNodeTimeout);
         }
 

@@ -82,7 +82,7 @@ public class MachineLearningTests extends ESTestCase {
             assertThat(response.get(), equalTo(Collections.singletonMap("already_in_upgrade_mode", false)));
             verify(client).execute(
                 same(SetUpgradeModeAction.INSTANCE),
-                eq(new SetUpgradeModeAction.Request(true)),
+                eq(new SetUpgradeModeAction.Request(masterNodeTimeout, true)),
                 any(ActionListener.class)
             );
 
@@ -95,7 +95,7 @@ public class MachineLearningTests extends ESTestCase {
 
             verify(client).execute(
                 same(SetUpgradeModeAction.INSTANCE),
-                eq(new SetUpgradeModeAction.Request(false)),
+                eq(new SetUpgradeModeAction.Request(masterNodeTimeout, false)),
                 any(ActionListener.class)
             );
         } finally {

@@ -13,6 +13,7 @@ import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xpack.core.ml.inference.trainedmodel.ModelPackageConfig;
 
 import java.io.IOException;
@@ -36,13 +37,13 @@ public class GetTrainedModelPackageConfigAction extends ActionType<GetTrainedMod
 
         private final String packagedModelId;
 
-        public Request(String packagedModelId) {
+        public Request(TimeValue masterNodeTimeout, String packagedModelId) {
             super(masterNodeTimeout);
             this.packagedModelId = packagedModelId;
         }
 
         public Request(StreamInput in) throws IOException {
-            super(masterNodeTimeout);
+            super(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO bug!! should read this from the wire */);
             this.packagedModelId = in.readString();
         }
 

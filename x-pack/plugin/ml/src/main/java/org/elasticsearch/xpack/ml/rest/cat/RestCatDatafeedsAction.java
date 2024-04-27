@@ -51,7 +51,7 @@ public class RestCatDatafeedsAction extends AbstractCatAction {
         if (Strings.isNullOrEmpty(datafeedId)) {
             datafeedId = GetDatafeedsStatsAction.ALL;
         }
-        Request request = new Request(datafeedId);
+        Request request = new Request(masterNodeTimeout, datafeedId);
         checkAndSetDeprecatedParam(
             DEPRECATED_ALLOW_NO_DATAFEEDS_PARAM,
             Request.ALLOW_NO_MATCH,

@@ -519,6 +519,7 @@ public class OpenJobPersistentTasksExecutor extends AbstractJobPersistentTasksEx
                 } else {
                     logger.info("[{}] job has running datafeed task; reverting to current snapshot", jobTask.getJobId());
                     RevertModelSnapshotAction.Request request = new RevertModelSnapshotAction.Request(
+                        masterNodeTimeout,
                         jobTask.getJobId(),
                         jobSnapshotId == null ? ModelSnapshot.EMPTY_SNAPSHOT_ID : jobSnapshotId
                     );

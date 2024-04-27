@@ -69,6 +69,7 @@ public class SnapshotLifecycleInitialisationTests extends ESSingleNodeTestCase {
         client().execute(
             PutSnapshotLifecycleAction.INSTANCE,
             new Request(
+                masterNodeTimeout,
                 "snapshot-policy",
                 new SnapshotLifecyclePolicy(
                     "test-policy",

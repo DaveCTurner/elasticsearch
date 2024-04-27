@@ -10,6 +10,7 @@ package org.elasticsearch.xpack.core.slm;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.SimpleDiffable;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -257,7 +258,12 @@ public class SnapshotLifecyclePolicy implements SimpleDiffable<SnapshotLifecycle
      * generated at this time based on any date math expressions in the "name" field.
      */
     public CreateSnapshotRequest toRequest() {
-        CreateSnapshotRequest req = new CreateSnapshotRequest(masterNodeTimeout, repository, generateSnapshotName(this.name));
+        CreateSnapshotRequest req = new CreateSnapshotRequest(
+            // don't time out on this request to not produce failed SLM runs in case of a temporarily slow master node
+            MasterNodeRequest.VERY_LONG_MASTER_NODE_TIMEOUT,
+            repository,
+            generateSnapshotName(this.name)
+        );
         Map<String, Object> mergedConfiguration = configuration == null ? new HashMap<>() : new HashMap<>(configuration);
         @SuppressWarnings("unchecked")
         Map<String, Object> metadata = (Map<String, Object>) mergedConfiguration.get("metadata");

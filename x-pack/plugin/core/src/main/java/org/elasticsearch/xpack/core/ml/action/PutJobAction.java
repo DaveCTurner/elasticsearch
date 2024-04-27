@@ -13,6 +13,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentParser;
@@ -33,7 +34,12 @@ public class PutJobAction extends ActionType<PutJobAction.Response> {
 
     public static class Request extends AcknowledgedRequest<Request> {
 
-        public static Request parseRequest(String jobId, XContentParser parser, IndicesOptions indicesOptions) {
+        public static Request parseRequest(
+            TimeValue masterNodeTimeout,
+            String jobId,
+            XContentParser parser,
+            IndicesOptions indicesOptions
+        ) {
             Job.Builder jobBuilder = Job.REST_REQUEST_PARSER.apply(parser, null);
             if (jobBuilder.getId() == null) {
                 jobBuilder.setId(jobId);
@@ -44,12 +50,12 @@ public class PutJobAction extends ActionType<PutJobAction.Response> {
                 );
             }
             jobBuilder.setDatafeedIndicesOptionsIfRequired(indicesOptions);
-            return new Request(jobBuilder);
+            return new Request(masterNodeTimeout, jobBuilder);
         }
 
         private final Job.Builder jobBuilder;
 
-        public Request(Job.Builder jobBuilder) {
+        public Request(TimeValue masterNodeTimeout, Job.Builder jobBuilder) {
             // Validate the jobBuilder immediately so that errors can be detected prior to transportation.
             super(masterNodeTimeout);
             jobBuilder.validateInputFields();

@@ -12,10 +12,13 @@ import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.set.Sets;
+import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.xcontent.ConstructingObjectParser;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.XContentParser;
@@ -26,6 +29,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 import static org.elasticsearch.xcontent.ConstructingObjectParser.optionalConstructorArg;
 
 public class UpdateSecuritySettingsAction extends ActionType<AcknowledgedResponse> {
@@ -55,10 +59,15 @@ public class UpdateSecuritySettingsAction extends ActionType<AcknowledgedRespons
         private final Map<String, Object> profilesIndexSettings;
 
         @SuppressWarnings("unchecked")
-        private static final ConstructingObjectParser<Request, Void> PARSER = new ConstructingObjectParser<>(
+        private static final ConstructingObjectParser<Request, RestRequest> PARSER = new ConstructingObjectParser<>(
             "update_security_settings_request",
             false,
-            a -> new Request((Map<String, Object>) a[0], (Map<String, Object>) a[1], (Map<String, Object>) a[2])
+            (a, restRequest) -> new Request(
+                getMasterNodeTimeout(restRequest),
+                (Map<String, Object>) a[0],
+                (Map<String, Object>) a[1],
+                (Map<String, Object>) a[2]
+            )
         );
 
         static {
@@ -68,6 +77,7 @@ public class UpdateSecuritySettingsAction extends ActionType<AcknowledgedRespons
         }
 
         public Request(
+            TimeValue masterNodeTimeout,
             Map<String, Object> mainIndexSettings,
             Map<String, Object> tokensIndexSettings,
             Map<String, Object> profilesIndexSettings
@@ -79,7 +89,7 @@ public class UpdateSecuritySettingsAction extends ActionType<AcknowledgedRespons
         }
 
         public Request(StreamInput in) throws IOException {
-            super(masterNodeTimeout);
+            super(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO bug!! should read this from the wire */);
             this.mainIndexSettings = in.readGenericMap();
             this.tokensIndexSettings = in.readGenericMap();
             this.profilesIndexSettings = in.readGenericMap();
@@ -92,8 +102,8 @@ public class UpdateSecuritySettingsAction extends ActionType<AcknowledgedRespons
             out.writeGenericMap(this.profilesIndexSettings);
         }
 
-        public static Request parse(XContentParser parser) {
-            return PARSER.apply(parser, null);
+        public static Request parse(RestRequest restRequest, XContentParser parser) {
+            return PARSER.apply(parser, restRequest);
         }
 
         public Map<String, Object> mainIndexSettings() {

@@ -208,7 +208,7 @@ public class ModelSnapshotRetentionIT extends MlNativeAutodetectIntegTestCase {
         builder.setModelSnapshotRetentionDays(modelSnapshotRetentionDays);
         builder.setDailyModelSnapshotRetentionAfterDays(dailyModelSnapshotRetentionAfterDays);
 
-        PutJobAction.Request putJobRequest = new PutJobAction.Request(builder);
+        PutJobAction.Request putJobRequest = new PutJobAction.Request(masterNodeTimeout, builder);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
     }
 

@@ -169,7 +169,7 @@ public class DataStreamLifecycleUsageTransportActionIT extends ESIntegTestCase {
         double averageRetention,
         boolean defaultRolloverUsed
     ) throws Exception {
-        XPackUsageFeatureResponse response = client().execute(DATA_STREAM_LIFECYCLE, new XPackUsageRequest()).get();
+        XPackUsageFeatureResponse response = client().execute(DATA_STREAM_LIFECYCLE, new XPackUsageRequest(masterNodeTimeout)).get();
         XContentBuilder builder = XContentFactory.jsonBuilder();
         builder = response.getUsage().toXContent(builder, ToXContent.EMPTY_PARAMS);
         Tuple<XContentType, Map<String, Object>> tuple = XContentHelper.convertToMap(
