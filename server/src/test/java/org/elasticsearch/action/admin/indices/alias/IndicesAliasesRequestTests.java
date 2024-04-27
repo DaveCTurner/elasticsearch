@@ -9,6 +9,7 @@
 package org.elasticsearch.action.admin.indices.alias;
 
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.xcontent.ToXContent;
@@ -30,7 +31,11 @@ public class IndicesAliasesRequestTests extends ESTestCase {
 
         IndicesAliasesRequest parsedIndicesAliasesRequest;
         try (XContentParser parser = createParser(xContentType.xContent(), shuffled)) {
-            parsedIndicesAliasesRequest = IndicesAliasesRequest.fromXContent(masterNodeTimeout, parser);
+            parsedIndicesAliasesRequest = IndicesAliasesRequest.PARSER.parse(
+                parser,
+                new IndicesAliasesRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT),
+                null
+            );
             assertNull(parser.nextToken());
         }
 
@@ -43,7 +48,7 @@ public class IndicesAliasesRequestTests extends ESTestCase {
 
     private IndicesAliasesRequest createTestInstance() {
         int numItems = randomIntBetween(0, 32);
-        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
+        IndicesAliasesRequest request = new IndicesAliasesRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT);
         if (randomBoolean()) {
             request.ackTimeout(randomTimeValue());
         }

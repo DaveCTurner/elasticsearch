@@ -671,19 +671,16 @@ public class IndicesAliasesRequest extends AcknowledgedRequest<IndicesAliasesReq
         return builder;
     }
 
-    public static final ObjectParser<IndicesAliasesRequest, Void> PARSER = new ObjectParser<>(
-        "aliases",
-        () -> new IndicesAliasesRequest(masterNodeTimeout)
-    );
+    public static final ObjectParser<IndicesAliasesRequest, Void> PARSER = new ObjectParser<>("aliases", () -> {
+        final var exception = new UnsupportedOperationException("cannot construct fresh IndicesAliasesRequest");
+        assert false : exception;
+        throw exception;
+    });
     static {
         PARSER.declareObjectArray((request, actions) -> {
             for (AliasActions action : actions) {
                 request.addAliasAction(action);
             }
         }, AliasActions.PARSER, new ParseField("actions"));
-    }
-
-    public static IndicesAliasesRequest fromXContent(XContentParser parser) {
-        return PARSER.apply(parser, null);
     }
 }
