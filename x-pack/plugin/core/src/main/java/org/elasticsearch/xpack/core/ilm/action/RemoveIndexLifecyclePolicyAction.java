@@ -113,9 +113,12 @@ public class RemoveIndexLifecyclePolicyAction extends ActionType<RemoveIndexLife
             indicesOptions = IndicesOptions.readIndicesOptions(in);
         }
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public Request(String... indices) {
+            super(masterNodeTimeout);
             if (indices == null) {
                 throw new IllegalArgumentException("indices cannot be null");
             }

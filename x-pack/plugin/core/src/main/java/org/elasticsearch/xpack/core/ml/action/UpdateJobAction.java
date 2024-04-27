@@ -46,6 +46,7 @@ public class UpdateJobAction extends ActionType<PutJobAction.Response> {
         }
 
         private Request(String jobId, JobUpdate update, boolean isInternal) {
+            super(masterNodeTimeout);
             this.jobId = jobId;
             this.update = update;
             this.isInternal = isInternal;

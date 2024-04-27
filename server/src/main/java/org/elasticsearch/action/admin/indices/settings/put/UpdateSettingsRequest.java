@@ -61,12 +61,15 @@ public class UpdateSettingsRequest extends AcknowledgedRequest<UpdateSettingsReq
         }
     }
 
-    public UpdateSettingsRequest() {}
+    public UpdateSettingsRequest() {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Constructs a new request to update settings for one or more indices
      */
     public UpdateSettingsRequest(String... indices) {
+        super(masterNodeTimeout);
         this.indices = indices;
     }
 
@@ -74,6 +77,7 @@ public class UpdateSettingsRequest extends AcknowledgedRequest<UpdateSettingsReq
      * Constructs a new request to update settings for one or more indices
      */
     public UpdateSettingsRequest(Settings settings, String... indices) {
+        super(masterNodeTimeout);
         this.indices = indices;
         this.settings = settings;
     }

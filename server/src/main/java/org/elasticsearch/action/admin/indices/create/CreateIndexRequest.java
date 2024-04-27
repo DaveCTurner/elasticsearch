@@ -111,7 +111,9 @@ public class CreateIndexRequest extends AcknowledgedRequest<CreateIndexRequest> 
         }
     }
 
-    public CreateIndexRequest() {}
+    public CreateIndexRequest() {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Constructs a request to create an index.
@@ -129,6 +131,7 @@ public class CreateIndexRequest extends AcknowledgedRequest<CreateIndexRequest> 
      * @param settings the settings to apply to the index
      */
     public CreateIndexRequest(String index, Settings settings) {
+        super(masterNodeTimeout);
         this.index = index;
         this.settings = settings;
     }

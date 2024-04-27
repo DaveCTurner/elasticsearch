@@ -60,6 +60,7 @@ public class ExplainDataFrameAnalyticsAction extends ActionType<ExplainDataFrame
         }
 
         public Request(DataFrameAnalyticsConfig config) {
+            super(masterNodeTimeout);
             this.config = config;
         }
 

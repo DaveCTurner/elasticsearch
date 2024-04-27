@@ -87,6 +87,7 @@ public class PutShutdownNodeAction extends ActionType<AcknowledgedResponse> {
             @Nullable String targetNodeName,
             @Nullable TimeValue gracePeriod
         ) {
+            super(masterNodeTimeout);
             this.nodeId = nodeId;
             this.type = type;
             this.reason = reason;
@@ -96,6 +97,7 @@ public class PutShutdownNodeAction extends ActionType<AcknowledgedResponse> {
         }
 
         public Request(StreamInput in) throws IOException {
+            super(masterNodeTimeout);
             this.nodeId = in.readString();
             this.type = in.readEnum(SingleNodeShutdownMetadata.Type.class);
             this.reason = in.readString();

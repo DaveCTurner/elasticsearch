@@ -35,6 +35,7 @@ public class MigrateToDataStreamAction extends ActionType<AcknowledgedResponse> 
         private final String aliasName;
 
         public Request(String aliasName) {
+            super(masterNodeTimeout);
             this.aliasName = aliasName;
         }
 

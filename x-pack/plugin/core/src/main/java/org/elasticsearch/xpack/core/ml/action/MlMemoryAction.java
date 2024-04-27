@@ -68,6 +68,7 @@ public class MlMemoryAction extends ActionType<MlMemoryAction.Response> {
         private final String nodeId;
 
         public Request(String nodeId) {
+            super(masterNodeTimeout);
             this.nodeId = ExceptionsHelper.requireNonNull(nodeId, "nodeId");
         }
 

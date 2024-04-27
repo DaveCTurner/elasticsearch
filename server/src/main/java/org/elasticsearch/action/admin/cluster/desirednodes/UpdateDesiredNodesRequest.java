@@ -48,6 +48,7 @@ public class UpdateDesiredNodesRequest extends AcknowledgedRequest<UpdateDesired
     }
 
     public UpdateDesiredNodesRequest(String historyID, long version, List<DesiredNode> nodes, boolean dryRun) {
+        super(masterNodeTimeout);
         assert historyID != null;
         assert nodes != null;
         this.historyID = historyID;

@@ -78,6 +78,7 @@ public class PutAutoscalingPolicyAction extends ActionType<AcknowledgedResponse>
         }
 
         public Request(final String name, final SortedSet<String> roles, final SortedMap<String, Settings> deciders) {
+            super(masterNodeTimeout);
             this.name = name;
             this.roles = roles;
             this.deciders = deciders;

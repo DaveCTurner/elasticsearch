@@ -43,6 +43,7 @@ public class UpdateDatafeedAction extends ActionType<PutDatafeedAction.Response>
         private DatafeedUpdate update;
 
         public Request(DatafeedUpdate update) {
+            super(masterNodeTimeout);
             this.update = update;
         }
 

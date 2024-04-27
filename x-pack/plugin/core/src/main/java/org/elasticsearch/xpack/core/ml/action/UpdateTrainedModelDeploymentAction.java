@@ -64,9 +64,12 @@ public class UpdateTrainedModelDeploymentAction extends ActionType<CreateTrained
         private String deploymentId;
         private int numberOfAllocations;
 
-        private Request() {}
+        private Request() {
+            super(masterNodeTimeout);
+        }
 
         public Request(String deploymentId) {
+            super(masterNodeTimeout);
             setDeploymentId(deploymentId);
         }
 

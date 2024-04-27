@@ -34,6 +34,7 @@ public class UnfollowAction extends ActionType<AcknowledgedResponse> {
         private final String followerIndex;
 
         public Request(String followerIndex) {
+            super(masterNodeTimeout);
             this.followerIndex = followerIndex;
         }
 

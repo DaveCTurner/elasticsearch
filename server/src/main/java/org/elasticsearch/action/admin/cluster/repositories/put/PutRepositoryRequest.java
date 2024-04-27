@@ -47,12 +47,15 @@ public class PutRepositoryRequest extends AcknowledgedRequest<PutRepositoryReque
         verify = in.readBoolean();
     }
 
-    public PutRepositoryRequest() {}
+    public PutRepositoryRequest() {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Constructs a new put repository request with the provided name.
      */
     public PutRepositoryRequest(String name) {
+        super(masterNodeTimeout);
         this.name = name;
     }
 

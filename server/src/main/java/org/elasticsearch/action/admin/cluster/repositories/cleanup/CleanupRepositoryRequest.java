@@ -21,10 +21,12 @@ public class CleanupRepositoryRequest extends AcknowledgedRequest<CleanupReposit
     private String repository;
 
     public CleanupRepositoryRequest(String repository) {
+        super(masterNodeTimeout);
         this.repository = repository;
     }
 
     public CleanupRepositoryRequest(StreamInput in) throws IOException {
+        super(masterNodeTimeout);
         repository = in.readString();
     }
 

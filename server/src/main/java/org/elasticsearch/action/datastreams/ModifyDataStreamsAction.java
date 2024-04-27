@@ -70,6 +70,7 @@ public class ModifyDataStreamsAction extends ActionType<AcknowledgedResponse> {
         }
 
         public Request(List<DataStreamAction> actions) {
+            super(masterNodeTimeout);
             this.actions = Collections.unmodifiableList(actions);
         }
 

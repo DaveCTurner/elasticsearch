@@ -55,7 +55,9 @@ public class ClusterUpdateSettingsRequest extends AcknowledgedRequest<ClusterUpd
         persistentSettings = readSettingsFromStream(in);
     }
 
-    public ClusterUpdateSettingsRequest() {}
+    public ClusterUpdateSettingsRequest() {
+        super(masterNodeTimeout);
+    }
 
     @Override
     public ActionRequestValidationException validate() {

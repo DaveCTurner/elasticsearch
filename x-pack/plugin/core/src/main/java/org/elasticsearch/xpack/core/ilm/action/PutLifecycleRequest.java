@@ -38,6 +38,7 @@ public class PutLifecycleRequest extends AcknowledgedRequest<PutLifecycleRequest
     private LifecyclePolicy policy;
 
     public PutLifecycleRequest(LifecyclePolicy policy) {
+        super(masterNodeTimeout);
         this.policy = policy;
     }
 
@@ -46,7 +47,9 @@ public class PutLifecycleRequest extends AcknowledgedRequest<PutLifecycleRequest
         policy = new LifecyclePolicy(in);
     }
 
-    public PutLifecycleRequest() {}
+    public PutLifecycleRequest() {
+        super(masterNodeTimeout);
+    }
 
     public LifecyclePolicy getPolicy() {
         return policy;

@@ -36,6 +36,7 @@ public class PutSnapshotLifecycleAction extends ActionType<AcknowledgedResponse>
         private SnapshotLifecyclePolicy lifecycle;
 
         public Request(String lifecycleId, SnapshotLifecyclePolicy lifecycle) {
+            super(masterNodeTimeout);
             this.lifecycleId = lifecycleId;
             this.lifecycle = lifecycle;
         }
@@ -46,7 +47,9 @@ public class PutSnapshotLifecycleAction extends ActionType<AcknowledgedResponse>
             lifecycle = new SnapshotLifecyclePolicy(in);
         }
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public String getLifecycleId() {
             return this.lifecycleId;

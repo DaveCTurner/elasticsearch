@@ -19,7 +19,9 @@ public class StartILMRequest extends AcknowledgedRequest<StartILMRequest> {
 
     }
 
-    public StartILMRequest() {}
+    public StartILMRequest() {
+        super(masterNodeTimeout);
+    }
 
     @Override
     public int hashCode() {

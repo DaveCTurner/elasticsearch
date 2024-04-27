@@ -39,6 +39,7 @@ public class GetAutoscalingCapacityAction extends ActionType<GetAutoscalingCapac
 
         public Request() {
 
+            super(masterNodeTimeout);
         }
 
         public Request(final StreamInput in) throws IOException {

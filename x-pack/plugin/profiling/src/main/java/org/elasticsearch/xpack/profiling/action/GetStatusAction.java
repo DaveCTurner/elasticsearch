@@ -133,7 +133,9 @@ public class GetStatusAction extends ActionType<GetStatusAction.Response> {
             waitForResourcesCreated = in.readBoolean();
         }
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public boolean waitForResourcesCreated() {
             return waitForResourcesCreated;

@@ -53,6 +53,7 @@ public class MigrateToDataTiersRequest extends AcknowledgedRequest<MigrateToData
     }
 
     public MigrateToDataTiersRequest(@Nullable String legacyTemplateToDelete, @Nullable String nodeAttributeName) {
+        super(masterNodeTimeout);
         this.legacyTemplateToDelete = legacyTemplateToDelete;
         this.nodeAttributeName = nodeAttributeName;
     }

@@ -118,6 +118,7 @@ public class TransportRetryAction extends TransportMasterNodeAction<TransportRet
         private IndicesOptions indicesOptions = IndicesOptions.strictExpandOpen();
 
         public Request(String... indices) {
+            super(masterNodeTimeout);
             this.indices = indices;
         }
 
@@ -127,7 +128,9 @@ public class TransportRetryAction extends TransportMasterNodeAction<TransportRet
             this.indicesOptions = IndicesOptions.readIndicesOptions(in);
         }
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         @Override
         public Request indices(String... indices) {

@@ -35,6 +35,7 @@ public class DeleteTrainedModelAliasAction extends ActionType<AcknowledgedRespon
         private final String modelId;
 
         public Request(String modelAlias, String modelId) {
+            super(masterNodeTimeout);
             this.modelAlias = ExceptionsHelper.requireNonNull(modelAlias, MODEL_ALIAS);
             this.modelId = ExceptionsHelper.requireNonNull(modelId, TrainedModelConfig.MODEL_ID);
         }

@@ -43,6 +43,7 @@ public class SetUpgradeModeAction extends ActionType<AcknowledgedResponse> {
         }
 
         public Request(boolean enabled) {
+            super(masterNodeTimeout);
             this.enabled = enabled;
         }
 

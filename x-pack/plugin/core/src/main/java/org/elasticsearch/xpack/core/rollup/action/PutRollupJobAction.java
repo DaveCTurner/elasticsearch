@@ -38,6 +38,7 @@ public class PutRollupJobAction extends ActionType<AcknowledgedResponse> {
         private IndicesOptions indicesOptions = IndicesOptions.fromOptions(false, false, true, false);
 
         public Request(RollupJobConfig config) {
+            super(masterNodeTimeout);
             this.config = config;
         }
 
@@ -48,6 +49,7 @@ public class PutRollupJobAction extends ActionType<AcknowledgedResponse> {
 
         public Request() {
 
+            super(masterNodeTimeout);
         }
 
         public static Request fromXContent(final XContentParser parser, final String id) throws IOException {

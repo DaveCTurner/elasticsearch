@@ -39,7 +39,7 @@ public class StartTransformAction extends ActionType<StartTransformAction.Respon
         private final Instant from;
 
         public Request(String id, Instant from, TimeValue timeout) {
-            super(timeout);
+            super(masterNodeTimeout, timeout);
             this.id = ExceptionsHelper.requireNonNull(id, TransformField.ID.getPreferredName());
             this.from = from;
         }

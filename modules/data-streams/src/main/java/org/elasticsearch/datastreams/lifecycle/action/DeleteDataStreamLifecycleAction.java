@@ -48,6 +48,7 @@ public class DeleteDataStreamLifecycleAction {
         }
 
         public Request(String[] names) {
+            super(masterNodeTimeout);
             this.names = names;
         }
 

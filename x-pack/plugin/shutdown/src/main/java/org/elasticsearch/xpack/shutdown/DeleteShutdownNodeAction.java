@@ -31,10 +31,12 @@ public class DeleteShutdownNodeAction extends ActionType<AcknowledgedResponse> {
         private final String nodeId;
 
         public Request(String nodeId) {
+            super(masterNodeTimeout);
             this.nodeId = nodeId;
         }
 
         public Request(StreamInput in) throws IOException {
+            super(masterNodeTimeout);
             this.nodeId = in.readString();
         }
 

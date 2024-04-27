@@ -34,6 +34,7 @@ public class ActivateAutoFollowPatternAction extends ActionType<AcknowledgedResp
         private final boolean active;
 
         public Request(final String name, final boolean active) {
+            super(masterNodeTimeout);
             this.name = name;
             this.active = active;
         }

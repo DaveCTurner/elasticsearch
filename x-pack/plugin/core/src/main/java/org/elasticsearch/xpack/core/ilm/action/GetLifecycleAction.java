@@ -104,6 +104,7 @@ public class GetLifecycleAction extends ActionType<GetLifecycleAction.Response> 
         private final String[] policyNames;
 
         public Request(String... policyNames) {
+            super(masterNodeTimeout);
             if (policyNames == null) {
                 throw new IllegalArgumentException("ids cannot be null");
             }
@@ -116,6 +117,7 @@ public class GetLifecycleAction extends ActionType<GetLifecycleAction.Response> 
         }
 
         public Request() {
+            super(masterNodeTimeout);
             policyNames = Strings.EMPTY_ARRAY;
         }
 

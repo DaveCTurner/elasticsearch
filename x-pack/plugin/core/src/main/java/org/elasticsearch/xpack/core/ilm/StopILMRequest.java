@@ -19,7 +19,9 @@ public class StopILMRequest extends AcknowledgedRequest<StopILMRequest> {
 
     }
 
-    public StopILMRequest() {}
+    public StopILMRequest() {
+        super(masterNodeTimeout);
+    }
 
     @Override
     public int hashCode() {

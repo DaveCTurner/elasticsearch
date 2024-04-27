@@ -38,6 +38,7 @@ public class DeleteFilterAction extends ActionType<AcknowledgedResponse> {
         }
 
         public Request(String filterId) {
+            super(masterNodeTimeout);
             this.filterId = ExceptionsHelper.requireNonNull(filterId, FILTER_ID.getPreferredName());
         }
 

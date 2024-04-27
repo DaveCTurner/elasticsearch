@@ -27,6 +27,7 @@ public class FreezeRequest extends AcknowledgedRequest<FreezeRequest> implements
     private ActiveShardCount waitForActiveShards = ActiveShardCount.DEFAULT;
 
     public FreezeRequest(String... indices) {
+        super(masterNodeTimeout);
         this.indices = indices;
     }
 

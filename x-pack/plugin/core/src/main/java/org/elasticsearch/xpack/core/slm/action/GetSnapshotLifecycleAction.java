@@ -35,6 +35,7 @@ public class GetSnapshotLifecycleAction extends ActionType<GetSnapshotLifecycleA
         private final String[] lifecycleIds;
 
         public Request(String... lifecycleIds) {
+            super(masterNodeTimeout);
             this.lifecycleIds = Objects.requireNonNull(lifecycleIds, "ids may not be null");
         }
 
@@ -44,6 +45,7 @@ public class GetSnapshotLifecycleAction extends ActionType<GetSnapshotLifecycleA
         }
 
         public Request() {
+            super(masterNodeTimeout);
             this.lifecycleIds = Strings.EMPTY_ARRAY;
         }
 

@@ -43,6 +43,7 @@ public class PutDatafeedAction extends ActionType<PutDatafeedAction.Response> {
         private final DatafeedConfig datafeed;
 
         public Request(DatafeedConfig datafeed) {
+            super(masterNodeTimeout);
             this.datafeed = datafeed;
         }
 

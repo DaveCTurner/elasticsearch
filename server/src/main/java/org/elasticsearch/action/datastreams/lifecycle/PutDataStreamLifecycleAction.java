@@ -95,6 +95,7 @@ public class PutDataStreamLifecycleAction {
         }
 
         public Request(String[] names, DataStreamLifecycle lifecycle) {
+            super(masterNodeTimeout);
             this.names = names;
             this.lifecycle = lifecycle;
         }
@@ -104,6 +105,7 @@ public class PutDataStreamLifecycleAction {
         }
 
         public Request(String[] names, @Nullable TimeValue dataRetention, @Nullable Boolean enabled, @Nullable Downsampling downsampling) {
+            super(masterNodeTimeout);
             this.names = names;
             this.lifecycle = DataStreamLifecycle.newBuilder()
                 .dataRetention(dataRetention)

@@ -40,7 +40,7 @@ public class UpgradeTransformsAction extends ActionType<UpgradeTransformsAction.
         }
 
         public Request(boolean dryRun, TimeValue timeout) {
-            super(timeout);
+            super(masterNodeTimeout, timeout);
             this.dryRun = dryRun;
         }
 

@@ -37,6 +37,7 @@ public class DeleteDatafeedAction extends ActionType<AcknowledgedResponse> {
         private boolean force;
 
         public Request(String datafeedId) {
+            super(masterNodeTimeout);
             this.datafeedId = ExceptionsHelper.requireNonNull(datafeedId, DatafeedConfig.ID.getPreferredName());
         }
 

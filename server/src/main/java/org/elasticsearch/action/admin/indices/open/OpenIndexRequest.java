@@ -39,12 +39,15 @@ public class OpenIndexRequest extends AcknowledgedRequest<OpenIndexRequest> impl
         waitForActiveShards = ActiveShardCount.readFrom(in);
     }
 
-    public OpenIndexRequest() {}
+    public OpenIndexRequest() {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Constructs a new open index request for the specified index.
      */
     public OpenIndexRequest(String... indices) {
+        super(masterNodeTimeout);
         this.indices = indices;
     }
 

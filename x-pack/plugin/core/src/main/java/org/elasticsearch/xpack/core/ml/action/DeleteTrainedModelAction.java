@@ -48,6 +48,7 @@ public class DeleteTrainedModelAction extends ActionType<AcknowledgedResponse> {
         }
 
         public Request(String id) {
+            super(masterNodeTimeout);
             this.id = ExceptionsHelper.requireNonNull(id, TrainedModelConfig.MODEL_ID);
         }
 

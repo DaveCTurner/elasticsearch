@@ -58,7 +58,7 @@ public class PreviewTransformAction extends ActionType<PreviewTransformAction.Re
         private final TransformConfig config;
 
         public Request(TransformConfig config, TimeValue timeout) {
-            super(timeout);
+            super(masterNodeTimeout, timeout);
             this.config = config;
         }
 

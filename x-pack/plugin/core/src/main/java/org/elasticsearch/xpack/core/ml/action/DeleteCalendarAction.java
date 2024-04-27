@@ -36,6 +36,7 @@ public class DeleteCalendarAction extends ActionType<AcknowledgedResponse> {
         }
 
         public Request(String calendarId) {
+            super(masterNodeTimeout);
             this.calendarId = ExceptionsHelper.requireNonNull(calendarId, Calendar.ID.getPreferredName());
         }
 

@@ -57,6 +57,7 @@ public class UpdateDataFrameAnalyticsAction extends ActionType<PutDataFrameAnaly
         }
 
         public Request(DataFrameAnalyticsConfigUpdate update) {
+            super(masterNodeTimeout);
             this.update = update;
         }
 

@@ -212,6 +212,7 @@ public class TransportMoveToStepAction extends TransportMasterNodeAction<Transpo
         private PartialStepKey nextStepKey;
 
         public Request(String index, Step.StepKey currentStepKey, PartialStepKey nextStepKey) {
+            super(masterNodeTimeout);
             this.index = index;
             this.currentStepKey = currentStepKey;
             this.nextStepKey = nextStepKey;
@@ -224,7 +225,9 @@ public class TransportMoveToStepAction extends TransportMasterNodeAction<Transpo
             this.nextStepKey = new PartialStepKey(in);
         }
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public String getIndex() {
             return index;

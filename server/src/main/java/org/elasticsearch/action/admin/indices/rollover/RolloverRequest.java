@@ -120,9 +120,12 @@ public class RolloverRequest extends AcknowledgedRequest<RolloverRequest> implem
         }
     }
 
-    RolloverRequest() {}
+    RolloverRequest() {
+        super(masterNodeTimeout);
+    }
 
     public RolloverRequest(String rolloverTarget, String newIndexName) {
+        super(masterNodeTimeout);
         this.rolloverTarget = rolloverTarget;
         this.newIndexName = newIndexName;
     }

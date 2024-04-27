@@ -102,7 +102,9 @@ public class TransportDeleteDesiredNodesAction extends TransportMasterNodeAction
     }
 
     public static class Request extends AcknowledgedRequest<Request> {
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public Request(StreamInput in) throws IOException {
             super(in);

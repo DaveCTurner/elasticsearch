@@ -36,6 +36,7 @@ public class ExecuteSnapshotLifecycleAction extends ActionType<ExecuteSnapshotLi
         private String lifecycleId;
 
         public Request(String lifecycleId) {
+            super(masterNodeTimeout);
             this.lifecycleId = lifecycleId;
         }
 
@@ -44,7 +45,9 @@ public class ExecuteSnapshotLifecycleAction extends ActionType<ExecuteSnapshotLi
             lifecycleId = in.readString();
         }
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public String getLifecycleId() {
             return this.lifecycleId;

@@ -32,6 +32,7 @@ public class DeleteAutoFollowPatternAction extends ActionType<AcknowledgedRespon
         private final String name;
 
         public Request(String name) {
+            super(masterNodeTimeout);
             this.name = name;
         }
 

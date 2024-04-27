@@ -34,7 +34,9 @@ public class ClusterRerouteRequest extends AcknowledgedRequest<ClusterRerouteReq
         retryFailed = in.readBoolean();
     }
 
-    public ClusterRerouteRequest() {}
+    public ClusterRerouteRequest() {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Adds allocation commands to be applied to the cluster. Note, can be empty, in which case

@@ -20,6 +20,7 @@ public class DeletePipelineRequest extends AcknowledgedRequest<DeletePipelineReq
     private String id;
 
     public DeletePipelineRequest(String id) {
+        super(masterNodeTimeout);
         if (id == null) {
             throw new IllegalArgumentException("id is missing");
         }

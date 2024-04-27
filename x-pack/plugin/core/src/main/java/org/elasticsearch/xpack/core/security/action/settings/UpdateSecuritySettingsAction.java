@@ -72,12 +72,14 @@ public class UpdateSecuritySettingsAction extends ActionType<AcknowledgedRespons
             Map<String, Object> tokensIndexSettings,
             Map<String, Object> profilesIndexSettings
         ) {
+            super(masterNodeTimeout);
             this.mainIndexSettings = Objects.requireNonNullElse(mainIndexSettings, Collections.emptyMap());
             this.tokensIndexSettings = Objects.requireNonNullElse(tokensIndexSettings, Collections.emptyMap());
             this.profilesIndexSettings = Objects.requireNonNullElse(profilesIndexSettings, Collections.emptyMap());
         }
 
         public Request(StreamInput in) throws IOException {
+            super(masterNodeTimeout);
             this.mainIndexSettings = in.readGenericMap();
             this.tokensIndexSettings = in.readGenericMap();
             this.profilesIndexSettings = in.readGenericMap();

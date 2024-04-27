@@ -32,6 +32,7 @@ public class DeleteInferenceModelAction extends ActionType<AcknowledgedResponse>
         private final TaskType taskType;
 
         public Request(String inferenceEntityId, TaskType taskType) {
+            super(masterNodeTimeout);
             this.inferenceEntityId = inferenceEntityId;
             this.taskType = taskType;
         }

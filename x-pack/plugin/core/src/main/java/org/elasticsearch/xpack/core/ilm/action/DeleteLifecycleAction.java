@@ -34,6 +34,7 @@ public class DeleteLifecycleAction extends ActionType<AcknowledgedResponse> {
         private String policyName;
 
         public Request(String policyName) {
+            super(masterNodeTimeout);
             this.policyName = policyName;
         }
 
@@ -42,7 +43,9 @@ public class DeleteLifecycleAction extends ActionType<AcknowledgedResponse> {
             policyName = in.readString();
         }
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public String getPolicyName() {
             return policyName;

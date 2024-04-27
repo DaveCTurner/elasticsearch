@@ -28,7 +28,9 @@ public class StopSLMAction extends ActionType<AcknowledgedResponse> {
             super(in);
         }
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         @Override
         public int hashCode() {

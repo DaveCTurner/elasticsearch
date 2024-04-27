@@ -57,6 +57,7 @@ public class ResetJobAction extends ActionType<AcknowledgedResponse> {
         private boolean deleteUserAnnotations;
 
         public Request(String jobId) {
+            super(masterNodeTimeout);
             this.jobId = ExceptionsHelper.requireNonNull(jobId, Job.ID);
         }
 

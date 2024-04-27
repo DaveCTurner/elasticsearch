@@ -43,6 +43,7 @@ public class PutInferenceModelAction extends ActionType<PutInferenceModelAction.
         private final XContentType contentType;
 
         public Request(TaskType taskType, String inferenceEntityId, BytesReference content, XContentType contentType) {
+            super(masterNodeTimeout);
             this.taskType = taskType;
             this.inferenceEntityId = inferenceEntityId;
             this.content = content;

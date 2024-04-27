@@ -62,6 +62,7 @@ public class PutDataFrameAnalyticsAction extends ActionType<PutDataFrameAnalytic
         }
 
         public Request(DataFrameAnalyticsConfig config) {
+            super(masterNodeTimeout);
             this.config = config;
         }
 

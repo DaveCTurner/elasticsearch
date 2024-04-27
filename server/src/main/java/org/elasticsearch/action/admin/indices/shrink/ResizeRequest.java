@@ -73,9 +73,12 @@ public class ResizeRequest extends AcknowledgedRequest<ResizeRequest> implements
         }
     }
 
-    ResizeRequest() {}
+    ResizeRequest() {
+        super(masterNodeTimeout);
+    }
 
     public ResizeRequest(String targetIndex, String sourceIndex) {
+        super(masterNodeTimeout);
         this.targetIndexRequest = new CreateIndexRequest(targetIndex);
         this.sourceIndex = sourceIndex;
     }

@@ -75,6 +75,7 @@ public class PutTrainedModelAction extends ActionType<PutTrainedModelAction.Resp
         }
 
         public Request(TrainedModelConfig config, boolean deferDefinitionDecompression, boolean waitForCompletion) {
+            super(masterNodeTimeout);
             this.config = config;
             this.deferDefinitionDecompression = deferDefinitionDecompression;
             this.waitForCompletion = waitForCompletion;

@@ -85,7 +85,9 @@ public class PutAutoFollowPatternAction extends ActionType<AcknowledgedResponse>
         private FollowParameters parameters = new FollowParameters();
         private List<String> leaderIndexExclusionPatterns = Collections.emptyList();
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         @Override
         public ActionRequestValidationException validate() {

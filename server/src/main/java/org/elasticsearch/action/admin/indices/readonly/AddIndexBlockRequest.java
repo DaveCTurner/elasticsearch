@@ -43,6 +43,7 @@ public class AddIndexBlockRequest extends AcknowledgedRequest<AddIndexBlockReque
      * Constructs a new request for the specified block and indices
      */
     public AddIndexBlockRequest(APIBlock block, String... indices) {
+        super(masterNodeTimeout);
         this.block = Objects.requireNonNull(block);
         this.indices = Objects.requireNonNull(indices);
     }

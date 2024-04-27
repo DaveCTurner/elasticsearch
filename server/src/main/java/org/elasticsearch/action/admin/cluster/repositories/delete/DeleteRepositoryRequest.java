@@ -31,7 +31,9 @@ public class DeleteRepositoryRequest extends AcknowledgedRequest<DeleteRepositor
         name = in.readString();
     }
 
-    public DeleteRepositoryRequest() {}
+    public DeleteRepositoryRequest() {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Constructs a new unregister repository request with the provided name.
@@ -39,6 +41,7 @@ public class DeleteRepositoryRequest extends AcknowledgedRequest<DeleteRepositor
      * @param name name of the repository
      */
     public DeleteRepositoryRequest(String name) {
+        super(masterNodeTimeout);
         this.name = name;
     }
 

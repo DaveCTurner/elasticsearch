@@ -34,6 +34,7 @@ public class DeleteAutoscalingPolicyAction extends ActionType<AcknowledgedRespon
         }
 
         public Request(final String name) {
+            super(masterNodeTimeout);
             this.name = Objects.requireNonNull(name);
         }
 

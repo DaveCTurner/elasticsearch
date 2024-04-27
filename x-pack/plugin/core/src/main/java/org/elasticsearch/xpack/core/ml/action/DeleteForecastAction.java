@@ -40,6 +40,7 @@ public class DeleteForecastAction extends ActionType<AcknowledgedResponse> {
         }
 
         public Request(String jobId, String forecastId) {
+            super(masterNodeTimeout);
             this.jobId = ExceptionsHelper.requireNonNull(jobId, Job.ID.getPreferredName());
             this.forecastId = ExceptionsHelper.requireNonNull(forecastId, ForecastRequestStats.FORECAST_ID.getPreferredName());
         }
