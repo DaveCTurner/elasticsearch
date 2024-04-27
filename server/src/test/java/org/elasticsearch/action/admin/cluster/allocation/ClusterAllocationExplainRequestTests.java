@@ -15,6 +15,7 @@ public class ClusterAllocationExplainRequestTests extends ESTestCase {
 
     public void testSerialization() throws Exception {
         ClusterAllocationExplainRequest request = new ClusterAllocationExplainRequest(
+            masterNodeTimeout,
             randomAlphaOfLength(4),
             randomIntBetween(0, Integer.MAX_VALUE),
             randomBoolean(),

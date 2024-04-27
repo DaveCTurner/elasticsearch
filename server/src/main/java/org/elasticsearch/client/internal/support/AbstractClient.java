@@ -964,7 +964,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public PutPipelineRequestBuilder preparePutPipeline(String id, BytesReference source, XContentType xContentType) {
-            return new PutPipelineRequestBuilder(this, id, source, xContentType);
+            return new PutPipelineRequestBuilder(masterNodeTimeout, this, id, source, xContentType);
         }
 
         @Override
@@ -979,7 +979,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public DeletePipelineRequestBuilder prepareDeletePipeline(String id) {
-            return new DeletePipelineRequestBuilder(this, id);
+            return new DeletePipelineRequestBuilder(masterNodeTimeout, this, id);
         }
 
         @Override
@@ -1029,12 +1029,12 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public GetStoredScriptRequestBuilder prepareGetStoredScript(String id) {
-            return new GetStoredScriptRequestBuilder(this).setId(id);
+            return new GetStoredScriptRequestBuilder(masterNodeTimeout, this).setId(id);
         }
 
         @Override
         public PutStoredScriptRequestBuilder preparePutStoredScript() {
-            return new PutStoredScriptRequestBuilder(this);
+            return new PutStoredScriptRequestBuilder(masterNodeTimeout, this);
         }
 
         @Override
@@ -1050,7 +1050,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public DeleteStoredScriptRequestBuilder prepareDeleteStoredScript(String id) {
-            return new DeleteStoredScriptRequestBuilder(client).setId(id);
+            return new DeleteStoredScriptRequestBuilder(masterNodeTimeout, client).setId(id);
         }
     }
 

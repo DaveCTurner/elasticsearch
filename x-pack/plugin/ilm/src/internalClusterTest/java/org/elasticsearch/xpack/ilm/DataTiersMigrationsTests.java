@@ -222,7 +222,7 @@ public class DataTiersMigrationsTests extends ESIntegTestCase {
     }
 
     private void assertReplicaIsUnassigned() {
-        ClusterAllocationExplainRequest explainReplicaShard = new ClusterAllocationExplainRequest().setIndex(managedIndex)
+        ClusterAllocationExplainRequest explainReplicaShard = new ClusterAllocationExplainRequest(masterNodeTimeout).setIndex(managedIndex)
             .setPrimary(false)
             .setShard(0);
         ClusterAllocationExplainResponse response = clusterAdmin().allocationExplain(explainReplicaShard).actionGet();

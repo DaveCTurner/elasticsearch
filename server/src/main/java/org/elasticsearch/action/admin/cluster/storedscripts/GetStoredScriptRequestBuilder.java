@@ -10,13 +10,14 @@ package org.elasticsearch.action.admin.cluster.storedscripts;
 
 import org.elasticsearch.action.support.master.MasterNodeReadOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 public class GetStoredScriptRequestBuilder extends MasterNodeReadOperationRequestBuilder<
     GetStoredScriptRequest,
     GetStoredScriptResponse,
     GetStoredScriptRequestBuilder> {
 
-    public GetStoredScriptRequestBuilder(ElasticsearchClient client) {
+    public GetStoredScriptRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client) {
         super(client, GetStoredScriptAction.INSTANCE, new GetStoredScriptRequest(masterNodeTimeout));
     }
 

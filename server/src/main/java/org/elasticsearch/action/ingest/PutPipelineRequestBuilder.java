@@ -12,11 +12,18 @@ import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.XContentType;
 
 public class PutPipelineRequestBuilder extends ActionRequestBuilder<PutPipelineRequest, AcknowledgedResponse> {
 
-    public PutPipelineRequestBuilder(ElasticsearchClient client, String id, BytesReference source, XContentType xContentType) {
+    public PutPipelineRequestBuilder(
+        TimeValue masterNodeTimeout,
+        ElasticsearchClient client,
+        String id,
+        BytesReference source,
+        XContentType xContentType
+    ) {
         super(client, PutPipelineTransportAction.TYPE, new PutPipelineRequest(masterNodeTimeout, id, source, xContentType));
     }
 }

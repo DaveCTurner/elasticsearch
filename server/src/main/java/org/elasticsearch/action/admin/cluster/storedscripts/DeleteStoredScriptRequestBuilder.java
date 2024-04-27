@@ -11,13 +11,14 @@ package org.elasticsearch.action.admin.cluster.storedscripts;
 import org.elasticsearch.action.support.master.AcknowledgedRequestBuilder;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 public class DeleteStoredScriptRequestBuilder extends AcknowledgedRequestBuilder<
     DeleteStoredScriptRequest,
     AcknowledgedResponse,
     DeleteStoredScriptRequestBuilder> {
 
-    public DeleteStoredScriptRequestBuilder(ElasticsearchClient client) {
+    public DeleteStoredScriptRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client) {
         super(client, TransportDeleteStoredScriptAction.TYPE, new DeleteStoredScriptRequest(masterNodeTimeout));
     }
 

@@ -17,7 +17,7 @@ public class GetPipelineRequestBuilder extends MasterNodeReadOperationRequestBui
     GetPipelineRequestBuilder> {
 
     public GetPipelineRequestBuilder(ElasticsearchClient client, String[] ids) {
-        super(client, GetPipelineAction.INSTANCE, new GetPipelineRequest(ids));
+        super(client, GetPipelineAction.INSTANCE, new GetPipelineRequest(masterNodeTimeout, ids));
     }
 
 }

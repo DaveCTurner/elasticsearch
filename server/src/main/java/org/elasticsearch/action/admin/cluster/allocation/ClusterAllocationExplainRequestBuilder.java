@@ -20,7 +20,7 @@ public class ClusterAllocationExplainRequestBuilder extends MasterNodeOperationR
     ClusterAllocationExplainRequestBuilder> {
 
     public ClusterAllocationExplainRequestBuilder(ElasticsearchClient client) {
-        super(client, TransportClusterAllocationExplainAction.TYPE, new ClusterAllocationExplainRequest());
+        super(client, TransportClusterAllocationExplainAction.TYPE, new ClusterAllocationExplainRequest(masterNodeTimeout));
     }
 
     /** The index name to use when finding the shard to explain */

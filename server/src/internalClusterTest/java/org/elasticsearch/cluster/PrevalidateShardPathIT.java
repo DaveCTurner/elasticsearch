@@ -92,7 +92,7 @@ public class PrevalidateShardPathIT extends ESIntegTestCase {
                         .toList()) {
                         var explanation = client().execute(
                             TransportClusterAllocationExplainAction.TYPE,
-                            new ClusterAllocationExplainRequest().setIndex(node2Shard.getIndexName())
+                            new ClusterAllocationExplainRequest(masterNodeTimeout).setIndex(node2Shard.getIndexName())
                                 .setCurrentNode(node2Shard.currentNodeId())
                                 .setShard(node2Shard.id())
                                 .setPrimary(node2Shard.primary())

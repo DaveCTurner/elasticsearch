@@ -318,12 +318,12 @@ public class ApiKeySingleNodeTests extends SecuritySingleNodeTestCase {
         clientWithGrantedKey.execute(TransportClusterHealthAction.TYPE, new ClusterHealthRequest(masterNodeTimeout)).actionGet();
         // If the API key is granted with limiting descriptors, it should not be able to read pipeline
         if (grantApiKeyRequest.getApiKeyRequest().getRoleDescriptors().isEmpty()) {
-            clientWithGrantedKey.execute(GetPipelineAction.INSTANCE, new GetPipelineRequest()).actionGet();
+            clientWithGrantedKey.execute(GetPipelineAction.INSTANCE, new GetPipelineRequest(masterNodeTimeout)).actionGet();
         } else {
             assertThat(
                 expectThrows(
                     ElasticsearchSecurityException.class,
-                    () -> clientWithGrantedKey.execute(GetPipelineAction.INSTANCE, new GetPipelineRequest()).actionGet()
+                    () -> clientWithGrantedKey.execute(GetPipelineAction.INSTANCE, new GetPipelineRequest(masterNodeTimeout)).actionGet()
                 ).getMessage(),
                 containsString("unauthorized")
             );

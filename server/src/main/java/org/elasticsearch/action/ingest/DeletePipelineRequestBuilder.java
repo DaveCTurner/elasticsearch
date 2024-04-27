@@ -11,10 +11,11 @@ package org.elasticsearch.action.ingest;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 public class DeletePipelineRequestBuilder extends ActionRequestBuilder<DeletePipelineRequest, AcknowledgedResponse> {
 
-    public DeletePipelineRequestBuilder(ElasticsearchClient client, String id) {
+    public DeletePipelineRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String id) {
         super(client, DeletePipelineTransportAction.TYPE, new DeletePipelineRequest(masterNodeTimeout, id));
     }
 

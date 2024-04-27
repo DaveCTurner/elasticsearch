@@ -29,6 +29,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.common.util.concurrent.ThrottledTaskRunner;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.seqno.SequenceNumbers;
@@ -653,7 +654,14 @@ public final class SnapshotShardsService extends AbstractLifecycleComponent impl
     /** Updates the shard snapshot status by sending a {@link UpdateIndexShardSnapshotStatusRequest} to the master node */
     private void sendSnapshotShardUpdate(final Snapshot snapshot, final ShardId shardId, final ShardSnapshotStatus status) {
         remoteFailedRequestDeduplicator.executeOnce(
-            new UpdateIndexShardSnapshotStatusRequest(masterNodeTimeout, snapshot, shardId, status),
+            new UpdateIndexShardSnapshotStatusRequest(
+                // short-ish 30s timeout is ok here, we override it with an infinite timeout for the task submitted to the master queue,
+                // and we re-send these updates when a new master is elected
+                TimeValue.timeValueSeconds(30),
+                snapshot,
+                shardId,
+                status
+            ),
             new ActionListener<>() {
                 @Override
                 public void onResponse(Void aVoid) {
