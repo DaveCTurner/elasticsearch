@@ -29,6 +29,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.tasks.Task;
@@ -69,10 +70,6 @@ public class InternalOrPrivateSettingsPlugin extends Plugin implements ActionPlu
             private String key;
             private String value;
 
-            Request() {
-                super(TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT);
-            }
-
             Request(StreamInput in) throws IOException {
                 super(in);
                 index = in.readString();
@@ -81,7 +78,7 @@ public class InternalOrPrivateSettingsPlugin extends Plugin implements ActionPlu
             }
 
             public Request(final String index, final String key, final String value) {
-                super(TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT);
+                super(TimeValue.timeValueSeconds(30));
                 this.index = index;
                 this.key = key;
                 this.value = value;

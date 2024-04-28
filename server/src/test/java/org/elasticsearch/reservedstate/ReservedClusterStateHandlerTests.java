@@ -10,6 +10,7 @@ package org.elasticsearch.reservedstate;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.indices.settings.InternalOrPrivateSettingsPlugin;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.xcontent.XContentParser;
@@ -44,7 +45,7 @@ public class ReservedClusterStateHandlerTests extends ESTestCase {
 
     static class ValidRequest extends MasterNodeRequest<InternalOrPrivateSettingsPlugin.UpdateInternalOrPrivateAction.Request> {
         ValidRequest() {
-            super(TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT);
+            super(TimeValue.timeValueSeconds(30));
         }
 
         @Override

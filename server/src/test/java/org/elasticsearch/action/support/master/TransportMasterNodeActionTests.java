@@ -150,7 +150,7 @@ public class TransportMasterNodeActionTests extends ESTestCase {
         private final RefCounted refCounted = AbstractRefCounted.of(() -> {});
 
         Request() {
-            super(TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT);
+            super(TimeValue.timeValueSeconds(30));
         }
 
         Request(StreamInput in) throws IOException {
