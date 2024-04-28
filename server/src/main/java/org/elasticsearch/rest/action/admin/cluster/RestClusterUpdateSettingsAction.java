@@ -46,9 +46,7 @@ public class RestClusterUpdateSettingsAction extends BaseRestHandler {
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         final ClusterUpdateSettingsRequest clusterUpdateSettingsRequest = new ClusterUpdateSettingsRequest();
         clusterUpdateSettingsRequest.ackTimeout(request.paramAsTime("timeout", clusterUpdateSettingsRequest.ackTimeout()));
-        clusterUpdateSettingsRequest.masterNodeTimeout(
-                getMasterNodeTimeout(request)
-        );
+        clusterUpdateSettingsRequest.masterNodeTimeout(getMasterNodeTimeout(request));
         Map<String, Object> source;
         try (XContentParser parser = request.contentParser()) {
             source = parser.map();

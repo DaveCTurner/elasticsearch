@@ -63,9 +63,7 @@ public class RestTemplatesAction extends AbstractCatAction {
             matchPattern
         );
         getComposableTemplatesRequest.local(request.paramAsBoolean("local", getComposableTemplatesRequest.local()));
-        getComposableTemplatesRequest.masterNodeTimeout(
-                getMasterNodeTimeout(request)
-        );
+        getComposableTemplatesRequest.masterNodeTimeout(getMasterNodeTimeout(request));
 
         return channel -> {
 
