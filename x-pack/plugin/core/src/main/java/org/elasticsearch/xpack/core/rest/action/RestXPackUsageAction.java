@@ -27,6 +27,7 @@ import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestStatus.OK;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.INTERNAL)
 public class RestXPackUsageAction extends BaseRestHandler {
@@ -43,10 +44,7 @@ public class RestXPackUsageAction extends BaseRestHandler {
 
     @Override
     public RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        final TimeValue masterTimeout = request.paramAsTime(
-            "master_timeout",
-            MasterNodeRequest.TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT
-        );
+        final TimeValue masterTimeout = getMasterNodeTimeout(request);
         final HttpChannel httpChannel = request.getHttpChannel();
         return channel -> new XPackUsageRequestBuilder(new RestCancellableNodeClient(client, httpChannel)).setMasterNodeTimeout(
             masterTimeout

@@ -12,6 +12,7 @@ import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestUtils;
 import org.elasticsearch.rest.Scope;
 import org.elasticsearch.rest.ServerlessScope;
 import org.elasticsearch.rest.action.RestActions.NodesResponseRestListener;
@@ -27,7 +28,6 @@ import static org.elasticsearch.xpack.ml.MachineLearning.BASE_PATH;
 public class RestMlMemoryAction extends BaseRestHandler {
 
     public static final String NODE_ID = "nodeId";
-    public static final String MASTER_TIMEOUT = "master_timeout";
     public static final String TIMEOUT = "timeout";
 
     @Override
@@ -47,7 +47,7 @@ public class RestMlMemoryAction extends BaseRestHandler {
             nodeId = Metadata.ALL;
         }
         MlMemoryAction.Request request = new MlMemoryAction.Request(nodeId);
-        request.masterNodeTimeout(restRequest.paramAsTime(MASTER_TIMEOUT, request.masterNodeTimeout()));
+        request.masterNodeTimeout(RestUtils.getMasterNodeTimeout(restRequest));
         request.ackTimeout(restRequest.paramAsTime(TIMEOUT, request.ackTimeout()));
         return channel -> client.execute(MlMemoryAction.INSTANCE, request, new NodesResponseRestListener<>(channel));
     }

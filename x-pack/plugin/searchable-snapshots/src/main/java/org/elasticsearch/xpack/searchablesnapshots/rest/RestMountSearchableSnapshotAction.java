@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.POST;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 public class RestMountSearchableSnapshotAction extends BaseRestHandler {
     @Override
@@ -36,7 +37,7 @@ public class RestMountSearchableSnapshotAction extends BaseRestHandler {
         MountSearchableSnapshotRequest mountSearchableSnapshotRequest = MountSearchableSnapshotRequest.PARSER.apply(
             request.contentParser(),
             request
-        ).masterNodeTimeout(request.paramAsTime("master_timeout", MasterNodeRequest.TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT));
+        ).masterNodeTimeout(getMasterNodeTimeout(request));
         return channel -> client.execute(
             MountSearchableSnapshotAction.INSTANCE,
             mountSearchableSnapshotRequest,

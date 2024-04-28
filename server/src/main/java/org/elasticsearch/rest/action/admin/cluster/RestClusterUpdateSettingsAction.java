@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.INTERNAL)
 public class RestClusterUpdateSettingsAction extends BaseRestHandler {
@@ -46,7 +47,7 @@ public class RestClusterUpdateSettingsAction extends BaseRestHandler {
         final ClusterUpdateSettingsRequest clusterUpdateSettingsRequest = new ClusterUpdateSettingsRequest();
         clusterUpdateSettingsRequest.ackTimeout(request.paramAsTime("timeout", clusterUpdateSettingsRequest.ackTimeout()));
         clusterUpdateSettingsRequest.masterNodeTimeout(
-            request.paramAsTime("master_timeout", clusterUpdateSettingsRequest.masterNodeTimeout())
+                getMasterNodeTimeout(request)
         );
         Map<String, Object> source;
         try (XContentParser parser = request.contentParser()) {

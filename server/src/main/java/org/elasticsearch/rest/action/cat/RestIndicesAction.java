@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.elasticsearch.action.support.master.MasterNodeRequest.TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT;
 import static org.elasticsearch.common.util.set.Sets.addToCopy;
 import static org.elasticsearch.rest.RestRequest.Method.GET;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.PUBLIC)
 public class RestIndicesAction extends AbstractCatAction {
@@ -79,7 +80,7 @@ public class RestIndicesAction extends AbstractCatAction {
     public RestChannelConsumer doCatRequest(final RestRequest request, final NodeClient client) {
         final String[] indices = Strings.splitStringByCommaToArray(request.param("index"));
         final IndicesOptions indicesOptions = IndicesOptions.fromRequest(request, IndicesOptions.strictExpand());
-        final TimeValue masterNodeTimeout = request.paramAsTime("master_timeout", TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT);
+        final TimeValue masterNodeTimeout = getMasterNodeTimeout(request);
         final boolean includeUnloadedSegments = request.paramAsBoolean("include_unloaded_segments", false);
 
         return channel -> {
