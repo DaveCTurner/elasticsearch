@@ -45,6 +45,7 @@ public abstract class AcknowledgedRequest<Request extends MasterNodeRequest<Requ
      *                   elected master.
      */
     protected AcknowledgedRequest(TimeValue ackTimeout) {
+        super(TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT);
         this.ackTimeout = Objects.requireNonNull(ackTimeout);
     }
 

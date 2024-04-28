@@ -201,7 +201,8 @@ public class ClusterRerouteRequestTests extends ESTestCase {
         if (original.isRetryFailed() || randomBoolean()) {
             params.put("retry_failed", Boolean.toString(original.isRetryFailed()));
         }
-        if (false == original.masterNodeTimeout().equals(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT) || randomBoolean()) {
+        if (false == original.masterNodeTimeout().equals(MasterNodeRequest.TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT)
+            || randomBoolean()) {
             params.put("master_timeout", original.masterNodeTimeout().toString());
         }
         if (original.getCommands() != null) {

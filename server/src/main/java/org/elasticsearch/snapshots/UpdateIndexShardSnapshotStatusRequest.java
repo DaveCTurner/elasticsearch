@@ -34,6 +34,7 @@ public class UpdateIndexShardSnapshotStatusRequest extends MasterNodeRequest<Upd
     }
 
     public UpdateIndexShardSnapshotStatusRequest(Snapshot snapshot, ShardId shardId, SnapshotsInProgress.ShardSnapshotStatus status) {
+        super(TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT);
         this.snapshot = snapshot;
         this.shardId = shardId;
         this.status = status;

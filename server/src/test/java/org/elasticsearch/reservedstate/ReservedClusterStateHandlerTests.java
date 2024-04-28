@@ -43,6 +43,10 @@ public class ReservedClusterStateHandlerTests extends ESTestCase {
     }
 
     static class ValidRequest extends MasterNodeRequest<InternalOrPrivateSettingsPlugin.UpdateInternalOrPrivateAction.Request> {
+        ValidRequest() {
+            super(TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT);
+        }
+
         @Override
         public ActionRequestValidationException validate() {
             return null;

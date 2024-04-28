@@ -38,9 +38,12 @@ public class ClusterHealthRequest extends MasterNodeReadRequest<ClusterHealthReq
     private String waitForNodes = "";
     private Priority waitForEvents = null;
 
-    public ClusterHealthRequest() {}
+    public ClusterHealthRequest() {
+        super(TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT);
+    }
 
     public ClusterHealthRequest(String... indices) {
+        super(TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT);
         this.indices = indices;
     }
 
@@ -121,7 +124,7 @@ public class ClusterHealthRequest extends MasterNodeReadRequest<ClusterHealthReq
 
     public ClusterHealthRequest timeout(TimeValue timeout) {
         this.timeout = timeout;
-        if (masterNodeTimeout == DEFAULT_MASTER_NODE_TIMEOUT) {
+        if (masterNodeTimeout == TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT) {
             masterNodeTimeout = timeout;
         }
         return this;

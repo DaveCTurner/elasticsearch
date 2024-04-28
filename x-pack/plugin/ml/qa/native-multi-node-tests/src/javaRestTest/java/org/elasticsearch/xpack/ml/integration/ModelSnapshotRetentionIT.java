@@ -71,7 +71,7 @@ public class ModelSnapshotRetentionIT extends MlNativeAutodetectIntegTestCase {
             client(),
             ClusterState.EMPTY_STATE,
             TestIndexNameExpressionResolver.newInstance(),
-            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT,
+            MasterNodeRequest.TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT,
             future
         );
         future.actionGet();

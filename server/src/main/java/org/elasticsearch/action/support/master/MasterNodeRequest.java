@@ -20,11 +20,26 @@ import java.io.IOException;
  */
 public abstract class MasterNodeRequest<Request extends MasterNodeRequest<Request>> extends ActionRequest {
 
-    public static final TimeValue DEFAULT_MASTER_NODE_TIMEOUT = TimeValue.timeValueSeconds(30);
+    /**
+     * The default value for the {@link #masterNodeTimeout}. Historically this was set implicitly on every {@link MasterNodeRequest},
+     * relying on callers to override it where appropriate, but in practice it is <i>always</i> appropriate to override this in production
+     * code. Forgetting to override it leads to subtle but critical bugs that only arise when a cluster is struggling to process cluster
+     * state updates as fast as normal, in which there is no way to lengthen these timeouts at runtime to bring the cluster back to health.
+     * <p>
+     * Therefore, in production code this should not be used. Instead, specify an appropriate the timeout when creating the request
+     * instance. For example, instances that relate to a REST request should derive this timeout from the {@code ?master_timeout} request
+     * parameter, using {@link org.elasticsearch.rest.RestUtils#getMasterNodeTimeout} to impose consistent behaviour across all APIs.
+     * Instances that relate to internal activities should probably set this timeout very long since it's normally better to wait patiently
+     * instead of failing sooner, especially if the failure simply triggers a retry.
+     */
+    @Deprecated(forRemoval = true)
+    public static final TimeValue TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT = TimeValue.timeValueSeconds(30);
 
-    protected TimeValue masterNodeTimeout = DEFAULT_MASTER_NODE_TIMEOUT;
+    protected TimeValue masterNodeTimeout;
 
-    protected MasterNodeRequest() {}
+    protected MasterNodeRequest(TimeValue masterNodeTimeout) {
+        this.masterNodeTimeout = masterNodeTimeout;
+    }
 
     protected MasterNodeRequest(StreamInput in) throws IOException {
         super(in);
