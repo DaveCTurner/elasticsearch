@@ -26,11 +26,14 @@ public abstract class MasterNodeRequest<Request extends MasterNodeRequest<Reques
      * code. Forgetting to override it leads to subtle but critical bugs that only arise when a cluster is struggling to process cluster
      * state updates as fast as normal, in which there is no way to lengthen these timeouts at runtime to bring the cluster back to health.
      * <p>
-     * Therefore, in production code this should not be used. Instead, specify an appropriate the timeout when creating the request
+     * Therefore, do not use this constant. Instead, in production code, specify an appropriate the timeout when creating the request
      * instance. For example, instances that relate to a REST request should derive this timeout from the {@code ?master_timeout} request
      * parameter, using {@link org.elasticsearch.rest.RestUtils#getMasterNodeTimeout} to impose consistent behaviour across all APIs.
      * Instances that relate to internal activities should probably set this timeout very long since it's normally better to wait patiently
-     * instead of failing sooner, especially if the failure simply triggers a retry.
+     * instead of failing sooner, especially if the failure simply triggers a retry. In test code, use an explicit timeout, choosing 30s
+     * unless the test specifically needs a different value.
+     *
+     * @deprecated specify an appropriate timeout instead
      */
     @Deprecated(forRemoval = true)
     public static final TimeValue TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT = TimeValue.timeValueSeconds(30);
