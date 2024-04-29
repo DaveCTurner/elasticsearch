@@ -315,18 +315,16 @@ class S3BlobStore implements BlobStore {
         try (AmazonS3Reference clientReference = clientReference()) {
             // S3 API only allows 1k blobs per delete so we split up the given blobs into requests of max. 1k deletes
             final AtomicReference<Exception> aex = new AtomicReference<>();
-            SocketAccess.doPrivilegedVoid(() -> {
-                blobNames.forEachRemaining(key -> {
-                    partition.add(key);
-                    if (partition.size() == MAX_BULK_DELETES) {
-                        deletePartition(purpose, clientReference, partition, aex);
-                        partition.clear();
-                    }
-                });
-                if (partition.isEmpty() == false) {
+            blobNames.forEachRemaining(key -> {
+                partition.add(key);
+                if (partition.size() == MAX_BULK_DELETES) {
                     deletePartition(purpose, clientReference, partition, aex);
+                    partition.clear();
                 }
             });
+            if (partition.isEmpty() == false) {
+                deletePartition(purpose, clientReference, partition, aex);
+            }
             if (aex.get() != null) {
                 throw aex.get();
             }
@@ -342,7 +340,8 @@ class S3BlobStore implements BlobStore {
         AtomicReference<Exception> aex
     ) {
         try {
-            clientReference.client().deleteObjects(bulkDelete(purpose, this, partition));
+            final var deleteObjectsRequest = bulkDelete(purpose, this, partition);
+            SocketAccess.doPrivilegedVoid(() -> clientReference.client().deleteObjects(deleteObjectsRequest));
         } catch (MultiObjectDeleteException e) {
             // We are sending quiet mode requests so we can't use the deleted keys entry on the exception and instead
             // first remove all keys that were sent in the request and then add back those that ran into an exception.
