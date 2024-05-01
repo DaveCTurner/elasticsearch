@@ -23,6 +23,7 @@ import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.test.ESSingleNodeTestCase;
+import org.elasticsearch.test.ProductionClientAdapter;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,7 +44,7 @@ public class SearchProgressActionListenerIT extends ESSingleNodeTestCase {
 
     public void setUp() throws Exception {
         super.setUp();
-        shards = createRandomIndices(client());
+        shards = createRandomIndices(new ProductionClientAdapter(client()));
     }
 
     public void testSearchProgressSimple() throws Exception {

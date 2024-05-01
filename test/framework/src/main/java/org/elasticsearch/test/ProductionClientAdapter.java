@@ -13,11 +13,11 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
 
-public class LegacyClient extends org.elasticsearch.client.internal.support.AbstractClient {
+public class ProductionClientAdapter extends org.elasticsearch.client.internal.support.AbstractClient {
 
     private final Client testClient;
 
-    public LegacyClient(Client testClient) {
+    public ProductionClientAdapter(Client testClient) {
         super(testClient.settings(), testClient.threadPool());
         this.testClient = testClient;
     }

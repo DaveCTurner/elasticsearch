@@ -20,6 +20,7 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.SystemIndexPlugin;
 import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.test.ESSingleNodeTestCase;
+import org.elasticsearch.test.ProductionClientAdapter;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.core.search.action.AsyncSearchResponse;
 import org.junit.Before;
@@ -47,7 +48,7 @@ public class AsyncTaskServiceTests extends ESSingleNodeTestCase {
             index,
             clusterService,
             transportService.getThreadPool().getThreadContext(),
-            client(),
+            new ProductionClientAdapter(client()),
             "test_origin",
             AsyncSearchResponse::new,
             writableRegistry(),

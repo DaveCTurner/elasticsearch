@@ -23,6 +23,7 @@ import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.indices.breaker.CircuitBreakerStats;
 import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.test.ESSingleNodeTestCase;
+import org.elasticsearch.test.ProductionClientAdapter;
 import org.elasticsearch.transport.TransportService;
 import org.junit.Before;
 
@@ -140,7 +141,7 @@ public class AsyncSearchIndexServiceTests extends ESSingleNodeTestCase {
             "test",
             clusterService,
             transportService.getThreadPool().getThreadContext(),
-            client(),
+            new ProductionClientAdapter(client()),
             ASYNC_SEARCH_ORIGIN,
             TestAsyncResponse::new,
             writableRegistry(),
@@ -265,7 +266,7 @@ public class AsyncSearchIndexServiceTests extends ESSingleNodeTestCase {
             "test",
             clusterService,
             transportService.getThreadPool().getThreadContext(),
-            client(),
+            new ProductionClientAdapter(client()),
             ASYNC_SEARCH_ORIGIN,
             TestAsyncResponse::new,
             writableRegistry(),

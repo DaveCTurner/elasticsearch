@@ -10,6 +10,7 @@ package org.elasticsearch.xpack.core.async;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.test.ESSingleNodeTestCase;
+import org.elasticsearch.test.ProductionClientAdapter;
 import org.elasticsearch.xpack.core.security.SecurityContext;
 import org.elasticsearch.xpack.core.security.authc.Authentication;
 import org.elasticsearch.xpack.core.security.authc.AuthenticationTestHelper;
@@ -28,7 +29,7 @@ public class AsyncSearchSecurityTests extends ESSingleNodeTestCase {
         final AsyncSearchSecurity security = new AsyncSearchSecurity(
             ".async-search",
             new SecurityContext(Settings.EMPTY, threadContext),
-            client(),
+            new ProductionClientAdapter(client()),
             "async_origin"
         );
 
