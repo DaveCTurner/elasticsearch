@@ -16,6 +16,7 @@ import org.elasticsearch.plugins.PluginsService;
 import org.elasticsearch.telemetry.Measurement;
 import org.elasticsearch.telemetry.TestTelemetryPlugin;
 import org.elasticsearch.test.ESSingleNodeTestCase;
+import org.elasticsearch.test.LegacyClient;
 import org.hamcrest.MatcherAssert;
 import org.junit.After;
 import org.junit.Before;
@@ -71,7 +72,7 @@ public class SearchTookTimeTelemetryTests extends ESSingleNodeTestCase {
 
     public void testScroll() {
         assertScrollResponsesAndHitCount(
-            client(),
+            new LegacyClient(client()),
             TimeValue.timeValueSeconds(60),
             client().prepareSearch(indexName).setSize(1).setQuery(simpleQueryStringQuery("foo")),
             2,
