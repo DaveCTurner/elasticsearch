@@ -11,7 +11,6 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotResponse;
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.Plugin;
@@ -21,6 +20,7 @@ import org.elasticsearch.repositories.blobstore.BlobStoreRepository;
 import org.elasticsearch.repositories.blobstore.BlobStoreTestUtil;
 import org.elasticsearch.search.SearchResponseUtils;
 import org.elasticsearch.snapshots.SnapshotState;
+import org.elasticsearch.test.Client;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.test.fixtures.hdfs.HdfsClientThreadLeakFilter;
 

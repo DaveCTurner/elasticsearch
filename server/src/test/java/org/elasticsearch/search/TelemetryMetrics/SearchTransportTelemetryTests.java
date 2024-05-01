@@ -17,6 +17,7 @@ import org.elasticsearch.plugins.PluginsService;
 import org.elasticsearch.telemetry.Measurement;
 import org.elasticsearch.telemetry.TestTelemetryPlugin;
 import org.elasticsearch.test.ESSingleNodeTestCase;
+import org.elasticsearch.test.LegacyClient;
 import org.junit.After;
 import org.junit.Before;
 
@@ -95,7 +96,7 @@ public class SearchTransportTelemetryTests extends ESSingleNodeTestCase {
     @AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/103810")
     public void testSearchTransportMetricsScroll() throws InterruptedException {
         assertScrollResponsesAndHitCount(
-            client(),
+            new LegacyClient(client()),
             TimeValue.timeValueSeconds(60),
             client().prepareSearch(indexName)
                 .setSearchType(SearchType.DFS_QUERY_THEN_FETCH)
