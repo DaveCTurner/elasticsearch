@@ -19,10 +19,7 @@ import org.elasticsearch.action.datastreams.DeleteDataStreamAction;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.DestructiveOperations;
 import org.elasticsearch.action.support.IndicesOptions;
-import org.elasticsearch.client.internal.AdminClient;
-import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.client.internal.ClusterAdminClient;
-import org.elasticsearch.client.internal.IndicesAdminClient;
+import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -309,8 +306,8 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
         return admin().cluster();
     }
 
-    public Client wrapClient(final Client client) {
-        return client;
+    public Client wrapClient(final org.elasticsearch.client.internal.Client client) {
+        return new TestNodeClient(client.settings(), client);
     }
 
     /**

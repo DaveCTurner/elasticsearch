@@ -60,6 +60,7 @@ import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.internal.AdminClient;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.ClusterAdminClient;
+import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.client.internal.IndicesAdminClient;
 import org.elasticsearch.cluster.ClusterInfoService;
 import org.elasticsearch.cluster.ClusterInfoServiceUtils;
@@ -1074,7 +1075,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
         return getClusterPendingTasks(client());
     }
 
-    public static PendingClusterTasksResponse getClusterPendingTasks(Client client) {
+    public static PendingClusterTasksResponse getClusterPendingTasks(ElasticsearchClient client) {
         try {
             return client.execute(TransportPendingClusterTasksAction.TYPE, new PendingClusterTasksRequest()).get(10, TimeUnit.SECONDS);
         } catch (Exception e) {
