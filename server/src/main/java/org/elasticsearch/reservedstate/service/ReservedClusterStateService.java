@@ -10,18 +10,23 @@ package org.elasticsearch.reservedstate.service;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.ClusterStateObserver;
 import org.elasticsearch.cluster.metadata.ReservedStateErrorMetadata;
 import org.elasticsearch.cluster.metadata.ReservedStateMetadata;
 import org.elasticsearch.cluster.routing.RerouteService;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.cluster.service.MasterServiceTaskQueue;
 import org.elasticsearch.common.Priority;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.Tuple;
+import org.elasticsearch.gateway.GatewayService;
+import org.elasticsearch.node.NodeClosedException;
 import org.elasticsearch.reservedstate.NonStateTransformResult;
 import org.elasticsearch.reservedstate.ReservedClusterStateHandler;
 import org.elasticsearch.reservedstate.TransformState;
@@ -161,6 +166,7 @@ public class ReservedClusterStateService {
                 List.of(),
                 // error state should not be possible since there is no metadata being parsed or processed
                 errorState -> { throw new AssertionError(); },
+                t -> {},
                 listener
             ),
             null
@@ -240,6 +246,7 @@ public class ReservedClusterStateService {
                         handlers,
                         orderedHandlers,
                         ReservedClusterStateService.this::updateErrorState,
+                        t -> waitForStateRecoveryAndRetry(t),
                         new ActionListener<>() {
                             @Override
                             public void onResponse(ActionResponse.Empty empty) {
@@ -269,6 +276,28 @@ public class ReservedClusterStateService {
                 errorListener.accept(checkAndReportError(namespace, List.of(stackTrace(e)), reservedStateVersion));
             }
         });
+    }
+
+    private void waitForStateRecoveryAndRetry(ReservedStateUpdateTask t) {
+        new ClusterStateObserver(clusterService, null, logger, clusterService.threadPool().getThreadContext()).waitForNextChange(
+            new ClusterStateObserver.Listener() {
+                @Override
+                public void onNewClusterState(ClusterState state) {
+                    updateTaskQueue.submitTask("retry", t, null);
+                }
+
+                @Override
+                public void onClusterServiceClose() {
+                    t.onFailure(new NodeClosedException(clusterService.localNode()));
+                }
+
+                @Override
+                public void onTimeout(TimeValue timeout) {
+                    t.onFailure(new ElasticsearchTimeoutException(""));
+                }
+            },
+            cs -> cs.blocks().hasGlobalBlock(GatewayService.STATE_NOT_RECOVERED_BLOCK) == false
+        );
     }
 
     // package private for testing

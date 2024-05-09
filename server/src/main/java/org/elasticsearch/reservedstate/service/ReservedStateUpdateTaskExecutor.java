@@ -21,7 +21,7 @@ import org.elasticsearch.core.Tuple;
 /**
  * Reserved cluster state update task executor
  */
-public class ReservedStateUpdateTaskExecutor extends SimpleBatchedExecutor<ReservedStateUpdateTask, Void> {
+public class ReservedStateUpdateTaskExecutor extends SimpleBatchedExecutor<ReservedStateUpdateTask, Runnable> {
 
     private static final Logger logger = LogManager.getLogger(ReservedStateUpdateTaskExecutor.class);
 
@@ -33,13 +33,14 @@ public class ReservedStateUpdateTaskExecutor extends SimpleBatchedExecutor<Reser
     }
 
     @Override
-    public Tuple<ClusterState, Void> executeTask(ReservedStateUpdateTask task, ClusterState clusterState) {
-        return Tuple.tuple(task.execute(clusterState), null);
+    public Tuple<ClusterState, Runnable> executeTask(ReservedStateUpdateTask task, ClusterState clusterState) {
+        return task.execute(clusterState);
     }
 
     @Override
-    public void taskSucceeded(ReservedStateUpdateTask task, Void unused) {
+    public void taskSucceeded(ReservedStateUpdateTask task, Runnable onCompletion) {
         task.listener().onResponse(ActionResponse.Empty.INSTANCE);
+        onCompletion.run();
     }
 
     @Override

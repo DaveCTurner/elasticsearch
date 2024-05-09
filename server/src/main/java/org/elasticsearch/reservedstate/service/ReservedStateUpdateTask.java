@@ -19,6 +19,8 @@ import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.metadata.ReservedStateErrorMetadata;
 import org.elasticsearch.cluster.metadata.ReservedStateHandlerMetadata;
 import org.elasticsearch.cluster.metadata.ReservedStateMetadata;
+import org.elasticsearch.core.Tuple;
+import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.reservedstate.NonStateTransformResult;
 import org.elasticsearch.reservedstate.ReservedClusterStateHandler;
 import org.elasticsearch.reservedstate.TransformState;
@@ -49,6 +51,7 @@ public class ReservedStateUpdateTask implements ClusterStateTaskListener {
     private final Map<String, ReservedClusterStateHandler<?>> handlers;
     private final Collection<String> orderedHandlers;
     private final Consumer<ErrorState> errorReporter;
+    private final Consumer<ReservedStateUpdateTask> retryConsumer;
     private final ActionListener<ActionResponse.Empty> listener;
     private final Collection<NonStateTransformResult> nonStateTransformResults;
 
@@ -59,6 +62,7 @@ public class ReservedStateUpdateTask implements ClusterStateTaskListener {
         Map<String, ReservedClusterStateHandler<?>> handlers,
         Collection<String> orderedHandlers,
         Consumer<ErrorState> errorReporter,
+        Consumer<ReservedStateUpdateTask> retryConsumer,
         ActionListener<ActionResponse.Empty> listener
     ) {
         this.namespace = namespace;
@@ -67,6 +71,7 @@ public class ReservedStateUpdateTask implements ClusterStateTaskListener {
         this.handlers = handlers;
         this.orderedHandlers = orderedHandlers;
         this.errorReporter = errorReporter;
+        this.retryConsumer = retryConsumer;
         this.listener = listener;
     }
 
@@ -79,13 +84,17 @@ public class ReservedStateUpdateTask implements ClusterStateTaskListener {
         return listener;
     }
 
-    protected ClusterState execute(final ClusterState currentState) {
+    protected Tuple<ClusterState, Runnable> execute(final ClusterState currentState) {
+        if (currentState.blocks().hasGlobalBlock(GatewayService.STATE_NOT_RECOVERED_BLOCK)) {
+            return Tuple.tuple(currentState, () -> retryConsumer.accept(ReservedStateUpdateTask.this));
+        }
+
         ReservedStateMetadata existingMetadata = currentState.metadata().reservedStateMetadata().get(namespace);
         Map<String, Object> reservedState = stateChunk.state();
         ReservedStateVersion reservedStateVersion = stateChunk.metadata();
 
         if (checkMetadataVersion(namespace, existingMetadata, reservedStateVersion) == false) {
-            return currentState;
+            return Tuple.tuple(currentState, () -> {});
         }
 
         var reservedMetadataBuilder = new ReservedStateMetadata.Builder(namespace).version(reservedStateVersion.version());
@@ -119,7 +128,7 @@ public class ReservedStateUpdateTask implements ClusterStateTaskListener {
         ClusterState.Builder stateBuilder = new ClusterState.Builder(state);
         Metadata.Builder metadataBuilder = Metadata.builder(state.metadata()).put(reservedMetadataBuilder.build());
 
-        return stateBuilder.metadata(metadataBuilder).build();
+        return Tuple.tuple(stateBuilder.metadata(metadataBuilder).build(), () -> {});
     }
 
     private void checkAndThrowOnError(List<String> errors, ReservedStateVersion reservedStateVersion) {
