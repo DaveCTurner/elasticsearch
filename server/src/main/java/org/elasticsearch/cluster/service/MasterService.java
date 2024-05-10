@@ -693,15 +693,17 @@ public class MasterService extends AbstractLifecycleComponent {
             this.clusterStateVersion = clusterStateVersion;
             this.threadPool = threadPool;
             this.masterNode = nodes.getMasterNode();
-            int countDown = 0;
+            int ackNodesCount = 0;
             for (DiscoveryNode node : nodes) {
                 // we always wait for at least the master node
                 if (node.equals(masterNode) || contextPreservingAckListener.mustAck(node)) {
-                    countDown++;
+                    ackNodesCount++;
                 }
             }
-            logger.trace("expecting {} acknowledgements for cluster_state update (version: {})", countDown, clusterStateVersion);
-            this.countDown = new CountDown(countDown + 1); // we also wait for onCommit to be called
+            logger.trace("expecting {} acknowledgements for cluster_state update (version: {})", ackNodesCount, clusterStateVersion);
+            // we use single counter to track onCommit and onNodeAck to finish task
+            // onCommit must happen once, hence +1
+            this.countDown = new CountDown(ackNodesCount + 1);
         }
 
         @UpdateForV9 // properly forbid ackTimeout == null after enough time has passed to be sure it's not used in production

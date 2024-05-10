@@ -40,6 +40,7 @@ import org.apache.lucene.tests.util.TimeUnits;
 import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.action.ActionFuture;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.RequestBuilder;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.SubscribableListener;
@@ -2130,11 +2131,18 @@ public abstract class ESTestCase extends LuceneTestCase {
         }
     }
 
+    private static final int AWAIT_LISTENER_TIMEOUT = 10;
+
+    /**
+     * Waits for listener to successfully complete with {@value #AWAIT_LISTENER_TIMEOUT} sec timeout.
+     * Can be used when you expect a result of async operation.
+     *
+     * @return result of listener onResponse
+     * @throws AssertionError if listener completed with exception, or thread interrupted, or timed out
+     */
     public static <T> T safeAwait(SubscribableListener<T> listener) {
-        final var future = new PlainActionFuture<T>();
-        listener.addListener(future);
         try {
-            return future.get(10, TimeUnit.SECONDS);
+            return awaitListener(listener);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new AssertionError("safeAwait: interrupted waiting for SubscribableListener", e);
@@ -2143,6 +2151,85 @@ public abstract class ESTestCase extends LuceneTestCase {
         } catch (TimeoutException e) {
             throw new AssertionError("safeAwait: listener was not completed within the timeout", e);
         }
+    }
+
+    /**
+     * Waits for async function to complete with {@value #AWAIT_LISTENER_TIMEOUT} sec timeout.
+     * Can be used when you expect a result of async operation.
+     * For example:
+     * <pre>{@code
+     *         final var resp = safeAwait(
+     *             (ActionListener<AcknowledgedResponse> listener) -> repositoriesService.registerRepository(req, listener)
+     *         );
+     *         assertTrue(resp.isAcknowledged());
+     * }</pre>
+     *
+     * @return result of listener onResponse
+     * @throws AssertionError if listener completed with exception, or thread interrupted, or timed out
+     */
+    public static <T> T safeAwait(Consumer<ActionListener<T>> asyncFunc) {
+        return safeAwait(SubscribableListener.newForked(asyncFunc::accept));
+    }
+
+    /**
+     * Waits for async function to complete with {@value #AWAIT_LISTENER_TIMEOUT} sec timeout.
+     * Can be used when you expect a failure of async operation.
+     * For example:
+     * <pre>{@code
+     *         final var errResp = safeAwaitFailure(
+     *             (ActionListener<AcknowledgedResponse> listener) -> repositoriesService.registerRepository(req, listener)
+     *         );
+     *         assertThat(errResp, isA(RepositoryVerificationException.class));
+     * }</pre>
+     *
+     * @return result of listener onFailure
+     * @throws AssertionError if listener completed successfully, or thread interrupted, or timed out
+     */
+    public static <T> Exception safeAwaitFailure(Consumer<ActionListener<T>> asyncFunc) {
+        return safeAwaitFailure(SubscribableListener.newForked(asyncFunc::accept));
+    }
+
+    /**
+     * Waits for listener to complete with {@value #AWAIT_LISTENER_TIMEOUT} sec timeout.
+     * Can be used when you expect a failure of async operation.
+     *
+     * @return result of listener onFailure
+     * @throws AssertionError if listener completed successfully, or thread interrupted, or timed out
+     */
+    public static <T> Exception safeAwaitFailure(SubscribableListener<T> listener) {
+        try {
+            final var result = awaitListener(listener);
+            throw new AssertionError("safeAwaitError: excepted error, got result: " + result.toString());
+        } catch (ExecutionException e) {
+            final var cause = e.getCause();
+            if (cause instanceof Exception err) {
+                return err;
+            } else {
+                throw new AssertionError("safeAwaitError: returned failure is not Exception class", cause);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("safeAwaitError: interrupted waiting for SubscribableListener", e);
+        } catch (TimeoutException e) {
+            throw new AssertionError("safeAwaitError: listener was not completed within the timeout", e);
+        }
+    }
+
+    /**
+     * Waits for listener to complete with {@value #AWAIT_LISTENER_TIMEOUT} sec timeout.
+     */
+    public static <T> T awaitListener(SubscribableListener<T> listener) throws ExecutionException, InterruptedException, TimeoutException {
+        return awaitListener(listener, AWAIT_LISTENER_TIMEOUT, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Waits for listener to complete with given timeout.
+     */
+    public static <T> T awaitListener(SubscribableListener<T> listener, int timeout, TimeUnit timeUnit) throws ExecutionException,
+        InterruptedException, TimeoutException {
+        final var future = new PlainActionFuture<T>();
+        listener.addListener(future);
+        return future.get(timeout, timeUnit);
     }
 
     public static void safeSleep(long millis) {

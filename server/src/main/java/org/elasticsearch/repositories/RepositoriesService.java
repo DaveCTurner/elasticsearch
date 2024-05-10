@@ -346,10 +346,17 @@ public class RepositoriesService extends AbstractLifecycleComponent implements C
      * @param request
      */
     public void validateRepositoryCanBeCreated(final PutRepositoryRequest request) {
-        final RepositoryMetadata newRepositoryMetadata = new RepositoryMetadata(request.name(), request.type(), request.settings());
+        final var newRepositoryMetadata = new RepositoryMetadata(request.name(), request.type(), request.settings());
 
         // Trying to create the new repository on master to make sure it works
-        closeRepository(createRepository(newRepositoryMetadata));
+        final var repository = createRepository(newRepositoryMetadata);
+        try {
+            if (request.verify()) {
+                repository.endVerification(repository.startVerification());
+            }
+        } finally {
+            closeRepository(repository);
+        }
     }
 
     private void submitUnbatchedTask(@SuppressWarnings("SameParameterValue") String source, ClusterStateUpdateTask task) {
