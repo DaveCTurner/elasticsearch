@@ -1526,12 +1526,19 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         }
     }
 
+    private static boolean assertNoOtherMaster(DiscoveryNodes discoveryNodes) {
+        assert discoveryNodes.isLocalNodeElectedMaster() || discoveryNodes.getMasterNodeId() == null
+            : "publishing while applied state has a different master: " + discoveryNodes;
+        return true;
+    }
+
     @Override
     public void publish(
         ClusterStatePublicationEvent clusterStatePublicationEvent,
         ActionListener<Void> publishListener,
         AckListener ackListener
     ) {
+        assert assertNoOtherMaster(applierState.nodes());
         try {
             synchronized (mutex) {
                 if (mode != Mode.LEADER || getCurrentTerm() != clusterStatePublicationEvent.getNewState().term()) {
