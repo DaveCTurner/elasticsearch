@@ -25,7 +25,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 clusterStateVersionRegex = re.compile('.*Publishing cluster state version \[([0-9]+)\].*')
-repositoryDataRegex = re.compile('.*\[(test-repo)\] writing new RepositoryData \[index-([0-9]+)\]: (.*)')
+repositoryDataRegex = re.compile('.*\[(repo-[0-9]+)\] writing new RepositoryData \[index-([0-9]+)\]: (.*)')
 
 snapshotOrder = {}
 snapshotSeq = []
