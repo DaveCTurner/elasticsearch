@@ -1189,6 +1189,8 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
                     final var clusterService = cluster.getCurrentMasterNodeInstance(ClusterService.class);
 
+                    logger.info("--> marking [{}] for removal", node);
+
                     SubscribableListener
 
                         .<Void>newForked(
@@ -1252,6 +1254,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                                     @Override
                                     public void clusterStateProcessed(ClusterState initialState, ClusterState newState) {
                                         l.onResponse(null);
+                                        logger.info("--> unmarked [{}] for removal", node);
                                     }
                                 }
                             )
