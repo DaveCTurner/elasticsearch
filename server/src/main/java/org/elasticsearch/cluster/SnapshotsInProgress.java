@@ -1805,4 +1805,38 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
             }
         }
     }
+
+    public record DebugXContent(SnapshotsInProgress snapshotsInProgress) implements ToXContentObject {
+        @Override
+        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+            builder.startObject();
+            for (final var byRepoEntry : snapshotsInProgress.entries.entrySet()) {
+                builder.startArray(byRepoEntry.getKey());
+                for (final var entry : byRepoEntry.getValue().entries) {
+                    builder.startObject();
+                    builder.field("entry", entry);
+                    builder.startArray("snapshotIndices");
+                    for (final var snapshotIndexEntry : entry.snapshotIndices.entrySet()) {
+                        builder.startObject()
+                            .field("key", snapshotIndexEntry.getKey())
+                            .field("index", snapshotIndexEntry.getValue())
+                            .endObject();
+                    }
+                    builder.endArray();
+                    builder.startArray("shardStatusByRepoShardId");
+                    for (Map.Entry<RepositoryShardId, ShardSnapshotStatus> shardEntry : entry.shardStatusByRepoShardId.entrySet()) {
+                        builder.startObject()
+                            .field("repo_index", shardEntry.getKey().index())
+                            .field("shard", shardEntry.getKey().shardId())
+                            .field("shard_snapshot_status", shardEntry.getValue().toString())
+                            .endObject();
+                    }
+                    builder.endArray();
+                    builder.endObject();
+                }
+                builder.endArray();
+            }
+            return builder.endObject();
+        }
+    }
 }
