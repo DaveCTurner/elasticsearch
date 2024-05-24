@@ -330,14 +330,13 @@ public final class BlobStoreTestUtil {
                             shardPathContents,
                             hasKey(String.format(Locale.ROOT, BlobStoreRepository.SNAPSHOT_NAME_FORMAT, snapshotId.getUUID()))
                         );
-                        // TODO reinstate or weaken this assertion
-                        // assertThat(
-                        // shardPathContents.keySet()
-                        // .stream()
-                        // .filter(name -> name.startsWith(BlobStoreRepository.INDEX_FILE_PREFIX))
-                        // .count(),
-                        // lessThanOrEqualTo(2L)
-                        // );
+                        assertThat(
+                            shardPathContents.keySet()
+                                .stream()
+                                .filter(name -> name.startsWith(BlobStoreRepository.INDEX_FILE_PREFIX))
+                                .count(),
+                            lessThanOrEqualTo(2L)
+                        );
                         final BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots = repository.getBlobStoreIndexShardSnapshots(
                             indexId,
                             shardId,

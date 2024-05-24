@@ -1305,8 +1305,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                 metadata.name(),
                                 indexId,
                                 shardId,
-                                writtenGeneration,
-                                unusedBlobs(originalShardBlobs, survivingSnapshotUUIDs, updatedSnapshots)
+                                writtenGeneration.toBlobNamePart(),
+                                blobsToDelete.stream().filter(s -> s.startsWith(SNAPSHOT_INDEX_PREFIX)).collect(Collectors.joining(","))
                             );
                             shardBlobsToDelete.addShardDeleteResult(indexId, shardId, writtenGeneration, blobsToDelete);
                         }

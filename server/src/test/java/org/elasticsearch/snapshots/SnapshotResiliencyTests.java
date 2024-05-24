@@ -2495,17 +2495,6 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     )
                 );
                 actions.put(
-                    TransportCloneSnapshotAction.TYPE,
-                    new TransportCloneSnapshotAction(
-                        transportService,
-                        clusterService,
-                        threadPool,
-                        snapshotsService,
-                        actionFilters,
-                        indexNameExpressionResolver
-                    )
-                );
-                actions.put(
                     TransportClusterRerouteAction.TYPE,
                     new TransportClusterRerouteAction(
                         transportService,
