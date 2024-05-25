@@ -30,7 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class ChunkedRestResponseBodyTests extends ESTestCase {
+public class ChunkedRestResponseBodyPartTests extends ESTestCase {
 
     public void testEncodesChunkedXContentCorrectly() throws IOException {
         final ChunkedToXContent chunkedToXContent = (ToXContent.Params outerParams) -> Iterators.forArray(
@@ -50,7 +50,7 @@ public class ChunkedRestResponseBodyTests extends ESTestCase {
         }
         final var bytesDirect = BytesReference.bytes(builderDirect);
 
-        var chunkedResponse = ChunkedRestResponseBody.fromXContent(
+        var chunkedResponse = ChunkedRestResponseBodyPart.fromXContent(
             chunkedToXContent,
             ToXContent.EMPTY_PARAMS,
             new FakeRestChannel(
@@ -61,7 +61,7 @@ public class ChunkedRestResponseBodyTests extends ESTestCase {
         );
 
         final List<BytesReference> refsGenerated = new ArrayList<>();
-        while (chunkedResponse.isDone() == false) {
+        while (chunkedResponse.isPartComplete() == false) {
             refsGenerated.add(chunkedResponse.encodeChunk(randomIntBetween(2, 10), BytesRefRecycler.NON_RECYCLING_INSTANCE));
         }
 
@@ -70,9 +70,9 @@ public class ChunkedRestResponseBodyTests extends ESTestCase {
 
     public void testFromTextChunks() throws IOException {
         final var chunks = randomList(1000, () -> randomUnicodeOfLengthBetween(1, 100));
-        var body = ChunkedRestResponseBody.fromTextChunks("text/plain", Iterators.map(chunks.iterator(), s -> w -> w.write(s)));
+        var body = ChunkedRestResponseBodyPart.fromTextChunks("text/plain", Iterators.map(chunks.iterator(), s -> w -> w.write(s)));
         final List<BytesReference> refsGenerated = new ArrayList<>();
-        while (body.isDone() == false) {
+        while (body.isPartComplete() == false) {
             refsGenerated.add(body.encodeChunk(randomIntBetween(2, 10), BytesRefRecycler.NON_RECYCLING_INSTANCE));
         }
         final BytesReference chunkedBytes = CompositeBytesReference.of(refsGenerated.toArray(new BytesReference[0]));

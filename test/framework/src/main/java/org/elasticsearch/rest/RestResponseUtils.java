@@ -29,7 +29,7 @@ public class RestResponseUtils {
         }
 
         final var chunkedRestResponseBody = restResponse.chunkedContent();
-        assert chunkedRestResponseBody.isDone() == false;
+        assert chunkedRestResponseBody.isPartComplete() == false;
 
         final int pageSize;
         try (var page = NON_RECYCLING_INSTANCE.obtain()) {
@@ -37,12 +37,12 @@ public class RestResponseUtils {
         }
 
         try (var out = new BytesStreamOutput()) {
-            while (chunkedRestResponseBody.isDone() == false) {
+            while (chunkedRestResponseBody.isPartComplete() == false) {
                 try (var chunk = chunkedRestResponseBody.encodeChunk(pageSize, NON_RECYCLING_INSTANCE)) {
                     chunk.writeTo(out);
                 }
             }
-            assert chunkedRestResponseBody.isEndOfResponse() : "RestResponseUtils#getBodyContent does not support continuations (yet)";
+            assert chunkedRestResponseBody.isLastPart() : "RestResponseUtils#getBodyContent does not support continuations (yet)";
 
             out.flush();
             return out.bytes();

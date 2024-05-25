@@ -34,7 +34,7 @@ import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.core.Booleans;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Tuple;
-import org.elasticsearch.rest.ChunkedRestResponseBody;
+import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
 import org.elasticsearch.transport.Transports;
 import org.elasticsearch.transport.netty4.Netty4Utils;
 import org.elasticsearch.transport.netty4.Netty4WriteThrottlingHandler;
@@ -58,7 +58,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     private final int maxEventsHeld;
     private final PriorityQueue<Tuple<? extends Netty4HttpResponse, ChannelPromise>> outboundHoldingQueue;
 
-    private record ChunkedWrite(PromiseCombiner combiner, ChannelPromise onDone, ChunkedRestResponseBody responseBody) {}
+    private record ChunkedWrite(PromiseCombiner combiner, ChannelPromise onDone, ChunkedRestResponseBodyPart responseBody) {}
 
     /**
      * The current {@link ChunkedWrite} if a chunked write is executed at the moment.
@@ -233,7 +233,8 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         final PromiseCombiner combiner = continuation.combiner();
         assert currentChunkedWrite == null;
         final var responseBody = continuation.body();
-        assert responseBody.isDone() == false : "response with continuations must have at least one (possibly-empty) chunk in each part";
+        assert responseBody.isPartComplete() == false
+            : "response with continuations must have at least one (possibly-empty) chunk in each part";
         currentChunkedWrite = new ChunkedWrite(combiner, promise, responseBody);
         // NB "writable" means there's space in the downstream ChannelOutboundBuffer, we aren't trying to saturate the physical channel.
         while (ctx.channel().isWritable()) {
@@ -252,8 +253,8 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         final var finishingWrite = currentChunkedWrite;
         currentChunkedWrite = null;
         final var finishingWriteBody = finishingWrite.responseBody();
-        assert finishingWriteBody.isDone();
-        final var endOfResponse = finishingWriteBody.isEndOfResponse();
+        assert finishingWriteBody.isPartComplete();
+        final var endOfResponse = finishingWriteBody.isLastPart();
         if (endOfResponse) {
             writeSequence++;
             finishingWrite.combiner().finish(finishingWrite.onDone());
@@ -261,7 +262,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             final var channel = finishingWrite.onDone().channel();
             ActionListener.run(ActionListener.assertOnce(new ActionListener<>() {
                 @Override
-                public void onResponse(ChunkedRestResponseBody continuation) {
+                public void onResponse(ChunkedRestResponseBodyPart continuation) {
                     channel.writeAndFlush(
                         new Netty4ChunkedHttpContinuation(writeSequence, continuation, finishingWrite.combiner()),
                         finishingWrite.onDone() // pass the terminal listener/promise along the line
@@ -296,7 +297,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
                     }
                 }
 
-            }), finishingWriteBody::getContinuation);
+            }), finishingWriteBody::getNextPart);
         }
     }
 
@@ -376,7 +377,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     private boolean writeChunk(ChannelHandlerContext ctx, ChunkedWrite chunkedWrite) {
         final var body = chunkedWrite.responseBody();
         final var combiner = chunkedWrite.combiner();
-        assert body.isDone() == false : "should not continue to try and serialize once done";
+        assert body.isPartComplete() == false : "should not continue to try and serialize once done";
         final ReleasableBytesReference bytes;
         try {
             bytes = body.encodeChunk(Netty4WriteThrottlingHandler.MAX_BYTES_PER_WRITE, serverTransport.recycler());
@@ -384,8 +385,8 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             return handleChunkingFailure(ctx, chunkedWrite, e);
         }
         final ByteBuf content = Netty4Utils.toByteBuf(bytes);
-        final boolean done = body.isDone();
-        final boolean lastChunk = done && body.isEndOfResponse();
+        final boolean done = body.isPartComplete();
+        final boolean lastChunk = done && body.isLastPart();
         final ChannelFuture f = ctx.write(lastChunk ? new DefaultLastHttpContent(content) : new DefaultHttpContent(content));
         f.addListener(ignored -> bytes.close());
         combiner.add(f);

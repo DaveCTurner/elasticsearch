@@ -434,7 +434,7 @@ public class RestTableTests extends ESTestCase {
         final var bodyChunks = new ArrayList<String>();
         final var chunkedRestResponseBody = response.chunkedContent();
 
-        while (chunkedRestResponseBody.isDone() == false) {
+        while (chunkedRestResponseBody.isPartComplete() == false) {
             try (var chunk = chunkedRestResponseBody.encodeChunk(pageSize, recycler)) {
                 assertThat(chunk.length(), greaterThan(0));
                 bodyChunks.add(chunk.utf8ToString());
