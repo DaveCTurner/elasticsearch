@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.tests.util.LuceneTestCase;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ShardOperationFailedException;
@@ -165,18 +166,21 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
     }
 
     private static <T> ActionListener<T> mustSucceed(CheckedConsumer<T, Exception> consumer) {
+        final var creationStackTrace = new ElasticsearchException("mustSucceed: " + consumer);
         return new ActionListener<>() {
             @Override
             public void onResponse(T t) {
                 try {
                     consumer.accept(t);
                 } catch (Exception e) {
+                    e.addSuppressed(creationStackTrace);
                     logAndFailTest(e);
                 }
             }
 
             @Override
             public void onFailure(Exception e) {
+                e.addSuppressed(creationStackTrace);
                 logAndFailTest(e);
             }
         };
