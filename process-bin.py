@@ -19,23 +19,17 @@ args = parser.parse_args()
 
 with open(args.input_filename, 'rb') as fi:
     with open(args.output_filename, 'wb') as fo:
-        pos = 0
         while True:
-            startPos = pos
             typ = int.from_bytes(fi.read(3))
             if typ == 0:
                 break
-            pos += 3
             siz = 0
             shf = 0
             while True:
                 siz0 = int.from_bytes(fi.read(1))
-                pos += 1
                 siz = siz | ((siz0 & 0x7f) << shf)
                 shf += 7
                 if siz0 & 0x80 == 0:
                     break
             dat = fi.read(siz)
             fo.write(dat)
-            pos += siz
-
