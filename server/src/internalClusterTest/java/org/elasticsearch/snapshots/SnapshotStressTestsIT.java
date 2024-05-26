@@ -1193,6 +1193,10 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
                     final var clusterService = cluster.getCurrentMasterNodeInstance(ClusterService.class);
 
+                    if (node.nodeName.equals(clusterService.localNode().getName())) {
+                        return;
+                    }
+
                     logger.info("--> marking [{}] for removal", node);
 
                     SubscribableListener
@@ -1264,7 +1268,9 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                             )
                         )
 
-                        .addListener(mustSucceed(ignored -> startNodeShutdownMarker()));
+                        .addListener(
+                            ActionListener.releaseAfter(mustSucceed(ignored -> startNodeShutdownMarker()), localReleasables.transfer())
+                        );
 
                     rerun = false;
                 } finally {
