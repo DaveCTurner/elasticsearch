@@ -55,6 +55,7 @@ import org.elasticsearch.monitor.jvm.HotThreads;
 import org.elasticsearch.repositories.RepositoryCleanupResult;
 import org.elasticsearch.repositories.fs.FsRepository;
 import org.elasticsearch.test.InternalTestCluster;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.ScalingExecutorBuilder;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -88,6 +89,7 @@ import static org.hamcrest.Matchers.notNullValue;
 @LuceneTestCase.SuppressFileSystems(value = "HandleLimitFS") // we sometimes have >2048 open files
 public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
+    @TestLogging(reason = "debugging", value = "org.elasticsearch.cluster.metadata.MetadataIndexStateService:DEBUG")
     public void testRandomActivities() throws InterruptedException {
         final DiscoveryNodes discoveryNodes = clusterAdmin().prepareState().clear().setNodes(true).get().getState().nodes();
         new TrackedCluster(internalCluster(), nodeNames(discoveryNodes.getMasterNodes()), nodeNames(discoveryNodes.getDataNodes())).run();
@@ -232,6 +234,8 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         private final Map<String, TrackedRepository> repositories = ConcurrentCollections.newConcurrentMap();
         private final Map<String, TrackedIndex> indices = ConcurrentCollections.newConcurrentMap();
         private final Map<String, TrackedSnapshot> snapshots = ConcurrentCollections.newConcurrentMap();
+
+        // TODO forbid closing indices for restore while partial snapshot(s) are ongoing, because in-flight snapshots block closing
 
         /**
          * If we acquire permits on nodes in a completely random order then we tend to block all possible restarts. Instead we always try
