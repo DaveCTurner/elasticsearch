@@ -213,6 +213,12 @@ public class MasterService extends AbstractLifecycleComponent {
         final BatchSummary summary,
         final ActionListener<Void> listener
     ) {
+        logger.info("""
+            Computing cluster state update for: {}
+            Tasks:
+            {}
+            """, summary, executionResults.stream().map(r -> r.getTask().toString()).collect(Collectors.joining("\n")));
+
         if (lifecycle.started() == false) {
             logger.debug("processing [{}]: ignoring, master service not started", summary);
             listener.onResponse(null);

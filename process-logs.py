@@ -97,7 +97,8 @@ with open(args.filename) as f:
             gen = int(repositoryDataMatch.group(2))
             repositoryData = json.loads(repositoryDataMatch.group(3))
             shardGens = repositoryData.get('indices', {}).get(args.index, {}).get('shard_generations', [])
-            shardGen = shardGens[args.shard][:4] if args.shard < len(shardGens) else '-'
+            shardGen = shardGens[args.shard] if args.shard < len(shardGens) else None
+            shardGen = '-' if shardGen is None else shardGen[:4]
             print(clusterStateVersion, repository, gen, shardGen)
             next
 
