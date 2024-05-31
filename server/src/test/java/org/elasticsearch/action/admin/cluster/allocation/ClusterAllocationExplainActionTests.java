@@ -8,7 +8,6 @@
 
 package org.elasticsearch.action.admin.cluster.allocation;
 
-import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.action.support.replication.ClusterStateCreationUtils;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.TestShardRoutingRoleStrategies;
@@ -251,7 +250,13 @@ public class ClusterAllocationExplainActionTests extends ESTestCase {
         ShardRouting shardToExplain = primary
             ? clusterState.getRoutingTable().index("idx").shard(0).primaryShard()
             : clusterState.getRoutingTable().index("idx").shard(0).replicaShards().get(0);
-        ClusterAllocationExplainRequest request = new ClusterAllocationExplainRequest(TEST_REQUEST_TIMEOUT, "idx", 0, primary, shardToExplain.currentNodeId());
+        ClusterAllocationExplainRequest request = new ClusterAllocationExplainRequest(
+            TEST_REQUEST_TIMEOUT,
+            "idx",
+            0,
+            primary,
+            shardToExplain.currentNodeId()
+        );
         RoutingAllocation allocation = routingAllocation(clusterState);
         ShardRouting foundShard = findShardToExplain(request, allocation);
         assertEquals(shardToExplain, foundShard);
@@ -264,7 +269,13 @@ public class ClusterAllocationExplainActionTests extends ESTestCase {
                 break;
             }
         }
-        final ClusterAllocationExplainRequest failingRequest = new ClusterAllocationExplainRequest(TEST_REQUEST_TIMEOUT, "idx", 0, primary, explainNode);
+        final ClusterAllocationExplainRequest failingRequest = new ClusterAllocationExplainRequest(
+            TEST_REQUEST_TIMEOUT,
+            "idx",
+            0,
+            primary,
+            explainNode
+        );
         expectThrows(IllegalArgumentException.class, () -> findShardToExplain(failingRequest, allocation));
     }
 

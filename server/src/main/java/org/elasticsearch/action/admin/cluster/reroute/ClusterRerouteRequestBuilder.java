@@ -22,7 +22,14 @@ public class ClusterRerouteRequestBuilder extends AcknowledgedRequestBuilder<
     ClusterRerouteResponse,
     ClusterRerouteRequestBuilder> {
     public ClusterRerouteRequestBuilder(ElasticsearchClient client) {
-        super(client, TransportClusterRerouteAction.TYPE, new ClusterRerouteRequest(MasterNodeRequest.TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT, AcknowledgedRequest.DEFAULT_ACK_TIMEOUT));
+        super(
+            client,
+            TransportClusterRerouteAction.TYPE,
+            new ClusterRerouteRequest(
+                MasterNodeRequest.TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT,
+                AcknowledgedRequest.DEFAULT_ACK_TIMEOUT
+            )
+        );
     }
 
     /**

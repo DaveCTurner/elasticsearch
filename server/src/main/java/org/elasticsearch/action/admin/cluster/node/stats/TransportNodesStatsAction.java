@@ -90,7 +90,10 @@ public class TransportNodesStatsAction extends TransportNodesAction<
             || NodesStatsRequestParameters.Metric.FS.containedIn(metrics)) {
             client.execute(
                 TransportGetAllocationStatsAction.TYPE,
-                new TransportGetAllocationStatsAction.Request(MasterNodeRequest.TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT, new TaskId(clusterService.localNode().getId(), task.getId())),
+                new TransportGetAllocationStatsAction.Request(
+                    MasterNodeRequest.TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT,
+                    new TaskId(clusterService.localNode().getId(), task.getId())
+                ),
                 listener.delegateFailure((l, r) -> {
                     ActionListener.respondAndRelease(
                         l,
