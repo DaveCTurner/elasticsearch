@@ -14,7 +14,6 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainRequest;
-import org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainRequestBuilder;
 import org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainResponse;
 import org.elasticsearch.action.admin.cluster.allocation.TransportClusterAllocationExplainAction;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
@@ -461,10 +460,6 @@ public class ClusterAdminClient implements ElasticsearchClient {
 
     public ActionFuture<ClusterAllocationExplainResponse> allocationExplain(ClusterAllocationExplainRequest request) {
         return execute(TransportClusterAllocationExplainAction.TYPE, request);
-    }
-
-    public ClusterAllocationExplainRequestBuilder prepareAllocationExplain() {
-        return new ClusterAllocationExplainRequestBuilder(this);
     }
 
     public PutStoredScriptRequestBuilder preparePutStoredScript() {
