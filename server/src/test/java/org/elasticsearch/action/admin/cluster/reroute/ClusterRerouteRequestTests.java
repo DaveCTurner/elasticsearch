@@ -80,7 +80,7 @@ public class ClusterRerouteRequestTests extends ESTestCase {
     }
 
     private ClusterRerouteRequest randomRequest() {
-        ClusterRerouteRequest request = new ClusterRerouteRequest(TEST_REQUEST_TIMEOUT, AcknowledgedRequest.DEFAULT_ACK_TIMEOUT);
+        ClusterRerouteRequest request = new ClusterRerouteRequest(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT);
         int commands = between(0, 10);
         for (int i = 0; i < commands; i++) {
             request.add(randomFrom(RANDOM_COMMAND_GENERATORS).get());
@@ -97,7 +97,7 @@ public class ClusterRerouteRequestTests extends ESTestCase {
             assertEquals(request, request);
             assertEquals(request.hashCode(), request.hashCode());
 
-            ClusterRerouteRequest copy = new ClusterRerouteRequest(TEST_REQUEST_TIMEOUT, AcknowledgedRequest.DEFAULT_ACK_TIMEOUT).add(
+            ClusterRerouteRequest copy = new ClusterRerouteRequest(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT).add(
                 request.getCommands().commands().toArray(new AllocationCommand[0])
             );
             AcknowledgedRequest<ClusterRerouteRequest> clusterRerouteRequestAcknowledgedRequest = copy.dryRun(request.dryRun())
@@ -196,7 +196,7 @@ public class ClusterRerouteRequestTests extends ESTestCase {
             builder.field("dry_run", original.dryRun());
         }
         params.put("explain", Boolean.toString(original.explain()));
-        if (false == original.ackTimeout().equals(AcknowledgedRequest.DEFAULT_ACK_TIMEOUT) || randomBoolean()) {
+        if (false == original.ackTimeout().equals(TEST_REQUEST_TIMEOUT) || randomBoolean()) {
             params.put("timeout", original.ackTimeout().toString());
         }
         if (original.isRetryFailed() || randomBoolean()) {

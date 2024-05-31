@@ -48,7 +48,6 @@ public class ClusterAllocationExplainRequest extends MasterNodeRequest<ClusterAl
 
     /**
      * Create a new allocation explain request to explain any unassigned shard in the cluster.
-     * @param masterNodeTimeout
      */
     public ClusterAllocationExplainRequest(TimeValue masterNodeTimeout) {
         super(masterNodeTimeout);
@@ -72,9 +71,8 @@ public class ClusterAllocationExplainRequest extends MasterNodeRequest<ClusterAl
      * Create a new allocation explain request. If {@code primary} is false, the first unassigned replica
      * will be picked for explanation. If no replicas are unassigned, the first assigned replica will
      * be explained.
-     *
-     * Package private for testing.
      */
+    // Package private for testing.
     ClusterAllocationExplainRequest(TimeValue masterNodeTimeout, String index, int shard, boolean primary, @Nullable String currentNode) {
         super(masterNodeTimeout);
         this.index = index;

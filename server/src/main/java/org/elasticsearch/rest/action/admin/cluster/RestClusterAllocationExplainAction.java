@@ -9,6 +9,7 @@
 package org.elasticsearch.rest.action.admin.cluster;
 
 import org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainRequest;
+import org.elasticsearch.action.admin.cluster.allocation.TransportClusterAllocationExplainAction;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -59,7 +60,11 @@ public class RestClusterAllocationExplainAction extends BaseRestHandler {
 
         req.includeYesDecisions(request.paramAsBoolean("include_yes_decisions", false));
         req.includeDiskInfo(request.paramAsBoolean("include_disk_info", false));
-        return channel -> client.admin().cluster().allocationExplain(req, new RestRefCountedChunkedToXContentListener<>(channel));
+        return channel -> client.execute(
+            TransportClusterAllocationExplainAction.TYPE,
+            req,
+            new RestRefCountedChunkedToXContentListener<>(channel)
+        );
     }
 
     @Override
