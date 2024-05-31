@@ -231,7 +231,7 @@ public class ClusterAllocationExplainRequest extends MasterNodeRequest<ClusterAl
         return sb.toString();
     }
 
-    public static ClusterAllocationExplainRequest parse(XContentParser parser) throws IOException {
-        return PARSER.parse(parser, new ClusterAllocationExplainRequest(TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT), null);
+    public static ClusterAllocationExplainRequest parse(ClusterAllocationExplainRequest request, XContentParser parser) throws IOException {
+        return PARSER.parse(parser, request, null);
     }
 }

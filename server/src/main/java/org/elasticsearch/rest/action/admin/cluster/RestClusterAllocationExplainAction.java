@@ -48,16 +48,12 @@ public class RestClusterAllocationExplainAction extends BaseRestHandler {
 
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
-        ClusterAllocationExplainRequest req;
-        if (request.hasContentOrSourceParam() == false) {
-            // Empty request signals "explain the first unassigned shard you find"
-            req = new ClusterAllocationExplainRequest(MasterNodeRequest.TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT);
-        } else {
+        final var req = new ClusterAllocationExplainRequest(MasterNodeRequest.TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT);
+        if (request.hasContentOrSourceParam()) {
             try (XContentParser parser = request.contentOrSourceParamParser()) {
-                req = ClusterAllocationExplainRequest.parse(parser);
+                ClusterAllocationExplainRequest.parse(req, parser);
             }
-        }
-
+        } // else ok, an empty body means "explain the first unassigned shard you find"
         req.includeYesDecisions(request.paramAsBoolean("include_yes_decisions", false));
         req.includeDiskInfo(request.paramAsBoolean("include_disk_info", false));
         return channel -> client.execute(
