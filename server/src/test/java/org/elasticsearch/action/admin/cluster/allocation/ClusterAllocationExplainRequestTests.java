@@ -8,6 +8,7 @@
 
 package org.elasticsearch.action.admin.cluster.allocation;
 
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.test.ESTestCase;
 
@@ -15,7 +16,7 @@ public class ClusterAllocationExplainRequestTests extends ESTestCase {
 
     public void testSerialization() throws Exception {
         ClusterAllocationExplainRequest request = new ClusterAllocationExplainRequest(
-            randomAlphaOfLength(4),
+            TEST_REQUEST_TIMEOUT, randomAlphaOfLength(4),
             randomIntBetween(0, Integer.MAX_VALUE),
             randomBoolean(),
             randomBoolean() ? randomAlphaOfLength(5) : null

@@ -15,6 +15,7 @@ import org.elasticsearch.action.admin.cluster.node.shutdown.NodePrevalidateShard
 import org.elasticsearch.action.admin.cluster.node.shutdown.PrevalidateShardPathRequest;
 import org.elasticsearch.action.admin.cluster.node.shutdown.PrevalidateShardPathResponse;
 import org.elasticsearch.action.admin.cluster.node.shutdown.TransportPrevalidateShardPathAction;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.Strings;
@@ -92,7 +93,7 @@ public class PrevalidateShardPathIT extends ESIntegTestCase {
                         .toList()) {
                         var explanation = client().execute(
                             TransportClusterAllocationExplainAction.TYPE,
-                            new ClusterAllocationExplainRequest().setIndex(node2Shard.getIndexName())
+                            new ClusterAllocationExplainRequest(TEST_REQUEST_TIMEOUT).setIndex(node2Shard.getIndexName())
                                 .setCurrentNode(node2Shard.currentNodeId())
                                 .setShard(node2Shard.id())
                                 .setPrimary(node2Shard.primary())

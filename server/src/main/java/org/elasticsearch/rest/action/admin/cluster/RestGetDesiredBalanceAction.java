@@ -10,6 +10,7 @@ package org.elasticsearch.rest.action.admin.cluster;
 
 import org.elasticsearch.action.admin.cluster.allocation.DesiredBalanceRequest;
 import org.elasticsearch.action.admin.cluster.allocation.TransportGetDesiredBalanceAction;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
@@ -37,7 +38,7 @@ public class RestGetDesiredBalanceAction extends BaseRestHandler {
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         return restChannel -> client.execute(
             TransportGetDesiredBalanceAction.TYPE,
-            new DesiredBalanceRequest(),
+            new DesiredBalanceRequest(MasterNodeRequest.TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT),
             new RestRefCountedChunkedToXContentListener<>(restChannel)
         );
     }

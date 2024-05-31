@@ -9,6 +9,8 @@
 package org.elasticsearch.rest.action.admin.cluster;
 
 import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteRequest;
+import org.elasticsearch.action.support.master.AcknowledgedRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.routing.allocation.command.AllocationCommands;
@@ -95,7 +97,7 @@ public class RestClusterRerouteAction extends BaseRestHandler {
     }
 
     public static ClusterRerouteRequest createRequest(RestRequest request) throws IOException {
-        ClusterRerouteRequest clusterRerouteRequest = new ClusterRerouteRequest();
+        ClusterRerouteRequest clusterRerouteRequest = new ClusterRerouteRequest(MasterNodeRequest.TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT, AcknowledgedRequest.DEFAULT_ACK_TIMEOUT);
         clusterRerouteRequest.dryRun(request.paramAsBoolean("dry_run", clusterRerouteRequest.dryRun()));
         clusterRerouteRequest.explain(request.paramAsBoolean("explain", clusterRerouteRequest.explain()));
         clusterRerouteRequest.ackTimeout(getAckTimeout(request));

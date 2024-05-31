@@ -9,6 +9,8 @@ package org.elasticsearch.action.admin.cluster.reroute;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionTestUtils;
+import org.elasticsearch.action.support.master.AcknowledgedRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
@@ -51,7 +53,7 @@ import static org.hamcrest.Matchers.not;
 public class ClusterRerouteTests extends ESAllocationTestCase {
 
     public void testSerializeRequest() throws IOException {
-        ClusterRerouteRequest req = new ClusterRerouteRequest();
+        ClusterRerouteRequest req = new ClusterRerouteRequest(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT);
         req.setRetryFailed(randomBoolean());
         req.dryRun(randomBoolean());
         req.explain(randomBoolean());
@@ -86,7 +88,7 @@ public class ClusterRerouteTests extends ESAllocationTestCase {
         var responseRef = new AtomicReference<ClusterRerouteResponse>();
         var responseActionListener = ActionTestUtils.assertNoFailureListener(responseRef::set);
 
-        var request = new ClusterRerouteRequest().dryRun(true);
+        var request = new ClusterRerouteRequest(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT).dryRun(true);
         var task = new TransportClusterRerouteAction.ClusterRerouteResponseAckedClusterStateUpdateTask(
             logger,
             allocationService,
@@ -112,7 +114,7 @@ public class ClusterRerouteTests extends ESAllocationTestCase {
         );
         ClusterState clusterState = createInitialClusterState(allocationService);
 
-        var req = new ClusterRerouteRequest().dryRun(false);
+        var req = new ClusterRerouteRequest(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT).dryRun(false);
         var task = new TransportClusterRerouteAction.ClusterRerouteResponseAckedClusterStateUpdateTask(
             logger,
             allocationService,

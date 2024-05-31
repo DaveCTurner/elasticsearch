@@ -9,6 +9,7 @@
 package org.elasticsearch.action.admin.cluster.reroute;
 
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.routing.allocation.command.AllocateEmptyPrimaryAllocationCommand;
 import org.elasticsearch.cluster.routing.allocation.command.AllocateReplicaAllocationCommand;
 import org.elasticsearch.cluster.routing.allocation.command.AllocateStalePrimaryAllocationCommand;
@@ -80,7 +81,7 @@ public class ClusterRerouteRequestTests extends ESTestCase {
     }
 
     private ClusterRerouteRequest randomRequest() {
-        ClusterRerouteRequest request = new ClusterRerouteRequest();
+        ClusterRerouteRequest request = new ClusterRerouteRequest(TEST_REQUEST_TIMEOUT, AcknowledgedRequest.DEFAULT_ACK_TIMEOUT);
         int commands = between(0, 10);
         for (int i = 0; i < commands; i++) {
             request.add(randomFrom(RANDOM_COMMAND_GENERATORS).get());
@@ -97,7 +98,7 @@ public class ClusterRerouteRequestTests extends ESTestCase {
             assertEquals(request, request);
             assertEquals(request.hashCode(), request.hashCode());
 
-            ClusterRerouteRequest copy = new ClusterRerouteRequest().add(
+            ClusterRerouteRequest copy = new ClusterRerouteRequest(TEST_REQUEST_TIMEOUT, AcknowledgedRequest.DEFAULT_ACK_TIMEOUT).add(
                 request.getCommands().commands().toArray(new AllocationCommand[0])
             );
             AcknowledgedRequest<ClusterRerouteRequest> clusterRerouteRequestAcknowledgedRequest = copy.dryRun(request.dryRun())

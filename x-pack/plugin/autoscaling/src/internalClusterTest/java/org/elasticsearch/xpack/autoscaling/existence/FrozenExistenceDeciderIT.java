@@ -9,6 +9,8 @@ package org.elasticsearch.xpack.autoscaling.existence;
 
 import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.support.master.AcknowledgedRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.blobcache.BlobCachePlugin;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
@@ -141,7 +143,7 @@ public class FrozenExistenceDeciderIT extends AbstractFrozenAutoscalingIntegTest
         assertBusy(() -> {
             // cause a bit of cluster activity using an empty reroute call in case the `wait-for-index-colour` ILM step missed the
             // notification that partial-index is now GREEN.
-            client().admin().cluster().reroute(new ClusterRerouteRequest()).actionGet();
+            client().admin().cluster().reroute(new ClusterRerouteRequest(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT)).actionGet();
             String[] indices = indices();
             assertThat(indices, arrayContaining(PARTIAL_INDEX_NAME));
             assertThat(indices, not(arrayContaining(INDEX_NAME)));

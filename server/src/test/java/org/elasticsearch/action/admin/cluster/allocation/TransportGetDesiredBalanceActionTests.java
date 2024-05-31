@@ -10,6 +10,7 @@ package org.elasticsearch.action.admin.cluster.allocation;
 import org.elasticsearch.ResourceNotFoundException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.ClusterInfo;
 import org.elasticsearch.cluster.ClusterInfoService;
 import org.elasticsearch.cluster.ClusterInfoTests;
@@ -91,7 +92,7 @@ public class TransportGetDesiredBalanceActionTests extends ESAllocationTestCase 
         return PlainActionFuture.get(
             future -> action.masterOperation(
                 new Task(1, "test", TransportGetDesiredBalanceAction.TYPE.name(), "", TaskId.EMPTY_TASK_ID, Map.of()),
-                new DesiredBalanceRequest(),
+                new DesiredBalanceRequest(TEST_REQUEST_TIMEOUT),
                 clusterState,
                 future
             ),

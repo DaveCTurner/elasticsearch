@@ -67,7 +67,9 @@ import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.action.support.WriteRequest;
+import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.action.update.UpdateHelper;
 import org.elasticsearch.client.internal.AdminClient;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -1052,7 +1054,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                 () -> testClusterNodes.randomMasterNodeSafe().client.admin()
                                     .cluster()
                                     .reroute(
-                                        new ClusterRerouteRequest().add(
+                                        new ClusterRerouteRequest(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT).add(
                                             new AllocateEmptyPrimaryAllocationCommand(
                                                 index,
                                                 shardRouting.shardId().id(),

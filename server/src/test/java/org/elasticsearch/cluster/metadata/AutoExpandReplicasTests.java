@@ -12,6 +12,8 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.support.ActiveShardCount;
+import org.elasticsearch.action.support.master.AcknowledgedRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.action.support.replication.ClusterStateCreationUtils;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -142,7 +144,7 @@ public class AutoExpandReplicasTests extends ESTestCase {
                     state,
                     state.routingTable().index("index").shard(0).shardsWithState(ShardRoutingState.INITIALIZING)
                 );
-                state = cluster.reroute(state, new ClusterRerouteRequest());
+                state = cluster.reroute(state, new ClusterRerouteRequest(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT));
             }
 
             IndexShardRoutingTable preTable = state.routingTable().index("index").shard(0);

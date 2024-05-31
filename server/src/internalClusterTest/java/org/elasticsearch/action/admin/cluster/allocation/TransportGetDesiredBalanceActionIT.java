@@ -10,6 +10,7 @@ package org.elasticsearch.action.admin.cluster.allocation;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
 import org.elasticsearch.cluster.routing.ShardRouting;
@@ -40,8 +41,10 @@ public class TransportGetDesiredBalanceActionIT extends ESIntegTestCase {
         var clusterHealthResponse = clusterAdmin().health(new ClusterHealthRequest().waitForStatus(ClusterHealthStatus.GREEN)).get();
         assertEquals(RestStatus.OK, clusterHealthResponse.status());
 
-        DesiredBalanceResponse desiredBalanceResponse = client().execute(TransportGetDesiredBalanceAction.TYPE, new DesiredBalanceRequest())
-            .get();
+        DesiredBalanceResponse desiredBalanceResponse = client().execute(
+            TransportGetDesiredBalanceAction.TYPE,
+            new DesiredBalanceRequest(TEST_REQUEST_TIMEOUT)
+        ).get();
 
         assertEquals(1, desiredBalanceResponse.getRoutingTable().size());
         Map<Integer, DesiredBalanceResponse.DesiredShards> shardsMap = desiredBalanceResponse.getRoutingTable().get(index);
@@ -75,8 +78,10 @@ public class TransportGetDesiredBalanceActionIT extends ESIntegTestCase {
         var clusterHealthResponse = clusterAdmin().health(new ClusterHealthRequest(index).waitForStatus(ClusterHealthStatus.YELLOW)).get();
         assertEquals(RestStatus.OK, clusterHealthResponse.status());
 
-        DesiredBalanceResponse desiredBalanceResponse = client().execute(TransportGetDesiredBalanceAction.TYPE, new DesiredBalanceRequest())
-            .get();
+        DesiredBalanceResponse desiredBalanceResponse = client().execute(
+            TransportGetDesiredBalanceAction.TYPE,
+            new DesiredBalanceRequest(TEST_REQUEST_TIMEOUT)
+        ).get();
 
         assertEquals(1, desiredBalanceResponse.getRoutingTable().size());
         Map<Integer, DesiredBalanceResponse.DesiredShards> shardsMap = desiredBalanceResponse.getRoutingTable().get(index);

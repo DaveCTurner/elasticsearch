@@ -14,6 +14,7 @@ import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.admin.cluster.allocation.TransportGetAllocationStatsAction;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -89,7 +90,7 @@ public class TransportNodesStatsAction extends TransportNodesAction<
             || NodesStatsRequestParameters.Metric.FS.containedIn(metrics)) {
             client.execute(
                 TransportGetAllocationStatsAction.TYPE,
-                new TransportGetAllocationStatsAction.Request(new TaskId(clusterService.localNode().getId(), task.getId())),
+                new TransportGetAllocationStatsAction.Request(MasterNodeRequest.TRAPPY_IMPLICIT_DEFAULT_MASTER_NODE_TIMEOUT, new TaskId(clusterService.localNode().getId(), task.getId())),
                 listener.delegateFailure((l, r) -> {
                     ActionListener.respondAndRelease(
                         l,
