@@ -8,7 +8,7 @@
 
 package org.elasticsearch.cluster.routing;
 
-import org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplanation;
+import org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplanationUtils;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
 import org.elasticsearch.action.index.IndexRequestBuilder;
@@ -199,14 +199,12 @@ public class AllocationIdIT extends ESIntegTestCase {
 
     private void checkNoValidShardCopy(String indexName, ShardId shardId) throws Exception {
         assertBusy(() -> {
-            final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain()
-                .setIndex(indexName)
-                .setShard(shardId.id())
-                .setPrimary(true)
-                .get()
-                .getExplanation();
-
-            final ShardAllocationDecision shardAllocationDecision = explanation.getShardAllocationDecision();
+            final ShardAllocationDecision shardAllocationDecision = ClusterAllocationExplanationUtils.getClusterAllocationExplanation(
+                client(),
+                indexName,
+                shardId.id(),
+                true
+            ).getShardAllocationDecision();
             assertThat(shardAllocationDecision.isDecisionTaken(), equalTo(true));
             assertThat(
                 shardAllocationDecision.getAllocateDecision().getAllocationDecision(),
