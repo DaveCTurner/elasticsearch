@@ -28,7 +28,6 @@ import org.elasticsearch.transport.TcpTransport;
 import java.nio.channels.spi.SelectorProvider;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static org.elasticsearch.common.util.concurrent.EsExecutors.daemonThreadFactory;
 
@@ -143,9 +142,11 @@ public final class SharedGroupFactory {
         }
     }
 
-    private static final class ActivityTrackingSelectStrategy extends AtomicLong implements SelectStrategy {
+    private static final class ActivityTrackingSelectStrategy implements SelectStrategy {
         private final SelectStrategy innerStrategy = DefaultSelectStrategyFactory.INSTANCE.newSelectStrategy();
         private final ThreadWatchdog threadWatchdog;
+
+        // set once, on first invocation
         private Thread owningThread;
         private ThreadWatchdog.ActivityTracker activityTracker;
 
@@ -153,20 +154,39 @@ public final class SharedGroupFactory {
             this.threadWatchdog = threadWatchdog;
         }
 
+        // active && hasTasks - do nothing
+        // !active && hasTasks - become active
+        // active && !hasTasks - become inactive
+        // !active && !hasTasks - become active; become inactive
+
         @Override
         public int calculateStrategy(IntSupplier selectSupplier, boolean hasTasks) throws Exception {
-            if (hasTasks == false) {
-                if (activityTracker == null) {
-                    assert owningThread == null;
-                    owningThread = Thread.currentThread();
-                    activityTracker = threadWatchdog.getActivityTrackerForCurrentThread();
-                    activityTracker.startActivity();
-                }
+            if (activityTracker == null) {
+                assert owningThread == null;
+                owningThread = Thread.currentThread();
+                activityTracker = threadWatchdog.getActivityTrackerForCurrentThread();
+            }
+            assert owningThread == Thread.currentThread();
 
-                assert owningThread == Thread.currentThread();
-                activityTracker.stopActivity();
+            if ((activityTracker.get() & 1) == 0) {
+                logger.info(
+                    "--> [{}] calculateStrategy[value={},hasTasks={}]: becoming active",
+                    owningThread.getName(),
+                    activityTracker.get(),
+                    hasTasks
+                );
                 activityTracker.startActivity();
             }
+            if (hasTasks == false) {
+                logger.info(
+                    "--> [{}] calculateStrategy[value={},hasTasks={}]: becoming inactive",
+                    owningThread.getName(),
+                    activityTracker.get(),
+                    hasTasks
+                );
+                activityTracker.stopActivity();
+            }
+
             return innerStrategy.calculateStrategy(selectSupplier, hasTasks);
         }
     }

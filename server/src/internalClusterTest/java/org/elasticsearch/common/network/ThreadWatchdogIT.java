@@ -24,6 +24,8 @@ import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.RunOnce;
 import org.elasticsearch.features.NodeFeature;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestChannel;
@@ -67,6 +69,8 @@ public class ThreadWatchdogIT extends ESIntegTestCase {
         );
     }
 
+    private static final Logger logger = LogManager.getLogger(ThreadWatchdogIT.class);
+
     @Override
     protected boolean addMockHttpTransport() {
         return false;
@@ -94,6 +98,7 @@ public class ThreadWatchdogIT extends ESIntegTestCase {
 
                 @Override
                 public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) {
+                    logger.info("--> [{}] blocking thread in HTTP handling", Thread.currentThread().getName());
                     blockAndWaitForWatchdogLogs();
                     new RestToXContentListener<>(channel).onResponse((b, p) -> b.startObject().endObject());
                 }
@@ -139,6 +144,7 @@ public class ThreadWatchdogIT extends ESIntegTestCase {
             EsExecutors.DIRECT_EXECUTOR_SERVICE,
             TransportRequest.Empty::new,
             (request, channel, task) -> {
+                logger.info("--> [{}] blocking thread in transport request handling", Thread.currentThread().getName());
                 blockAndWaitForWatchdogLogs();
                 channel.sendResponse(TransportResponse.Empty.INSTANCE);
             }

@@ -105,7 +105,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
-        activityTracker.startActivity();
+//        activityTracker.startActivity();
         try {
             assert msg instanceof FullHttpRequest : "Should have fully aggregated message already but saw [" + msg + "]";
             final FullHttpRequest fullHttpRequest = (FullHttpRequest) msg;
@@ -125,7 +125,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             }
             handlePipelinedRequest(ctx, netty4HttpRequest);
         } finally {
-            activityTracker.stopActivity();
+//            activityTracker.stopActivity();
         }
     }
 
