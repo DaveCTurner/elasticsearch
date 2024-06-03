@@ -9,13 +9,19 @@
 package org.elasticsearch.common.network;
 
 import org.apache.logging.log4j.core.LogEvent;
+import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
+import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
+import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
@@ -28,10 +34,13 @@ import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestResponse;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.RestToXContentListener;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.MockLog;
@@ -42,9 +51,12 @@ import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -102,6 +114,56 @@ public class ThreadWatchdogIT extends ESIntegTestCase {
                     blockAndWaitForWatchdogLogs();
                     new RestToXContentListener<>(channel).onResponse((b, p) -> b.startObject().endObject());
                 }
+            }, new RestHandler() {
+                @Override
+                public List<Route> routes() {
+                    return List.of(Route.builder(RestRequest.Method.POST, "_spin").build());
+                }
+
+                @Override
+                public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) {
+                    logger.info("--> [{}] spinning on thread in HTTP handling", Thread.currentThread().getName());
+                    final var keepGoing = new AtomicBoolean(true);
+                    new Thread(() -> {
+                        try {
+                            blockAndWaitForWatchdogLogs();
+                        } finally {
+                            keepGoing.set(false);
+                        }
+                    }, Thread.currentThread().getName()).start();
+                    final var chunk = ReleasableBytesReference.wrap(new BytesArray("hello world ".getBytes(StandardCharsets.UTF_8)));
+                    class TestBody implements ChunkedRestResponseBodyPart {
+                        final Iterator<ReleasableBytesReference> chunks = Iterators.single(chunk);
+
+                        @Override
+                        public boolean isPartComplete() {
+                            return chunks.hasNext() == false;
+                        }
+
+                        @Override
+                        public boolean isLastPart() {
+                            return keepGoing.get() == false;
+                        }
+
+                        @Override
+                        public void getNextPart(ActionListener<ChunkedRestResponseBodyPart> listener) {
+                            safeSleep(10);
+                            logger.info("--> [{}] still spinning on thread in HTTP handling", Thread.currentThread().getName());
+                            listener.onResponse(new TestBody());
+                        }
+
+                        @Override
+                        public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) {
+                            return chunks.next();
+                        }
+
+                        @Override
+                        public String getResponseContentTypeString() {
+                            return "application/binary";
+                        }
+                    }
+                    channel.sendResponse(RestResponse.chunked(RestStatus.OK, new TestBody(), null));
+                }
             });
         }
     }
@@ -131,6 +193,10 @@ public class ThreadWatchdogIT extends ESIntegTestCase {
 
     public void testThreadWatchdogHttpLogging() throws IOException {
         ESRestTestCase.assertOK(getRestClient().performRequest(new Request("POST", "_slow")));
+    }
+
+    public void testThreadWatchdogIdleLogging() throws IOException {
+        ESRestTestCase.assertOK(getRestClient().performRequest(new Request("POST", "_spin")));
     }
 
     public void testThreadWatchdogTransportLogging() {
