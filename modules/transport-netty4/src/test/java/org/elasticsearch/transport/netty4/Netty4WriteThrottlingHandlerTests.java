@@ -17,6 +17,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.CompositeBytesReference;
+import org.elasticsearch.common.network.ThreadWatchdog;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.test.ESTestCase;
@@ -35,12 +36,13 @@ import static org.hamcrest.Matchers.oneOf;
 
 public class Netty4WriteThrottlingHandlerTests extends ESTestCase {
 
+    private final ThreadWatchdog threadWatchdog = new ThreadWatchdog();
     private SharedGroupFactory.SharedGroup transportGroup;
 
     @Before
     public void createGroup() {
         final SharedGroupFactory sharedGroupFactory = new SharedGroupFactory(Settings.EMPTY);
-        transportGroup = sharedGroupFactory.getTransportGroup();
+        transportGroup = sharedGroupFactory.getTransportGroup(threadWatchdog);
     }
 
     @After

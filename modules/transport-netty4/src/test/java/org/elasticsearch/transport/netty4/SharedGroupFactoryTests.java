@@ -8,16 +8,19 @@
 
 package org.elasticsearch.transport.netty4;
 
+import org.elasticsearch.common.network.ThreadWatchdog;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.ESTestCase;
 
 public final class SharedGroupFactoryTests extends ESTestCase {
 
+    private final ThreadWatchdog threadWatchdog = new ThreadWatchdog();
+
     public void testSharedEventLoops() throws Exception {
         SharedGroupFactory sharedGroupFactory = new SharedGroupFactory(Settings.EMPTY);
 
-        SharedGroupFactory.SharedGroup httpGroup = sharedGroupFactory.getHttpGroup();
-        SharedGroupFactory.SharedGroup transportGroup = sharedGroupFactory.getTransportGroup();
+        SharedGroupFactory.SharedGroup httpGroup = sharedGroupFactory.getHttpGroup(threadWatchdog);
+        SharedGroupFactory.SharedGroup transportGroup = sharedGroupFactory.getTransportGroup(threadWatchdog);
 
         try {
             assertSame(httpGroup.getLowLevelGroup(), transportGroup.getLowLevelGroup());
@@ -38,8 +41,8 @@ public final class SharedGroupFactoryTests extends ESTestCase {
     public void testNonSharedEventLoops() throws Exception {
         Settings settings = Settings.builder().put(Netty4Plugin.SETTING_HTTP_WORKER_COUNT.getKey(), randomIntBetween(1, 10)).build();
         SharedGroupFactory sharedGroupFactory = new SharedGroupFactory(settings);
-        SharedGroupFactory.SharedGroup httpGroup = sharedGroupFactory.getHttpGroup();
-        SharedGroupFactory.SharedGroup transportGroup = sharedGroupFactory.getTransportGroup();
+        SharedGroupFactory.SharedGroup httpGroup = sharedGroupFactory.getHttpGroup(threadWatchdog);
+        SharedGroupFactory.SharedGroup transportGroup = sharedGroupFactory.getTransportGroup(threadWatchdog);
 
         try {
             assertNotSame(httpGroup.getLowLevelGroup(), transportGroup.getLowLevelGroup());

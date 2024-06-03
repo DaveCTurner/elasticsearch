@@ -8,28 +8,35 @@
 
 package org.elasticsearch.transport.netty4;
 
+import io.netty.channel.DefaultSelectStrategyFactory;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.SelectStrategy;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.util.IntSupplier;
 import io.netty.util.concurrent.Future;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.common.network.ThreadWatchdog;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.transport.TcpTransport;
 
+import java.nio.channels.spi.SelectorProvider;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.elasticsearch.common.util.concurrent.EsExecutors.daemonThreadFactory;
 
 /**
  * Creates and returns {@link io.netty.channel.EventLoopGroup} instances. It will return a shared group for
- * both {@link #getHttpGroup()} and {@link #getTransportGroup()} if
+ * both {@link #getHttpGroup} and {@link #getTransportGroup} if
  * {@link Netty4Plugin#SETTING_HTTP_WORKER_COUNT} is configured to be 0.
- * If that setting is not 0, then it will return a different group in the {@link #getHttpGroup()} call.
+ * If that setting is not 0, then it will return a different group in the {@link #getHttpGroup} call.
  */
 public final class SharedGroupFactory {
 
@@ -56,18 +63,20 @@ public final class SharedGroupFactory {
         return workerCount;
     }
 
-    public synchronized SharedGroup getTransportGroup() {
-        return getGenericGroup();
+    public synchronized SharedGroup getTransportGroup(ThreadWatchdog threadWatchdog) {
+        return getGenericGroup(threadWatchdog);
     }
 
-    public synchronized SharedGroup getHttpGroup() {
+    public synchronized SharedGroup getHttpGroup(ThreadWatchdog threadWatchdog) {
         if (httpWorkerCount == 0) {
-            return getGenericGroup();
+            return getGenericGroup(threadWatchdog);
         } else {
             if (dedicatedHttpGroup == null) {
                 NioEventLoopGroup eventLoopGroup = new NioEventLoopGroup(
                     httpWorkerCount,
-                    daemonThreadFactory(settings, HttpServerTransport.HTTP_SERVER_WORKER_THREAD_NAME_PREFIX)
+                    daemonThreadFactory(settings, HttpServerTransport.HTTP_SERVER_WORKER_THREAD_NAME_PREFIX),
+                    SelectorProvider.provider(),
+                    () -> new ActivityTrackingSelectStrategy(threadWatchdog)
                 );
                 dedicatedHttpGroup = new SharedGroup(new RefCountedGroup(eventLoopGroup));
             }
@@ -75,11 +84,14 @@ public final class SharedGroupFactory {
         }
     }
 
-    private SharedGroup getGenericGroup() {
+    private SharedGroup getGenericGroup(ThreadWatchdog threadWatchdog) {
         if (genericGroup == null) {
+            logger.info("--> getGenericGroup()", new ElasticsearchException("stack trace"));
             EventLoopGroup eventLoopGroup = new NioEventLoopGroup(
                 workerCount,
-                EsExecutors.daemonThreadFactory(settings, TcpTransport.TRANSPORT_WORKER_THREAD_NAME_PREFIX)
+                EsExecutors.daemonThreadFactory(settings, TcpTransport.TRANSPORT_WORKER_THREAD_NAME_PREFIX),
+                SelectorProvider.provider(),
+                () -> new ActivityTrackingSelectStrategy(threadWatchdog)
             );
             this.genericGroup = new RefCountedGroup(eventLoopGroup);
         } else {
@@ -128,6 +140,34 @@ public final class SharedGroupFactory {
             if (isOpen.compareAndSet(true, false)) {
                 refCountedGroup.decRef();
             }
+        }
+    }
+
+    private static final class ActivityTrackingSelectStrategy extends AtomicLong implements SelectStrategy {
+        private final SelectStrategy innerStrategy = DefaultSelectStrategyFactory.INSTANCE.newSelectStrategy();
+        private final ThreadWatchdog threadWatchdog;
+        private Thread owningThread;
+        private ThreadWatchdog.ActivityTracker activityTracker;
+
+        ActivityTrackingSelectStrategy(ThreadWatchdog threadWatchdog) {
+            this.threadWatchdog = threadWatchdog;
+        }
+
+        @Override
+        public int calculateStrategy(IntSupplier selectSupplier, boolean hasTasks) throws Exception {
+            if (hasTasks == false) {
+                if (activityTracker == null) {
+                    assert owningThread == null;
+                    owningThread = Thread.currentThread();
+                    activityTracker = threadWatchdog.getActivityTrackerForCurrentThread();
+                    activityTracker.startActivity();
+                }
+
+                assert owningThread == Thread.currentThread();
+                activityTracker.stopActivity();
+                activityTracker.startActivity();
+            }
+            return innerStrategy.calculateStrategy(selectSupplier, hasTasks);
         }
     }
 }
