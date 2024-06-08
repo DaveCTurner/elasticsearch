@@ -18,14 +18,21 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.io.stream.BytesStream;
+import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.recycler.Recycler;
+import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.Releasable;
+import org.elasticsearch.core.Releasables;
 import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.zip.ZipOutputStream;
 
 public class DiagnosticsAction {
 
@@ -43,6 +50,24 @@ public class DiagnosticsAction {
     public static final class Response extends ActionResponse implements Releasable {
         private final NodeClient client;
 
+        private BytesStream target;
+
+        private final OutputStream out = new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+                assert target != null;
+                target.write(b);
+            }
+
+            @Override
+            public void write(byte[] b, int off, int len) throws IOException {
+                assert target != null;
+                target.write(b, off, len);
+            }
+        };
+
+        private final ZipOutputStream zipOutputStream = new ZipOutputStream(out, StandardCharsets.UTF_8);
+
         public Response(NodeClient client) {
             this.client = client;
         }
@@ -53,8 +78,6 @@ public class DiagnosticsAction {
         }
 
         public ChunkedRestResponseBodyPart getFirstBodyPart() {
-
-
 
             return new ChunkedRestResponseBodyPart() {
                 @Override
@@ -74,7 +97,29 @@ public class DiagnosticsAction {
 
                 @Override
                 public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
-                    return null;
+                    try {
+                        assert target == null;
+                        final var chunkStream = new RecyclerBytesStreamOutput(recycler);
+                        target = chunkStream;
+
+                        // TODO write some chunks while chunkStream.size() < sizeHint
+
+                        final var result = new ReleasableBytesReference(
+                            chunkStream.bytes(),
+                            () -> Releasables.closeExpectNoException(chunkStream)
+                        );
+                        target = null;
+                        return result;
+                    } catch (Exception e) {
+                        logger.error("failure encoding chunk", e);
+                        throw e;
+                    } finally {
+                        if (target != null) {
+                            assert false : "failure encoding chunk";
+                            IOUtils.closeWhileHandlingException(target);
+                            target = null;
+                        }
+                    }
                 }
 
                 @Override
