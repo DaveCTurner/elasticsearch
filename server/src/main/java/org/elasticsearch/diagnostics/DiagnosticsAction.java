@@ -8,47 +8,66 @@
 
 package org.elasticsearch.diagnostics;
 
-import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
+import org.elasticsearch.action.admin.cluster.node.info.TransportNodesInfoAction;
+import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsRequest;
+import org.elasticsearch.action.admin.cluster.node.stats.TransportNodesStatsAction;
+import org.elasticsearch.action.admin.cluster.stats.ClusterStatsRequest;
+import org.elasticsearch.action.admin.cluster.stats.TransportClusterStatsAction;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.client.internal.node.NodeClient;
-import org.elasticsearch.common.bytes.ReleasableBytesReference;
+import org.elasticsearch.action.support.SubscribableListener;
+import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.client.internal.ParentTaskAssigningClient;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.BytesStream;
-import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.recycler.Recycler;
-import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.Releasable;
-import org.elasticsearch.core.Releasables;
 import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestResponse;
+import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
+import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.zip.ZipOutputStream;
 
 public class DiagnosticsAction {
 
     private DiagnosticsAction() {/* no instances */}
 
-    public static final ActionType<DiagnosticsAction.Response> INSTANCE = new ActionType("cluster:monitor/diagnostics");
+    public static final ActionType<ActionResponse.Empty> INSTANCE = new ActionType<>("cluster:monitor/diagnostics");
 
     public static final class Request extends ActionRequest {
+        private final RestChannel restChannel;
+        private final Client client;
+
+        public Request(RestChannel restChannel, Client client) {
+            this.restChannel = restChannel;
+            this.client = client;
+        }
+
         @Override
         public ActionRequestValidationException validate() {
             return null;
         }
+
+        @Override
+        public Task createTask(long id, String type, String action, TaskId parentTaskId, Map<String, String> headers) {
+            return new CancellableTask(id, type, action, "", parentTaskId, headers);
+        }
     }
 
-    public static final class Response extends ActionResponse implements Releasable {
-        private final NodeClient client;
+    private static final class ChunkedZipResponse implements Releasable {
 
         private BytesStream target;
 
@@ -68,87 +87,75 @@ public class DiagnosticsAction {
 
         private final ZipOutputStream zipOutputStream = new ZipOutputStream(out, StandardCharsets.UTF_8);
 
-        public Response(NodeClient client) {
-            this.client = client;
-        }
+        private final CancellableTask task;
+        private final Client client;
 
-        @Override
-        public void writeTo(StreamOutput out) throws IOException {
-            TransportAction.localOnly();
+        ChunkedZipResponse(CancellableTask task, Client client) {
+            this.task = task;
+            this.client = client;
         }
 
         public ChunkedRestResponseBodyPart getFirstBodyPart() {
-
-            return new ChunkedRestResponseBodyPart() {
-                @Override
-                public boolean isPartComplete() {
-                    return false;
-                }
-
-                @Override
-                public boolean isLastPart() {
-                    return false;
-                }
-
-                @Override
-                public void getNextPart(ActionListener<ChunkedRestResponseBodyPart> listener) {
-
-                }
-
-                @Override
-                public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
-                    try {
-                        assert target == null;
-                        final var chunkStream = new RecyclerBytesStreamOutput(recycler);
-                        target = chunkStream;
-
-                        // TODO write some chunks while chunkStream.size() < sizeHint
-
-                        final var result = new ReleasableBytesReference(
-                            chunkStream.bytes(),
-                            () -> Releasables.closeExpectNoException(chunkStream)
-                        );
-                        target = null;
-                        return result;
-                    } catch (Exception e) {
-                        logger.error("failure encoding chunk", e);
-                        throw e;
-                    } finally {
-                        if (target != null) {
-                            assert false : "failure encoding chunk";
-                            IOUtils.closeWhileHandlingException(target);
-                            target = null;
-                        }
-                    }
-                }
-
-                @Override
-                public String getResponseContentTypeString() {
-                    return "application/zip";
-                }
-            };
+            return null;
         }
 
         @Override
-        public void close() {}
+        public void close() {
+            // TODO
+        }
+
+        public <EntryResponse extends ActionResponse> void execute(
+            String zipEntryName,
+            ActionType<EntryResponse> type,
+            ActionRequest request,
+            ActionListener<Void> listener
+        ) {}
+
+        public void finish(ActionListener<Void> l) {
+
+        }
     }
 
-    private static final class ChunkedZipResponse {
-
-    }
-
-    public static final class TransportAction extends org.elasticsearch.action.support.TransportAction<Request, Response> {
-        private final NodeClient client;
+    public static final class TransportAction extends org.elasticsearch.action.support.TransportAction<Request, ActionResponse.Empty> {
+        private final TransportService transportService;
 
         @Inject
-        public TransportAction(NodeClient client, TransportService transportService, ActionFilters actionFilters) {
+        public TransportAction(TransportService transportService, ActionFilters actionFilters) {
             super(INSTANCE.name(), actionFilters, transportService.getTaskManager());
-            this.client = client;
+            this.transportService = transportService;
         }
 
         @Override
-        protected void doExecute(Task task, Request request, ActionListener<Response> listener) {
-            listener.onResponse(new Response(client));
+        protected void doExecute(Task task, Request request, ActionListener<ActionResponse.Empty> listener) {
+            assert task instanceof CancellableTask;
+            final var chunkedZipResponse = new ChunkedZipResponse(
+                (CancellableTask) task,
+                new ParentTaskAssigningClient(request.client, transportService.getLocalNode(), task)
+            );
+            request.restChannel.sendResponse(
+                RestResponse.chunked(RestStatus.OK, chunkedZipResponse.getFirstBodyPart(), chunkedZipResponse)
+            );
+
+            SubscribableListener
+                // nodes info
+                .<Void>newForked(l -> chunkedZipResponse.execute("nodes.json", TransportNodesInfoAction.TYPE, new NodesInfoRequest(), l))
+                // nodes stats
+                .<Void>andThen(
+                    (l, v) -> chunkedZipResponse.execute("nodes_stats.json", TransportNodesStatsAction.TYPE, new NodesStatsRequest(), l)
+                )
+                // cluster stats
+                .<Void>andThen(
+                    (l, v) -> chunkedZipResponse.execute(
+                        "cluster_stats.json",
+                        TransportClusterStatsAction.TYPE,
+                        new ClusterStatsRequest(),
+                        l
+                    )
+                )
+                // finish
+                .<Void>andThen((l, v) -> chunkedZipResponse.finish(l))
+                .addListener(listener.map(v -> ActionResponse.Empty.INSTANCE));
+
         }
     }
 

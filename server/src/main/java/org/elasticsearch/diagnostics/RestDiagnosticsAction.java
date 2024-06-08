@@ -8,12 +8,11 @@
 
 package org.elasticsearch.diagnostics;
 
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestResponse;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.rest.action.RestResponseListener;
+import org.elasticsearch.rest.action.RestCancellableNodeClient;
 
 import java.io.IOException;
 import java.util.List;
@@ -31,15 +30,10 @@ public class RestDiagnosticsAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        return restChannel -> client.execute(
+        return restChannel -> new RestCancellableNodeClient(client, request.getHttpChannel()).execute(
             DiagnosticsAction.INSTANCE,
-            new DiagnosticsAction.Request(),
-            new RestResponseListener<>(restChannel) {
-                @Override
-                public RestResponse buildResponse(DiagnosticsAction.Response response) {
-                    return RestResponse.chunked(RestStatus.OK, response.getFirstBodyPart(), response);
-                }
-            }
+            new DiagnosticsAction.Request(restChannel, client),
+            ActionListener.noop()
         );
     }
 }
