@@ -25,15 +25,17 @@ import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.client.Cancellable;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
+import org.elasticsearch.cluster.ClusterChangedEvent;
+import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.allocation.command.MoveAllocationCommand;
+import org.elasticsearch.cluster.routing.allocation.decider.EnableAllocationDecider;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.breaker.CircuitBreakingException;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexMode;
-import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.mapper.DocumentParserContext;
 import org.elasticsearch.index.mapper.KeywordFieldMapper;
@@ -45,8 +47,6 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.QueryRewriteContext;
 import org.elasticsearch.index.query.SearchExecutionContext;
-import org.elasticsearch.index.shard.IndexShard;
-import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.plugins.FieldPredicate;
 import org.elasticsearch.plugins.MapperPlugin;
@@ -83,6 +83,7 @@ import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
 import static org.elasticsearch.action.support.ActionTestUtils.wrapAsRestResponseListener;
+import static org.elasticsearch.cluster.routing.allocation.decider.EnableAllocationDecider.CLUSTER_ROUTING_REBALANCE_ENABLE_SETTING;
 import static org.elasticsearch.index.shard.IndexShardTestCase.closeShardNoCheck;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.hamcrest.Matchers.aMapWithSize;
@@ -186,6 +187,14 @@ public class FieldCapabilitiesIT extends ESIntegTestCase {
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
         return List.of(TestMapperPlugin.class, ExceptionOnRewriteQueryPlugin.class, BlockingOnRewriteQueryPlugin.class);
+    }
+
+    @Override
+    protected Settings nodeSettings(int nodeOrdinal, Settings otherSettings) {
+        return Settings.builder()
+            .put(super.nodeSettings(nodeOrdinal, otherSettings))
+            .put(CLUSTER_ROUTING_REBALANCE_ENABLE_SETTING.getKey(), EnableAllocationDecider.Rebalance.NONE)
+            .build();
     }
 
     @Override
@@ -523,37 +532,49 @@ public class FieldCapabilitiesIT extends ESIntegTestCase {
     }
 
     private void moveOrCloseShardsOnNodes(String nodeName) throws Exception {
-        final IndicesService indicesService = internalCluster().getInstance(IndicesService.class, nodeName);
-        for (IndexService indexService : indicesService) {
-            for (IndexShard indexShard : indexService) {
-                if (randomBoolean()) {
-                    closeShardNoCheck(indexShard, randomBoolean());
-                } else if (randomBoolean()) {
-                    final ShardId shardId = indexShard.shardId();
-                    final String[] nodeNames = internalCluster().getNodeNames();
-                    final String newNodeName = randomValueOtherThanMany(n -> nodeName.equals(n) == false, () -> randomFrom(nodeNames));
-                    DiscoveryNode fromNode = null;
-                    DiscoveryNode toNode = null;
-                    for (DiscoveryNode node : clusterService().state().nodes()) {
-                        if (node.getName().equals(nodeName)) {
-                            fromNode = node;
-                        }
-                        if (node.getName().equals(newNodeName)) {
-                            toNode = node;
-                        }
+        logger.info("--> moveOrCloseShardsOnNodes[{}]", nodeName);
+        final var indicesService = internalCluster().getInstance(IndicesService.class, nodeName);
+        for (final var indexService : indicesService) {
+            for (final var indexShard : indexService) {
+                final var shardId = indexShard.shardId();
+                final var targetNodes = new ArrayList<String>();
+                for (final var targetIndicesService : internalCluster().getInstances(IndicesService.class)) {
+                    final var targetNode = targetIndicesService.clusterService().localNode();
+                    if (targetNode.canContainData() && targetIndicesService.getShardOrNull(shardId) == null) {
+                        targetNodes.add(targetNode.getId());
                     }
-                    assertNotNull(fromNode);
-                    assertNotNull(toNode);
+                }
+
+                if (targetNodes.isEmpty() == false && randomBoolean()) {
                     ClusterRerouteUtils.reroute(
                         client(),
-                        new MoveAllocationCommand(shardId.getIndexName(), shardId.id(), fromNode.getId(), toNode.getId())
+                        new MoveAllocationCommand(
+                            shardId.getIndexName(),
+                            shardId.id(),
+                            indicesService.clusterService().localNode().getId(),
+                            randomFrom(targetNodes)
+                        )
                     );
+                } else if (randomBoolean()) {
+                    closeShardNoCheck(indexShard, randomBoolean());
                 }
             }
         }
     }
 
     public void testRelocation() throws Exception {
+        internalCluster().getCurrentMasterNodeInstance(ClusterService.class).addListener(new ClusterStateListener() {
+            long lastLoggedRoutingTableVersion = Long.MIN_VALUE;
+
+            @Override
+            public void clusterChanged(ClusterChangedEvent event) {
+                final var currentRoutingTableVersion = event.state().routingTable().version();
+                if (lastLoggedRoutingTableVersion < currentRoutingTableVersion) {
+                    lastLoggedRoutingTableVersion = currentRoutingTableVersion;
+                    logger.info("--> cluster state version [{}]: {}", event.state().version(), event.state().routingTable());
+                }
+            }
+        });
         populateTimeRangeIndices();
         try {
             final AtomicBoolean relocated = new AtomicBoolean();
@@ -572,7 +593,7 @@ public class FieldCapabilitiesIT extends ESIntegTestCase {
             if (randomBoolean()) {
                 request.indexFilter(QueryBuilders.rangeQuery("timestamp").gte("2020-01-01"));
             }
-            final FieldCapabilitiesResponse response = client().execute(TransportFieldCapabilitiesAction.TYPE, request).actionGet();
+            final FieldCapabilitiesResponse response = safeGet(client().execute(TransportFieldCapabilitiesAction.TYPE, request));
             assertThat(response.getIndices(), arrayContainingInAnyOrder("log-index-1", "log-index-2"));
             assertThat(response.getField("field1"), aMapWithSize(2));
             assertThat(response.getField("field1"), hasKey("long"));

@@ -16,6 +16,7 @@ import org.elasticsearch.cluster.routing.ShardRoutingState;
 import org.elasticsearch.cluster.routing.allocation.RerouteExplanation;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
 import org.elasticsearch.cluster.routing.allocation.decider.Decision;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.xcontent.ParseField;
@@ -96,33 +97,27 @@ public class MoveAllocationCommand implements AllocationCommand {
         RoutingNode fromRoutingNode = allocation.routingNodes().node(fromDiscoNode.getId());
         if (fromRoutingNode == null && fromDiscoNode.canContainData() == false) {
             throw new IllegalArgumentException(
-                "[move_allocation] can't move ["
-                    + index
-                    + "]["
-                    + shardId
-                    + "] from "
-                    + fromDiscoNode
-                    + " to "
-                    + toDiscoNode
-                    + ": source ["
-                    + fromDiscoNode.getName()
-                    + "] is not a data node."
+                Strings.format(
+                    "[move_allocation] can't move [%s][%d] from %s to %s: source [%s] is not a data node.",
+                    index,
+                    shardId,
+                    fromDiscoNode,
+                    toDiscoNode,
+                    fromDiscoNode.getName()
+                )
             );
         }
         RoutingNode toRoutingNode = allocation.routingNodes().node(toDiscoNode.getId());
         if (toRoutingNode == null && toDiscoNode.canContainData() == false) {
             throw new IllegalArgumentException(
-                "[move_allocation] can't move ["
-                    + index
-                    + "]["
-                    + shardId
-                    + "] from "
-                    + fromDiscoNode
-                    + " to "
-                    + toDiscoNode
-                    + ": source ["
-                    + toDiscoNode.getName()
-                    + "] is not a data node."
+                Strings.format(
+                    "[move_allocation] can't move [%s][%d] from %s to %s: source [%s] is not a data node.",
+                    index,
+                    shardId,
+                    fromDiscoNode,
+                    toDiscoNode,
+                    toDiscoNode.getName()
+                )
             );
         }
 
@@ -144,7 +139,12 @@ public class MoveAllocationCommand implements AllocationCommand {
                     );
                 }
                 throw new IllegalArgumentException(
-                    "[move_allocation] can't move " + shardId + ", shard is not started (state = " + shardRouting.state() + "]"
+                    Strings.format(
+                        "[move_allocation] can't move [%s][%d], shard is not started (state = %s)",
+                        index,
+                        shardId,
+                        shardRouting.state()
+                    )
                 );
             }
 
@@ -154,14 +154,14 @@ public class MoveAllocationCommand implements AllocationCommand {
                     return new RerouteExplanation(this, decision);
                 }
                 throw new IllegalArgumentException(
-                    "[move_allocation] can't move "
-                        + shardId
-                        + ", from "
-                        + fromDiscoNode
-                        + ", to "
-                        + toDiscoNode
-                        + ", since its not allowed, reason: "
-                        + decision
+                    Strings.format(
+                        "[move_allocation] can't move [%s][%d] from %s to %s since it's not allowed, reason: %s",
+                        index,
+                        shardId,
+                        fromDiscoNode,
+                        toDiscoNode,
+                        decision
+                    )
                 );
             }
             if (decision.type() == Decision.Type.THROTTLE) {
@@ -184,7 +184,9 @@ public class MoveAllocationCommand implements AllocationCommand {
                     allocation.decision(Decision.NO, "move_allocation_command", "shard " + shardId + " not found")
                 );
             }
-            throw new IllegalArgumentException("[move_allocation] can't move " + shardId + ", failed to find it on node " + fromDiscoNode);
+            throw new IllegalArgumentException(
+                Strings.format("[move_allocation] can't move [%s][%d], failed to find it on node %s", index, shardId, fromDiscoNode)
+            );
         }
         return new RerouteExplanation(this, decision);
     }
