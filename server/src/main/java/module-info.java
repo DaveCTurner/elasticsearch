@@ -459,4 +459,5 @@ module org.elasticsearch.server {
             org.elasticsearch.serverless.shardhealth,
             org.elasticsearch.serverless.apifiltering;
     exports org.elasticsearch.lucene.spatial;
+    exports org.elasticsearch.diagnostics;
 }
