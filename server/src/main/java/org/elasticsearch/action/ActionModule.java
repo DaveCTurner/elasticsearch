@@ -800,7 +800,7 @@ public class ActionModule extends AbstractModule {
         actions.register(DeleteSynonymRuleAction.INSTANCE, TransportDeleteSynonymRuleAction.class);
 
         // Diagnostics
-        actions.register(DiagnosticsAction.INSTANCE, DiagnosticsAction.TransportAction.class);
+        actions.register(DiagnosticsAction.INSTANCE, DiagnosticsAction.TransportDiagnosticsAction.class);
 
         return unmodifiableMap(actions.getRegistry());
     }

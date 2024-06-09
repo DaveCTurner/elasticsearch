@@ -32,7 +32,7 @@ public class RestDiagnosticsAction extends BaseRestHandler {
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         return restChannel -> new RestCancellableNodeClient(client, request.getHttpChannel()).execute(
             DiagnosticsAction.INSTANCE,
-            new DiagnosticsAction.Request(restChannel, client),
+            new DiagnosticsAction.Request(restChannel),
             ActionListener.noop()
         );
     }
