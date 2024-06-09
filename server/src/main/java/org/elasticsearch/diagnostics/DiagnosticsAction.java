@@ -213,6 +213,8 @@ public class DiagnosticsAction {
 
             @Override
             public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
+                // TODO implementation
+                // TODO need to handle the case where the _current_ entry is paused, blocking the rest of the queue
                 return null;
             }
 
