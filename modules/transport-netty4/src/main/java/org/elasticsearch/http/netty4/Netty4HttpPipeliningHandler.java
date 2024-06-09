@@ -275,10 +275,13 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             ActionListener.run(ActionListener.assertOnce(new ActionListener<>() {
                 @Override
                 public void onResponse(ChunkedRestResponseBodyPart continuation) {
-                    channel.writeAndFlush(
-                        new Netty4ChunkedHttpContinuation(writeSequence, continuation, finishingWrite.combiner()),
-                        finishingWrite.onDone() // pass the terminal listener/promise along the line
-                    );
+                    channel.eventLoop()
+                        .execute(
+                            () -> channel.writeAndFlush(
+                                new Netty4ChunkedHttpContinuation(writeSequence, continuation, finishingWrite.combiner()),
+                                finishingWrite.onDone() // pass the terminal listener/promise along the line
+                            )
+                        );
                     checkShutdown();
                 }
 
