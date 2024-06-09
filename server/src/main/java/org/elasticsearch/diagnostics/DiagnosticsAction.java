@@ -32,7 +32,6 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskId;
-import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.transport.TransportService;
 
 import java.time.ZoneOffset;
