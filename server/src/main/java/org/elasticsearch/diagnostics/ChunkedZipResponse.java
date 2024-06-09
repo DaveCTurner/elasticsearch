@@ -24,6 +24,7 @@ import org.elasticsearch.common.xcontent.ChunkedToXContentHelper;
 import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
 import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.logging.LogManager;
@@ -96,8 +97,14 @@ final class ChunkedZipResponse {
     }
 
     public <T extends ToXContent> ActionListener<T> newXContentListener(String entryName, ActionListener<Void> listener) {
-        return newRawListener(entryName, listener).map(
-            response -> ChunkedRestResponseBodyPart.fromXContent(op -> ChunkedToXContentHelper.singleChunk((b, p) -> {
+        final var completionListener = new SubscribableListener<Void>();
+        completionListener.addListener(listener);
+        return newRawListener(entryName, completionListener).map(response -> {
+            if (response instanceof RefCounted refCounted) {
+                refCounted.mustIncRef();
+                completionListener.addListener(ActionListener.releasing(refCounted::decRef));
+            }
+            return ChunkedRestResponseBodyPart.fromXContent(op -> ChunkedToXContentHelper.singleChunk((b, p) -> {
                 b.humanReadable(true);
                 final var isFragment = response.isFragment();
                 if (isFragment) {
@@ -108,34 +115,42 @@ final class ChunkedZipResponse {
                     b.endObject();
                 }
                 return b;
-            }), restChannel.request(), restChannel)
-        );
+            }), restChannel.request(), restChannel);
+        });
     }
 
     public <T extends ChunkedToXContent> ActionListener<T> newChunkedXContentListener(String entryName, ActionListener<Void> listener) {
-        return newRawListener(entryName, listener).map(response -> ChunkedRestResponseBodyPart.fromXContent(new ChunkedToXContentObject() {
-            @Override
-            public Iterator<? extends ToXContent> toXContentChunked(ToXContent.Params params) {
-                final var isFragment = response.isFragment();
-                return Iterators.concat(
-                    ChunkedToXContentHelper.singleChunk((b, p) -> b.humanReadable(true)),
-                    isFragment ? ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject()) : Collections.emptyIterator(),
-                    response.toXContentChunked(params),
-                    isFragment ? ChunkedToXContentHelper.singleChunk((b, p) -> b.endObject()) : Collections.emptyIterator()
-                );
+        final var completionListener = new SubscribableListener<Void>();
+        completionListener.addListener(listener);
+        return newRawListener(entryName, completionListener).map(response -> {
+            if (response instanceof RefCounted refCounted) {
+                refCounted.mustIncRef();
+                completionListener.addListener(ActionListener.releasing(refCounted::decRef));
             }
+            return ChunkedRestResponseBodyPart.fromXContent(new ChunkedToXContentObject() {
+                @Override
+                public Iterator<? extends ToXContent> toXContentChunked(ToXContent.Params params) {
+                    final var isFragment = response.isFragment();
+                    return Iterators.concat(
+                        ChunkedToXContentHelper.singleChunk((b, p) -> b.humanReadable(true)),
+                        isFragment ? ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject()) : Collections.emptyIterator(),
+                        response.toXContentChunked(params),
+                        isFragment ? ChunkedToXContentHelper.singleChunk((b, p) -> b.endObject()) : Collections.emptyIterator()
+                    );
+                }
 
-            @Override
-            public Iterator<? extends ToXContent> toXContentChunkedV7(ToXContent.Params params) {
-                final var isFragment = response.isFragment();
-                return Iterators.concat(
-                    ChunkedToXContentHelper.singleChunk((b, p) -> b.humanReadable(true)),
-                    isFragment ? ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject()) : Collections.emptyIterator(),
-                    response.toXContentChunkedV7(params),
-                    isFragment ? ChunkedToXContentHelper.singleChunk((b, p) -> b.endObject()) : Collections.emptyIterator()
-                );
-            }
-        }, restChannel.request(), restChannel));
+                @Override
+                public Iterator<? extends ToXContent> toXContentChunkedV7(ToXContent.Params params) {
+                    final var isFragment = response.isFragment();
+                    return Iterators.concat(
+                        ChunkedToXContentHelper.singleChunk((b, p) -> b.humanReadable(true)),
+                        isFragment ? ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject()) : Collections.emptyIterator(),
+                        response.toXContentChunkedV7(params),
+                        isFragment ? ChunkedToXContentHelper.singleChunk((b, p) -> b.endObject()) : Collections.emptyIterator()
+                    );
+                }
+            }, restChannel.request(), restChannel);
+        });
     }
 
     public ActionListener<ChunkedRestResponseBodyPart> newRawListener(String entryName, ActionListener<Void> listener) {
@@ -147,7 +162,7 @@ final class ChunkedZipResponse {
                     enqueueEntry(
                         zipEntry,
                         firstBodyPart,
-                        ActionListener.runAfter(listener, () -> zipEntry.setComment("comment set after write"))
+                        ActionListener.runAfter(listener, () -> zipEntry.setComment("testing comment set after write"))
                     );
                 } catch (Exception e) {
                     enqueueFailureEntry(e);
@@ -299,11 +314,12 @@ final class ChunkedZipResponse {
                     }
                 } while (isPartComplete == false && chunkStream.size() < sizeHint);
 
+                final Releasable chunkStreamReleasable = () -> Releasables.closeExpectNoException(chunkStream);
                 final var result = new ReleasableBytesReference(
                     chunkStream.bytes(),
-                    Releasables.wrap(
-                        Iterators.concat(releasables.iterator(), Iterators.single(() -> Releasables.closeExpectNoException(chunkStream)))
-                    )
+                    releasables.isEmpty()
+                        ? chunkStreamReleasable
+                        : Releasables.wrap(Iterators.concat(releasables.iterator(), Iterators.single(chunkStreamReleasable)))
                 );
 
                 target = null;
