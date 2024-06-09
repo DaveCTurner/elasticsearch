@@ -226,6 +226,7 @@ module org.elasticsearch.server {
     exports org.elasticsearch.common.util.set;
     exports org.elasticsearch.common.xcontent;
     exports org.elasticsearch.common.xcontent.support;
+    exports org.elasticsearch.diagnostics;
     exports org.elasticsearch.discovery;
     exports org.elasticsearch.env;
     exports org.elasticsearch.features;
@@ -459,5 +460,4 @@ module org.elasticsearch.server {
             org.elasticsearch.serverless.shardhealth,
             org.elasticsearch.serverless.apifiltering;
     exports org.elasticsearch.lucene.spatial;
-    exports org.elasticsearch.diagnostics;
 }
