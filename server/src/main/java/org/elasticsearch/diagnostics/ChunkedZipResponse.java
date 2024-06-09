@@ -8,6 +8,7 @@
 
 package org.elasticsearch.diagnostics;
 
+import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
@@ -22,6 +23,7 @@ import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.xcontent.ChunkedToXContent;
 import org.elasticsearch.common.xcontent.ChunkedToXContentHelper;
 import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
+import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.RefCounted;
@@ -33,6 +35,7 @@ import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.transport.Transports;
 import org.elasticsearch.xcontent.ToXContent;
 
 import java.io.IOException;
@@ -46,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
@@ -79,21 +83,39 @@ final class ChunkedZipResponse {
     private final RestChannel restChannel;
     private final Queue<ChunkedZipEntry> entryQueue = new LinkedBlockingQueue<>();
     private final AtomicInteger queueLength = new AtomicInteger();
+    private final RefCounted queueRefs = AbstractRefCounted.of(this::clearQueue);
+    private final AtomicBoolean isRestResponseFinished = new AtomicBoolean();
 
     @Nullable // if the first part hasn't been sent yet
     private SubscribableListener<ChunkedRestResponseBodyPart> continuationListener;
+
+    @Nullable // if not currently sending an entry
+    private Releasable releasable;
 
     ChunkedZipResponse(String filename, RestChannel restChannel) {
         this.filename = filename;
         this.restChannel = restChannel;
     }
 
-    public ChunkedRestResponseBodyPart getFirstBodyPart() {
-        return null;
+    public void restResponseFinished() {
+        assert Transports.assertTransportThread();
+        if (isRestResponseFinished.compareAndSet(false, true)) {
+            queueRefs.decRef();
+        }
     }
 
-    public void close() {
-        // TODO
+    private void clearQueue() {
+        assert isRestResponseFinished.get();
+        assert queueRefs.hasReferences() == false;
+        while (queueLength.get() > 0) {
+            final var newQueueLength = queueLength.decrementAndGet();
+            assert newQueueLength >= 0;
+            final var entry = entryQueue.poll();
+            assert entry != null;
+            Releasables.closeExpectNoException(entry.releasable());
+        }
+        assert entryQueue.isEmpty();
+        Releasables.closeExpectNoException(releasable);
     }
 
     public <T extends ToXContent> ActionListener<T> newXContentListener(String entryName, ActionListener<Void> listener) {
@@ -203,19 +225,40 @@ final class ChunkedZipResponse {
     }
 
     private void enqueueEntry(ZipEntry zipEntry, ChunkedRestResponseBodyPart firstBodyPart, ActionListener<Void> listener) {
-        entryQueue.add(new ChunkedZipEntry(zipEntry, firstBodyPart, () -> listener.onResponse(null)));
-        if (queueLength.getAndIncrement() == 0) {
-            final var nextEntry = entryQueue.poll();
-            assert nextEntry != null;
-            final var continuation = new QueueConsumer(nextEntry.zipEntry(), nextEntry.firstBodyPart(), nextEntry.releasable());
-            final var currentContinuationListener = continuationListener;
-            continuationListener = new SubscribableListener<>();
-            if (currentContinuationListener == null) {
-                final var restResponse = RestResponse.chunked(RestStatus.OK, continuation, this::close);
-                restResponse.addHeader("content-disposition", Strings.format("attachment; filename=\"%s.zip\"", filename));
-                restChannel.sendResponse(restResponse);
-            } else {
-                currentContinuationListener.onResponse(continuation);
+        if (isRestResponseFinished.get() == false && queueRefs.tryIncRef()) {
+            try {
+                entryQueue.add(new ChunkedZipEntry(zipEntry, firstBodyPart, () -> listener.onResponse(null)));
+                if (queueLength.getAndIncrement() == 0) {
+                    final var nextEntry = entryQueue.poll();
+                    assert nextEntry != null;
+                    final var continuation = new QueueConsumer(nextEntry.zipEntry(), nextEntry.firstBodyPart());
+                    assert releasable == null;
+                    releasable = nextEntry.releasable();
+                    final var currentContinuationListener = continuationListener;
+                    continuationListener = new SubscribableListener<>();
+                    if (currentContinuationListener == null) {
+                        final var restResponse = RestResponse.chunked(RestStatus.OK, continuation, this::restResponseFinished);
+                        restResponse.addHeader("content-disposition", Strings.format("attachment; filename=\"%s.zip\"", filename));
+                        restChannel.sendResponse(restResponse);
+                    } else {
+                        currentContinuationListener.onResponse(continuation);
+                    }
+                }
+            } finally {
+                queueRefs.decRef();
+            }
+        } else {
+            listener.onFailure(new AlreadyClosedException("response already closed"));
+        }
+    }
+
+    private void transferReleasable(Collection<Releasable> releasables) {
+        if (releasable != null && isRestResponseFinished.get() == false && queueRefs.tryIncRef()) {
+            try {
+                releasables.add(releasable);
+                releasable = null;
+            } finally {
+                queueRefs.decRef();
             }
         }
     }
@@ -224,15 +267,13 @@ final class ChunkedZipResponse {
 
         private ZipEntry zipEntry;
         private ChunkedRestResponseBodyPart bodyPart;
-        private Releasable releasable;
         private boolean isPartComplete;
         private boolean isLastPart;
         private Consumer<ActionListener<ChunkedRestResponseBodyPart>> getNextPart;
 
-        QueueConsumer(ZipEntry zipEntry, ChunkedRestResponseBodyPart bodyPart, Releasable releasable) {
+        QueueConsumer(ZipEntry zipEntry, ChunkedRestResponseBodyPart bodyPart) {
             this.zipEntry = zipEntry;
             this.bodyPart = bodyPart;
-            this.releasable = releasable;
         }
 
         @Override
@@ -295,17 +336,23 @@ final class ChunkedZipResponse {
                                         getNextPart = continuationListener::addListener;
                                     } else {
                                         // next entry is immediately available so start sending its chunks too
-                                        final var nextEntry = entryQueue.poll();
-                                        assert nextEntry != null;
-                                        zipEntry = nextEntry.zipEntry();
-                                        bodyPart = nextEntry.firstBodyPart();
-                                        releasable = nextEntry.releasable();
+                                        if (isRestResponseFinished.get() == false && queueRefs.tryIncRef()) {
+                                            try {
+                                                final var nextEntry = entryQueue.poll();
+                                                assert nextEntry != null;
+                                                zipEntry = nextEntry.zipEntry();
+                                                bodyPart = nextEntry.firstBodyPart();
+                                                releasable = nextEntry.releasable();
+                                            } finally {
+                                                queueRefs.decRef();
+                                            }
+                                        }
                                     }
                                 } else {
                                     // this body part has a continuation, for which we must wait
                                     isPartComplete = true;
                                     assert getNextPart == null;
-                                    getNextPart = l -> bodyPart.getNextPart(l.map(p -> new QueueConsumer(null, p, releasable)));
+                                    getNextPart = l -> bodyPart.getNextPart(l.map(p -> new QueueConsumer(null, p)));
                                 }
                             }
                         }
@@ -319,7 +366,7 @@ final class ChunkedZipResponse {
                     chunkStream.bytes(),
                     releasables.isEmpty()
                         ? chunkStreamReleasable
-                        : Releasables.wrap(Iterators.concat(releasables.iterator(), Iterators.single(chunkStreamReleasable)))
+                        : Releasables.wrap(Iterators.concat(Iterators.single(chunkStreamReleasable), releasables.iterator()))
                 );
 
                 target = null;
@@ -333,13 +380,6 @@ final class ChunkedZipResponse {
                     IOUtils.closeWhileHandlingException(target, Releasables.wrap(releasables));
                     target = null;
                 }
-            }
-        }
-
-        private void transferReleasable(Collection<Releasable> releasables) {
-            if (releasable != null) {
-                releasables.add(releasable);
-                releasable = null;
             }
         }
 
