@@ -25,6 +25,9 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.ParentTaskAssigningClient;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.BytesStream;
+import org.elasticsearch.common.xcontent.ChunkedToXContentHelper;
+import org.elasticsearch.core.CheckedConsumer;
+import org.elasticsearch.core.CheckedFunction;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
 import org.elasticsearch.rest.RestChannel;
@@ -37,9 +40,17 @@ import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
+import static org.elasticsearch.rest.RestResponse.TEXT_CONTENT_TYPE;
 
 public class DiagnosticsAction {
 
@@ -67,6 +78,8 @@ public class DiagnosticsAction {
         }
     }
 
+    private record ChunkedZipEntry(ZipEntry zipEntry, ChunkedRestResponseBodyPart firstBodyPart, ActionListener<Void> listener) {}
+
     private static final class ChunkedZipResponse implements Releasable {
 
         private BytesStream target;
@@ -88,7 +101,10 @@ public class DiagnosticsAction {
         private final ZipOutputStream zipOutputStream = new ZipOutputStream(out, StandardCharsets.UTF_8);
 
         private final CancellableTask task;
+
         private final Client client;
+
+        private final Queue<ChunkedZipEntry> entryQueue = new LinkedBlockingQueue<>();
 
         ChunkedZipResponse(CancellableTask task, Client client) {
             this.task = task;
@@ -106,13 +122,44 @@ public class DiagnosticsAction {
 
         public <EntryResponse extends ActionResponse> void execute(
             String zipEntryName,
-            ActionType<EntryResponse> type,
+            ActionType<EntryResponse> actionType,
             ActionRequest request,
+            CheckedFunction<EntryResponse, ChunkedRestResponseBodyPart, IOException> responseWriter,
             ActionListener<Void> listener
-        ) {}
+        ) {
+            final var zipEntry = new ZipEntry(zipEntryName);
+            client.execute(actionType, request, new ActionListener<>() {
+                @Override
+                public void onResponse(EntryResponse entryResponse) {
+                    try {
+                        entryQueue.add(new ChunkedZipEntry(zipEntry, responseWriter.apply(entryResponse), listener));
+                    } catch (Exception e) {
+                        enqueueFailureEntry(e);
+                    }
+                }
 
-        public void finish(ActionListener<Void> l) {
+                @Override
+                public void onFailure(Exception e) {
+                    enqueueFailureEntry(e);
+                }
 
+                private void enqueueFailureEntry(Exception e) {
+                    entryQueue.add(
+                        new ChunkedZipEntry(
+                            zipEntry,
+                            ChunkedRestResponseBodyPart.fromTextChunks(
+                                TEXT_CONTENT_TYPE,
+                                List.<CheckedConsumer<Writer, IOException>>of(w -> e.printStackTrace(new PrintWriter(w))).iterator()
+                            ),
+                            listener
+                        )
+                    );
+                }
+            });
+        }
+
+        public void finish(ActionListener<Void> listener) {
+            entryQueue.add(new ChunkedZipEntry(null, null, listener));
         }
     }
 
@@ -138,10 +185,28 @@ public class DiagnosticsAction {
 
             SubscribableListener
                 // nodes info
-                .<Void>newForked(l -> chunkedZipResponse.execute("nodes.json", TransportNodesInfoAction.TYPE, new NodesInfoRequest(), l))
+                .<Void>newForked(
+                    l -> chunkedZipResponse.execute(
+                        "nodes.json",
+                        TransportNodesInfoAction.TYPE,
+                        new NodesInfoRequest(),
+                        response -> ChunkedRestResponseBodyPart.fromXContent(
+                            p -> ChunkedToXContentHelper.singleChunk(response),
+                            request.restChannel.request(),
+                            request.restChannel
+                        ),
+                        l
+                    )
+                )
                 // nodes stats
                 .<Void>andThen(
-                    (l, v) -> chunkedZipResponse.execute("nodes_stats.json", TransportNodesStatsAction.TYPE, new NodesStatsRequest(), l)
+                    (l, v) -> chunkedZipResponse.execute(
+                        "nodes_stats.json",
+                        TransportNodesStatsAction.TYPE,
+                        new NodesStatsRequest(),
+                        response -> ChunkedRestResponseBodyPart.fromXContent(response, request.restChannel.request(), request.restChannel),
+                        l
+                    )
                 )
                 // cluster stats
                 .<Void>andThen(
@@ -149,6 +214,11 @@ public class DiagnosticsAction {
                         "cluster_stats.json",
                         TransportClusterStatsAction.TYPE,
                         new ClusterStatsRequest(),
+                        response -> ChunkedRestResponseBodyPart.fromXContent(
+                            p -> ChunkedToXContentHelper.singleChunk(response),
+                            request.restChannel.request(),
+                            request.restChannel
+                        ),
                         l
                     )
                 )
