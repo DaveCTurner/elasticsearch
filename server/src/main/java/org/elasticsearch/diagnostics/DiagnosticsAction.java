@@ -24,6 +24,7 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.ParentTaskAssigningClient;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.BytesStream;
@@ -48,6 +49,9 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -106,6 +110,7 @@ public class DiagnosticsAction {
 
         private final ZipOutputStream zipOutputStream = new ZipOutputStream(out, StandardCharsets.UTF_8);
 
+        private final String filename;
         private final RestChannel restChannel;
         private final Queue<ChunkedZipEntry> entryQueue = new LinkedBlockingQueue<>();
         private final AtomicInteger queueLength = new AtomicInteger();
@@ -113,7 +118,8 @@ public class DiagnosticsAction {
         @Nullable // if the first part hasn't been sent yet
         private SubscribableListener<ChunkedRestResponseBodyPart> continuationListener;
 
-        ChunkedZipResponse(RestChannel restChannel) {
+        ChunkedZipResponse(String filename, RestChannel restChannel) {
+            this.filename = filename;
             this.restChannel = restChannel;
         }
 
@@ -125,8 +131,8 @@ public class DiagnosticsAction {
             // TODO
         }
 
-        public <T extends ToXContent> ActionListener<T> newXContentListener(String entryName, @Nullable Releasable releasable) {
-            return newRawListener(entryName, releasable).map(
+        public <T extends ToXContent> ActionListener<T> newXContentListener(String entryName, ActionListener<Void> listener) {
+            return newRawListener(entryName, listener).map(
                 response -> ChunkedRestResponseBodyPart.fromXContent(
                     p -> ChunkedToXContentHelper.singleChunk(response),
                     restChannel.request(),
@@ -135,22 +141,19 @@ public class DiagnosticsAction {
             );
         }
 
-        public <T extends ChunkedToXContent> ActionListener<T> newChunkedXContentListener(
-            String entryName,
-            @Nullable Releasable releasable
-        ) {
-            return newRawListener(entryName, releasable).map(
+        public <T extends ChunkedToXContent> ActionListener<T> newChunkedXContentListener(String entryName, ActionListener<Void> listener) {
+            return newRawListener(entryName, listener).map(
                 response -> ChunkedRestResponseBodyPart.fromXContent(response, restChannel.request(), restChannel)
             );
         }
 
-        public ActionListener<ChunkedRestResponseBodyPart> newRawListener(String entryName, @Nullable Releasable releasable) {
+        public ActionListener<ChunkedRestResponseBodyPart> newRawListener(String entryName, ActionListener<Void> listener) {
             final var zipEntry = new ZipEntry(entryName);
             return ActionListener.assertOnce(new ActionListener<>() {
                 @Override
                 public void onResponse(ChunkedRestResponseBodyPart firstBodyPart) {
                     try {
-                        enqueueEntry(zipEntry, firstBodyPart, releasable);
+                        enqueueEntry(zipEntry, firstBodyPart, this::completeListener);
                     } catch (Exception e) {
                         enqueueFailureEntry(e);
                     }
@@ -168,14 +171,18 @@ public class DiagnosticsAction {
                             TEXT_CONTENT_TYPE,
                             List.<CheckedConsumer<Writer, IOException>>of(w -> e.printStackTrace(new PrintWriter(w))).iterator()
                         ),
-                        releasable
+                        this::completeListener
                     );
+                }
+
+                private void completeListener() {
+                    listener.onResponse(null);
                 }
             });
         }
 
-        public void finish(Releasable releasable) {
-            enqueueEntry(null, null, releasable);
+        public void finish(ActionListener<Void> listener) {
+            enqueueEntry(null, null, () -> listener.onResponse(null));
         }
 
         private void enqueueEntry(ZipEntry zipEntry, ChunkedRestResponseBodyPart firstBodyPart, Releasable releasable) {
@@ -185,7 +192,9 @@ public class DiagnosticsAction {
                 final var currentContinuationListener = continuationListener;
                 continuationListener = new SubscribableListener<>();
                 if (currentContinuationListener == null) {
-                    restChannel.sendResponse(RestResponse.chunked(RestStatus.OK, continuation, this::close));
+                    final var restResponse = RestResponse.chunked(RestStatus.OK, continuation, this::close);
+                    restResponse.addHeader("content-disposition", Strings.format("attachment; filename=\"%s\"", filename));
+                    restChannel.sendResponse(restResponse);
                 } else {
                     currentContinuationListener.onResponse(continuation);
                 }
@@ -214,7 +223,7 @@ public class DiagnosticsAction {
             @Override
             public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
                 // TODO implementation
-                // TODO need to handle the case where the _current_ entry is paused, blocking the rest of the queue
+                // TODO need to handle the case where the _current_ entry has a continuation (i.e. pauses) blocking the rest of the queue
                 return null;
             }
 
@@ -239,20 +248,22 @@ public class DiagnosticsAction {
             assert task instanceof CancellableTask;
             doExecute(
                 new ParentTaskAssigningClient(request.client, transportService.getLocalNode(), task),
-                request.restChannel,
+                new ChunkedZipResponse(
+                    "diagnostics-" + ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT) + ".zip",
+                    request.restChannel
+                ),
                 listener.map(v -> ActionResponse.Empty.INSTANCE)
             );
         }
 
-        private void doExecute(Client client, RestChannel restChannel, ActionListener<Void> listener) {
-            final var chunkedZipResponse = new ChunkedZipResponse(restChannel);
+        private void doExecute(Client client, ChunkedZipResponse response, ActionListener<Void> listener) {
             SubscribableListener
                 // nodes info
                 .<Void>newForked(
                     l -> client.execute(
                         TransportNodesInfoAction.TYPE,
                         new NodesInfoRequest(),
-                        chunkedZipResponse.newXContentListener("nodes.json", () -> l.onResponse(null))
+                        response.newXContentListener("nodes.json", l)
                     )
                 )
                 // nodes stats
@@ -260,7 +271,7 @@ public class DiagnosticsAction {
                     (l, v) -> client.execute(
                         TransportNodesStatsAction.TYPE,
                         new NodesStatsRequest(),
-                        chunkedZipResponse.newChunkedXContentListener("nodes_stats.json", () -> l.onResponse(null))
+                        response.newChunkedXContentListener("nodes_stats.json", l)
                     )
                 )
                 // cluster stats
@@ -268,11 +279,11 @@ public class DiagnosticsAction {
                     (l, v) -> client.execute(
                         TransportClusterStatsAction.TYPE,
                         new ClusterStatsRequest(),
-                        chunkedZipResponse.newXContentListener("cluster_stats.json", () -> l.onResponse(null))
+                        response.newXContentListener("cluster_stats.json", l)
                     )
                 )
                 // finish
-                .<Void>andThen((l, v) -> chunkedZipResponse.finish(() -> l.onResponse(null)))
+                .<Void>andThen((l, v) -> response.finish(l))
                 .addListener(listener);
         }
     }
