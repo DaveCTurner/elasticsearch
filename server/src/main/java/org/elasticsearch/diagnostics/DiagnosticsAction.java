@@ -13,7 +13,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.admin.cluster.node.info.TransportNodesInfoAction;
@@ -22,9 +21,11 @@ import org.elasticsearch.action.admin.cluster.node.stats.TransportNodesStatsActi
 import org.elasticsearch.action.admin.cluster.stats.ClusterStatsRequest;
 import org.elasticsearch.action.admin.cluster.stats.TransportClusterStatsAction;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.ParentTaskAssigningClient;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.collect.Iterators;
@@ -32,7 +33,6 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.BytesStream;
 import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
 import org.elasticsearch.common.recycler.Recycler;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.ChunkedToXContent;
 import org.elasticsearch.common.xcontent.ChunkedToXContentHelper;
 import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
@@ -41,7 +41,6 @@ import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
-import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestResponse;
@@ -382,11 +381,13 @@ public class DiagnosticsAction {
 
         private static final DateTimeFormatter FILENAME_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.ROOT);
 
+        private final ClusterService clusterService;
         private final TransportService transportService;
 
         @Inject
-        public TransportAction(TransportService transportService, ActionFilters actionFilters) {
+        public TransportAction(ClusterService clusterService, TransportService transportService, ActionFilters actionFilters) {
             super(INSTANCE.name(), actionFilters, transportService.getTaskManager());
+            this.clusterService = clusterService;
             this.transportService = transportService;
         }
 
@@ -405,63 +406,32 @@ public class DiagnosticsAction {
 
         private void doExecute(Client client, ChunkedZipResponse response, ActionListener<Void> listener) {
             SubscribableListener
-                // nodes info
-                .<Void>newForked(
-                    l -> transportService.getThreadPool()
-                        .scheduleUnlessShuttingDown(
-                            TimeValue.timeValueSeconds(2),
-                            EsExecutors.DIRECT_EXECUTOR_SERVICE,
-                            ActionRunnable.wrap(
-                                l,
-                                ll -> client.execute(
-                                    TransportNodesInfoAction.TYPE,
-                                    new NodesInfoRequest(),
-                                    response.newXContentListener("nodes.json", ll)
-                                )
-                            )
-                        )
-                )
-                // nodes stats
-                .<Void>andThen(
-                    (l, v) -> transportService.getThreadPool()
-                        .scheduleUnlessShuttingDown(
-                            TimeValue.timeValueSeconds(2),
-                            EsExecutors.DIRECT_EXECUTOR_SERVICE,
-                            ActionRunnable.wrap(
-                                l,
-                                ll -> client.execute(
-                                    TransportNodesStatsAction.TYPE,
-                                    new NodesStatsRequest(),
-                                    response.newChunkedXContentListener("nodes_stats.json", ll)
-                                )
-                            )
-                        )
-                )
-                // cluster stats
-                .<Void>andThen(
-                    (l, v) -> transportService.getThreadPool()
-                        .scheduleUnlessShuttingDown(
-                            TimeValue.timeValueSeconds(2),
-                            EsExecutors.DIRECT_EXECUTOR_SERVICE,
-                            ActionRunnable.wrap(
-                                l,
-                                ll -> client.execute(
-                                    TransportClusterStatsAction.TYPE,
-                                    new ClusterStatsRequest(),
-                                    response.newXContentListener("cluster_stats.json", ll)
-                                )
-                            )
-                        )
-                )
+                // fan out
+                .<Void>newForked(l -> {
+                    try (var listeners = new RefCountingListener(l)) {
+                        client.execute(
+                            TransportNodesInfoAction.TYPE,
+                            new NodesInfoRequest(),
+                            response.newXContentListener("nodes.json", listeners.acquire())
+                        );
+
+                        client.execute(
+                            TransportNodesStatsAction.TYPE,
+                            new NodesStatsRequest(),
+                            response.newChunkedXContentListener("nodes_stats.json", listeners.acquire())
+                        );
+
+                        client.execute(
+                            TransportClusterStatsAction.TYPE,
+                            new ClusterStatsRequest(),
+                            response.newXContentListener("cluster_stats.json", listeners.acquire())
+                        );
+
+                        response.newChunkedXContentListener("cluster_state.json", listeners.acquire()).onResponse(clusterService.state());
+                    }
+                })
                 // finish
-                .<Void>andThen(
-                    (l, v) -> transportService.getThreadPool()
-                        .scheduleUnlessShuttingDown(
-                            TimeValue.timeValueSeconds(2),
-                            EsExecutors.DIRECT_EXECUTOR_SERVICE,
-                            ActionRunnable.wrap(l, response::finish)
-                        )
-                )
+                .<Void>andThen((l, v) -> response.finish(l))
                 .addListener(listener);
         }
     }
