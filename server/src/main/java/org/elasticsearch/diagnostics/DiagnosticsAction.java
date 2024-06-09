@@ -13,6 +13,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.admin.cluster.node.info.TransportNodesInfoAction;
@@ -31,13 +32,16 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.BytesStream;
 import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
 import org.elasticsearch.common.recycler.Recycler;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.ChunkedToXContent;
 import org.elasticsearch.common.xcontent.ChunkedToXContentHelper;
+import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestResponse;
@@ -58,7 +62,10 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -140,22 +147,51 @@ public class DiagnosticsAction {
 
         public <T extends ToXContent> ActionListener<T> newXContentListener(String entryName, ActionListener<Void> listener) {
             return newRawListener(entryName, listener).map(
-                response -> ChunkedRestResponseBodyPart.fromXContent(
-                    p -> ChunkedToXContentHelper.singleChunk(response),
-                    restChannel.request(),
-                    restChannel
-                )
+                response -> ChunkedRestResponseBodyPart.fromXContent(op -> ChunkedToXContentHelper.singleChunk((b, p) -> {
+                    b.humanReadable(true);
+                    final var isFragment = response.isFragment();
+                    if (isFragment) {
+                        b.startObject();
+                    }
+                    response.toXContent(b, p);
+                    if (isFragment) {
+                        b.endObject();
+                    }
+                    return b;
+                }), restChannel.request(), restChannel)
             );
         }
 
         public <T extends ChunkedToXContent> ActionListener<T> newChunkedXContentListener(String entryName, ActionListener<Void> listener) {
             return newRawListener(entryName, listener).map(
-                response -> ChunkedRestResponseBodyPart.fromXContent(response, restChannel.request(), restChannel)
+                response -> ChunkedRestResponseBodyPart.fromXContent(new ChunkedToXContentObject() {
+                    @Override
+                    public Iterator<? extends ToXContent> toXContentChunked(ToXContent.Params params) {
+                        final var isFragment = response.isFragment();
+                        return Iterators.concat(
+                            ChunkedToXContentHelper.singleChunk((b, p) -> b.humanReadable(true)),
+                            isFragment ? ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject()) : Collections.emptyIterator(),
+                            response.toXContentChunked(params),
+                            isFragment ? ChunkedToXContentHelper.singleChunk((b, p) -> b.endObject()) : Collections.emptyIterator()
+                        );
+                    }
+
+                    @Override
+                    public Iterator<? extends ToXContent> toXContentChunkedV7(ToXContent.Params params) {
+                        final var isFragment = response.isFragment();
+                        return Iterators.concat(
+                            ChunkedToXContentHelper.singleChunk((b, p) -> b.humanReadable(true)),
+                            isFragment ? ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject()) : Collections.emptyIterator(),
+                            response.toXContentChunkedV7(params),
+                            isFragment ? ChunkedToXContentHelper.singleChunk((b, p) -> b.endObject()) : Collections.emptyIterator()
+                        );
+                    }
+                }, restChannel.request(), restChannel)
             );
         }
 
         public ActionListener<ChunkedRestResponseBodyPart> newRawListener(String entryName, ActionListener<Void> listener) {
-            final var zipEntry = new ZipEntry(entryName);
+            final var zipEntry = new ZipEntry(filename + "/" + entryName);
             return ActionListener.assertOnce(new ActionListener<>() {
                 @Override
                 public void onResponse(ChunkedRestResponseBodyPart firstBodyPart) {
@@ -202,7 +238,7 @@ public class DiagnosticsAction {
                 continuationListener = new SubscribableListener<>();
                 if (currentContinuationListener == null) {
                     final var restResponse = RestResponse.chunked(RestStatus.OK, continuation, this::close);
-                    restResponse.addHeader("content-disposition", Strings.format("attachment; filename=\"%s\"", filename));
+                    restResponse.addHeader("content-disposition", Strings.format("attachment; filename=\"%s.zip\"", filename));
                     restChannel.sendResponse(restResponse);
                 } else {
                     currentContinuationListener.onResponse(continuation);
@@ -343,6 +379,9 @@ public class DiagnosticsAction {
     }
 
     public static final class TransportAction extends org.elasticsearch.action.support.TransportAction<Request, ActionResponse.Empty> {
+
+        private static final DateTimeFormatter FILENAME_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.ROOT);
+
         private final TransportService transportService;
 
         @Inject
@@ -357,7 +396,7 @@ public class DiagnosticsAction {
             doExecute(
                 new ParentTaskAssigningClient(request.client, transportService.getLocalNode(), task),
                 new ChunkedZipResponse(
-                    "diagnostics-" + ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT) + ".zip",
+                    "elasticsearch-internal-diagnostics-" + ZonedDateTime.now(ZoneOffset.UTC).format(FILENAME_DATE_TIME_FORMATTER),
                     request.restChannel
                 ),
                 listener.map(v -> ActionResponse.Empty.INSTANCE)
@@ -368,30 +407,61 @@ public class DiagnosticsAction {
             SubscribableListener
                 // nodes info
                 .<Void>newForked(
-                    l -> client.execute(
-                        TransportNodesInfoAction.TYPE,
-                        new NodesInfoRequest(),
-                        response.newXContentListener("nodes.json", l)
-                    )
+                    l -> transportService.getThreadPool()
+                        .scheduleUnlessShuttingDown(
+                            TimeValue.timeValueSeconds(2),
+                            EsExecutors.DIRECT_EXECUTOR_SERVICE,
+                            ActionRunnable.wrap(
+                                l,
+                                ll -> client.execute(
+                                    TransportNodesInfoAction.TYPE,
+                                    new NodesInfoRequest(),
+                                    response.newXContentListener("nodes.json", ll)
+                                )
+                            )
+                        )
                 )
                 // nodes stats
                 .<Void>andThen(
-                    (l, v) -> client.execute(
-                        TransportNodesStatsAction.TYPE,
-                        new NodesStatsRequest(),
-                        response.newChunkedXContentListener("nodes_stats.json", l)
-                    )
+                    (l, v) -> transportService.getThreadPool()
+                        .scheduleUnlessShuttingDown(
+                            TimeValue.timeValueSeconds(2),
+                            EsExecutors.DIRECT_EXECUTOR_SERVICE,
+                            ActionRunnable.wrap(
+                                l,
+                                ll -> client.execute(
+                                    TransportNodesStatsAction.TYPE,
+                                    new NodesStatsRequest(),
+                                    response.newChunkedXContentListener("nodes_stats.json", ll)
+                                )
+                            )
+                        )
                 )
                 // cluster stats
                 .<Void>andThen(
-                    (l, v) -> client.execute(
-                        TransportClusterStatsAction.TYPE,
-                        new ClusterStatsRequest(),
-                        response.newXContentListener("cluster_stats.json", l)
-                    )
+                    (l, v) -> transportService.getThreadPool()
+                        .scheduleUnlessShuttingDown(
+                            TimeValue.timeValueSeconds(2),
+                            EsExecutors.DIRECT_EXECUTOR_SERVICE,
+                            ActionRunnable.wrap(
+                                l,
+                                ll -> client.execute(
+                                    TransportClusterStatsAction.TYPE,
+                                    new ClusterStatsRequest(),
+                                    response.newXContentListener("cluster_stats.json", ll)
+                                )
+                            )
+                        )
                 )
                 // finish
-                .<Void>andThen((l, v) -> response.finish(l))
+                .<Void>andThen(
+                    (l, v) -> transportService.getThreadPool()
+                        .scheduleUnlessShuttingDown(
+                            TimeValue.timeValueSeconds(2),
+                            EsExecutors.DIRECT_EXECUTOR_SERVICE,
+                            ActionRunnable.wrap(l, response::finish)
+                        )
+                )
                 .addListener(listener);
         }
     }
