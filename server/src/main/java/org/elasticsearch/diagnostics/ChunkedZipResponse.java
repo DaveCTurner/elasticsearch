@@ -144,7 +144,11 @@ final class ChunkedZipResponse {
             @Override
             public void onResponse(ChunkedRestResponseBodyPart firstBodyPart) {
                 try {
-                    enqueueEntry(zipEntry, firstBodyPart, this::completeListener);
+                    enqueueEntry(
+                        zipEntry,
+                        firstBodyPart,
+                        ActionListener.runAfter(listener, () -> zipEntry.setComment("comment set after write"))
+                    );
                 } catch (Exception e) {
                     enqueueFailureEntry(e);
                 }
@@ -169,25 +173,22 @@ final class ChunkedZipResponse {
                         b.field("status", ExceptionsHelper.status(e).getStatus());
                         b.endObject();
                         return b;
-                    }), restChannel.request(), restChannel), this::completeListener);
+                    }), restChannel.request(), restChannel), listener);
                 } catch (Exception e2) {
                     e.addSuppressed(e2);
                     logger.error(Strings.format("failure when encoding failure response for entry [%s]", entryName), e);
                 }
             }
-
-            private void completeListener() {
-                listener.onResponse(null);
-            }
         });
     }
 
     public void finish(ActionListener<Void> listener) {
-        enqueueEntry(null, null, () -> listener.onResponse(null));
+        // TODO maybe do this with ref-counting instead?
+        enqueueEntry(null, null, listener);
     }
 
-    private void enqueueEntry(ZipEntry zipEntry, ChunkedRestResponseBodyPart firstBodyPart, Releasable releasable) {
-        entryQueue.add(new ChunkedZipEntry(zipEntry, firstBodyPart, releasable));
+    private void enqueueEntry(ZipEntry zipEntry, ChunkedRestResponseBodyPart firstBodyPart, ActionListener<Void> listener) {
+        entryQueue.add(new ChunkedZipEntry(zipEntry, firstBodyPart, () -> listener.onResponse(null)));
         if (queueLength.getAndIncrement() == 0) {
             final var nextEntry = entryQueue.poll();
             assert nextEntry != null;
