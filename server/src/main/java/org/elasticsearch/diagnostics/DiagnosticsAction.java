@@ -198,12 +198,12 @@ public class DiagnosticsAction {
 
             @Override
             public boolean isPartComplete() {
-                return false;
+                return currentEntry != null && currentEntry.firstBodyPart().isPartComplete();
             }
 
             @Override
             public boolean isLastPart() {
-                return false;
+                return currentEntry != null && currentEntry.zipEntry() == null && currentEntry.firstBodyPart().isPartComplete();
             }
 
             @Override
