@@ -237,8 +237,6 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         private final Map<String, TrackedIndex> indices = ConcurrentCollections.newConcurrentMap();
         private final Map<String, TrackedSnapshot> snapshots = ConcurrentCollections.newConcurrentMap();
 
-        // TODO forbid closing indices for restore while partial snapshot(s) are ongoing, because in-flight snapshots block closing
-
         /**
          * If we acquire permits on nodes in a completely random order then we tend to block all possible restarts. Instead we always try
          * the nodes in the same order, held in this field, so that nodes nearer the end of the list are more likely to be restartable.
