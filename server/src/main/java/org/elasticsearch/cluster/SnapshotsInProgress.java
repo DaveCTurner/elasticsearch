@@ -27,6 +27,8 @@ import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.RepositoryOperation;
 import org.elasticsearch.repositories.RepositoryShardId;
@@ -57,6 +59,8 @@ import java.util.stream.Stream;
  * Meta data about snapshots that are currently executing
  */
 public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implements Custom {
+
+    private static final Logger logger = LogManager.getLogger(SnapshotsInProgress.class);
 
     public static final SnapshotsInProgress EMPTY = new SnapshotsInProgress(Map.of(), Set.of());
 
@@ -116,7 +120,16 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
     private SnapshotsInProgress(Map<String, ByRepo> entries, Set<String> nodesIdsForRemoval) {
         this.entries = Map.copyOf(entries);
         this.nodesIdsForRemoval = nodesIdsForRemoval;
-        assert assertConsistentEntries(this.entries);
+        boolean initSuccess = false;
+        try {
+            logger.info("SnapshotsInProgress#<init>: {}", Strings.toString(new DebugXContent(entries)));
+            assert assertConsistentEntries(this.entries);
+            initSuccess = true;
+        } finally {
+            if (initSuccess == false) {
+                logger.info("SnapshotsInProgress#<init> FAILED: {}", Strings.toString(new DebugXContent(entries)));
+            }
+        }
     }
 
     public SnapshotsInProgress withUpdatedEntriesForRepo(String repository, List<Entry> updatedEntries) {
@@ -1806,11 +1819,15 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
         }
     }
 
-    public record DebugXContent(SnapshotsInProgress snapshotsInProgress) implements ToXContentObject {
+    public ToXContentObject getDebugXContent() {
+        return new DebugXContent(entries);
+    }
+
+    private record DebugXContent(Map<String, ByRepo> entries) implements ToXContentObject {
         @Override
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
             builder.startObject();
-            for (final var byRepoEntry : snapshotsInProgress.entries.entrySet()) {
+            for (final var byRepoEntry : entries.entrySet()) {
                 builder.startArray(byRepoEntry.getKey());
                 for (final var entry : byRepoEntry.getValue().entries) {
                     builder.startObject();
