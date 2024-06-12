@@ -8,6 +8,7 @@
 
 package org.elasticsearch.cluster;
 
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.cluster.ClusterState.Custom;
@@ -127,7 +128,10 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
             initSuccess = true;
         } finally {
             if (initSuccess == false) {
-                logger.info("SnapshotsInProgress#<init> FAILED: {}", Strings.toString(new DebugXContent(entries)));
+                logger.error(
+                    Strings.format("SnapshotsInProgress#<init> FAILED: %s", Strings.toString(new DebugXContent(entries))),
+                    new ElasticsearchException("stack trace")
+                );
             }
         }
     }
