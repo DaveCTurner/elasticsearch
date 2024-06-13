@@ -129,7 +129,7 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
         } finally {
             if (initSuccess == false) {
                 logger.error(
-                    Strings.format("SnapshotsInProgress#<init> FAILED: %s", Strings.toString(new DebugXContent(entries))),
+                    Strings.format("SnapshotsInProgress#<init> FAILED\nSnapshotsInProgress: %s", Strings.toString(new DebugXContent(entries))),
                     new ElasticsearchException("stack trace")
                 );
             }
