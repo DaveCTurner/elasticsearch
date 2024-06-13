@@ -1346,6 +1346,16 @@ public class SnapshotResiliencyTests extends ESTestCase {
                         )
                     )
                 );
+                if (randomBoolean()) {
+                    testListener = testListener.andThen(
+                        (stepListener, v) -> scheduleNow(
+                            ActionRunnable.wrap(
+                                stepListener,
+                                l -> client.admin().cluster().prepareDeleteSnapshot(repoName, snapshotName).execute(l.map(v1 -> null))
+                            )
+                        )
+                    );
+                }
             } else {
                 final var cloneName = "clone-" + i;
                 testListener = testListener.andThen((stepListener, v) -> scheduleNow(ActionRunnable.wrap(stepListener, l -> {
