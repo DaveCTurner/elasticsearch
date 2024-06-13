@@ -1349,9 +1349,12 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 if (randomBoolean()) {
                     testListener = testListener.andThen(
                         (stepListener, v) -> scheduleNow(
-                            ActionRunnable.wrap(
+                            ActionRunnable.run(
                                 stepListener,
-                                l -> client.admin().cluster().prepareDeleteSnapshot(repoName, snapshotName).execute(l.map(v1 -> null))
+                                () -> client.admin()
+                                    .cluster()
+                                    .prepareDeleteSnapshot(repoName, snapshotName)
+                                    .execute(ActionTestUtils.assertNoFailureListener(r -> {}))
                             )
                         )
                     );
