@@ -89,32 +89,24 @@ public class TransportNodesUsageAction extends TransportNodesAction<
         final boolean restActions;
         final boolean aggregations;
 
-        public NodeUsageRequest(StreamInput in) throws IOException {
-            super(in);
-            if (in.getTransportVersion().onOrAfter(TransportVersions.MORE_LIGHTER_NODES_REQUESTS)) {
-                restActions = in.readBoolean();
-                aggregations = in.readBoolean();
-            } else {
-                final var request = new NodesUsageRequest(in);
-                restActions = request.restActions();
-                aggregations = request.aggregations();
-            }
-        }
-
         NodeUsageRequest(NodesUsageRequest request) {
             restActions = request.restActions();
             aggregations = request.aggregations();
         }
 
+        NodeUsageRequest(StreamInput in) throws IOException {
+            super(in);
+            skipLegacyNodesRequestHeader(TransportVersions.MORE_LIGHTER_NODES_REQUESTS, in);
+            restActions = in.readBoolean();
+            aggregations = in.readBoolean();
+        }
+
         @Override
         public void writeTo(StreamOutput out) throws IOException {
             super.writeTo(out);
-            if (out.getTransportVersion().onOrAfter(TransportVersions.MORE_LIGHTER_NODES_REQUESTS)) {
-                out.writeBoolean(restActions);
-                out.writeBoolean(aggregations);
-            } else {
-                new NodesUsageRequest().restActions(restActions).aggregations(aggregations).writeTo(out);
-            }
+            sendLegacyNodesRequestHeader(TransportVersions.MORE_LIGHTER_NODES_REQUESTS, out);
+            out.writeBoolean(restActions);
+            out.writeBoolean(aggregations);
         }
     }
 }
