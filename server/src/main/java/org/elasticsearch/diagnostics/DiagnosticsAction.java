@@ -21,8 +21,7 @@ import org.elasticsearch.action.admin.cluster.node.stats.TransportNodesStatsActi
 import org.elasticsearch.action.admin.cluster.stats.ClusterStatsRequest;
 import org.elasticsearch.action.admin.cluster.stats.TransportClusterStatsAction;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.RefCountingListener;
-import org.elasticsearch.action.support.SubscribableListener;
+import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.ParentTaskAssigningClient;
@@ -69,7 +68,7 @@ public class DiagnosticsAction {
 
         private static final DateTimeFormatter FILENAME_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.ROOT);
 
-        private final Client client;
+        private final Client rawClient;
         private final ClusterService clusterService;
 
         @Inject
@@ -81,57 +80,45 @@ public class DiagnosticsAction {
         ) {
             super(INSTANCE.name(), actionFilters, transportService.getTaskManager());
             this.clusterService = clusterService;
-            this.client = client;
+            this.rawClient = client;
         }
 
         @Override
         protected void doExecute(Task task, Request request, ActionListener<ActionResponse.Empty> listener) {
             assert task instanceof CancellableTask;
             try (
+                var refs = new RefCountingRunnable(() -> listener.onResponse(ActionResponse.Empty.INSTANCE));
                 var response = new ChunkedZipResponse(
                     "elasticsearch-internal-diagnostics-" + ZonedDateTime.now(ZoneOffset.UTC).format(FILENAME_DATE_TIME_FORMATTER),
-                    request.restChannel
+                    request.restChannel,
+                    refs.acquire()
                 )
             ) {
-                doExecute(
-                    new ParentTaskAssigningClient(client, clusterService.localNode(), task),
-                    response,
-                    listener.map(v -> ActionResponse.Empty.INSTANCE)
+                final var client = new ParentTaskAssigningClient(rawClient, clusterService.localNode(), task);
+
+                client.execute(
+                    TransportNodesInfoAction.TYPE,
+                    new NodesInfoRequest(),
+                    response.newXContentListener("nodes.json", refs.acquireListener())
                 );
+
+                client.execute(
+                    TransportNodesStatsAction.TYPE,
+                    new NodesStatsRequest(),
+                    response.newChunkedXContentListener("nodes_stats.json", refs.acquireListener())
+                );
+
+                client.execute(
+                    TransportClusterStatsAction.TYPE,
+                    new ClusterStatsRequest(),
+                    response.newXContentListener("cluster_stats.json", refs.acquireListener())
+                );
+
+                response.newChunkedXContentListener("cluster_state.json", refs.acquireListener()).onResponse(clusterService.state());
+
+                response.newChunkedXContentListener("example_exception.json", refs.acquireListener())
+                    .onFailure(new ElasticsearchException("test"));
             }
         }
-
-        private void doExecute(Client client, ChunkedZipResponse response, ActionListener<Void> listener) {
-            SubscribableListener
-                // fan out
-                .<Void>newForked(l -> {
-                    try (var listeners = new RefCountingListener(l)) {
-                        client.execute(
-                            TransportNodesInfoAction.TYPE,
-                            new NodesInfoRequest(),
-                            response.newXContentListener("nodes.json", listeners.acquire())
-                        );
-
-                        client.execute(
-                            TransportNodesStatsAction.TYPE,
-                            new NodesStatsRequest(),
-                            response.newChunkedXContentListener("nodes_stats.json", listeners.acquire())
-                        );
-
-                        client.execute(
-                            TransportClusterStatsAction.TYPE,
-                            new ClusterStatsRequest(),
-                            response.newXContentListener("cluster_stats.json", listeners.acquire())
-                        );
-
-                        response.newChunkedXContentListener("cluster_state.json", listeners.acquire()).onResponse(clusterService.state());
-
-                        response.newChunkedXContentListener("example_exception.json", listeners.acquire())
-                            .onFailure(new ElasticsearchException("test"));
-                    }
-                })
-                .addListener(listener);
-        }
     }
-
 }

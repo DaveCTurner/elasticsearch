@@ -94,13 +94,14 @@ public final class ChunkedZipResponse implements Releasable {
     @Nullable // if not currently sending an entry
     private Releasable releasable;
 
-    public ChunkedZipResponse(String filename, RestChannel restChannel) {
+    public ChunkedZipResponse(String filename, RestChannel restChannel, Releasable onCompletion) {
         this.filename = filename;
         this.restChannel = restChannel;
+        this.listenersRefs = AbstractRefCounted.of(() -> enqueueEntry(null, null, ActionListener.releasing(onCompletion)));
     }
 
     private final AtomicBoolean isClosed = new AtomicBoolean();
-    private final RefCounted listenersRefs = AbstractRefCounted.of(() -> enqueueEntry(null, null, ActionListener.noop()));
+    private final RefCounted listenersRefs;
 
     @Override
     public void close() {
