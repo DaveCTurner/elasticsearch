@@ -9,6 +9,8 @@
 package org.elasticsearch.diagnostics;
 
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.common.Strings;
@@ -20,11 +22,12 @@ import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.xcontent.ChunkedToXContent;
 import org.elasticsearch.common.xcontent.ChunkedToXContentHelper;
 import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
-import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestResponse;
@@ -33,14 +36,13 @@ import org.elasticsearch.xcontent.ToXContent;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -48,9 +50,9 @@ import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static org.elasticsearch.rest.RestResponse.TEXT_CONTENT_TYPE;
-
 final class ChunkedZipResponse {
+
+    private static final Logger logger = LogManager.getLogger(ChunkedZipResponse.class);
 
     private record ChunkedZipEntry(ZipEntry zipEntry, ChunkedRestResponseBodyPart firstBodyPart, Releasable releasable) {}
 
@@ -154,14 +156,24 @@ final class ChunkedZipResponse {
             }
 
             private void enqueueFailureEntry(Exception e) {
-                enqueueEntry(
-                    zipEntry,
-                    ChunkedRestResponseBodyPart.fromTextChunks(
-                        TEXT_CONTENT_TYPE,
-                        List.<CheckedConsumer<Writer, IOException>>of(w -> e.printStackTrace(new PrintWriter(w))).iterator()
-                    ),
-                    this::completeListener
-                );
+                try {
+                    enqueueEntry(zipEntry, ChunkedRestResponseBodyPart.fromXContent(op -> ChunkedToXContentHelper.singleChunk((b, p) -> {
+                        b.humanReadable(true);
+                        b.startObject();
+                        ElasticsearchException.generateFailureXContent(
+                            b,
+                            new ToXContent.DelegatingMapParams(Map.of(ElasticsearchException.REST_EXCEPTION_SKIP_STACK_TRACE, "false"), p),
+                            e,
+                            true
+                        );
+                        b.field("status", ExceptionsHelper.status(e).getStatus());
+                        b.endObject();
+                        return b;
+                    }), restChannel.request(), restChannel), this::completeListener);
+                } catch (Exception e2) {
+                    e.addSuppressed(e2);
+                    logger.error(Strings.format("failure when encoding failure response for entry [%s]", entryName), e);
+                }
             }
 
             private void completeListener() {
