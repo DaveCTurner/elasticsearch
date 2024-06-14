@@ -227,9 +227,9 @@ public final class ChunkedZipResponse {
     }
 
     /**
-     * Add the final entry to the queue to indicate
+     * Add the final entry to the queue to indicate that the response is complete.
      *
-     * @param listener
+     * @param listener completed when the response is fully sent.
      */
     public void finish(ActionListener<Void> listener) {
         // TODO maybe do this with ref-counting instead?
