@@ -15,6 +15,7 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.io.stream.BytesStream;
@@ -222,9 +223,13 @@ final class ChunkedZipResponse {
      */
     private final AtomicBoolean isRestResponseFinished = new AtomicBoolean();
 
+    private boolean tryAcquireQueueRef() {
+        return isRestResponseFinished.get() && queueRefs.tryIncRef();
+    }
+
     private void enqueueEntry(ZipEntry zipEntry, ChunkedRestResponseBodyPart firstBodyPart, ActionListener<Void> listener) {
         final var entryName = Optional.ofNullable(zipEntry).map(ZipEntry::getName).orElse("<finished>");
-        if (isRestResponseFinished.get() == false && queueRefs.tryIncRef()) {
+        if (tryAcquireQueueRef()) {
             try {
                 entryQueue.add(new ChunkedZipEntry(zipEntry, firstBodyPart, () -> listener.onResponse(null)));
                 if (queueLength.getAndIncrement() == 0) {
@@ -233,8 +238,8 @@ final class ChunkedZipResponse {
                     assert nextEntry != null;
                     final var continuation = new QueueConsumer(nextEntry.zipEntry(), nextEntry.firstBodyPart());
                     assert releasable == null;
-                    queueRefs.mustIncRef();
-                    releasable = Releasables.wrap(nextEntry.releasable(), queueRefs::decRef);
+                    queueRefs.mustIncRef(); // retain a ref for the ongoing processing
+                    releasable = nextEntry.releasable();
                     final var currentContinuationListener = continuationListener;
                     continuationListener = new SubscribableListener<>();
                     if (currentContinuationListener == null) {
@@ -276,16 +281,22 @@ final class ChunkedZipResponse {
     private void clearQueue() {
         assert isRestResponseFinished.get();
         assert queueRefs.hasReferences() == false;
-        while (queueLength.get() > 0) {
-            final var newQueueLength = queueLength.decrementAndGet();
-            logger.info("--> decremented queue length to [{}] during clear", newQueueLength);
-            assert newQueueLength >= 0;
-            final var entry = entryQueue.poll();
-            assert entry != null : newQueueLength;
-            Releasables.closeExpectNoException(entry.releasable());
+        final var releasables = new ArrayList<Releasable>(queueLength.get() + 1);
+        try {
+            releasables.add(releasable);
+            releasable = null;
+            while (queueLength.get() > 0) {
+                final var newQueueLength = queueLength.decrementAndGet();
+                logger.info("--> decremented queue length to [{}] during clear", newQueueLength);
+                assert newQueueLength >= 0;
+                final var entry = entryQueue.poll();
+                assert entry != null : newQueueLength;
+                releasables.add(entry.releasable());
+            }
+            assert entryQueue.isEmpty();
+        } finally {
+            Releasables.closeExpectNoException(Releasables.wrap(releasables));
         }
-        assert entryQueue.isEmpty();
-        Releasables.closeExpectNoException(releasable);
     }
 
     private final class QueueConsumer implements ChunkedRestResponseBodyPart {
@@ -321,6 +332,18 @@ final class ChunkedZipResponse {
         public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
             final List<Releasable> releasables = new ArrayList<>();
             try {
+                assert queueRefs.hasReferences();
+                if (isRestResponseFinished.get()) {
+                    isPartComplete = true;
+                    isLastPart = true;
+                    if (releasable != null) {
+                        releasables.add(releasable);
+                        releasable = null;
+                    }
+                    queueRefs.decRef(); // no longer processing the queue
+                    return new ReleasableBytesReference(BytesArray.EMPTY, Releasables.wrap(releasables));
+                }
+
                 final RecyclerBytesStreamOutput chunkStream = new RecyclerBytesStreamOutput(recycler);
                 assert target == null;
                 target = chunkStream;
