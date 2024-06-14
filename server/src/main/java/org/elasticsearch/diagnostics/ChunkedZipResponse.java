@@ -213,7 +213,8 @@ final class ChunkedZipResponse {
     private final AtomicInteger queueLength = new AtomicInteger();
 
     /**
-     * Ref-counting for access to the queue, to avoid clearing the queue on abort concurrently with an entry being sent.
+     * Ref-counting for access to the queue, to avoid clearing the queue on abort concurrently with an entry being sent. The thread
+     * processing the queue holds one such ref, and every time we're adding or removing entries we also do so while holding a ref.
      */
     private final RefCounted queueRefs = AbstractRefCounted.of(this::clearQueue);
 
@@ -281,7 +282,8 @@ final class ChunkedZipResponse {
     private void clearQueue() {
         assert isRestResponseFinished.get();
         assert queueRefs.hasReferences() == false;
-        final var releasables = new ArrayList<Releasable>(queueLength.get() + 1);
+        final var taskCount = queueLength.get() + 1;
+        final var releasables = new ArrayList<Releasable>(taskCount);
         try {
             releasables.add(releasable);
             releasable = null;
@@ -293,7 +295,8 @@ final class ChunkedZipResponse {
                 assert entry != null : newQueueLength;
                 releasables.add(entry.releasable());
             }
-            assert entryQueue.isEmpty();
+            assert entryQueue.isEmpty() : entryQueue.size();
+            assert releasables.size() == taskCount : taskCount + " vs " + releasables.size();
         } finally {
             Releasables.closeExpectNoException(Releasables.wrap(releasables));
         }
