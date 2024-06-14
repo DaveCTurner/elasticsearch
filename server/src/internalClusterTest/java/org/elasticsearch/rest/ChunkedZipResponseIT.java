@@ -8,11 +8,18 @@
 
 package org.elasticsearch.rest;
 
+import org.apache.http.ConnectionClosedException;
+import org.apache.http.HttpResponse;
+import org.apache.http.nio.ContentDecoder;
+import org.apache.http.nio.IOControl;
+import org.apache.http.nio.protocol.HttpAsyncResponseConsumer;
+import org.apache.http.protocol.HttpContext;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.client.Request;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -39,8 +46,10 @@ import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -74,6 +83,8 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
         public static final String ROUTE = "/_random_zip_response";
         public static final String RESPONSE_FILENAME = "test-response";
 
+        public static final String INFINITE_ROUTE = "/_infinite_zip_response";
+
         public final AtomicReference<Response> responseRef = new AtomicReference<>();
 
         public record Response(Map<String, BytesReference> entries, CountDownLatch completedLatch) {}
@@ -92,42 +103,98 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
         ) {
             return List.of(new RestHandler() {
                 @Override
+                public List<Route> routes() {
+                    return List.of(new Route(RestRequest.Method.GET, ROUTE));
+                }
+
+                @Override
                 public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) {
                     final var response = new Response(new HashMap<>(), new CountDownLatch(1));
                     final var maxSize = between(1, ByteSizeUnit.MB.toIntBytes(1));
                     final var entryCount = between(0, ByteSizeUnit.MB.toIntBytes(10) / maxSize); // limit total size to 10MiB
                     for (int i = 0; i < entryCount; i++) {
-                        response.entries().put(randomIdentifier(), randomBoolean() ? null : randomBytesReference(between(0, maxSize)));
+                        response.entries().put(randomIdentifier(), randomContent(maxSize));
                     }
                     assertTrue(responseRef.compareAndSet(null, response));
-
-                    try (var refs = new RefCountingRunnable(response.completedLatch()::countDown);) {
-                        final var chunkedZipResponse = new ChunkedZipResponse(RESPONSE_FILENAME, channel, refs.acquire());
-                        ThrottledIterator.run(
-                            response.entries().entrySet().iterator(),
-                            (ref, entry) -> randomFrom(EsExecutors.DIRECT_EXECUTOR_SERVICE, client.threadPool().generic()).execute(
-                                ActionRunnable.supply(
-                                    chunkedZipResponse.newEntryListener(
-                                        entry.getKey(),
-                                        ActionListener.releasing(Releasables.wrap(ref, refs.acquire()))
-                                    ),
-                                    () -> entry.getValue() == null && randomBoolean()
-                                        ? null
-                                        : new TestBytesReferenceBodyPart(entry.getKey(), client.threadPool(), entry.getValue(), refs)
-                                )
-                            ),
-                            between(1, 10),
-                            () -> {},
-                            Releasables.wrap(refs.acquire(), chunkedZipResponse)::close
-                        );
-                    }
+                    handleZipRestRequest(channel, client.threadPool(), response.completedLatch(), response.entries().entrySet().iterator());
                 }
+            }, new RestHandler() {
 
                 @Override
                 public List<Route> routes() {
-                    return List.of(new Route(RestRequest.Method.GET, ROUTE));
+                    return List.of(new Route(RestRequest.Method.GET, INFINITE_ROUTE));
+                }
+
+                @Override
+                public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) {
+                    final var response = new Response(null, new CountDownLatch(1));
+                    assertTrue(responseRef.compareAndSet(null, response));
+                    handleZipRestRequest(channel, client.threadPool(), response.completedLatch(), new Iterator<>() {
+
+                        private long id;
+
+                        @Override
+                        public boolean hasNext() {
+                            return request.getHttpChannel().isOpen();
+                        }
+
+                        @Override
+                        public Map.Entry<String, BytesReference> next() {
+                            return new Map.Entry<>() {
+                                private final String key = Long.toString(id++);
+                                private final BytesReference content = randomContent(ByteSizeUnit.MB.toIntBytes(1));
+
+                                @Override
+                                public String getKey() {
+                                    return key;
+                                }
+
+                                @Override
+                                public BytesReference getValue() {
+                                    return content;
+                                }
+
+                                @Override
+                                public BytesReference setValue(BytesReference value) {
+                                    return fail(null, "");
+                                }
+                            };
+                        }
+                    });
                 }
             });
+        }
+
+        private static BytesReference randomContent(int maxSize) {
+            return randomBoolean() ? null : randomBytesReference(between(0, maxSize));
+        }
+
+        private static void handleZipRestRequest(
+            RestChannel channel,
+            ThreadPool threadPool,
+            CountDownLatch completionLatch,
+            Iterator<Map.Entry<String, BytesReference>> entryIterator
+        ) {
+            try (var refs = new RefCountingRunnable(completionLatch::countDown);) {
+                final var chunkedZipResponse = new ChunkedZipResponse(RESPONSE_FILENAME, channel, refs.acquire());
+                ThrottledIterator.run(
+                    entryIterator,
+                    (ref, entry) -> randomFrom(EsExecutors.DIRECT_EXECUTOR_SERVICE, threadPool.generic()).execute(
+                        ActionRunnable.supply(
+                            chunkedZipResponse.newEntryListener(
+                                entry.getKey(),
+                                ActionListener.releasing(Releasables.wrap(ref, refs.acquire()))
+                            ),
+                            () -> entry.getValue() == null && randomBoolean()
+                                ? null
+                                : new TestBytesReferenceBodyPart(entry.getKey(), threadPool, entry.getValue(), refs)
+                        )
+                    ),
+                    between(1, 10),
+                    () -> {},
+                    Releasables.wrap(refs.acquire(), chunkedZipResponse)::close
+                );
+            }
         }
     }
 
@@ -223,6 +290,17 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
             }
         }
 
+        final var expectedEntries = getExpectedEntries();
+        expectedEntries.forEach((name, value) -> {
+            if (value == null) {
+                assertFalse(actualEntries.containsKey(name));
+                actualEntries.put(name, null);
+            }
+        });
+        assertEquals(expectedEntries, actualEntries);
+    }
+
+    private static Map<String, BytesReference> getExpectedEntries() {
         final var nodeResponses = StreamSupport.stream(internalCluster().getInstances(PluginsService.class).spliterator(), false)
             .flatMap(p -> p.filterPlugins(RandomZipResponsePlugin.class))
             .flatMap(p -> {
@@ -235,16 +313,81 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
                 }
             })
             .toList();
-
         assertThat(nodeResponses, hasSize(1));
-        final var expectedEntries = nodeResponses.get(0);
+        return nodeResponses.get(0);
+    }
 
-        expectedEntries.forEach((name, value) -> {
-            if (value == null) {
-                assertFalse(actualEntries.containsKey(name));
-                actualEntries.put(name, null);
+    public void testAbort() throws IOException {
+        final var request = new Request("GET", RandomZipResponsePlugin.INFINITE_ROUTE);
+        final var responseStarted = new CountDownLatch(1);
+        final var bodyConsumed = new CountDownLatch(1);
+        request.setOptions(RequestOptions.DEFAULT.toBuilder().setHttpAsyncResponseConsumerFactory(() -> new HttpAsyncResponseConsumer<>() {
+
+            final ByteBuffer readBuffer = ByteBuffer.allocate(ByteSizeUnit.KB.toIntBytes(4));
+            int bytesToConsume = ByteSizeUnit.MB.toIntBytes(1);
+
+            @Override
+            public void responseReceived(HttpResponse response) {
+                assertEquals("application/zip", response.getHeaders("Content-Type")[0].getValue());
+                final var contentDispositionHeader = response.getHeaders("Content-Disposition")[0].getElements()[0];
+                assertEquals("attachment", contentDispositionHeader.getName());
+                assertEquals(
+                    RandomZipResponsePlugin.RESPONSE_FILENAME + ".zip",
+                    contentDispositionHeader.getParameterByName("filename").getValue()
+                );
+                responseStarted.countDown();
             }
-        });
-        assertEquals(expectedEntries, actualEntries);
+
+            @Override
+            public void consumeContent(ContentDecoder decoder, IOControl ioControl) throws IOException {
+                readBuffer.clear();
+                final var bytesRead = decoder.read(readBuffer);
+                if (bytesRead > 0) {
+                    bytesToConsume -= bytesRead;
+                }
+
+                if (bytesToConsume <= 0) {
+                    bodyConsumed.countDown();
+                    ioControl.shutdown();
+                }
+            }
+
+            @Override
+            public void responseCompleted(HttpContext context) {}
+
+            @Override
+            public void failed(Exception ex) {}
+
+            @Override
+            public Exception getException() {
+                return null;
+            }
+
+            @Override
+            public HttpResponse getResult() {
+                return null;
+            }
+
+            @Override
+            public boolean isDone() {
+                return false;
+            }
+
+            @Override
+            public void close() {}
+
+            @Override
+            public boolean cancel() {
+                return false;
+            }
+        }));
+
+        try (var restClient = createRestClient(internalCluster().getRandomNodeName())) {
+            // one-node REST client to avoid retries
+            expectThrows(ConnectionClosedException.class, () -> restClient.performRequest(request));
+        }
+        safeAwait(responseStarted);
+        safeAwait(bodyConsumed);
+        assertNull(getExpectedEntries());
     }
 }
