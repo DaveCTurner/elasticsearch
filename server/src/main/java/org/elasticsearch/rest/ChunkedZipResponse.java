@@ -6,7 +6,7 @@
  * Side Public License, v 1.
  */
 
-package org.elasticsearch.diagnostics;
+package org.elasticsearch.rest;
 
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.util.BytesRef;
@@ -32,10 +32,6 @@ import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
-import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestResponse;
-import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.transport.Transports;
 import org.elasticsearch.xcontent.ToXContent;
 
@@ -54,7 +50,20 @@ import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-final class ChunkedZipResponse {
+/**
+ * A REST response with content-type {@code application/zip} to which the caller can write entries in an asynchronous and streaming fashion.
+ * Callers obtain listeners for individual entries using methods such as {@link #newChunkedXContentListener} or {@link #newXContentListener}
+ * and complete these listeners to submit the corresponding entries for transmission. Internally, the output entries are held in a queue
+ * in the order in which the entry listeners are completed, and this queue is unbounded. It is the caller's responsibility to ensure that
+ * the response does not consume an excess of resources.
+ * <p>
+ * Note that individual entries can themselves be paused mid-transmission, since listeners returned by {@link #newRawListener} accept a
+ * {@link ChunkedRestResponseBodyPart}. Zip files do not have any mechanism which supports the multiplexing of outputs, so if the entry at
+ * the head of the queue is paused then that will hold up the transmission of all subsequent entries too.
+ * <p>
+ * After enqueueing the last entry, callers must call {@link #finish} to complete the response.
+ */
+public final class ChunkedZipResponse {
 
     private static final Logger logger = LogManager.getLogger(ChunkedZipResponse.class);
 
@@ -87,11 +96,19 @@ final class ChunkedZipResponse {
     @Nullable // if not currently sending an entry
     private Releasable releasable;
 
-    ChunkedZipResponse(String filename, RestChannel restChannel) {
+    public ChunkedZipResponse(String filename, RestChannel restChannel) {
         this.filename = filename;
         this.restChannel = restChannel;
     }
 
+    /**
+     * Create a listener which, when completed, will write the result {@link ToXContent} as an entry in the response stream with the
+     * given name. If the listener is completed exceptionally then the resulting entry will be a JSON representation of the exception.
+     *
+     * @param entryName The name of the entry in the response zip file.
+     * @param listener  A listener which is completed when the entry has been completely processed: either fully sent, or else the request
+     *                  was cancelled and the response will not be used any further.
+     */
     public <T extends ToXContent> ActionListener<T> newXContentListener(String entryName, ActionListener<Void> listener) {
         final var completionListener = new SubscribableListener<Void>();
         completionListener.addListener(listener);
@@ -115,6 +132,14 @@ final class ChunkedZipResponse {
         });
     }
 
+    /**
+     * Create a listener which, when completed, will write the result {@link ChunkedToXContent} as an entry in the response stream with the
+     * given name. If the listener is completed exceptionally then the resulting entry will be a JSON representation of the exception.
+     *
+     * @param entryName The name of the entry in the response zip file.
+     * @param listener  A listener which is completed when the entry has been completely processed: either fully sent, or else the request
+     *                  was cancelled and the response will not be used any further.
+     */
     public <T extends ChunkedToXContent> ActionListener<T> newChunkedXContentListener(String entryName, ActionListener<Void> listener) {
         final var completionListener = new SubscribableListener<Void>();
         completionListener.addListener(listener);
@@ -149,6 +174,14 @@ final class ChunkedZipResponse {
         });
     }
 
+    /**
+     * Create a listener which, when completed, will write the result {@link ChunkedRestResponseBodyPart} as an entry in the response stream
+     * given name. If the listener is completed exceptionally then the resulting entry will be a JSON representation of the exception.
+     *
+     * @param entryName The name of the entry in the response zip file.
+     * @param listener  A listener which is completed when the entry has been completely processed: either fully sent, or else the request
+     *                  was cancelled and the response will not be used any further.
+     */
     public ActionListener<ChunkedRestResponseBodyPart> newRawListener(String entryName, ActionListener<Void> listener) {
         final var zipEntry = new ZipEntry(filename + "/" + entryName);
         return ActionListener.assertOnce(new ActionListener<>() {
@@ -193,6 +226,11 @@ final class ChunkedZipResponse {
         });
     }
 
+    /**
+     * Add the final entry to the queue to indicate
+     *
+     * @param listener
+     */
     public void finish(ActionListener<Void> listener) {
         // TODO maybe do this with ref-counting instead?
         enqueueEntry(null, null, listener);
@@ -345,6 +383,7 @@ final class ChunkedZipResponse {
                                     isPartComplete = true;
                                     isLastPart = true;
                                     transferReleasable(releasables);
+                                    assert getNextPart == null;
                                 } else if (zipEntry != null) {
                                     // new entry, so write the entry header
                                     zipOutputStream.putNextEntry(zipEntry);

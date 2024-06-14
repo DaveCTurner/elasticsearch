@@ -28,6 +28,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.ParentTaskAssigningClient;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.rest.ChunkedZipResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
