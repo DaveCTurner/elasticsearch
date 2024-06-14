@@ -43,11 +43,12 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -96,10 +97,10 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
                         response.entries()
                             .put(
                                 randomIdentifier(),
-                                randomBoolean() ? null : randomBytesReference(between(0, ByteSizeUnit.KB.toIntBytes(1))) // TODO larger
+                                randomBoolean() ? null : randomBytesReference(between(0, ByteSizeUnit.MB.toIntBytes(1)))
                             );
                     }
-                    // assertTrue(responseRef.compareAndSet(null, response)); TODO
+                    assertTrue(responseRef.compareAndSet(null, response));
 
                     try (var refs = new RefCountingRunnable(response.completedLatch()::countDown);) {
                         final var chunkedZipResponse = new ChunkedZipResponse(RESPONSE_FILENAME, channel, refs.acquire());
@@ -223,23 +224,19 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
             }
         }
 
-        final var nodeResponses = internalCluster().getInstance(PluginsService.class)
-            .filterPlugins(RandomZipResponsePlugin.class)
-            .map(p -> {
+        final var nodeResponses = StreamSupport.stream(internalCluster().getInstances(PluginsService.class).spliterator(), false)
+            .flatMap(p -> p.filterPlugins(RandomZipResponsePlugin.class))
+            .flatMap(p -> {
                 final var maybeResponse = p.responseRef.getAndSet(null);
                 if (maybeResponse == null) {
-                    return null;
+                    return Stream.of();
                 } else {
                     safeAwait(maybeResponse.completedLatch());
-                    return maybeResponse.entries();
+                    return Stream.of(maybeResponse.entries());
                 }
             })
-            .filter(Objects::nonNull)
             .toList();
 
-        if (1 < 2) {
-            return;
-        }
         assertThat(nodeResponses, hasSize(1));
         final var expectedEntries = nodeResponses.get(0);
 
