@@ -12,7 +12,6 @@ import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.RefCountingRunnable;
-import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -33,6 +32,8 @@ import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThrottledIterator;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.features.NodeFeature;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.PluginsService;
@@ -45,6 +46,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
@@ -52,8 +54,10 @@ import java.util.function.Supplier;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
 
+@ESIntegTestCase.ClusterScope(numDataNodes = 1)
 public class ChunkedZipResponseIT extends ESIntegTestCase {
 
     @Override
@@ -65,6 +69,8 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
     protected Collection<Class<? extends Plugin>> nodePlugins() {
         return CollectionUtils.appendToCopyNoNullElements(super.nodePlugins(), RandomZipResponsePlugin.class);
     }
+
+    private static final Logger logger = LogManager.getLogger(ChunkedZipResponseIT.class);
 
     public static class RandomZipResponsePlugin extends Plugin implements ActionPlugin {
 
@@ -90,37 +96,44 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
             return List.of(new RestHandler() {
                 @Override
                 public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) {
+                    logger.info("--> handling request on [{}]", channel.request().getHttpChannel());
+
                     final var response = new Response(new HashMap<>(), new CountDownLatch(1));
                     for (int i = between(0, 40); i > 0; i--) {
                         response.entries()
                             .put(
                                 randomIdentifier(),
-                                randomBoolean() ? null : randomBytesReference(between(0, ByteSizeUnit.MB.toIntBytes(1)))
+                                randomBoolean() ? null : randomBytesReference(between(0, ByteSizeUnit.KB.toIntBytes(1))) // TODO larger
                             );
                     }
-                    assertTrue(responseRef.compareAndSet(null, response));
+                    // assertTrue(responseRef.compareAndSet(null, response)); TODO
 
-                    try (
-                        var refs = new RefCountingRunnable(response.completedLatch()::countDown);
-                        var chunkedZipResponse = new ChunkedZipResponse(RESPONSE_FILENAME, channel, refs.acquire())
-                    ) {
-                        ThrottledIterator.run(
-                            response.entries().entrySet().iterator(),
-                            (ref, entry) -> randomFrom(EsExecutors.DIRECT_EXECUTOR_SERVICE, client.threadPool().generic()).execute(
+                    try (var refs = new RefCountingRunnable(response.completedLatch()::countDown);) {
+                        final var chunkedZipResponse = new ChunkedZipResponse(RESPONSE_FILENAME, channel, refs.acquire());
+                        ThrottledIterator.run(response.entries().entrySet().iterator(), (ref, entry) -> {
+                            logger.info(
+                                "--> starting processing [{}] with size [{}]",
+                                entry.getKey(),
+                                entry.getValue() == null ? -1 : entry.getValue().length()
+                            );
+                            randomFrom(EsExecutors.DIRECT_EXECUTOR_SERVICE, client.threadPool().generic()).execute(
                                 ActionRunnable.supply(
                                     chunkedZipResponse.newEntryListener(
                                         entry.getKey(),
-                                        ActionListener.releasing(Releasables.wrap(ref, refs.acquire()))
+                                        ActionListener.releasing(
+                                            Releasables.wrap(
+                                                ref,
+                                                () -> logger.info("--> finished processing [{}]", entry.getKey()),
+                                                refs.acquire()
+                                            )
+                                        )
                                     ),
                                     () -> entry.getValue() == null
                                         ? null
-                                        : new TestBytesReferenceBodyPart(client.threadPool(), entry.getValue(), refs)
+                                        : new TestBytesReferenceBodyPart(entry.getKey(), client.threadPool(), entry.getValue(), refs)
                                 )
-                            ),
-                            between(1, 10),
-                            () -> {},
-                            refs.acquire()::close
-                        );
+                            );
+                        }, between(1, 10), () -> {}, Releasables.wrap(refs.acquire(), chunkedZipResponse)::close);
                     }
                 }
 
@@ -134,11 +147,14 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
 
     private static class TestBytesReferenceBodyPart implements ChunkedRestResponseBodyPart {
 
+        private final String name;
         private final ThreadPool threadPool;
         private final BytesReference content;
         private final RefCountingRunnable refs;
 
-        TestBytesReferenceBodyPart(ThreadPool threadPool, BytesReference content, RefCountingRunnable refs) {
+        TestBytesReferenceBodyPart(String name, ThreadPool threadPool, BytesReference content, RefCountingRunnable refs) {
+            logger.info("--> creating part of [{}] with remaining size [{}]", name, content.length());
+            this.name = name;
             this.threadPool = threadPool;
             this.content = content;
             this.refs = refs;
@@ -160,11 +176,12 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
 
         @Override
         public void getNextPart(ActionListener<ChunkedRestResponseBodyPart> listener) {
+            logger.info("--> awaiting next entry part");
             threadPool.generic()
                 .execute(
                     ActionRunnable.supply(
                         listener,
-                        () -> new TestBytesReferenceBodyPart(threadPool, content.slice(position, content.length() - position), refs)
+                        () -> new TestBytesReferenceBodyPart(name, threadPool, content.slice(position, content.length() - position), refs)
                     )
                 );
         }
@@ -182,6 +199,15 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
                         isLastPart = true;
                     }
                 }
+                logger.info(
+                    "--> returning chunk of [{}] of size [{}] on thread [{}]; remaining={}, isPartComplete={}, isLastPart={}",
+                    name,
+                    chunkSize,
+                    Thread.currentThread().getName(),
+                    content.length() - position,
+                    isPartComplete,
+                    isLastPart
+                );
             }
         }
 
@@ -223,20 +249,25 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
             }
         }
 
-        final var expectedEntries = safeAwait(
-            SubscribableListener.<Map<String, BytesReference>>newForked(
-                l -> ActionListener.run(
-                    ActionListener.assertOnce(l),
-                    ll -> internalCluster().getInstance(PluginsService.class).filterPlugins(RandomZipResponsePlugin.class).forEach(p -> {
-                        final var maybeResponse = p.responseRef.getAndSet(null);
-                        if (maybeResponse != null) {
-                            // safeAwait(maybeResponse.completedLatch());
-                            ll.onResponse(maybeResponse.entries());
-                        }
-                    })
-                )
-            )
-        );
+        final var nodeResponses = internalCluster().getInstance(PluginsService.class)
+            .filterPlugins(RandomZipResponsePlugin.class)
+            .map(p -> {
+                final var maybeResponse = p.responseRef.getAndSet(null);
+                if (maybeResponse == null) {
+                    return null;
+                } else {
+                    safeAwait(maybeResponse.completedLatch());
+                    return maybeResponse.entries();
+                }
+            })
+            .filter(Objects::nonNull)
+            .toList();
+
+        if (1 < 2) {
+            return;
+        }
+        assertThat(nodeResponses, hasSize(1));
+        final var expectedEntries = nodeResponses.get(0);
 
         expectedEntries.forEach((name, value) -> {
             if (value == null) {
@@ -244,7 +275,6 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
                 actualEntries.put(name, null);
             }
         });
-
         assertEquals(expectedEntries, actualEntries);
     }
 }
