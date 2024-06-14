@@ -87,14 +87,18 @@ public class DiagnosticsAction {
         @Override
         protected void doExecute(Task task, Request request, ActionListener<ActionResponse.Empty> listener) {
             assert task instanceof CancellableTask;
-            doExecute(
-                new ParentTaskAssigningClient(client, clusterService.localNode(), task),
-                new ChunkedZipResponse(
+            try (
+                var response = new ChunkedZipResponse(
                     "elasticsearch-internal-diagnostics-" + ZonedDateTime.now(ZoneOffset.UTC).format(FILENAME_DATE_TIME_FORMATTER),
                     request.restChannel
-                ),
-                listener.map(v -> ActionResponse.Empty.INSTANCE)
-            );
+                )
+            ) {
+                doExecute(
+                    new ParentTaskAssigningClient(client, clusterService.localNode(), task),
+                    response,
+                    listener.map(v -> ActionResponse.Empty.INSTANCE)
+                );
+            }
         }
 
         private void doExecute(Client client, ChunkedZipResponse response, ActionListener<Void> listener) {
@@ -126,8 +130,6 @@ public class DiagnosticsAction {
                             .onFailure(new ElasticsearchException("test"));
                     }
                 })
-                // finish
-                .<Void>andThen((l, v) -> response.finish(l))
                 .addListener(listener);
         }
     }

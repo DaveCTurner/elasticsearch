@@ -60,10 +60,8 @@ import java.util.zip.ZipOutputStream;
  * Note that individual entries can themselves be paused mid-transmission, since listeners returned by {@link #newRawListener} accept a
  * {@link ChunkedRestResponseBodyPart}. Zip files do not have any mechanism which supports the multiplexing of outputs, so if the entry at
  * the head of the queue is paused then that will hold up the transmission of all subsequent entries too.
- * <p>
- * After enqueueing the last entry, callers must call {@link #finish} to complete the response.
  */
-public final class ChunkedZipResponse {
+public final class ChunkedZipResponse implements Releasable {
 
     private static final Logger logger = LogManager.getLogger(ChunkedZipResponse.class);
 
@@ -99,6 +97,20 @@ public final class ChunkedZipResponse {
     public ChunkedZipResponse(String filename, RestChannel restChannel) {
         this.filename = filename;
         this.restChannel = restChannel;
+    }
+
+    private final AtomicBoolean isClosed = new AtomicBoolean();
+    private final RefCounted listenersRefs = AbstractRefCounted.of(() -> enqueueEntry(null, null, ActionListener.noop()));
+
+    @Override
+    public void close() {
+        if (isClosed.compareAndSet(false, true)) {
+            listenersRefs.decRef();
+        }
+    }
+
+    private boolean tryAcquireListenerRef() {
+        return isClosed.get() == false && listenersRefs.tryIncRef();
     }
 
     /**
@@ -183,57 +195,59 @@ public final class ChunkedZipResponse {
      *                  was cancelled and the response will not be used any further.
      */
     public ActionListener<ChunkedRestResponseBodyPart> newRawListener(String entryName, ActionListener<Void> listener) {
-        final var zipEntry = new ZipEntry(filename + "/" + entryName);
-        return ActionListener.assertOnce(new ActionListener<>() {
-            @Override
-            public void onResponse(ChunkedRestResponseBodyPart firstBodyPart) {
-                try {
-                    enqueueEntry(
-                        zipEntry,
-                        firstBodyPart,
-                        ActionListener.runAfter(listener, () -> zipEntry.setComment("testing comment set after write"))
-                    );
-                } catch (Exception e) {
+        if (tryAcquireListenerRef()) {
+            final var zipEntry = new ZipEntry(filename + "/" + entryName);
+            return ActionListener.assertOnce(ActionListener.releaseAfter(new ActionListener<>() {
+                @Override
+                public void onResponse(ChunkedRestResponseBodyPart firstBodyPart) {
+                    try {
+                        enqueueEntry(
+                            zipEntry,
+                            firstBodyPart,
+                            ActionListener.runAfter(listener, () -> zipEntry.setComment("testing comment set after write"))
+                        );
+                    } catch (Exception e) {
+                        enqueueFailureEntry(e);
+                    }
+                }
+
+                @Override
+                public void onFailure(Exception e) {
                     enqueueFailureEntry(e);
                 }
-            }
 
-            @Override
-            public void onFailure(Exception e) {
-                enqueueFailureEntry(e);
-            }
-
-            private void enqueueFailureEntry(Exception e) {
-                try {
-                    enqueueEntry(zipEntry, ChunkedRestResponseBodyPart.fromXContent(op -> ChunkedToXContentHelper.singleChunk((b, p) -> {
-                        b.humanReadable(true);
-                        b.startObject();
-                        ElasticsearchException.generateFailureXContent(
-                            b,
-                            new ToXContent.DelegatingMapParams(Map.of(ElasticsearchException.REST_EXCEPTION_SKIP_STACK_TRACE, "false"), p),
-                            e,
-                            true
+                private void enqueueFailureEntry(Exception e) {
+                    try {
+                        enqueueEntry(
+                            zipEntry,
+                            ChunkedRestResponseBodyPart.fromXContent(op -> ChunkedToXContentHelper.singleChunk((b, p) -> {
+                                b.humanReadable(true);
+                                b.startObject();
+                                ElasticsearchException.generateFailureXContent(
+                                    b,
+                                    new ToXContent.DelegatingMapParams(
+                                        Map.of(ElasticsearchException.REST_EXCEPTION_SKIP_STACK_TRACE, "false"),
+                                        p
+                                    ),
+                                    e,
+                                    true
+                                );
+                                b.field("status", ExceptionsHelper.status(e).getStatus());
+                                b.endObject();
+                                return b;
+                            }), restChannel.request(), restChannel),
+                            listener
                         );
-                        b.field("status", ExceptionsHelper.status(e).getStatus());
-                        b.endObject();
-                        return b;
-                    }), restChannel.request(), restChannel), listener);
-                } catch (Exception e2) {
-                    e.addSuppressed(e2);
-                    logger.error(Strings.format("failure when encoding failure response for entry [%s]", entryName), e);
+                    } catch (Exception e2) {
+                        e.addSuppressed(e2);
+                        logger.error(Strings.format("failure when encoding failure response for entry [%s]", entryName), e);
+                    }
                 }
-            }
-        });
-    }
-
-    /**
-     * Add the final entry to the queue to indicate that the response is complete.
-     *
-     * @param listener completed when the response is fully sent.
-     */
-    public void finish(ActionListener<Void> listener) {
-        // TODO maybe do this with ref-counting instead?
-        enqueueEntry(null, null, listener);
+            }, listenersRefs::decRef));
+        } else {
+            assert false : "already closed";
+            throw new AlreadyClosedException("response already closed");
+        }
     }
 
     /**
