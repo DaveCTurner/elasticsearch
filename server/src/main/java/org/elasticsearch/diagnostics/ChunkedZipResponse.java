@@ -265,18 +265,16 @@ final class ChunkedZipResponse {
         final var taskCount = queueLength.get() + 1;
         final var releasables = new ArrayList<Releasable>(taskCount);
         try {
-            releasables.add(releasable);
-            releasable = null;
-            while (queueLength.get() > 0) {
-                final var newQueueLength = queueLength.decrementAndGet();
-                logger.info("--> decremented queue length to [{}] during clear", newQueueLength);
-                assert newQueueLength >= 0;
-                final var entry = entryQueue.poll();
-                assert entry != null : newQueueLength;
+            if (releasable != null) {
+                releasables.add(releasable);
+                releasable = null;
+            }
+            ChunkedZipEntry entry;
+            while ((entry = entryQueue.poll()) != null) {
                 releasables.add(entry.releasable());
             }
-            assert entryQueue.isEmpty() : entryQueue.size();
-            assert releasables.size() == taskCount : taskCount + " vs " + releasables.size();
+            assert entryQueue.isEmpty() : entryQueue.size(); // no concurrent adds
+            assert releasables.size() <= taskCount : taskCount + " vs " + releasables.size();
         } finally {
             Releasables.closeExpectNoException(Releasables.wrap(releasables));
         }
