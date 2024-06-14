@@ -46,7 +46,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -226,17 +225,14 @@ final class ChunkedZipResponse {
     }
 
     private void enqueueEntry(ZipEntry zipEntry, ChunkedRestResponseBodyPart firstBodyPart, ActionListener<Void> listener) {
-        final var entryName = Optional.ofNullable(zipEntry).map(ZipEntry::getName).orElse("<finished>");
         if (tryAcquireQueueRef()) {
             try {
                 entryQueue.add(new ChunkedZipEntry(zipEntry, firstBodyPart, () -> listener.onResponse(null)));
                 if (queueLength.getAndIncrement() == 0) {
-                    logger.info("--> incremented queue from zero with [{}]", entryName);
                     final var nextEntry = entryQueue.poll();
                     assert nextEntry != null;
                     final var continuation = new QueueConsumer(nextEntry.zipEntry(), nextEntry.firstBodyPart());
                     assert releasable == null;
-                    queueRefs.mustIncRef(); // retain a ref for the ongoing processing
                     releasable = nextEntry.releasable();
                     final var currentContinuationListener = continuationListener;
                     continuationListener = new SubscribableListener<>();
@@ -247,8 +243,6 @@ final class ChunkedZipResponse {
                     } else {
                         currentContinuationListener.onResponse(continuation);
                     }
-                } else {
-                    logger.info("--> incremented queue from nonzero value with [{}]", entryName);
                 }
             } finally {
                 queueRefs.decRef();
@@ -373,7 +367,6 @@ final class ChunkedZipResponse {
                                             zipOutputStream.closeEntry();
                                             transferReleasable(releasables);
                                             final var newQueueLength = queueLength.decrementAndGet();
-                                            logger.info("--> decremented queue length to [{}] during output", newQueueLength);
                                             if (newQueueLength == 0) {
                                                 // next entry isn't available yet, so we stop iterating
                                                 isPartComplete = true;
