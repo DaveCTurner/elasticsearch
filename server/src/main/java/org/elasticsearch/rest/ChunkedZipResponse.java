@@ -40,15 +40,19 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 /**
- * A REST response with content-type {@code application/zip} to which the caller can write entries in an asynchronous and streaming fashion.
- * Callers obtain a listener for each individual entries using {@link #newEntryListener} and complete these listeners to submit the
- * corresponding entries for transmission. Internally, the output entries are held in a queue in the order in which the entry listeners are
- * completed, and this queue is unbounded. It is the caller's responsibility to ensure that the response does not consume an excess of
- * resources while it's being sent.
+ * A REST response with {@code Content-type: application/zip} to which the caller can write entries in an asynchronous and streaming
+ * fashion.
  * <p>
- * Note that individual entries can themselves be paused mid-transmission, since listeners returned by {@link #newEntryListener} accept a
- * {@link ChunkedRestResponseBodyPart}. Zip files do not have any mechanism which supports the multiplexing of outputs, so if the entry at
- * the head of the queue is paused then that will hold up the transmission of all subsequent entries too.
+ * Callers obtain a listener for individual entries using {@link #newEntryListener} and complete these listeners to submit the corresponding
+ * entries for transmission. Internally, the output entries are held in a queue in the order in which the entry listeners are completed.
+ * If the queue becomes empty then the response transmission is paused until the next entry becomes available.
+ * <p>
+ * The internal queue is unbounded. It is the caller's responsibility to ensure that the response does not consume an excess of resources
+ * while it's being sent.
+ * <p>
+ * Note that individual entries can also pause themselves mid-transmission, since listeners returned by {@link #newEntryListener} accept a
+ * pauseable {@link ChunkedRestResponseBodyPart}. Zip files do not have any mechanism which supports the multiplexing of outputs, so if the
+ * entry at the head of the queue is paused then that will hold up the transmission of all subsequent entries too.
  */
 public final class ChunkedZipResponse implements Releasable {
 
@@ -144,7 +148,7 @@ public final class ChunkedZipResponse implements Releasable {
     /**
      * Ref-counting for access to the queue, to avoid clearing the queue on abort concurrently with an entry being sent.
      */
-    private final RefCounted queueRefs = AbstractRefCounted.of(this::clearQueue);
+    private final RefCounted queueRefs = AbstractRefCounted.of(this::drainQueue);
 
     /**
      * Flag to indicate if the request has been aborted, at which point we should stop enqueueing more entries and promptly clean up the
@@ -191,7 +195,7 @@ public final class ChunkedZipResponse implements Releasable {
         }
     }
 
-    private void clearQueue() {
+    private void drainQueue() {
         assert isRestResponseFinished.get();
         assert queueRefs.hasReferences() == false;
         final var taskCount = queueLength.get() + 1;
@@ -276,6 +280,7 @@ public final class ChunkedZipResponse implements Releasable {
                                 if (bodyPart == null) {
                                     // no more entries
                                     assert zipEntry == null;
+                                    assert entryQueue.isEmpty() : entryQueue.size();
                                     zipOutputStream.finish();
                                     isPartComplete = true;
                                     isLastPart = true;
