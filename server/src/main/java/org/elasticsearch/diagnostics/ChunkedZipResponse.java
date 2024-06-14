@@ -43,10 +43,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
@@ -213,8 +211,7 @@ final class ChunkedZipResponse {
     private final AtomicInteger queueLength = new AtomicInteger();
 
     /**
-     * Ref-counting for access to the queue, to avoid clearing the queue on abort concurrently with an entry being sent. The thread
-     * processing the queue holds one such ref, and every time we're adding or removing entries we also do so while holding a ref.
+     * Ref-counting for access to the queue, to avoid clearing the queue on abort concurrently with an entry being sent.
      */
     private final RefCounted queueRefs = AbstractRefCounted.of(this::clearQueue);
 
@@ -261,17 +258,6 @@ final class ChunkedZipResponse {
         }
     }
 
-    private void transferReleasable(Collection<Releasable> releasables) {
-        if (releasable != null && isRestResponseFinished.get() == false && queueRefs.tryIncRef()) {
-            try {
-                releasables.add(releasable);
-                releasable = null;
-            } finally {
-                queueRefs.decRef();
-            }
-        }
-    }
-
     private void restResponseFinished() {
         assert Transports.assertTransportThread();
         if (isRestResponseFinished.compareAndSet(false, true)) {
@@ -309,6 +295,7 @@ final class ChunkedZipResponse {
         private boolean isPartComplete;
         private boolean isLastPart;
         private Consumer<ActionListener<ChunkedRestResponseBodyPart>> getNextPart;
+        private ArrayList<Releasable> nextReleasables;
 
         QueueConsumer(ZipEntry zipEntry, ChunkedRestResponseBodyPart bodyPart) {
             this.zipEntry = zipEntry;
@@ -331,99 +318,110 @@ final class ChunkedZipResponse {
             getNextPart.accept(listener);
         }
 
+        private void transferReleasable(ArrayList<Releasable> releasables) {
+            assert queueRefs.hasReferences();
+
+            if (releasable == null) {
+                return;
+            }
+
+            if (releasables == nextReleasables) {
+                nextReleasables = new ArrayList<>();
+            }
+
+            releasables.add(releasable);
+            releasable = null;
+        }
+
         @Override
         public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
-            final List<Releasable> releasables = new ArrayList<>();
+            final ArrayList<Releasable> releasables = nextReleasables;
+            assert releasables.isEmpty();
             try {
-                assert queueRefs.hasReferences();
-                if (isRestResponseFinished.get()) {
-                    isPartComplete = true;
-                    isLastPart = true;
-                    if (releasable != null) {
-                        releasables.add(releasable);
-                        releasable = null;
-                    }
-                    queueRefs.decRef(); // no longer processing the queue
-                    return new ReleasableBytesReference(BytesArray.EMPTY, Releasables.wrap(releasables));
-                }
-
-                final RecyclerBytesStreamOutput chunkStream = new RecyclerBytesStreamOutput(recycler);
-                assert target == null;
-                target = chunkStream;
-
-                do {
+                if (tryAcquireQueueRef()) {
                     try {
-                        if (bodyPart == null) {
-                            // no more entries
-                            assert zipEntry == null;
-                            zipOutputStream.finish();
-                            isPartComplete = true;
-                            isLastPart = true;
-                            transferReleasable(releasables);
-                        } else if (zipEntry != null) {
-                            // new entry, so write the entry header
-                            zipOutputStream.putNextEntry(zipEntry);
-                            zipEntry = null;
-                        } else {
-                            // writing entry body
-                            if (bodyPart.isPartComplete() == false) {
-                                try (var innerChunk = bodyPart.encodeChunk(sizeHint, recycler)) {
-                                    final var iterator = innerChunk.iterator();
-                                    BytesRef bytesRef;
-                                    while ((bytesRef = iterator.next()) != null) {
-                                        zipOutputStream.write(bytesRef.bytes, bytesRef.offset, bytesRef.length);
-                                    }
-                                }
-                            }
-                            if (bodyPart.isPartComplete()) {
-                                if (bodyPart.isLastPart()) {
-                                    zipOutputStream.closeEntry();
-                                    // TODO must do all this with a queue ref too...
+                        final RecyclerBytesStreamOutput chunkStream = new RecyclerBytesStreamOutput(recycler);
+                        assert target == null;
+                        target = chunkStream;
+
+                        do {
+                            try {
+                                if (bodyPart == null) {
+                                    // no more entries
+                                    assert zipEntry == null;
+                                    zipOutputStream.finish();
+                                    isPartComplete = true;
+                                    isLastPart = true;
                                     transferReleasable(releasables);
-                                    final var newQueueLength = queueLength.decrementAndGet();
-                                    logger.info("--> decremented queue length to [{}] during output", newQueueLength);
-                                    if (newQueueLength == 0) {
-                                        // next entry isn't available yet, so we stop iterating
-                                        isPartComplete = true;
-                                        assert getNextPart == null;
-                                        getNextPart = continuationListener::addListener;
-                                    } else {
-                                        // next entry is immediately available so start sending its chunks too
-                                        if (isRestResponseFinished.get() == false && queueRefs.tryIncRef()) {
-                                            try {
+                                } else if (zipEntry != null) {
+                                    // new entry, so write the entry header
+                                    zipOutputStream.putNextEntry(zipEntry);
+                                    zipEntry = null;
+                                } else {
+                                    // writing entry body
+                                    if (bodyPart.isPartComplete() == false) {
+                                        try (var innerChunk = bodyPart.encodeChunk(sizeHint, recycler)) {
+                                            final var iterator = innerChunk.iterator();
+                                            BytesRef bytesRef;
+                                            while ((bytesRef = iterator.next()) != null) {
+                                                zipOutputStream.write(bytesRef.bytes, bytesRef.offset, bytesRef.length);
+                                            }
+                                        }
+                                    }
+                                    if (bodyPart.isPartComplete()) {
+                                        if (bodyPart.isLastPart()) {
+                                            zipOutputStream.closeEntry();
+                                            transferReleasable(releasables);
+                                            final var newQueueLength = queueLength.decrementAndGet();
+                                            logger.info("--> decremented queue length to [{}] during output", newQueueLength);
+                                            if (newQueueLength == 0) {
+                                                // next entry isn't available yet, so we stop iterating
+                                                isPartComplete = true;
+                                                assert getNextPart == null;
+                                                getNextPart = continuationListener::addListener;
+                                            } else {
+                                                // next entry is immediately available so start sending its chunks too
                                                 final var nextEntry = entryQueue.poll();
                                                 assert nextEntry != null;
                                                 zipEntry = nextEntry.zipEntry();
                                                 bodyPart = nextEntry.firstBodyPart();
                                                 releasable = nextEntry.releasable();
-                                            } finally {
-                                                queueRefs.decRef();
                                             }
+                                        } else {
+                                            // this body part has a continuation, for which we must wait
+                                            isPartComplete = true;
+                                            assert getNextPart == null;
+                                            getNextPart = l -> bodyPart.getNextPart(l.map(p -> new QueueConsumer(null, p)));
                                         }
                                     }
-                                } else {
-                                    // this body part has a continuation, for which we must wait
-                                    isPartComplete = true;
-                                    assert getNextPart == null;
-                                    getNextPart = l -> bodyPart.getNextPart(l.map(p -> new QueueConsumer(null, p)));
                                 }
+                            } finally {
+                                zipOutputStream.flush();
                             }
-                        }
+                        } while (isPartComplete == false && chunkStream.size() < sizeHint);
+
+                        assert (releasables == nextReleasables) == releasables.isEmpty();
+                        assert nextReleasables.isEmpty();
+
+                        final Releasable chunkStreamReleasable = () -> Releasables.closeExpectNoException(chunkStream);
+                        final var result = new ReleasableBytesReference(
+                            chunkStream.bytes(),
+                            releasables.isEmpty()
+                                ? chunkStreamReleasable
+                                : Releasables.wrap(Iterators.concat(Iterators.single(chunkStreamReleasable), releasables.iterator()))
+                        );
+
+                        target = null;
+                        return result;
                     } finally {
-                        zipOutputStream.flush();
+                        queueRefs.decRef();
                     }
-                } while (isPartComplete == false && chunkStream.size() < sizeHint);
-
-                final Releasable chunkStreamReleasable = () -> Releasables.closeExpectNoException(chunkStream);
-                final var result = new ReleasableBytesReference(
-                    chunkStream.bytes(),
-                    releasables.isEmpty()
-                        ? chunkStreamReleasable
-                        : Releasables.wrap(Iterators.concat(Iterators.single(chunkStreamReleasable), releasables.iterator()))
-                );
-
-                target = null;
-                return result;
+                } else {
+                    // request aborted, nothing more to send (queue is being cleared by queueRefs#closeInternal)
+                    isPartComplete = true;
+                    isLastPart = true;
+                    return new ReleasableBytesReference(BytesArray.EMPTY, () -> {});
+                }
             } catch (Exception e) {
                 logger.error("failure encoding chunk", e);
                 throw e;
