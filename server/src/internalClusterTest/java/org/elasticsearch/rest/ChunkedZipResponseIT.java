@@ -139,7 +139,6 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
         private final RefCountingRunnable refs;
 
         TestBytesReferenceBodyPart(String name, ThreadPool threadPool, BytesReference content, RefCountingRunnable refs) {
-            logger.info("--> creating part of [{}] with remaining size [{}]", name, content.length());
             this.name = name;
             this.threadPool = threadPool;
             this.content = content;
@@ -162,7 +161,6 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
 
         @Override
         public void getNextPart(ActionListener<ChunkedRestResponseBodyPart> listener) {
-            logger.info("--> awaiting next entry part");
             threadPool.generic()
                 .execute(
                     ActionRunnable.supply(
@@ -185,15 +183,7 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
                         isLastPart = true;
                     }
                 }
-                logger.info(
-                    "--> returning chunk of [{}] of size [{}] on thread [{}]; remaining={}, isPartComplete={}, isLastPart={}",
-                    name,
-                    chunkSize,
-                    Thread.currentThread().getName(),
-                    content.length() - position,
-                    isPartComplete,
-                    isLastPart
-                );
+                ;
             }
         }
 
@@ -229,7 +219,6 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
                         bytesStream.write(copyBuffer, 0, readLength);
                     }
                     actualEntries.put(name, bytesStream.bytes());
-                    logger.info("--> read entry [{}] with size [{}]", name, bytesStream.size());
                 }
             }
         }
