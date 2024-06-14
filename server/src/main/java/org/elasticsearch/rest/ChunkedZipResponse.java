@@ -50,6 +50,8 @@ import java.util.zip.ZipOutputStream;
  * The internal queue is unbounded. It is the caller's responsibility to ensure that the response does not consume an excess of resources
  * while it's being sent.
  * <p>
+ * The caller must eventually call {@link ChunkedZipResponse#close} to finish the transmission of the response.
+ * <p>
  * Note that individual entries can also pause themselves mid-transmission, since listeners returned by {@link #newEntryListener} accept a
  * pauseable {@link ChunkedRestResponseBodyPart}. Zip files do not have any mechanism which supports the multiplexing of outputs, so if the
  * entry at the head of the queue is paused then that will hold up the transmission of all subsequent entries too.
@@ -95,35 +97,41 @@ public final class ChunkedZipResponse implements Releasable {
         this.filename = filename;
         this.restChannel = restChannel;
         this.listenersRefs = AbstractRefCounted.of(() -> enqueueEntry(null, null, ActionListener.releasing(onCompletion)));
+        this.rootListenerRef = Releasables.releaseOnce(listenersRefs::decRef);
     }
 
-    private final AtomicBoolean isClosed = new AtomicBoolean();
     private final RefCounted listenersRefs;
+    private final Releasable rootListenerRef;
 
+    /**
+     * Close this {@link ChunkedZipResponse}. Once closed, when there are no more pending listeners the zip file footer is sent.
+     */
     @Override
     public void close() {
-        if (isClosed.compareAndSet(false, true)) {
-            listenersRefs.decRef();
-        }
+        rootListenerRef.close();
     }
 
     /**
      * Create a listener which, when completed, will write the result {@link ChunkedRestResponseBodyPart} as an entry in the response stream
      * with the given name. If the listener is completed successfully with {@code null}, or exceptionally, then no entry is sent. When all
      * listeners created by this method have been completed, the zip file footer is sent.
+     * <p>
+     * This method may be called as long as this {@link ChunkedZipResponse} is not closed, or there is at least one other incomplete entry
+     * listener.
      *
      * @param entryName The name of the entry in the response zip file.
      * @param listener  A listener which is completed when the entry has been completely processed: either fully sent, or else the request
-     *                  was cancelled and the response will not be used any further.
+     *                  was cancelled and the response will not be used any further. If the returned entry listener is completed
+     *                  exceptionally then the exception is passed to {@code listener}, otherwise this listener is completed successfully.
      */
     public ActionListener<ChunkedRestResponseBodyPart> newEntryListener(String entryName, ActionListener<Void> listener) {
         if (listenersRefs.tryIncRef()) {
             final var zipEntry = new ZipEntry(filename + "/" + entryName);
             return ActionListener.assertOnce(ActionListener.releaseAfter(listener.delegateFailureAndWrap((l, firstBodyPart) -> {
                 if (firstBodyPart == null) {
-                    listener.onResponse(null);
+                    l.onResponse(null);
                 } else {
-                    enqueueEntry(zipEntry, firstBodyPart, listener);
+                    enqueueEntry(zipEntry, firstBodyPart, l);
                 }
             }), listenersRefs::decRef));
         } else {
