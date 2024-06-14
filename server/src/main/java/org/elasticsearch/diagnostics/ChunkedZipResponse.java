@@ -287,7 +287,7 @@ final class ChunkedZipResponse {
         private boolean isPartComplete;
         private boolean isLastPart;
         private Consumer<ActionListener<ChunkedRestResponseBodyPart>> getNextPart;
-        private ArrayList<Releasable> nextReleasables = new ArrayList<>();
+        private ArrayList<Releasable> nextReleasables = new ArrayList<>(); // preserved between chunks because will often be unused
 
         QueueConsumer(ZipEntry zipEntry, ChunkedRestResponseBodyPart bodyPart) {
             this.zipEntry = zipEntry;
