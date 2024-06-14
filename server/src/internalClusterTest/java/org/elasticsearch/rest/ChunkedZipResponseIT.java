@@ -300,23 +300,6 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
         assertEquals(expectedEntries, actualEntries);
     }
 
-    private static Map<String, BytesReference> getExpectedEntries() {
-        final var nodeResponses = StreamSupport.stream(internalCluster().getInstances(PluginsService.class).spliterator(), false)
-            .flatMap(p -> p.filterPlugins(RandomZipResponsePlugin.class))
-            .flatMap(p -> {
-                final var maybeResponse = p.responseRef.getAndSet(null);
-                if (maybeResponse == null) {
-                    return Stream.of();
-                } else {
-                    safeAwait(maybeResponse.completedLatch());
-                    return Stream.of(maybeResponse.entries());
-                }
-            })
-            .toList();
-        assertThat(nodeResponses, hasSize(1));
-        return nodeResponses.get(0);
-    }
-
     public void testAbort() throws IOException {
         final var request = new Request("GET", RandomZipResponsePlugin.INFINITE_ROUTE);
         final var responseStarted = new CountDownLatch(1);
@@ -388,6 +371,23 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
         }
         safeAwait(responseStarted);
         safeAwait(bodyConsumed);
-        assertNull(getExpectedEntries());
+        assertNull(getExpectedEntries()); // mainly just checking that all refs are released
+    }
+
+    private static Map<String, BytesReference> getExpectedEntries() {
+        final var nodeResponses = StreamSupport.stream(internalCluster().getInstances(PluginsService.class).spliterator(), false)
+            .flatMap(p -> p.filterPlugins(RandomZipResponsePlugin.class))
+            .flatMap(p -> {
+                final var maybeResponse = p.responseRef.getAndSet(null);
+                if (maybeResponse == null) {
+                    return Stream.of();
+                } else {
+                    safeAwait(maybeResponse.completedLatch()); // ensures that all refs have been released
+                    return Stream.of(maybeResponse.entries());
+                }
+            })
+            .toList();
+        assertThat(nodeResponses, hasSize(1));
+        return nodeResponses.get(0);
     }
 }
