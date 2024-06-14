@@ -20,8 +20,11 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.repositories.blobstore.integrity.RestVerifyRepositoryIntegrityAction;
+import org.elasticsearch.repositories.blobstore.integrity.VerifyRepositoryIntegrityAction;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.io.IOException;
@@ -33,7 +36,10 @@ public class SnapshotRepositoryTestKit extends Plugin implements ActionPlugin {
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        return List.of(new ActionHandler<>(RepositoryAnalyzeAction.INSTANCE, RepositoryAnalyzeAction.class));
+        return List.of(
+            new ActionHandler<>(RepositoryAnalyzeAction.INSTANCE, RepositoryAnalyzeAction.class),
+            new ActionHandler<>(VerifyRepositoryIntegrityAction.INSTANCE, VerifyRepositoryIntegrityAction.TransportAction.class)
+        );
     }
 
     @Override
@@ -48,7 +54,7 @@ public class SnapshotRepositoryTestKit extends Plugin implements ActionPlugin {
         Supplier<DiscoveryNodes> nodesInCluster,
         Predicate<NodeFeature> clusterSupportsFeature
     ) {
-        return List.of(new RestRepositoryAnalyzeAction());
+        return List.of(new RestRepositoryAnalyzeAction(), new RestVerifyRepositoryIntegrityAction());
     }
 
     static void humanReadableNanos(XContentBuilder builder, String rawFieldName, String readableFieldName, long nanos) throws IOException {
@@ -59,5 +65,16 @@ public class SnapshotRepositoryTestKit extends Plugin implements ActionPlugin {
         }
 
         builder.field(rawFieldName, nanos);
+    }
+
+    @Override
+    public List<NamedWriteableRegistry.Entry> getNamedWriteables() {
+        return List.of(
+            new NamedWriteableRegistry.Entry(
+                Task.Status.class,
+                VerifyRepositoryIntegrityAction.Status.NAME,
+                VerifyRepositoryIntegrityAction.Status::new
+            )
+        );
     }
 }
