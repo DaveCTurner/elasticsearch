@@ -25,8 +25,6 @@ import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
-import org.elasticsearch.logging.LogManager;
-import org.elasticsearch.logging.Logger;
 import org.elasticsearch.transport.Transports;
 
 import java.io.IOException;
@@ -37,7 +35,6 @@ import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -106,13 +103,9 @@ public final class ChunkedZipResponse implements Releasable {
     @Override
     public void close() {
         if (isClosed.compareAndSet(false, true)) {
-            logger.info("--> closing response");
             listenersRefs.decRef();
         }
     }
-
-    private static final Logger logger = LogManager.getLogger(ChunkedZipResponse.class);
-    private static final AtomicLong idGenerator = new AtomicLong();
 
     /**
      * Create a listener which, when completed, will write the result {@link ChunkedRestResponseBodyPart} as an entry in the response stream
@@ -124,9 +117,7 @@ public final class ChunkedZipResponse implements Releasable {
      *                  was cancelled and the response will not be used any further.
      */
     public ActionListener<ChunkedRestResponseBodyPart> newEntryListener(String entryName, ActionListener<Void> listener) {
-        final var refId = idGenerator.incrementAndGet();
         if (listenersRefs.tryIncRef()) {
-            logger.info("--> acquired listener ref [{}] for entry [{}]", refId, entryName);
             final var zipEntry = new ZipEntry(filename + "/" + entryName);
             return ActionListener.assertOnce(ActionListener.releaseAfter(listener.delegateFailureAndWrap((l, firstBodyPart) -> {
                 if (firstBodyPart == null) {
@@ -134,12 +125,8 @@ public final class ChunkedZipResponse implements Releasable {
                 } else {
                     enqueueEntry(zipEntry, firstBodyPart, listener);
                 }
-            }), () -> {
-                logger.info("--> releasing listener ref [{}] for entry [{}]", refId, entryName);
-                listenersRefs.decRef();
-            }));
+            }), listenersRefs::decRef));
         } else {
-            logger.info("--> failed to acquire listener ref [{}] for entry [{}]", refId, entryName);
             assert false : "already closed";
             throw new AlreadyClosedException("response already closed");
         }
@@ -257,8 +244,7 @@ public final class ChunkedZipResponse implements Releasable {
         @Override
         public void getNextPart(ActionListener<ChunkedRestResponseBodyPart> listener) {
             assert getNextPart != null;
-            logger.info("--> awaiting next part");
-            getNextPart.accept(ActionListener.runBefore(listener, () -> logger.info("--> got next part")));
+            getNextPart.accept(listener);
         }
 
         private void transferReleasable(ArrayList<Releasable> releasables) {
@@ -322,7 +308,6 @@ public final class ChunkedZipResponse implements Releasable {
                                                 // next entry isn't available yet, so we stop iterating
                                                 isPartComplete = true;
                                                 assert getNextPart == null;
-                                                logger.info("--> getNextPart is waiting for continuation");
                                                 getNextPart = continuationListener::addListener;
                                             } else {
                                                 // next entry is immediately available so start sending its chunks too
@@ -336,7 +321,6 @@ public final class ChunkedZipResponse implements Releasable {
                                             // this body part has a continuation, for which we must wait
                                             isPartComplete = true;
                                             assert getNextPart == null;
-                                            logger.info("--> getNextPart is waiting for next part of current entry");
                                             getNextPart = l -> bodyPart.getNextPart(l.map(p -> new QueueConsumer(null, p)));
                                         }
                                     }
@@ -358,7 +342,6 @@ public final class ChunkedZipResponse implements Releasable {
                         );
 
                         target = null;
-                        logger.info("--> returning result chunk of length [{}]", result.length());
                         return result;
                     } finally {
                         queueRefs.decRef();

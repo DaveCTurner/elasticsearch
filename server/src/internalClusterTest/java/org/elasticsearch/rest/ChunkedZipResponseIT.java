@@ -32,8 +32,6 @@ import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThrottledIterator;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.features.NodeFeature;
-import org.elasticsearch.logging.LogManager;
-import org.elasticsearch.logging.Logger;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.PluginsService;
@@ -41,7 +39,6 @@ import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -70,8 +67,6 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
         return CollectionUtils.appendToCopyNoNullElements(super.nodePlugins(), RandomZipResponsePlugin.class);
     }
 
-    private static final Logger logger = LogManager.getLogger(ChunkedZipResponseIT.class);
-
     public static class RandomZipResponsePlugin extends Plugin implements ActionPlugin {
 
         public static final String ROUTE = "/_random_zip_response";
@@ -96,8 +91,6 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
             return List.of(new RestHandler() {
                 @Override
                 public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) {
-                    logger.info("--> handling request on [{}]", channel.request().getHttpChannel());
-
                     final var response = new Response(new HashMap<>(), new CountDownLatch(1));
                     for (int i = between(0, 40); i > 0; i--) {
                         response.entries()
@@ -110,30 +103,23 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
 
                     try (var refs = new RefCountingRunnable(response.completedLatch()::countDown);) {
                         final var chunkedZipResponse = new ChunkedZipResponse(RESPONSE_FILENAME, channel, refs.acquire());
-                        ThrottledIterator.run(response.entries().entrySet().iterator(), (ref, entry) -> {
-                            logger.info(
-                                "--> starting processing [{}] with size [{}]",
-                                entry.getKey(),
-                                entry.getValue() == null ? -1 : entry.getValue().length()
-                            );
-                            randomFrom(EsExecutors.DIRECT_EXECUTOR_SERVICE, client.threadPool().generic()).execute(
+                        ThrottledIterator.run(
+                            response.entries().entrySet().iterator(),
+                            (ref, entry) -> randomFrom(EsExecutors.DIRECT_EXECUTOR_SERVICE, client.threadPool().generic()).execute(
                                 ActionRunnable.supply(
                                     chunkedZipResponse.newEntryListener(
                                         entry.getKey(),
-                                        ActionListener.releasing(
-                                            Releasables.wrap(
-                                                ref,
-                                                () -> logger.info("--> finished processing [{}]", entry.getKey()),
-                                                refs.acquire()
-                                            )
-                                        )
+                                        ActionListener.releasing(Releasables.wrap(ref, refs.acquire()))
                                     ),
                                     () -> entry.getValue() == null
                                         ? null
                                         : new TestBytesReferenceBodyPart(entry.getKey(), client.threadPool(), entry.getValue(), refs)
                                 )
-                            );
-                        }, between(1, 10), () -> {}, Releasables.wrap(refs.acquire(), chunkedZipResponse)::close);
+                            ),
+                            between(1, 10),
+                            () -> {},
+                            Releasables.wrap(refs.acquire(), chunkedZipResponse)::close
+                        );
                     }
                 }
 
@@ -229,7 +215,6 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
         final var actualEntries = new HashMap<String, BytesReference>();
         final var copyBuffer = new byte[PageCacheRecycler.BYTE_PAGE_SIZE];
 
-        logger.info("--> response headers: {}", Arrays.toString(response.getHeaders()));
         try (var zipStream = new ZipInputStream(response.getEntity().getContent())) {
             ZipEntry zipEntry;
             while ((zipEntry = zipStream.getNextEntry()) != null) {
