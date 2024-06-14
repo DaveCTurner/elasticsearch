@@ -222,7 +222,7 @@ final class ChunkedZipResponse {
     private final AtomicBoolean isRestResponseFinished = new AtomicBoolean();
 
     private boolean tryAcquireQueueRef() {
-        return isRestResponseFinished.get() && queueRefs.tryIncRef();
+        return isRestResponseFinished.get() == false && queueRefs.tryIncRef();
     }
 
     private void enqueueEntry(ZipEntry zipEntry, ChunkedRestResponseBodyPart firstBodyPart, ActionListener<Void> listener) {
@@ -295,7 +295,7 @@ final class ChunkedZipResponse {
         private boolean isPartComplete;
         private boolean isLastPart;
         private Consumer<ActionListener<ChunkedRestResponseBodyPart>> getNextPart;
-        private ArrayList<Releasable> nextReleasables;
+        private ArrayList<Releasable> nextReleasables = new ArrayList<>();
 
         QueueConsumer(ZipEntry zipEntry, ChunkedRestResponseBodyPart bodyPart) {
             this.zipEntry = zipEntry;
