@@ -43,6 +43,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
@@ -93,12 +94,10 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
                 @Override
                 public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) {
                     final var response = new Response(new HashMap<>(), new CountDownLatch(1));
-                    for (int i = between(0, 40); i > 0; i--) {
-                        response.entries()
-                            .put(
-                                randomIdentifier(),
-                                randomBoolean() ? null : randomBytesReference(between(0, ByteSizeUnit.MB.toIntBytes(1)))
-                            );
+                    final var maxSize = between(1, ByteSizeUnit.MB.toIntBytes(1));
+                    final var entryCount = between(0, ByteSizeUnit.MB.toIntBytes(10) / maxSize); // limit total size to 10MiB
+                    for (int i = 0; i < entryCount; i++) {
+                        response.entries().put(randomIdentifier(), randomBoolean() ? null : randomBytesReference(between(0, maxSize)));
                     }
                     assertTrue(responseRef.compareAndSet(null, response));
 
@@ -112,7 +111,7 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
                                         entry.getKey(),
                                         ActionListener.releasing(Releasables.wrap(ref, refs.acquire()))
                                     ),
-                                    () -> entry.getValue() == null
+                                    () -> entry.getValue() == null && randomBoolean()
                                         ? null
                                         : new TestBytesReferenceBodyPart(entry.getKey(), client.threadPool(), entry.getValue(), refs)
                                 )
@@ -142,7 +141,7 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
         TestBytesReferenceBodyPart(String name, ThreadPool threadPool, BytesReference content, RefCountingRunnable refs) {
             this.name = name;
             this.threadPool = threadPool;
-            this.content = content;
+            this.content = Objects.requireNonNull(content);
             this.refs = refs;
         }
 
