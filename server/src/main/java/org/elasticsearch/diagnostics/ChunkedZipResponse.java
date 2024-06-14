@@ -82,10 +82,6 @@ final class ChunkedZipResponse {
 
     private final String filename;
     private final RestChannel restChannel;
-    private final Queue<ChunkedZipEntry> entryQueue = new LinkedBlockingQueue<>();
-    private final AtomicInteger queueLength = new AtomicInteger();
-    private final RefCounted queueRefs = AbstractRefCounted.of(this::clearQueue);
-    private final AtomicBoolean isRestResponseFinished = new AtomicBoolean();
 
     @Nullable // if the first part hasn't been sent yet
     private SubscribableListener<ChunkedRestResponseBodyPart> continuationListener;
@@ -96,28 +92,6 @@ final class ChunkedZipResponse {
     ChunkedZipResponse(String filename, RestChannel restChannel) {
         this.filename = filename;
         this.restChannel = restChannel;
-    }
-
-    public void restResponseFinished() {
-        assert Transports.assertTransportThread();
-        if (isRestResponseFinished.compareAndSet(false, true)) {
-            queueRefs.decRef();
-        }
-    }
-
-    private void clearQueue() {
-        assert isRestResponseFinished.get();
-        assert queueRefs.hasReferences() == false;
-        while (queueLength.get() > 0) {
-            final var newQueueLength = queueLength.decrementAndGet();
-            logger.info("--> decremented queue length to [{}] during clear", newQueueLength);
-            assert newQueueLength >= 0;
-            final var entry = entryQueue.poll();
-            assert entry != null : newQueueLength;
-            Releasables.closeExpectNoException(entry.releasable());
-        }
-        assert entryQueue.isEmpty();
-        Releasables.closeExpectNoException(releasable);
     }
 
     public <T extends ToXContent> ActionListener<T> newXContentListener(String entryName, ActionListener<Void> listener) {
@@ -226,6 +200,28 @@ final class ChunkedZipResponse {
         enqueueEntry(null, null, listener);
     }
 
+    /**
+     * Queue of entries that are ready for transmission.
+     */
+    private final Queue<ChunkedZipEntry> entryQueue = new LinkedBlockingQueue<>();
+
+    /**
+     * Upper bound on the number of entries in the queue, atomically modified to ensure there's only one thread processing queue entries
+     * at once.
+     */
+    private final AtomicInteger queueLength = new AtomicInteger();
+
+    /**
+     * Ref-counting for access to the queue, to avoid clearing the queue on abort concurrently with an entry being sent.
+     */
+    private final RefCounted queueRefs = AbstractRefCounted.of(this::clearQueue);
+
+    /**
+     * Flag to indicate if the request has been aborted, at which point we should stop enqueueing more entries and promptly clean up the
+     * ones being sent.
+     */
+    private final AtomicBoolean isRestResponseFinished = new AtomicBoolean();
+
     private void enqueueEntry(ZipEntry zipEntry, ChunkedRestResponseBodyPart firstBodyPart, ActionListener<Void> listener) {
         final var entryName = Optional.ofNullable(zipEntry).map(ZipEntry::getName).orElse("<finished>");
         if (isRestResponseFinished.get() == false && queueRefs.tryIncRef()) {
@@ -268,6 +264,28 @@ final class ChunkedZipResponse {
                 queueRefs.decRef();
             }
         }
+    }
+
+    private void restResponseFinished() {
+        assert Transports.assertTransportThread();
+        if (isRestResponseFinished.compareAndSet(false, true)) {
+            queueRefs.decRef();
+        }
+    }
+
+    private void clearQueue() {
+        assert isRestResponseFinished.get();
+        assert queueRefs.hasReferences() == false;
+        while (queueLength.get() > 0) {
+            final var newQueueLength = queueLength.decrementAndGet();
+            logger.info("--> decremented queue length to [{}] during clear", newQueueLength);
+            assert newQueueLength >= 0;
+            final var entry = entryQueue.poll();
+            assert entry != null : newQueueLength;
+            Releasables.closeExpectNoException(entry.releasable());
+        }
+        assert entryQueue.isEmpty();
+        Releasables.closeExpectNoException(releasable);
     }
 
     private final class QueueConsumer implements ChunkedRestResponseBodyPart {
