@@ -62,6 +62,7 @@ import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import static org.elasticsearch.rest.ChunkedZipResponse.ZIP_CONTENT_TYPE;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
 
@@ -250,7 +251,6 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
                         isLastPart = true;
                     }
                 }
-                ;
             }
         }
 
@@ -261,8 +261,16 @@ public class ChunkedZipResponseIT extends ESIntegTestCase {
     }
 
     public void testRandomZipResponse() throws IOException {
-        final var response = getRestClient().performRequest(new Request("GET", RandomZipResponsePlugin.ROUTE));
-        assertEquals("application/zip", response.getHeader("Content-Type"));
+        final var request = new Request("GET", RandomZipResponsePlugin.ROUTE);
+        if (randomBoolean()) {
+            request.setOptions(
+                RequestOptions.DEFAULT.toBuilder()
+                    .addHeader("accept-encoding", String.join(", ", randomSubsetOf(List.of("deflate", "gzip", "zstd", "br"))))
+            );
+        }
+        final var response = getRestClient().performRequest(request);
+        assertEquals(ZIP_CONTENT_TYPE, response.getHeader("Content-Type"));
+        assertNull(response.getHeader("content-encoding")); // zip file is already compressed
         assertEquals(
             "attachment; filename=\"" + RandomZipResponsePlugin.RESPONSE_FILENAME + ".zip\"",
             response.getHeader("Content-Disposition")

@@ -58,6 +58,8 @@ import java.util.zip.ZipOutputStream;
  */
 public final class ChunkedZipResponse implements Releasable {
 
+    public static final String ZIP_CONTENT_TYPE = "application/zip";
+
     private record ChunkedZipEntry(ZipEntry zipEntry, ChunkedRestResponseBodyPart firstBodyPart, Releasable releasable) {}
 
     private BytesStream target;
@@ -374,7 +376,7 @@ public final class ChunkedZipResponse implements Releasable {
 
         @Override
         public String getResponseContentTypeString() {
-            return "application/zip";
+            return ZIP_CONTENT_TYPE;
         }
     }
 }
