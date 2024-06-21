@@ -9,6 +9,8 @@
 package org.elasticsearch.http.netty4;
 
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ESNetty4IntegTestCase;
@@ -31,6 +33,7 @@ import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.ReferenceDocs;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.collect.Iterators;
@@ -91,6 +94,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -103,6 +108,8 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 
 public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
+
+    private static final Logger logger = LogManager.getLogger(Netty4ChunkedContinuationsIT.class);
 
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
@@ -317,8 +324,10 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
         assertNull(refs);
         final var latch = new CountDownLatch(1);
         refs = AbstractRefCounted.of(latch::countDown);
+        logger.info("--> created refs [{}]", System.identityHashCode(refs));
         return () -> {
             refs.decRef();
+            logger.info("--> closed refs [{}]", System.identityHashCode(refs));
             try {
                 safeAwait(latch);
             } finally {
@@ -326,6 +335,15 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
             }
         };
     }
+
+    private static final LongSupplier idSupplier = new LongSupplier() {
+        private final AtomicLong id = new AtomicLong();
+
+        @Override
+        public long getAsLong() {
+            return id.incrementAndGet();
+        }
+    };
 
     private static volatile RefCounted refs = null;
 
@@ -568,8 +586,16 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
                     @Override
                     public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) {
                         assertTrue(lines.hasNext());
+                        final var refId = Strings.format("single-chunk ref [%d]", idSupplier.getAsLong());
+                        logger.info("--> acquiring {} from [{}]", refId, System.identityHashCode(refs));
                         refs.mustIncRef();
-                        return new ReleasableBytesReference(new BytesArray(lines.next()), refs::decRef);
+                        return new ReleasableBytesReference(
+                            new BytesArray(lines.next()),
+                            Releasables.wrap(
+                                refs::decRef,
+                                () -> logger.info("--> released {} from [{}]", refId, System.identityHashCode(refs))
+                            )
+                        );
                     }
 
                     @Override
@@ -626,7 +652,13 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
                 @Override
                 protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
                     final var localRefs = refs; // single volatile read
+                    final var refId = Strings.format(
+                        "whole-response ref [%d] from [%d]",
+                        idSupplier.getAsLong(),
+                        System.identityHashCode(localRefs)
+                    );
                     if (localRefs != null && localRefs.tryIncRef()) {
+                        logger.info("--> acquired {}", refId);
                         return new RestChannelConsumer() {
                             @Override
                             public void close() {
@@ -645,12 +677,14 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
                                             assertFalse(response.computingContinuation);
                                             assertSame(localRefs, refs);
                                             localRefs.decRef();
+                                            logger.info("--> released {}", refId);
                                         }));
                                     }
                                 });
                             }
                         };
                     } else {
+                        logger.info("--> failed to acquire {}", refId);
                         throw new TaskCancelledException("request cancelled");
                     }
                 }
