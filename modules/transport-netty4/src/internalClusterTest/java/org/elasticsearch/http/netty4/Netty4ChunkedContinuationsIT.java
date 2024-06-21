@@ -652,21 +652,27 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
                 @Override
                 protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
                     final var localRefs = refs; // single volatile read
-                    final var refId = Strings.format(
+                    final var wholeResponseRefId = Strings.format(
                         "whole-response ref [%d] from [%d]",
                         idSupplier.getAsLong(),
                         System.identityHashCode(localRefs)
                     );
                     if (localRefs != null && localRefs.tryIncRef()) {
-                        logger.info("--> acquired {}", refId);
+                        logger.info("--> acquired {}", wholeResponseRefId);
                         return new RestChannelConsumer() {
                             @Override
                             public void close() {
                                 localRefs.decRef();
+                                logger.info("--> released {}", wholeResponseRefId);
                             }
 
                             @Override
                             public void accept(RestChannel channel) {
+                                final var clientActionRefId = Strings.format(
+                                    "client-action ref [%d] from [%d]",
+                                    idSupplier.getAsLong(),
+                                    System.identityHashCode(localRefs)
+                                );
                                 localRefs.mustIncRef();
                                 client.execute(TYPE, new Request(), new RestActionListener<>(channel) {
                                     @Override
@@ -677,14 +683,14 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
                                             assertFalse(response.computingContinuation);
                                             assertSame(localRefs, refs);
                                             localRefs.decRef();
-                                            logger.info("--> released {}", refId);
+                                            logger.info("--> released {}", clientActionRefId);
                                         }));
                                     }
                                 });
                             }
                         };
                     } else {
-                        logger.info("--> failed to acquire {}", refId);
+                        logger.info("--> failed to acquire {}", wholeResponseRefId);
                         throw new TaskCancelledException("request cancelled");
                     }
                 }
