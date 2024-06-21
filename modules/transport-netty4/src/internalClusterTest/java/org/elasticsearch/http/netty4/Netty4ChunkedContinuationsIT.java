@@ -323,7 +323,38 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
     private static Releasable withResourceTracker() {
         assertNull(refs);
         final var latch = new CountDownLatch(1);
-        refs = AbstractRefCounted.of(latch::countDown);
+        refs = new RefCounted() {
+            final RefCounted in = AbstractRefCounted.of(latch::countDown);
+
+            {
+                logger.info("--> [{}] create", System.identityHashCode(this), new ElasticsearchException("stack trace"));
+            }
+
+            @Override
+            public void incRef() {
+                in.incRef();
+                logger.info("--> [{}] incRef", System.identityHashCode(this), new ElasticsearchException("stack trace"));
+            }
+
+            @Override
+            public boolean tryIncRef() {
+                final var result = in.tryIncRef();
+                logger.info("--> [{}] tryIncRef [{}]", System.identityHashCode(this), result, new ElasticsearchException("stack trace"));
+                return result;
+            }
+
+            @Override
+            public boolean decRef() {
+                final var result = in.decRef();
+                logger.info("--> [{}] decRef [{}]", System.identityHashCode(this), result, new ElasticsearchException("stack trace"));
+                return result;
+            }
+
+            @Override
+            public boolean hasReferences() {
+                return in.hasReferences();
+            }
+        };
         logger.info("--> created refs [{}]", System.identityHashCode(refs));
         return () -> {
             refs.decRef();
