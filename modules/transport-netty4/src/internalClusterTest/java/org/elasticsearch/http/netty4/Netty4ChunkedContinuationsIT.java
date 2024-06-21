@@ -705,9 +705,11 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
                                     System.identityHashCode(localRefs)
                                 );
                                 localRefs.mustIncRef();
+                                logger.info("--> acquired {}", clientActionRefId);
                                 client.execute(TYPE, new Request(), new RestActionListener<>(channel) {
                                     @Override
                                     protected void processResponse(Response response) {
+                                        logger.info("--> sending response with {}", clientActionRefId);
                                         channel.sendResponse(RestResponse.chunked(RestStatus.OK, response.getResponseBodyPart(), () -> {
                                             // cancellation notification only happens while processing a continuation, not while computing
                                             // the next one; prompt cancellation requires use of something like RestCancellableNodeClient
