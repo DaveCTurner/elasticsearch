@@ -9,6 +9,7 @@
 package org.elasticsearch.http.netty4;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.EmptyByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -17,6 +18,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.DefaultHttpRequest;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpMethod;
@@ -35,6 +37,7 @@ import java.io.BufferedOutputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.GZIPOutputStream;
 
@@ -53,7 +56,7 @@ public class Netty4PauseDecompressionIT extends ESNetty4IntegTestCase {
             final var eventLoopGroup = new NioEventLoopGroup(1);
             resources.add(() -> eventLoopGroup.shutdownGracefully().syncUninterruptibly());
 
-            final var responseReceived = new AtomicBoolean();
+            final var responseReceivedLatch = new CountDownLatch(1);
             final var clientBootstrap = new Bootstrap().channel(NettyAllocator.getChannelType())
                 .option(ChannelOption.ALLOCATOR, NettyAllocator.getAllocator())
                 .group(eventLoopGroup)
@@ -67,7 +70,7 @@ public class Netty4PauseDecompressionIT extends ESNetty4IntegTestCase {
                             @Override
                             protected void channelRead0(ChannelHandlerContext ctx, HttpObject msg) {
                                 logger.info("--> received response [{}]", msg);
-                                responseReceived.set(true);
+                                responseReceivedLatch.countDown();
                             }
                         });
 
@@ -92,10 +95,7 @@ public class Netty4PauseDecompressionIT extends ESNetty4IntegTestCase {
             try (var requestOutputStream = new OutputStream() {
                 @Override
                 public void write(int b) {
-                    final var byteBuf = NettyAllocator.getAllocator().heapBuffer(1);
-                    byteBuf.writeByte(b);
-                    channel.writeAndFlush(new DefaultHttpContent(byteBuf)).syncUninterruptibly();
-                    logger.info("--> sent single-byte buffer");
+                    write(new byte[] { (byte) b }, 0, 1);
                 }
 
                 @Override
@@ -110,11 +110,15 @@ public class Netty4PauseDecompressionIT extends ESNetty4IntegTestCase {
                 var gzipStream = new GZIPOutputStream(bufferedStream, ByteSizeUnit.KB.toIntBytes(16))
             ) {
                 final var rawBytes = new byte[ByteSizeUnit.KB.toIntBytes(16)];
-                while (responseReceived.get() == false) {
-                    gzipStream.write(rawBytes);
+                int remaining = ByteSizeUnit.MB.toIntBytes(100);
+                while (remaining > 0) {
+                    final var toSend = Math.min(rawBytes.length, remaining);
+                    gzipStream.write(rawBytes, 0, toSend);
+                    remaining -= toSend;
                 }
             }
-
+            channel.writeAndFlush(new DefaultLastHttpContent(new EmptyByteBuf(NettyAllocator.getAllocator()))).syncUninterruptibly();
+            safeAwait(responseReceivedLatch);
         } finally {
             Collections.reverse(resources);
             Releasables.close(resources);
