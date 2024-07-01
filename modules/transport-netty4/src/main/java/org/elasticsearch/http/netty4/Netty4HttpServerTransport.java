@@ -22,10 +22,12 @@ import io.netty.channel.socket.nio.NioChannelOption;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.http.DefaultHttpContent;
+import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.HttpContentCompressor;
 import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseEncoder;
@@ -395,6 +397,14 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
                         );
                     } else {
                         logger.info("--> {}, got message [{}]", description, msg);
+                        if (msg instanceof HttpRequest) {
+                            try {
+                                logger.info("--> {}, pausing", description);
+                                Thread.sleep(3000);
+                            } catch (InterruptedException e) {
+                                throw new AssertionError(e);
+                            }
+                        }
                     }
                     out.add(msg);
                 }

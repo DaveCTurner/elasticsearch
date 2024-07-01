@@ -1,12 +1,11 @@
 /*
  * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
  * or more contributor license agreements. Licensed under the Elastic License
- * 2.0 and the Server Side Public License, v 1; you may not use this file except
- * in compliance with, at your election, the Elastic License 2.0 or the Server
- * Side Public License, v 1.
+ * 2.0; you may not use this file except in compliance with the Elastic License
+ * 2.0.
  */
 
-package org.elasticsearch.http.netty4;
+package org.elasticsearch.xpack.security;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.EmptyByteBuf;
@@ -26,29 +25,23 @@ import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpVersion;
 
-import org.elasticsearch.ESNetty4IntegTestCase;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
-import org.elasticsearch.http.HttpServerTransport;
+import org.elasticsearch.test.rest.ESRestTestCase;
 import org.elasticsearch.transport.netty4.NettyAllocator;
 
 import java.io.BufferedOutputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.zip.GZIPOutputStream;
 
-public class Netty4PauseDecompressionIT extends ESNetty4IntegTestCase {
-
-    @Override
-    protected boolean addMockHttpTransport() {
-        return false; // enable http
-    }
-
-    public void testPauseDecompression() throws Exception {
+public class TlsBufferingIT extends ESRestTestCase {
+    public void testBuffering() throws Exception {
 
         final var resources = new ArrayList<Releasable>();
 
@@ -77,10 +70,8 @@ public class Netty4PauseDecompressionIT extends ESNetty4IntegTestCase {
                     }
                 });
 
-            final var remoteAddress = randomFrom(internalCluster().getInstance(HttpServerTransport.class).boundAddress().boundAddresses())
-                .address();
-
-            final var channelFuture = clientBootstrap.connect(remoteAddress);
+            final var remoteHost = randomFrom(getClusterHosts());
+            final var channelFuture = clientBootstrap.connect(new InetSocketAddress(remoteHost.getAddress(), remoteHost.getPort()));
             channelFuture.sync();
             final var channel = channelFuture.channel();
             resources.add(() -> channel.close().syncUninterruptibly());
