@@ -109,7 +109,7 @@ public class Netty4PauseDecompressionIT extends ESNetty4IntegTestCase {
                 var bufferedStream = new BufferedOutputStream(requestOutputStream, ByteSizeUnit.KB.toIntBytes(16));
                 var gzipStream = new GZIPOutputStream(bufferedStream, ByteSizeUnit.KB.toIntBytes(16))
             ) {
-                final var rawBytes = new byte[ByteSizeUnit.KB.toIntBytes(16)];
+                final var rawBytes = randomByteArrayOfLength(ByteSizeUnit.KB.toIntBytes(16));
                 int remaining = ByteSizeUnit.MB.toIntBytes(100);
                 while (remaining > 0) {
                     final var toSend = Math.min(rawBytes.length, remaining);
