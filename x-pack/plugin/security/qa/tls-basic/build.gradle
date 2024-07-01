@@ -36,4 +36,6 @@ testClusters.matching { it.name == 'javaRestTest' }.configureEach {
   setting 'xpack.security.transport.ssl.key_passphrase', 'transport-password'
   setting 'xpack.security.transport.ssl.certificate_authorities', 'ca.crt'
   user username: 'admin', password: 'admin-password', role: 'superuser'
+
+  systemProperty 'es.use_unpooled_allocator', 'false'
 }

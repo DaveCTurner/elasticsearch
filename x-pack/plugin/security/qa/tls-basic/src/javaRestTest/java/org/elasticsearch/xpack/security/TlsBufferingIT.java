@@ -27,6 +27,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
+import org.elasticsearch.client.Request;
 import org.elasticsearch.common.settings.SecureString;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeUnit;
@@ -35,6 +36,7 @@ import org.elasticsearch.core.PathUtils;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.test.rest.ESRestTestCase;
+import org.elasticsearch.test.rest.ObjectPath;
 import org.elasticsearch.transport.netty4.NettyAllocator;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -53,6 +55,8 @@ import java.util.zip.GZIPOutputStream;
 
 public class TlsBufferingIT extends ESRestTestCase {
     private static Path httpTrustStore;
+
+    private static final String AUTH_HEADER_VALUE = basicAuthHeaderValue("admin", new SecureString("admin-password".toCharArray()));
 
     @BeforeClass
     public static void findTrustStore() throws Exception {
@@ -75,9 +79,8 @@ public class TlsBufferingIT extends ESRestTestCase {
 
     @Override
     protected Settings restClientSettings() {
-        String token = basicAuthHeaderValue("admin", new SecureString("admin-password".toCharArray()));
         return Settings.builder()
-            .put(ThreadContext.PREFIX + ".Authorization", token)
+            .put(ThreadContext.PREFIX + ".Authorization", AUTH_HEADER_VALUE)
             .put(TRUSTSTORE_PATH, httpTrustStore)
             .put(TRUSTSTORE_PASSWORD, "password")
             .build();
@@ -115,7 +118,9 @@ public class TlsBufferingIT extends ESRestTestCase {
                 });
 
             final var remoteHost = randomFrom(getClusterHosts());
-            final var channelFuture = clientBootstrap.connect(new InetSocketAddress(remoteHost.getAddress(), remoteHost.getPort()));
+            final var remoteAddress = new InetSocketAddress(remoteHost.getHostName(), remoteHost.getPort());
+            logger.info("--> using [{}]", remoteAddress);
+            final var channelFuture = clientBootstrap.connect(remoteAddress);
             channelFuture.sync();
             final var channel = channelFuture.channel();
             resources.add(() -> channel.close().syncUninterruptibly());
@@ -124,9 +129,12 @@ public class TlsBufferingIT extends ESRestTestCase {
             request.headers().add("transfer-encoding", "chunked");
             request.headers().add("content-encoding", "gzip");
             request.headers().add("content-type", "application/json");
+            request.headers().add("x-request-test-name", getTestName());
+            request.headers().add("authorization", AUTH_HEADER_VALUE);
             channel.writeAndFlush(request).sync();
             logger.info("--> sent request start");
 
+            final var bufferSize = ByteSizeUnit.KB.toIntBytes(32);
             try (var requestOutputStream = new OutputStream() {
                 @Override
                 public void write(int b) {
@@ -141,10 +149,10 @@ public class TlsBufferingIT extends ESRestTestCase {
                     logger.info("--> sent buffer of size [{}]", len);
                 }
             };
-                var bufferedStream = new BufferedOutputStream(requestOutputStream, ByteSizeUnit.KB.toIntBytes(32));
-                var gzipStream = new GZIPOutputStream(bufferedStream, ByteSizeUnit.KB.toIntBytes(32))
+                 var bufferedStream = new BufferedOutputStream(requestOutputStream, bufferSize);
+                 var gzipStream = new GZIPOutputStream(bufferedStream, bufferSize)
             ) {
-                final var rawBytes = randomByteArrayOfLength(ByteSizeUnit.KB.toIntBytes(32));
+                final var rawBytes = randomByteArrayOfLength(bufferSize);
                 Arrays.fill(rawBytes, (byte) 0);
                 int remaining = ByteSizeUnit.MB.toIntBytes(100);
                 while (remaining > 0) {

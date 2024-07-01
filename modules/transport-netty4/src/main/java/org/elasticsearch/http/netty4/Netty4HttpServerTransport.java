@@ -389,22 +389,15 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
                     if (msg instanceof DefaultHttpContent httpContent) {
                         final var content = httpContent.content();
                         logger.info(
-                            "--> {}, got body message of length [{}B={}] [hasArray={}]",
+                            "--> {}, got body message of length [{}B={}] [hasArray={}, isDirect={}]",
                             description,
                             content.readableBytes(),
                             ByteSizeValue.ofBytes(content.readableBytes()),
-                            content.hasArray()
+                            content.hasArray(),
+                            content.nioBuffer().isDirect()
                         );
                     } else {
                         logger.info("--> {}, got message [{}]", description, msg);
-                        // if (msg instanceof HttpRequest) {
-                        // try {
-                        // logger.info("--> {}, pausing", description);
-                        // Thread.sleep(3000);
-                        // } catch (InterruptedException e) {
-                        // throw new AssertionError(e);
-                        // }
-                        // }
                     }
                     out.add(msg);
                 }
