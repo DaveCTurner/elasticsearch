@@ -34,6 +34,7 @@ import org.elasticsearch.repositories.FinalizeSnapshotContext;
 import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.RepositoryException;
 import org.elasticsearch.repositories.blobstore.MeteredBlobStoreRepository;
+import org.elasticsearch.repositories.s3.spi.S3StorageClassStrategy;
 import org.elasticsearch.snapshots.SnapshotDeleteListener;
 import org.elasticsearch.snapshots.SnapshotsService;
 import org.elasticsearch.threadpool.Scheduler;
@@ -136,12 +137,6 @@ class S3Repository extends MeteredBlobStoreRepository {
     );
 
     /**
-     * Sets the S3 storage class type for the backup files. Values may be standard, reduced_redundancy,
-     * standard_ia, onezone_ia and intelligent_tiering. Defaults to standard.
-     */
-    static final Setting<String> STORAGE_CLASS_SETTING = Setting.simpleString("storage_class");
-
-    /**
      * The S3 repository supports all S3 canned ACLs : private, public-read, public-read-write,
      * authenticated-read, log-delivery-write, bucket-owner-read, bucket-owner-full-control. Defaults to private.
      */
@@ -192,7 +187,7 @@ class S3Repository extends MeteredBlobStoreRepository {
 
     private final boolean serverSideEncryption;
 
-    private final String storageClass;
+    private final S3StorageClassStrategy storageClassStrategy;
 
     private final String cannedACL;
 
@@ -257,7 +252,8 @@ class S3Repository extends MeteredBlobStoreRepository {
 
         this.serverSideEncryption = SERVER_SIDE_ENCRYPTION_SETTING.get(metadata.settings());
 
-        this.storageClass = STORAGE_CLASS_SETTING.get(metadata.settings());
+        this.storageClassStrategy = service.getStorageClassStrategy(metadata.settings());
+
         this.cannedACL = CANNED_ACL_SETTING.get(metadata.settings());
 
         if (S3ClientSettings.checkDeprecatedCredentials(metadata.settings())) {
@@ -279,7 +275,7 @@ class S3Repository extends MeteredBlobStoreRepository {
             serverSideEncryption,
             bufferSize,
             cannedACL,
-            storageClass
+            storageClassStrategy
         );
     }
 
@@ -415,7 +411,7 @@ class S3Repository extends MeteredBlobStoreRepository {
             serverSideEncryption,
             bufferSize,
             cannedACL,
-            storageClass,
+            storageClassStrategy,
             metadata,
             bigArrays,
             threadPool,
