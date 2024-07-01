@@ -24,16 +24,27 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
+import org.elasticsearch.common.settings.SecureString;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeUnit;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.core.PathUtils;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.test.rest.ESRestTestCase;
 import org.elasticsearch.transport.netty4.NettyAllocator;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 
 import java.io.BufferedOutputStream;
+import java.io.FileNotFoundException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.URL;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -41,6 +52,37 @@ import java.util.concurrent.CountDownLatch;
 import java.util.zip.GZIPOutputStream;
 
 public class TlsBufferingIT extends ESRestTestCase {
+    private static Path httpTrustStore;
+
+    @BeforeClass
+    public static void findTrustStore() throws Exception {
+        final URL resource = TlsWithBasicLicenseIT.class.getResource("/ssl/ca.p12");
+        if (resource == null) {
+            throw new FileNotFoundException("Cannot find classpath resource /ssl/ca.p12");
+        }
+        httpTrustStore = PathUtils.get(resource.toURI());
+    }
+
+    @AfterClass
+    public static void cleanupStatics() {
+        httpTrustStore = null;
+    }
+
+    @Override
+    protected String getProtocol() {
+        return "https";
+    }
+
+    @Override
+    protected Settings restClientSettings() {
+        String token = basicAuthHeaderValue("admin", new SecureString("admin-password".toCharArray()));
+        return Settings.builder()
+            .put(ThreadContext.PREFIX + ".Authorization", token)
+            .put(TRUSTSTORE_PATH, httpTrustStore)
+            .put(TRUSTSTORE_PASSWORD, "password")
+            .build();
+    }
+
     public void testBuffering() throws Exception {
 
         final var resources = new ArrayList<Releasable>();
@@ -49,6 +91,7 @@ public class TlsBufferingIT extends ESRestTestCase {
             final var eventLoopGroup = new NioEventLoopGroup(1);
             resources.add(() -> eventLoopGroup.shutdownGracefully().syncUninterruptibly());
 
+            final var sslCtx = SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build();
             final var responseReceivedLatch = new CountDownLatch(1);
             final var clientBootstrap = new Bootstrap().channel(NettyAllocator.getChannelType())
                 .option(ChannelOption.ALLOCATOR, NettyAllocator.getAllocator())
@@ -56,17 +99,18 @@ public class TlsBufferingIT extends ESRestTestCase {
                 .handler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel ch) {
-                        ch.pipeline().addLast(new HttpClientCodec());
-                        ch.pipeline().addLast(new HttpContentDecompressor());
-                        ch.pipeline().addLast(new HttpObjectAggregator(ByteSizeUnit.MB.toIntBytes(100)));
-                        ch.pipeline().addLast(new SimpleChannelInboundHandler<HttpObject>() {
-                            @Override
-                            protected void channelRead0(ChannelHandlerContext ctx, HttpObject msg) {
-                                logger.info("--> received response [{}]", msg);
-                                responseReceivedLatch.countDown();
-                            }
-                        });
-
+                        ch.pipeline()
+                            .addLast(sslCtx.newHandler(ch.alloc()))
+                            .addLast(new HttpClientCodec())
+                            .addLast(new HttpContentDecompressor())
+                            .addLast(new HttpObjectAggregator(ByteSizeUnit.MB.toIntBytes(100)))
+                            .addLast(new SimpleChannelInboundHandler<HttpObject>() {
+                                @Override
+                                protected void channelRead0(ChannelHandlerContext ctx, HttpObject msg) {
+                                    logger.info("--> received response [{}]", msg);
+                                    responseReceivedLatch.countDown();
+                                }
+                            });
                     }
                 });
 

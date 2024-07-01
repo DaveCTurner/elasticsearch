@@ -397,14 +397,14 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
                         );
                     } else {
                         logger.info("--> {}, got message [{}]", description, msg);
-                        if (msg instanceof HttpRequest) {
-                            try {
-                                logger.info("--> {}, pausing", description);
-                                Thread.sleep(3000);
-                            } catch (InterruptedException e) {
-                                throw new AssertionError(e);
-                            }
-                        }
+                        // if (msg instanceof HttpRequest) {
+                        // try {
+                        // logger.info("--> {}, pausing", description);
+                        // Thread.sleep(3000);
+                        // } catch (InterruptedException e) {
+                        // throw new AssertionError(e);
+                        // }
+                        // }
                     }
                     out.add(msg);
                 }
