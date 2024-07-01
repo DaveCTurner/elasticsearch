@@ -20,6 +20,8 @@ import io.netty.channel.FixedRecvByteBufAllocator;
 import io.netty.channel.RecvByteBufAllocator;
 import io.netty.channel.socket.nio.NioChannelOption;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpContentCompressor;
 import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpMessage;
@@ -32,6 +34,7 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.AttributeKey;
+import io.netty.util.ReferenceCounted;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -68,6 +71,7 @@ import org.elasticsearch.transport.netty4.TLSConfig;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiPredicate;
 
@@ -366,8 +370,40 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             // combines the HTTP message pieces into a single full HTTP request (with headers and body)
             final HttpObjectAggregator aggregator = new HttpObjectAggregator(handlingSettings.maxContentLength());
             aggregator.setMaxCumulationBufferComponents(transport.maxCompositeBufferComponents);
+
+            class HttpMessageLogger extends MessageToMessageDecoder<Object> {
+
+                private final String description;
+
+                HttpMessageLogger(String description) {
+                    this.description = description;
+                }
+
+                @Override
+                protected void decode(ChannelHandlerContext ctx, Object msg, List<Object> out) {
+                    if (msg instanceof ReferenceCounted referenceCounted) {
+                        referenceCounted.retain();
+                    }
+                    if (msg instanceof DefaultHttpContent httpContent) {
+                        final var content = httpContent.content();
+                        logger.info(
+                            "--> {}, got body message of length [{}B={}] [hasArray={}]",
+                            description,
+                            content.readableBytes(),
+                            ByteSizeValue.ofBytes(content.readableBytes()),
+                            content.hasArray()
+                        );
+                    } else {
+                        logger.info("--> {}, got message [{}]", description, msg);
+                    }
+                    out.add(msg);
+                }
+            }
+
             ch.pipeline()
+                .addLast("log-before-decompression", new HttpMessageLogger("before decompression"))
                 .addLast("decoder_compress", new HttpContentDecompressor()) // this handles request body decompression
+                .addLast("log-after-decompression", new HttpMessageLogger("after decompression"))
                 .addLast("encoder", new HttpResponseEncoder() {
                     @Override
                     protected boolean isContentAlwaysEmpty(HttpResponse msg) {
