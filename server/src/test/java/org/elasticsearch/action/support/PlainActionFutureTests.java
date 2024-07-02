@@ -14,6 +14,8 @@ import org.elasticsearch.common.util.concurrent.UncategorizedExecutionException;
 import org.elasticsearch.core.Assertions;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.threadpool.TestThreadPool;
+import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.RemoteTransportException;
 
 import java.util.concurrent.CancellationException;
@@ -179,5 +181,20 @@ public class PlainActionFutureTests extends ESTestCase {
                 assertTrue(Thread.interrupted());
             }
         };
+    }
+
+    public void testConcurrentCompletion() {
+        try (var threadPool = new TestThreadPool(getTestName())) {
+            final var future = new PlainActionFuture<>();
+            final var threadCount = threadPool.info(ThreadPool.Names.GENERIC).getMax();
+            final var barrier = new CyclicBarrier(threadCount);
+            for (int taskIndex = 0; taskIndex < threadCount; taskIndex++) {
+                threadPool.generic().execute(() -> {
+                    safeAwait(barrier);
+                    future.onResponse(null);
+                });
+            }
+            assertNull(safeGet(future));
+        }
     }
 }
