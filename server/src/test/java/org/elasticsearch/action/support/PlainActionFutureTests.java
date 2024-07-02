@@ -187,10 +187,12 @@ public class PlainActionFutureTests extends ESTestCase {
     public void testConcurrentCompletion() {
         try (var threadPool = new TestThreadPool(getTestName())) {
             final var future = new PlainActionFuture<>();
-            final var threadCount = threadPool.info(ThreadPool.Names.GENERIC).getMax();
+            final var executorName = randomFrom(ThreadPool.Names.GENERIC, ThreadPool.Names.MANAGEMENT);
+            final var threadCount = threadPool.info(executorName).getMax();
+            final var executor = threadPool.executor(executorName);
             final var barrier = new CyclicBarrier(threadCount);
             for (int i = 0; i < threadCount; i++) {
-                threadPool.generic().execute(ActionRunnable.run(future, () -> safeAwait(barrier)));
+                executor.execute(ActionRunnable.run(future, () -> safeAwait(barrier)));
             }
             assertNull(safeGet(future));
         }
