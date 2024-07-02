@@ -9,6 +9,7 @@
 package org.elasticsearch.action.support;
 
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.common.util.concurrent.UncategorizedExecutionException;
 import org.elasticsearch.core.Assertions;
@@ -188,11 +189,8 @@ public class PlainActionFutureTests extends ESTestCase {
             final var future = new PlainActionFuture<>();
             final var threadCount = threadPool.info(ThreadPool.Names.GENERIC).getMax();
             final var barrier = new CyclicBarrier(threadCount);
-            for (int taskIndex = 0; taskIndex < threadCount; taskIndex++) {
-                threadPool.generic().execute(() -> {
-                    safeAwait(barrier);
-                    future.onResponse(null);
-                });
+            for (int i = 0; i < threadCount; i++) {
+                threadPool.generic().execute(ActionRunnable.run(future, () -> safeAwait(barrier)));
             }
             assertNull(safeGet(future));
         }
