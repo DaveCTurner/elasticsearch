@@ -419,10 +419,14 @@ public class FsBlobContainer extends AbstractBlobContainer {
         throws IOException {
         // Emulate write/write contention as might happen in cloud repositories, at least for the case where the writers are all in this
         // JVM (e.g. for an ESIntegTestCase).
+        logger.trace("acquiring write mutex for register [{}]", registerPath);
         try (var mutex = writeMutexes.tryAcquire(registerPath)) {
+            logger.trace("{} write mutex for register [{}]", mutex == null ? "failed to acquire" : "acquired", registerPath);
             return mutex == null
                 ? OptionalBytesReference.MISSING
                 : doUncontendedCompareAndExchangeRegister(registerPath, expected, updated);
+        } finally {
+            logger.trace("released write mutex for register [{}]", registerPath);
         }
     }
 
@@ -434,6 +438,7 @@ public class FsBlobContainer extends AbstractBlobContainer {
     ) throws IOException {
         BlobContainerUtils.ensureValidRegisterContent(updated);
         try (LockedFileChannel lockedFileChannel = LockedFileChannel.open(registerPath)) {
+            logger.trace("opened LockedFileChannel for register [{}]", registerPath);
             final FileChannel fileChannel = lockedFileChannel.fileChannel();
             final ByteBuffer readBuf = ByteBuffer.allocate(BlobContainerUtils.MAX_REGISTER_CONTENT_LENGTH);
             while (readBuf.remaining() > 0) {

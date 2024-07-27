@@ -419,7 +419,7 @@ public class RepositoryAnalysisFailureIT extends AbstractSnapshotIntegTestCase {
 
     @TestIssueLogging(
         issueUrl = "https://github.com/elastic/elasticsearch/issues/111343",
-        value = "org.elasticsearch.repositories.blobstore.testkit:TRACE"
+        value = "org.elasticsearch.repositories.blobstore.testkit:TRACE,org.elasticsearch.common.blobstore.fs:TRACE"
     )
     public void testFailsIfEmptyRegisterRejected() {
         final RepositoryAnalyzeAction.Request request = new RepositoryAnalyzeAction.Request("test-repo");
