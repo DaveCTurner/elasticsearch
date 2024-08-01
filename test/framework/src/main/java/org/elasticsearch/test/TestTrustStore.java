@@ -20,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
+import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 
@@ -41,7 +42,17 @@ public class TestTrustStore extends ExternalResource {
 
     public Path getTrustStorePath() {
         assertFalse("Tests in FIPS mode cannot supply a custom trust store", ESTestCase.inFipsJvm());
-        return Objects.requireNonNullElseGet(trustStorePath, () -> ESTestCase.fail(null, "trust store not created"));
+        final var localTrustStorePath = Objects.requireNonNullElseGet(
+            trustStorePath,
+            () -> ESTestCase.fail(null, "trust store not created")
+        );
+        try {
+            final var trustStoreContents = Files.readAllBytes(localTrustStorePath);
+            logger.info("--> trust store [{}] contents: {}", trustStorePath, Base64.getEncoder().encodeToString(trustStoreContents));
+        } catch (IOException e) {
+            return ESTestCase.fail(e);
+        }
+        return localTrustStorePath;
     }
 
     @Override
