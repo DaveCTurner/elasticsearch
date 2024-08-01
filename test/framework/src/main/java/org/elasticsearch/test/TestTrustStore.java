@@ -71,6 +71,7 @@ public class TestTrustStore extends ExternalResource {
                 logger.info("cert: {}", Base64.getEncoder().encodeToString(certificate.getEncoded()));
             }
             final var trustStore = KeyStoreUtil.buildTrustStore(certificates);
+            logger.info("trust store size: {}", trustStore.size());
             trustStore.store(jksStream, null);
             trustStorePath = tmpTrustStorePath;
             logger.info("created test trust store [{}]", trustStorePath);
