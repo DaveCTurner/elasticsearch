@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.util.Base64;
@@ -60,21 +61,31 @@ public class TestTrustStore extends ExternalResource {
         final var tmpDir = createTempDir();
         final var tmpTrustStorePath = tmpDir.resolve("trust-store.jks");
         try (var pemStream = pemStreamSupplier.get(); var jksStream = Files.newOutputStream(tmpTrustStorePath)) {
-            logger.info("creating trust store with [{}]", System.getProperty("java.vm.name"));
+            logger.info(
+                "trust-store.jks: creating trust store with [{}][{}][{}]",
+                System.getProperty("java.vm.name"),
+                System.getProperty("java.vm.vendor"),
+                System.getProperty("java.vm.version")
+            );
             final List<Certificate> certificates = CertificateFactory.getInstance("X.509")
                 .generateCertificates(pemStream)
                 .stream()
                 .map(i -> (Certificate) i)
                 .toList();
-            logger.info("certs: {}", certificates.size());
+            logger.info("trust-store.jks: certs: {}", certificates.size());
             for (Certificate certificate : certificates) {
-                logger.info("cert: {}", Base64.getEncoder().encodeToString(certificate.getEncoded()));
+                logger.info("trust-store.jks: cert: {}", Base64.getEncoder().encodeToString(certificate.getEncoded()));
             }
             final var trustStore = KeyStoreUtil.buildTrustStore(certificates);
-            logger.info("trust store size: {}", trustStore.size());
+            logger.info("trust-store.jks: trust store size: {}", trustStore.size());
             trustStore.store(jksStream, null);
             trustStorePath = tmpTrustStorePath;
-            logger.info("created test trust store [{}]", trustStorePath);
+
+            logger.info("trust-store.jks: loading trust store");
+            final var loadedTrustStore = KeyStore.getInstance(tmpTrustStorePath.toFile(), new char[0]);
+            logger.info("trust-store.jks: reloaded store size: {}", loadedTrustStore.size());
+            
+            logger.info("trust-store.jks: created test trust store [{}]", trustStorePath);
         } catch (Exception e) {
             throw new AssertionError("unexpected", e);
         }
