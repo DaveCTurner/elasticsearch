@@ -60,11 +60,16 @@ public class TestTrustStore extends ExternalResource {
         final var tmpDir = createTempDir();
         final var tmpTrustStorePath = tmpDir.resolve("trust-store.jks");
         try (var pemStream = pemStreamSupplier.get(); var jksStream = Files.newOutputStream(tmpTrustStorePath)) {
+            logger.info("creating trust store with [{}]", System.getProperty("java.vm.name"));
             final List<Certificate> certificates = CertificateFactory.getInstance("X.509")
                 .generateCertificates(pemStream)
                 .stream()
                 .map(i -> (Certificate) i)
                 .toList();
+            logger.info("certs: {}", certificates.size());
+            for (Certificate certificate : certificates) {
+                logger.info("cert: {}", Base64.getEncoder().encodeToString(certificate.getEncoded()));
+            }
             final var trustStore = KeyStoreUtil.buildTrustStore(certificates);
             trustStore.store(jksStream, null);
             trustStorePath = tmpTrustStorePath;
