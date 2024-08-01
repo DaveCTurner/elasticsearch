@@ -96,7 +96,10 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.KeyStore;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -106,8 +109,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-
 import javax.net.ssl.SNIHostName;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
 
 import static org.elasticsearch.core.Strings.format;
 
@@ -208,6 +213,29 @@ public class Node implements Closeable {
         terminationHandler = construction.terminationHandler();
         namedWriteableRegistry = construction.namedWriteableRegistry();
         namedXContentRegistry = construction.namedXContentRegistry();
+
+        try {
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            // Using null here initialises the TMF with the default trust store.
+            tmf.init((KeyStore) null);
+
+            // Get hold of the default trust manager
+            X509TrustManager defaultTm = null;
+            for (TrustManager tm : tmf.getTrustManagers()) {
+                if (tm instanceof X509TrustManager) {
+                    defaultTm = (X509TrustManager) tm;
+                    break;
+                }
+            }
+
+            final var acceptedIssuers = defaultTm.getAcceptedIssuers();
+            logger.info("acceptedIssuers: {}", acceptedIssuers.length);
+            for (X509Certificate acceptedIssuer : acceptedIssuers) {
+                logger.info("acceptedIssuer: {}", Base64.getEncoder().encodeToString(acceptedIssuer.getEncoded()));
+            }
+        } catch (Exception e) {
+            throw new AssertionError("unexpected", e);
+        }
     }
 
     /**
