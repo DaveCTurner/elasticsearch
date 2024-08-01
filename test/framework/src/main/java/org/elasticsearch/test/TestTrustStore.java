@@ -10,6 +10,8 @@ package org.elasticsearch.test;
 
 import org.elasticsearch.common.CheckedSupplier;
 import org.elasticsearch.common.ssl.KeyStoreUtil;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.junit.rules.ExternalResource;
 
 import java.io.IOException;
@@ -26,6 +28,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class TestTrustStore extends ExternalResource {
+
+    private static final Logger logger = LogManager.getLogger(TestTrustStore.class);
 
     private final CheckedSupplier<InputStream, IOException> pemStreamSupplier;
 
@@ -53,6 +57,7 @@ public class TestTrustStore extends ExternalResource {
             final var trustStore = KeyStoreUtil.buildTrustStore(certificates);
             trustStore.store(jksStream, null);
             trustStorePath = tmpTrustStorePath;
+            logger.info("created test trust store [{}]", trustStorePath);
         } catch (Exception e) {
             throw new AssertionError("unexpected", e);
         }
@@ -60,6 +65,7 @@ public class TestTrustStore extends ExternalResource {
 
     @Override
     protected void after() {
+        logger.info("removing test trust store [{}]", trustStorePath);
         assertTrue(trustStorePath + " should still exist at teardown", Files.exists(trustStorePath));
     }
 }
