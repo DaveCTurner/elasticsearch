@@ -49,7 +49,7 @@ public class TestTrustStore extends ExternalResource {
         );
         try {
             final var trustStoreContents = Files.readAllBytes(localTrustStorePath);
-            logger.info("--> trust store [{}] contents: {}", trustStorePath, Base64.getEncoder().encodeToString(trustStoreContents));
+            logger.info("trust store [{}] contents: {}", trustStorePath, Base64.getEncoder().encodeToString(trustStoreContents));
         } catch (IOException e) {
             return ESTestCase.fail(e);
         }
@@ -84,7 +84,7 @@ public class TestTrustStore extends ExternalResource {
             logger.info("trust-store.jks: loading trust store");
             final var loadedTrustStore = KeyStore.getInstance(tmpTrustStorePath.toFile(), new char[0]);
             logger.info("trust-store.jks: reloaded store size: {}", loadedTrustStore.size());
-            
+
             logger.info("trust-store.jks: created test trust store [{}]", trustStorePath);
         } catch (Exception e) {
             throw new AssertionError("unexpected", e);
@@ -93,7 +93,16 @@ public class TestTrustStore extends ExternalResource {
 
     @Override
     protected void after() {
-        logger.info("removing test trust store [{}]", trustStorePath);
+        try {
+            final var trustStoreContents = Files.readAllBytes(trustStorePath);
+            logger.info(
+                "removing test trust store [{}] with contents [{}]",
+                trustStorePath,
+                Base64.getEncoder().encodeToString(trustStoreContents)
+            );
+        } catch (IOException e) {
+            ESTestCase.fail(e);
+        }
         assertTrue(trustStorePath + " should still exist at teardown", Files.exists(trustStorePath));
     }
 }
