@@ -3223,7 +3223,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     Engine getEngine() {
         Engine engine = getEngineOrNull();
         if (engine == null) {
-            throw new AlreadyClosedException("engine is closed");
+            throw new AlreadyClosedException("engine is closed: " + routingEntry());
         }
         return engine;
     }

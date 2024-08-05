@@ -45,6 +45,7 @@ import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.index.IndexVersionUtils;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.xcontent.XContentType;
 
 import java.io.IOException;
@@ -267,6 +268,7 @@ public class SplitIndexIT extends ESIntegTestCase {
         });
     }
 
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE")
     public void testSplitIndexPrimaryTerm() throws Exception {
         int numberOfTargetShards = randomIntBetween(2, 20);
         int numberOfShards = randomValueOtherThanMany(n -> numberOfTargetShards % n != 0, () -> between(1, numberOfTargetShards - 1));
@@ -289,6 +291,7 @@ public class SplitIndexIT extends ESIntegTestCase {
             for (final Integer shardId : indexShards.shardIds()) {
                 final IndexShard shard = indexShards.getShard(shardId);
                 if (shard.routingEntry().primary() && randomBoolean()) {
+                    logger.info("--> failing shard [{}]", shard.routingEntry());
                     disableAllocation("source");
                     shard.failShard("test", new Exception("test"));
                     // this can not succeed until the shard is failed and a replica is promoted
@@ -312,17 +315,24 @@ public class SplitIndexIT extends ESIntegTestCase {
             }
         }
 
+        logger.info("--> blocking writes on [source]");
         updateIndexSettings(Settings.builder().put("index.blocks.write", true), "source");
         ensureYellow();
 
         final IndexMetadata indexMetadata = indexMetadata(client(), "source");
         final long beforeSplitPrimaryTerm = IntStream.range(0, numberOfShards).mapToLong(indexMetadata::primaryTerm).max().getAsLong();
 
+        logger.info("--> max primary term before split: [{}]", beforeSplitPrimaryTerm);
+
         // now split source into target
         final Settings splitSettings = indexSettings(numberOfTargetShards, 0).putNull("index.blocks.write").build();
         assertAcked(indicesAdmin().prepareResizeIndex("source", "target").setResizeType(ResizeType.SPLIT).setSettings(splitSettings).get());
 
+        logger.info("--> split complete");
+
         ensureGreen(TimeValue.timeValueSeconds(120)); // needs more than the default to relocate many shards
+
+        logger.info("--> green");
 
         final IndexMetadata aftersplitIndexMetadata = indexMetadata(client(), "target");
         for (int shardId = 0; shardId < numberOfTargetShards; shardId++) {
