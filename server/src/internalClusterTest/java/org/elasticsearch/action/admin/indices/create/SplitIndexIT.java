@@ -278,6 +278,7 @@ public class SplitIndexIT extends ESIntegTestCase {
                 .put(indexSettings())
                 .put("number_of_shards", numberOfShards)
                 .put("index.number_of_routing_shards", numberOfTargetShards)
+                .put(EnableAllocationDecider.INDEX_ROUTING_REBALANCE_ENABLE_SETTING.getKey(), EnableAllocationDecider.Rebalance.NONE)
         ).get();
         ensureGreen(TimeValue.timeValueSeconds(120)); // needs more than the default to allocate many shards
 
