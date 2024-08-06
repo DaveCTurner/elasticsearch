@@ -1370,7 +1370,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                         scheduleNow(
                             ActionRunnable.<AcknowledgedResponse>wrap(
                                 ActionTestUtils.assertNoFailureListener(r -> {}),
-                                l -> client.admin().cluster().prepareDeleteSnapshot(repoName, snapshotName).execute(l)
+                                l -> client.admin().cluster().prepareDeleteSnapshot(TEST_REQUEST_TIMEOUT, repoName, snapshotName).execute(l)
                             )
                         );
                         stepListener.onResponse(null);
