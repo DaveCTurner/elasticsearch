@@ -1442,7 +1442,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                     clusterState.version(),
                     metadata.version(),
                     Thread.currentThread().getName(),
-                    entry.shardsByRepoShardId(),
+                    entry.shardSnapshotStatusByRepoShardId(),
                     Strings.toString(entry)
                 ),
                 new ElasticsearchException("stack trace")

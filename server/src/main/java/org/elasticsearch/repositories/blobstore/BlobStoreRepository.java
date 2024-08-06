@@ -1349,7 +1349,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                 metadata.name(),
                                 indexId,
                                 shardId,
-                                writtenGeneration.toBlobNamePart(),
+                                writtenGeneration.getGenerationUUID(),
                                 blobsToDelete.stream().filter(s -> s.startsWith(SNAPSHOT_INDEX_PREFIX)).collect(Collectors.joining(","))
                             );
                             shardBlobsToDelete.addShardDeleteResult(indexId, shardId, writtenGeneration, blobsToDelete);
@@ -3375,7 +3375,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                 metadata.name(),
                                 context.snapshotId(),
                                 shardId,
-                                indexGeneration.toBlobNamePart()
+                                indexGeneration.getGenerationUUID()
                             )
                         );
                     snapshotStatus.addProcessedFiles(filesInShardMetadataCount, filesInShardMetadataSize);
