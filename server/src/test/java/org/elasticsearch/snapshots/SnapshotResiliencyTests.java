@@ -218,6 +218,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -1428,23 +1430,34 @@ public class SnapshotResiliencyTests extends ESTestCase {
             Map.of("index-0", new SubscribableListener<>())
         );
 
+        final BiFunction<String, String, SubscribableListener<SubscribableListener<Void>>> shardSnapUpdateLink = (snapshot, index) -> {
+            if ("last-snapshot".equals(snapshot)) {
+                return SubscribableListener.newSucceeded(new SubscribableListener<>());
+            } else {
+                return Objects.requireNonNull(
+                    Objects.requireNonNull(updatesReceivedListeners.get(snapshot), snapshot).get(index),
+                    snapshot + "/" + index
+                );
+            }
+        };
+
+        final BiConsumer<SubscribableListener<SubscribableListener<Void>>, SubscribableListener<SubscribableListener<Void>>> shardSnapSeq =
+            (prevListener, nextListener) -> prevListener.andThenAccept(
+                l -> l.addListener(nextListener.map(v -> new SubscribableListener<>()))
+            );
+
         // outer listener: completed when update can be processed (previous update complete)
         // outer listener: subscribed when update received
         // inner listener: completed when update is complete
         // inner listener: subscribed with next outer listener
 
-        updatesReceivedListeners.get("snapshot-1")
-            .get("index-0")
-            .addListener(updatesReceivedListeners.get("snapshot-2").get("index-0").map(i -> new SubscribableListener<>()));
+        shardSnapUpdateLink.apply("snapshot-1", "index-0").onResponse(new SubscribableListener<>());
+        shardSnapSeq.accept(shardSnapUpdateLink.apply("snapshot-1", "index-0"), shardSnapUpdateLink.apply("snapshot-2", "index-0"));
+        shardSnapSeq.accept(shardSnapUpdateLink.apply("snapshot-2", "index-0"), shardSnapUpdateLink.apply("snapshot-3", "index-0"));
+        shardSnapSeq.accept(shardSnapUpdateLink.apply("snapshot-3", "index-0"), shardSnapUpdateLink.apply("snapshot-1", "index-1"));
 
         // A transport interceptor that throttles the shard snapshot status updates to run one at a time, for more interesting interleavings
         final TransportInterceptor throttlingInterceptor = new TransportInterceptor() {
-            private final ThrottledTaskRunner runner = new ThrottledTaskRunner(
-                SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME + "-throttle",
-                1,
-                SnapshotResiliencyTests.this::scheduleNow
-            );
-
             @Override
             public <T extends TransportRequest> TransportRequestHandler<T> interceptHandler(
                 String action,
@@ -1457,21 +1470,17 @@ public class SnapshotResiliencyTests extends ESTestCase {
                         ActionTestUtils.<TransportResponse>assertNoFailureListener(new ChannelActionListener<>(channel)::onResponse),
                         l -> {
                             final var updateRequest = asInstanceOf(UpdateIndexShardSnapshotStatusRequest.class, request);
-                            updatesReceivedListeners
-                                // snapshot name
-                                .get(updateRequest.snapshot().getSnapshotId().getName())
-                                // index name
-                                .get(updateRequest.shardId().getIndexName())
-                                // handle request
-                                .<TransportResponse>andThen((ll1, ll2) -> {
-                                    // ll1 is the channel listener
-                                    // ll2 is the inner listener for this shard snapshot
-                                    final var messageProcessedListener = new SubscribableListener<TransportResponse>();
-                                    actualHandler.messageReceived(request, new TestTransportChannel(messageProcessedListener), task);
-                                    messageProcessedListener.addListener(ll1);
-                                    messageProcessedListener.addListener(ll2.map(ignored -> null));
-                                })
-                                .addListener(l);
+                            shardSnapUpdateLink.apply(
+                                updateRequest.snapshot().getSnapshotId().getName(),
+                                updateRequest.shardId().getIndexName()
+                            ).<TransportResponse>andThen((ll1, ll2) -> {
+                                // ll1 is the channel listener
+                                // ll2 is the inner listener for this shard snapshot
+                                final var messageProcessedListener = new SubscribableListener<TransportResponse>();
+                                actualHandler.messageReceived(request, new TestTransportChannel(messageProcessedListener), task);
+                                messageProcessedListener.addListener(ll1);
+                                messageProcessedListener.addListener(ll2.map(ignored -> null));
+                            }).addListener(l);
                         }
                     );
                 } else {
@@ -1537,12 +1546,21 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     .setIndices("index-0")
                     .execute(l.map(createSnapshotResponse -> null))
             )
-            .
             // wait for all the snapshots to complete
-            andThen(
+            .andThen(
                 l -> ClusterServiceUtils.addTemporaryStateListener(masterClusterService, cs -> SnapshotsInProgress.get(cs).isEmpty())
-                    .addListener(l)
-            );
+                    .addListener(l.map(v -> null))
+            )
+            // ensure all the shard snap listeners completed without failure too
+            .andThen(l -> {
+                try (var listeners = new RefCountingListener(l)) {
+                    for (final var snapshotListeners : updatesReceivedListeners.values()) {
+                        for (final var shardSnapshotListener : snapshotListeners.values()) {
+                            shardSnapshotListener.addListener(listeners.acquire(v -> {}));
+                        }
+                    }
+                }
+            });
 
         deterministicTaskQueue.runAllRunnableTasks();
         assertTrue(
@@ -1551,6 +1569,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
             testListener.isDone()
         );
         safeAwait(testListener); // shouldn't throw
+
+        fail("boom");
     }
 
     @TestLogging(reason = "testing logging at INFO level", value = "org.elasticsearch.snapshots.SnapshotsService:INFO")
