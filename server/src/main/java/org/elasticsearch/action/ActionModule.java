@@ -227,6 +227,8 @@ import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.diagnostics.DiagnosticsAction;
+import org.elasticsearch.diagnostics.RestDiagnosticsAction;
 import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.gateway.TransportNodesListGatewayStartedShards;
 import org.elasticsearch.health.GetHealthAction;
@@ -799,6 +801,9 @@ public class ActionModule extends AbstractModule {
         actions.register(GetSynonymRuleAction.INSTANCE, TransportGetSynonymRuleAction.class);
         actions.register(DeleteSynonymRuleAction.INSTANCE, TransportDeleteSynonymRuleAction.class);
 
+        // Diagnostics
+        actions.register(DiagnosticsAction.INSTANCE, DiagnosticsAction.TransportDiagnosticsAction.class);
+
         return unmodifiableMap(actions.getRegistry());
     }
 
@@ -1030,6 +1035,8 @@ public class ActionModule extends AbstractModule {
         registerHandler.accept(new RestPutSynonymRuleAction());
         registerHandler.accept(new RestGetSynonymRuleAction());
         registerHandler.accept(new RestDeleteSynonymRuleAction());
+
+        registerHandler.accept(new RestDiagnosticsAction());
     }
 
     @Override

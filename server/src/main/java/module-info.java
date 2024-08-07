@@ -224,6 +224,7 @@ module org.elasticsearch.server {
     exports org.elasticsearch.common.util.set;
     exports org.elasticsearch.common.xcontent;
     exports org.elasticsearch.common.xcontent.support;
+    exports org.elasticsearch.diagnostics;
     exports org.elasticsearch.discovery;
     exports org.elasticsearch.env;
     exports org.elasticsearch.features;
