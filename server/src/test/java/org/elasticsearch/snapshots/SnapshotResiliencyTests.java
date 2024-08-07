@@ -1430,7 +1430,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
             Map.of("index-0", new SubscribableListener<>())
         );
 
-        final BiFunction<String, String, SubscribableListener<SubscribableListener<Void>>> shardSnapUpdateLink = (snapshot, index) -> {
+        final BiFunction<String, String, SubscribableListener<SubscribableListener<Void>>> shardSnapLinkListener = (snapshot, index) -> {
             if ("last-snapshot".equals(snapshot)) {
                 return SubscribableListener.newSucceeded(new SubscribableListener<>());
             } else {
@@ -1441,20 +1441,19 @@ public class SnapshotResiliencyTests extends ESTestCase {
             }
         };
 
-        final BiConsumer<SubscribableListener<SubscribableListener<Void>>, SubscribableListener<SubscribableListener<Void>>> shardSnapSeq =
-            (prevListener, nextListener) -> prevListener.andThenAccept(
-                l -> l.addListener(nextListener.map(v -> new SubscribableListener<>()))
-            );
+        final BiConsumer<SubscribableListener<SubscribableListener<Void>>, SubscribableListener<SubscribableListener<Void>>> listenerSeq = (
+            prevListener,
+            nextListener) -> prevListener.andThenAccept(l -> l.addListener(nextListener.map(v -> new SubscribableListener<>())));
 
         // outer listener: completed when update can be processed (previous update complete)
         // outer listener: subscribed when update received
         // inner listener: completed when update is complete
         // inner listener: subscribed with next outer listener
 
-        shardSnapUpdateLink.apply("snapshot-1", "index-0").onResponse(new SubscribableListener<>());
-        shardSnapSeq.accept(shardSnapUpdateLink.apply("snapshot-1", "index-0"), shardSnapUpdateLink.apply("snapshot-2", "index-0"));
-        shardSnapSeq.accept(shardSnapUpdateLink.apply("snapshot-2", "index-0"), shardSnapUpdateLink.apply("snapshot-3", "index-0"));
-        shardSnapSeq.accept(shardSnapUpdateLink.apply("snapshot-3", "index-0"), shardSnapUpdateLink.apply("snapshot-1", "index-1"));
+        shardSnapLinkListener.apply("snapshot-1", "index-0").onResponse(new SubscribableListener<>());
+        listenerSeq.accept(shardSnapLinkListener.apply("snapshot-1", "index-0"), shardSnapLinkListener.apply("snapshot-2", "index-0"));
+        // listenerSeq.accept(shardSnapLinkListener.apply("snapshot-2", "index-0"), shardSnapLinkListener.apply("snapshot-3", "index-0"));
+        listenerSeq.accept(shardSnapLinkListener.apply("snapshot-3", "index-0"), shardSnapLinkListener.apply("snapshot-1", "index-1"));
 
         // A transport interceptor that throttles the shard snapshot status updates to run one at a time, for more interesting interleavings
         final TransportInterceptor throttlingInterceptor = new TransportInterceptor() {
@@ -1470,7 +1469,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                         ActionTestUtils.<TransportResponse>assertNoFailureListener(new ChannelActionListener<>(channel)::onResponse),
                         l -> {
                             final var updateRequest = asInstanceOf(UpdateIndexShardSnapshotStatusRequest.class, request);
-                            shardSnapUpdateLink.apply(
+                            shardSnapLinkListener.apply(
                                 updateRequest.snapshot().getSnapshotId().getName(),
                                 updateRequest.shardId().getIndexName()
                             ).<TransportResponse>andThen((ll1, ll2) -> {
@@ -1545,6 +1544,20 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     .prepareCreateSnapshot(TEST_REQUEST_TIMEOUT, repoName, "snapshot-3")
                     .setIndices("index-0")
                     .execute(l.map(createSnapshotResponse -> null))
+            )
+            // wait for snapshot-2 to complete before letting snapshot-3 update its shard state
+            .andThen(
+                l -> ClusterServiceUtils
+                    //
+                    .addTemporaryStateListener(
+                        masterClusterService,
+                        cs -> SnapshotsInProgress.get(cs)
+                            .forRepo(repoName)
+                            .stream()
+                            .noneMatch(e -> e.snapshot().getSnapshotId().getName().equals("snapshot-2"))
+                    )
+                    .andThenAccept(v -> shardSnapLinkListener.apply("snapshot-3", "index-0").onResponse(new SubscribableListener<>()))
+                    .addListener(l.map(v -> null))
             )
             // wait for all the snapshots to complete
             .andThen(
