@@ -35,7 +35,6 @@ import org.elasticsearch.repositories.FinalizeSnapshotContext;
 import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.RepositoryException;
 import org.elasticsearch.repositories.blobstore.MeteredBlobStoreRepository;
-import org.elasticsearch.snapshots.SnapshotDeleteListener;
 import org.elasticsearch.snapshots.SnapshotsService;
 import org.elasticsearch.threadpool.Scheduler;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -305,7 +304,7 @@ class S3Repository extends MeteredBlobStoreRepository {
                 finalizeSnapshotContext.clusterMetadata(),
                 finalizeSnapshotContext.snapshotInfo(),
                 finalizeSnapshotContext.repositoryMetaVersion(),
-                delayedListener(ActionListener.runAfter(finalizeSnapshotContext, () -> metadataDone.onResponse(null))),
+                wrapWithWeakConsistencyProtection(ActionListener.runAfter(finalizeSnapshotContext, () -> metadataDone.onResponse(null))),
                 info -> metadataDone.addListener(new ActionListener<>() {
                     @Override
                     public void onResponse(Void unused) {
@@ -325,49 +324,14 @@ class S3Repository extends MeteredBlobStoreRepository {
     }
 
     @Override
-    protected SnapshotDeleteListener wrapWithWeakConsistencyProtection(SnapshotDeleteListener listener) {
-        return new SnapshotDeleteListener() {
-            @Override
-            public void onDone() {
-                listener.onDone();
-            }
-
-            @Override
-            public void onRepositoryDataWritten(RepositoryData repositoryData) {
-                logCooldownInfo();
-                final Scheduler.Cancellable existing = finalizationFuture.getAndSet(threadPool.schedule(() -> {
-                    final Scheduler.Cancellable cancellable = finalizationFuture.getAndSet(null);
-                    assert cancellable != null;
-                    listener.onRepositoryDataWritten(repositoryData);
-                }, coolDown, snapshotExecutor));
-                assert existing == null : "Already have an ongoing finalization " + finalizationFuture;
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                logCooldownInfo();
-                final Scheduler.Cancellable existing = finalizationFuture.getAndSet(threadPool.schedule(() -> {
-                    final Scheduler.Cancellable cancellable = finalizationFuture.getAndSet(null);
-                    assert cancellable != null;
-                    listener.onFailure(e);
-                }, coolDown, snapshotExecutor));
-                assert existing == null : "Already have an ongoing finalization " + finalizationFuture;
-            }
-        };
-    }
-
-    /**
-     * Wraps given listener such that it is executed with a delay of {@link #coolDown} on the snapshot thread-pool after being invoked.
-     * See {@link #COOLDOWN_PERIOD} for details.
-     */
-    private <T> ActionListener<T> delayedListener(ActionListener<T> listener) {
-        final ActionListener<T> wrappedListener = ActionListener.runBefore(listener, () -> {
+    protected ActionListener<RepositoryData> wrapWithWeakConsistencyProtection(ActionListener<RepositoryData> listener) {
+        final ActionListener<RepositoryData> wrappedListener = ActionListener.runBefore(listener, () -> {
             final Scheduler.Cancellable cancellable = finalizationFuture.getAndSet(null);
             assert cancellable != null;
         });
         return new ActionListener<>() {
             @Override
-            public void onResponse(T response) {
+            public void onResponse(RepositoryData response) {
                 logCooldownInfo();
                 final Scheduler.Cancellable existing = finalizationFuture.getAndSet(
                     threadPool.schedule(ActionRunnable.wrap(wrappedListener, l -> l.onResponse(response)), coolDown, snapshotExecutor)
