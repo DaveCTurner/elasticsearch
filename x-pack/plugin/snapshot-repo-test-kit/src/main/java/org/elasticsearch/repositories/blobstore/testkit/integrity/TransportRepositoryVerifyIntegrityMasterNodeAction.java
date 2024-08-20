@@ -25,8 +25,8 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.concurrent.ThrottledIterator;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.repositories.blobstore.integrity.VerifyRepositoryIntegrityAction;
 import org.elasticsearch.tasks.CancellableTask;
-import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportService;
@@ -34,7 +34,9 @@ import org.elasticsearch.transport.TransportService;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Executor;
+import java.util.function.Supplier;
 
 public class TransportRepositoryVerifyIntegrityMasterNodeAction extends TransportMasterNodeAction<
     TransportRepositoryVerifyIntegrityMasterNodeAction.Request,
@@ -107,20 +109,20 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends Transpor
     public static class Request extends MasterNodeRequest<Request> {
         private final DiscoveryNode coordinatingNode;
         private final long taskId;
-        private final String repositoryName;
+        private final RepositoryVerifyIntegrityParams requestParams;
 
-        Request(TimeValue masterNodeTimeout, DiscoveryNode coordinatingNode, long taskId, String repositoryName) {
+        Request(TimeValue masterNodeTimeout, DiscoveryNode coordinatingNode, long taskId, RepositoryVerifyIntegrityParams requestParams) {
             super(masterNodeTimeout);
             this.coordinatingNode = coordinatingNode;
             this.taskId = taskId;
-            this.repositoryName = Objects.requireNonNull(repositoryName);
+            this.requestParams = Objects.requireNonNull(requestParams);
         }
 
         Request(StreamInput in) throws IOException {
             super(in);
             coordinatingNode = new DiscoveryNode(in);
             taskId = in.readVLong();
-            repositoryName = in.readString();
+            requestParams = new RepositoryVerifyIntegrityParams(in);
         }
 
         @Override
@@ -128,7 +130,7 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends Transpor
             super.writeTo(out);
             coordinatingNode.writeTo(out);
             out.writeVLong(taskId);
-            out.writeString(repositoryName);
+            requestParams.writeTo(out);
         }
 
         @Override
@@ -137,8 +139,33 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends Transpor
         }
 
         @Override
-        public Task createTask(long id, String type, String action, TaskId parentTaskId, Map<String, String> headers) {
-            return new CancellableTask(id, type, action, getDescription(), parentTaskId, headers);
+        public org.elasticsearch.tasks.Task createTask(
+            long id,
+            String type,
+            String action,
+            TaskId parentTaskId,
+            Map<String, String> headers
+        ) {
+            return new Task(id, type, action, getDescription(), parentTaskId, headers);
         }
     }
+
+    public static class Task extends CancellableTask {
+
+        private volatile Supplier<VerifyRepositoryIntegrityAction.Status> statusSupplier;
+
+        public Task(long id, String type, String action, String description, TaskId parentTaskId, Map<String, String> headers) {
+            super(id, type, action, description, parentTaskId, headers);
+        }
+
+        public void setStatusSupplier(Supplier<VerifyRepositoryIntegrityAction.Status> statusSupplier) {
+            this.statusSupplier = statusSupplier;
+        }
+
+        @Override
+        public Status getStatus() {
+            return Optional.ofNullable(statusSupplier).map(Supplier::get).orElse(null);
+        }
+    }
+
 }

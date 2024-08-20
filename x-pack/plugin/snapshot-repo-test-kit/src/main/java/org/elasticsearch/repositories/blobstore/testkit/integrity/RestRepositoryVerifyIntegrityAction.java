@@ -37,14 +37,15 @@ public class RestRepositoryVerifyIntegrityAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) {
         final var masterNodeTimeout = RestUtils.getMasterNodeTimeout(request);
-        final var repository = request.param("repository");
+        final var requestParams = new RepositoryVerifyIntegrityParams(request);
         return channel -> {
             final var streamingXContentResponse = new StreamingXContentResponse(channel, request, () -> {});
             new RestCancellableNodeClient(client, request.getHttpChannel()).execute(
                 TransportRepositoryVerifyIntegrityCoordinationAction.INSTANCE,
-                new TransportRepositoryVerifyIntegrityCoordinationAction.Request(masterNodeTimeout, repository, streamingXContentResponse),
+                new TransportRepositoryVerifyIntegrityCoordinationAction.Request(masterNodeTimeout, requestParams, streamingXContentResponse),
                 ActionListener.releasing(streamingXContentResponse)
             );
         };
     }
 }
+

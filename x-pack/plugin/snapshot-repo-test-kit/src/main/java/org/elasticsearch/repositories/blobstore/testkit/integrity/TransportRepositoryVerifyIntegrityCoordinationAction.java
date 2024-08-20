@@ -47,12 +47,12 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
 
     public static class Request extends ActionRequest {
         private final TimeValue masterNodeTimeout;
-        private final String repositoryName;
+        private final RepositoryVerifyIntegrityParams requestParams;
         private final StreamingXContentResponse streamingXContentResponse;
 
-        public Request(TimeValue masterNodeTimeout, String repositoryName, StreamingXContentResponse streamingXContentResponse) {
+        public Request(TimeValue masterNodeTimeout, RepositoryVerifyIntegrityParams requestParams, StreamingXContentResponse streamingXContentResponse) {
             this.masterNodeTimeout = masterNodeTimeout;
-            this.repositoryName = repositoryName;
+            this.requestParams = requestParams;
             this.streamingXContentResponse = streamingXContentResponse;
         }
 
@@ -65,8 +65,8 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
             return masterNodeTimeout;
         }
 
-        public String repositoryName() {
-            return repositoryName;
+        public RepositoryVerifyIntegrityParams requestParams() {
+            return requestParams;
         }
 
         public void writeFragment(ChunkedToXContent chunk, Releasable releasable) {
@@ -137,7 +137,7 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
                     request.masterNodeTimeout(),
                     transportService.getLocalNode(),
                     task.getId(),
-                    request.repositoryName()
+                    request.requestParams()
                 ),
                 task,
                 TransportRequestOptions.EMPTY,
