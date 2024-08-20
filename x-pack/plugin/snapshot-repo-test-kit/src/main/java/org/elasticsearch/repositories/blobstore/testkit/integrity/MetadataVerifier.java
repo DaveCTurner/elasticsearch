@@ -13,10 +13,8 @@ import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.RateLimiter;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
-import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.index.IndexRequest;
@@ -24,10 +22,8 @@ import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.client.internal.node.NodeClient;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.blobstore.OperationPurpose;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.time.DateFormatter;
 import org.elasticsearch.common.time.FormatNames;
 import org.elasticsearch.common.unit.ByteSizeValue;
@@ -102,102 +98,82 @@ public class MetadataVerifier implements Releasable {
         SNAPSHOT_NOT_IN_SHARD_GENERATION,
     }
 
-    private static void mappedField(XContentBuilder builder, String fieldName, String type) throws IOException {
-        builder.startObject(fieldName).field("type", type).endObject();
-    }
-
     public static void run(
         BlobStoreRepository blobStoreRepository,
         NodeClient client,
         RepositoryVerifyIntegrityParams verifyRequest,
         CancellableThreads cancellableThreads,
-        TransportRepositoryVerifyIntegrityMasterNodeAction.Task task,
+        RepositoryVerifyIntegrityTask backgroundTask,
         ActionListener<Void> backgroundTaskListener
     ) {
-        logger.info(
-            "[{}] verifying metadata integrity",
-            verifyRequest.repository()
-        );
+        logger.info("[{}] verifying metadata integrity", verifyRequest.repository());
 
         final var repositoryDataFuture = new ListenableActionFuture<RepositoryData>();
         blobStoreRepository.getRepositoryData(EsExecutors.DIRECT_EXECUTOR_SERVICE, repositoryDataFuture);
 
-        createIndex.execute(new ActionListener<>() {
+        repositoryDataFuture.addListener(backgroundTaskListener.map(repositoryData -> {
+            try (
+                var metadataVerifier = new MetadataVerifier(
+                    blobStoreRepository,
+                    client,
+                    verifyRequest,
+                    repositoryData,
+                    cancellableThreads,
+                    backgroundTask,
+                    createLoggingListener(verifyRequest, backgroundTaskListener, repositoryData)
+                )
+            ) {
+                logger.info(
+                    "[{}] verifying metadata integrity for index generation [{}]: "
+                        + "repo UUID [{}], cluster UUID [{}], snapshots [{}], indices [{}], index snapshots [{}]",
+                    verifyRequest.repository(),
+                    repositoryData.getGenId(),
+                    repositoryData.getUuid(),
+                    repositoryData.getClusterUUID(),
+                    metadataVerifier.getSnapshotCount(),
+                    metadataVerifier.getIndexCount(),
+                    metadataVerifier.getIndexSnapshotCount()
+                );
+                metadataVerifier.start();
+                return null;
+            }
+        }));
+    }
+
+    private static ActionListener<Long> createLoggingListener(
+        RepositoryVerifyIntegrityParams verifyRequest,
+        ActionListener<Void> l,
+        RepositoryData repositoryData
+    ) {
+        return new ActionListener<>() {
             @Override
-            public void onResponse(CreateIndexResponse createIndexResponse) {
-                onSuccess();
+            public void onResponse(Long anomalyCount) {
+                logger.info(
+                    "[{}] completed verifying metadata integrity for index generation [{}]: "
+                        + "repo UUID [{}], cluster UUID [{}], anomalies [{}]",
+                    verifyRequest.repository(),
+                    repositoryData.getGenId(),
+                    repositoryData.getUuid(),
+                    repositoryData.getClusterUUID(),
+                    anomalyCount
+                );
+                l.onResponse(null);
             }
 
             @Override
             public void onFailure(Exception e) {
-                if (e instanceof ResourceAlreadyExistsException) {
-                    onSuccess();
-                } else {
-                    foregroundTaskListener.onFailure(e);
-                }
+                logger.warn(
+                    () -> Strings.format(
+                        "[%s] failed verifying metadata integrity for index generation [%d]: repo UUID [%s], cluster UUID [%s]",
+                        verifyRequest.repository(),
+                        repositoryData.getGenId(),
+                        repositoryData.getUuid(),
+                        repositoryData.getClusterUUID()
+                    )
+                );
+                l.onFailure(e);
             }
-
-            private void onSuccess() {
-                repositoryDataFuture.addListener(foregroundTaskListener.map(repositoryData -> {
-                    try (
-                        var metadataVerifier = new MetadataVerifier(
-                            blobStoreRepository,
-                            client,
-                            verifyRequest,
-                            repositoryData,
-                            cancellableThreads,
-                            backgroundTask,
-                            createLoggingListener(backgroundTaskListener, repositoryData)
-                        )
-                    ) {
-                        logger.info(
-                            "[{}] verifying metadata integrity for index generation [{}]: "
-                                + "repo UUID [{}], cluster UUID [{}], snapshots [{}], indices [{}], index snapshots [{}]",
-                            verifyRequest.repository(),
-                            repositoryData.getGenId(),
-                            repositoryData.getUuid(),
-                            repositoryData.getClusterUUID(),
-                            metadataVerifier.getSnapshotCount(),
-                            metadataVerifier.getIndexCount(),
-                            metadataVerifier.getIndexSnapshotCount()
-                        );
-                        return metadataVerifier.start();
-                    }
-                }));
-            }
-
-            private ActionListener<Long> createLoggingListener(ActionListener<Void> l, RepositoryData repositoryData) {
-                return new ActionListener<>() {
-                    @Override
-                    public void onResponse(Long anomalyCount) {
-                        logger.info(
-                            "[{}] completed verifying metadata integrity for index generation [{}]: "
-                                + "repo UUID [{}], cluster UUID [{}], anomalies [{}]",
-                            verifyRequest.repository(),
-                            repositoryData.getGenId(),
-                            repositoryData.getUuid(),
-                            repositoryData.getClusterUUID(),
-                            anomalyCount
-                        );
-                        l.onResponse(null);
-                    }
-
-                    @Override
-                    public void onFailure(Exception e) {
-                        logger.warn(
-                            () -> Strings.format(
-                                "[%s] failed verifying metadata integrity for index generation [%d]: repo UUID [%s], cluster UUID [%s]",
-                                verifyRequest.repository(),
-                                repositoryData.getGenId(),
-                                repositoryData.getUuid(),
-                                repositoryData.getClusterUUID()
-                            )
-                        );
-                        l.onFailure(e);
-                    }
-                };
-            }
-        });
+        };
     }
 
     private final BlobStoreRepository blobStoreRepository;
@@ -208,13 +184,12 @@ public class MetadataVerifier implements Releasable {
     private final RepositoryVerifyIntegrityParams verifyRequest;
     private final RepositoryData repositoryData;
     private final BooleanSupplier isCancelledSupplier;
-    private final VerifyRepositoryIntegrityAction.Task task;
+    private final RepositoryVerifyIntegrityTask task;
     private final TaskId taskId;
     private final AtomicLong anomalyCount = new AtomicLong();
     private final Map<String, SnapshotDescription> snapshotDescriptionsById = ConcurrentCollections.newConcurrentMap();
     private final CancellableRunner metadataTaskRunner;
     private final CancellableRunner snapshotTaskRunner;
-    private final String resultsIndex;
     private final RateLimiter rateLimiter;
 
     private final long snapshotCount;
@@ -233,7 +208,7 @@ public class MetadataVerifier implements Releasable {
         RepositoryVerifyIntegrityParams verifyRequest,
         RepositoryData repositoryData,
         CancellableThreads cancellableThreads,
-        VerifyRepositoryIntegrityAction.Task task,
+        RepositoryVerifyIntegrityTask task,
         ActionListener<Long> finalListener
     ) {
         this.blobStoreRepository = blobStoreRepository;
@@ -248,7 +223,7 @@ public class MetadataVerifier implements Releasable {
         this.snapshotTaskRunner = new CancellableRunner(
             new ThrottledTaskRunner(
                 "verify-blob",
-                verifyRequest.getBlobThreadPoolConcurrency(),
+                verifyRequest.blobThreadPoolConcurrency(),
                 blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT)
             ),
             cancellableThreads
@@ -256,19 +231,18 @@ public class MetadataVerifier implements Releasable {
         this.metadataTaskRunner = new CancellableRunner(
             new ThrottledTaskRunner(
                 "verify-metadata",
-                verifyRequest.getMetaThreadPoolConcurrency(),
+                verifyRequest.metaThreadPoolConcurrency(),
                 blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT_META)
             ),
             cancellableThreads
         );
-        this.resultsIndex = verifyRequest.getResultsIndex();
 
         this.snapshotCount = repositoryData.getSnapshotIds().size();
         this.indexCount = repositoryData.getIndices().size();
         this.indexSnapshotCount = repositoryData.getIndexSnapshotCount();
-        this.rateLimiter = new RateLimiter.SimpleRateLimiter(verifyRequest.getMaxBytesPerSec().getMbFrac());
+        this.rateLimiter = new RateLimiter.SimpleRateLimiter(verifyRequest.maxBytesPerSec().getMbFrac());
 
-        this.throttledNanos = new AtomicLong(verifyRequest.getVerifyBlobContents() ? 1 : 0); // nonzero if verifying so status reported
+        this.throttledNanos = new AtomicLong(verifyRequest.verifyBlobContents() ? 1 : 0); // nonzero if verifying so status reported
     }
 
     @Override
@@ -276,8 +250,8 @@ public class MetadataVerifier implements Releasable {
         finalRefs.close();
     }
 
-    private VerifyRepositoryIntegrityAction.Status getStatus() {
-        return new VerifyRepositoryIntegrityAction.Status(
+    private RepositoryVerifyIntegrityTask.Status getStatus() {
+        return new RepositoryVerifyIntegrityTask.Status(
             repositoryName,
             repositoryData.getGenId(),
             repositoryData.getUuid(),
@@ -290,31 +264,20 @@ public class MetadataVerifier implements Releasable {
             blobsVerified.get(),
             blobBytesVerified.get(),
             throttledNanos.get(),
-            anomalyCount.get(),
-            resultsIndex
+            anomalyCount.get()
         );
     }
 
-    private VerifyRepositoryIntegrityAction.Response start() {
+    private void start() {
         task.setStatusSupplier(this::getStatus);
         verifySnapshots(this::verifyIndices);
-        return new VerifyRepositoryIntegrityAction.Response(
-            taskId,
-            repositoryName,
-            repositoryData.getGenId(),
-            repositoryData.getUuid(),
-            snapshotCount,
-            indexCount,
-            indexSnapshotCount,
-            resultsIndex
-        );
     }
 
     private void verifySnapshots(Runnable onCompletion) {
         runThrottled(
             repositoryData.getSnapshotIds().iterator(),
             this::verifySnapshot,
-            verifyRequest.getSnapshotVerificationConcurrency(),
+            verifyRequest.snapshotVerificationConcurrency(),
             snapshotProgress,
             wrapRunnable(finalRefs.acquire(), onCompletion)
         );
@@ -377,7 +340,7 @@ public class MetadataVerifier implements Releasable {
         runThrottled(
             repositoryData.getIndices().values().iterator(),
             (releasable, indexId) -> new IndexVerifier(releasable, indexId).run(),
-            verifyRequest.getIndexVerificationConcurrency(),
+            verifyRequest.indexVerificationConcurrency(),
             indexProgress,
             wrapRunnable(finalRefs.acquire(), () -> {})
         );
@@ -409,7 +372,7 @@ public class MetadataVerifier implements Releasable {
             runThrottled(
                 repositoryData.getSnapshots(indexId).iterator(),
                 this::verifyIndexSnapshot,
-                verifyRequest.getIndexSnapshotVerificationConcurrency(),
+                verifyRequest.indexSnapshotVerificationConcurrency(),
                 indexSnapshotProgress,
                 wrapRunnable(indexRefs, () -> recordRestorability(totalSnapshotCounter.get(), restorableSnapshotCounter.get()))
             );
@@ -775,7 +738,7 @@ public class MetadataVerifier implements Releasable {
             return shardContainerContents.blobContentsListeners().computeIfAbsent(fileInfo.name(), ignored -> {
                 var listener = new ListenableActionFuture<Void>();
 
-                if (verifyRequest.getVerifyBlobContents()) {
+                if (verifyRequest.verifyBlobContents()) {
                     // TODO do this on a remote node?
                     snapshotTaskRunner.run(ActionRunnable.run(listener, () -> {
                         try (var slicedStream = new SlicedInputStream(fileInfo.numberOfParts()) {
@@ -828,21 +791,7 @@ public class MetadataVerifier implements Releasable {
     }
 
     private void onCompletion() {
-        try (
-            var completionRefs = new RefCountingRunnable(
-                () -> client.admin()
-                    .indices()
-                    .prepareFlush(resultsIndex)
-                    .execute(
-                        finalListener.delegateFailure(
-                            (l1, ignored1) -> client.admin()
-                                .indices()
-                                .prepareRefresh(resultsIndex)
-                                .execute(l1.delegateFailure((l2, ignored2) -> l2.onResponse(anomalyCount.get())))
-                        )
-                    )
-            )
-        ) {
+        try (var completionRefs = new RefCountingRunnable(() -> finalListener.onResponse(anomalyCount.get()))) {
             blobStoreRepository.getRepositoryData(
                 blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT),
                 makeListener(completionRefs.acquire(), finalRepositoryData -> {
@@ -923,7 +872,7 @@ public class MetadataVerifier implements Releasable {
             builder.field("task", taskId.toString());
             toXContent.toXContent(builder, ToXContent.EMPTY_PARAMS);
             builder.endObject();
-            return new IndexRequestBuilder(client, resultsIndex).setSource(builder).request();
+            return new IndexRequestBuilder(client, "TODO").setSource(builder).request();
         } catch (Exception e) {
             logger.error("error generating failure output", e);
             return null;
