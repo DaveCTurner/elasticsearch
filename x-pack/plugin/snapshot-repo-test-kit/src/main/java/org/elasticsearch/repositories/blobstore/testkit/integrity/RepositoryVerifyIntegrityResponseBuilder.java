@@ -32,17 +32,12 @@ class RepositoryVerifyIntegrityResponseBuilder extends AbstractRefCounted {
     @Nullable // if still running, or completed without an exception
     private volatile Exception finalException;
 
-    @Nullable // if still running, or completed without an exception
+    @Nullable // if not yet started
     private volatile StreamingXContentResponse streamingXContentResponse;
 
     RepositoryVerifyIntegrityResponseBuilder(RestChannel restChannel) throws IOException {
         streamingXContentResponse = new StreamingXContentResponse(restChannel, restChannel.request(), () -> {});
         this.restChannel = restChannel;
-    }
-
-    void setFinalException(Exception finalException) {
-        assert this.finalException == null && finalException != null;
-        this.finalException = finalException;
     }
 
     void writeFragment(ChunkedToXContent fragment, Releasable releasable) throws IOException {

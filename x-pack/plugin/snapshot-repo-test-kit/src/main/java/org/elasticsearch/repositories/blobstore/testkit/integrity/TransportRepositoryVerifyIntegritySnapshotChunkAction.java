@@ -7,7 +7,6 @@
 
 package org.elasticsearch.repositories.blobstore.testkit.integrity;
 
-import org.elasticsearch.ResourceNotFoundException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
@@ -21,7 +20,6 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.Executor;
 
 public class TransportRepositoryVerifyIntegritySnapshotChunkAction extends HandledTransportAction<
@@ -31,13 +29,13 @@ public class TransportRepositoryVerifyIntegritySnapshotChunkAction extends Handl
     static final String SNAPSHOT_CHUNK_ACTION_NAME = TransportRepositoryVerifyIntegrityCoordinationAction.INSTANCE.name()
         + "[snapshot_chunk]";
 
-    private final Map<Long, TransportRepositoryVerifyIntegrityCoordinationAction.Request> ongoingRequests;
+    private final OngoingRequests ongoingRequests;
 
     public TransportRepositoryVerifyIntegritySnapshotChunkAction(
         TransportService transportService,
         ActionFilters actionFilters,
         Executor executor,
-        Map<Long, TransportRepositoryVerifyIntegrityCoordinationAction.Request> ongoingRequests
+        OngoingRequests ongoingRequests
     ) {
         super(SNAPSHOT_CHUNK_ACTION_NAME, transportService, actionFilters, Request::new, executor);
         this.ongoingRequests = ongoingRequests;
@@ -45,17 +43,13 @@ public class TransportRepositoryVerifyIntegritySnapshotChunkAction extends Handl
 
     @Override
     protected void doExecute(Task task, Request request, ActionListener<ActionResponse.Empty> listener) {
-        final var outerRequest = ongoingRequests.get(request.taskId);
-        if (outerRequest == null) {
-            throw new ResourceNotFoundException("verify task [" + request.taskId + "] not found");
-        }
-
         ActionListener.run(
             listener,
-            l -> outerRequest.writeFragment(
-                p0 -> ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject().field("id", request.id).endObject()),
-                () -> l.onResponse(ActionResponse.Empty.INSTANCE)
-            )
+            l -> ongoingRequests.get(request.taskId)
+                .writeFragment(
+                    p0 -> ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject().field("id", request.id).endObject()),
+                    () -> l.onResponse(ActionResponse.Empty.INSTANCE)
+                )
         );
     }
 
