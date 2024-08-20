@@ -114,6 +114,9 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
         ActionListener.run(
             ActionListener.releaseAfter(listener, ongoingRequests.registerResponseBuilder(task.getId(), responseBuilder)),
             l -> {
+
+                // TODO explicit mode changes for response builder, triggered by master node, avoiding concurrency issues
+
                 responseBuilder.writeFragment(
                     p0 -> ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject().startArray("snapshots")),
                     () -> {}
