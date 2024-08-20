@@ -60,7 +60,7 @@ public class RepositoryVerifyIntegrityTask extends CancellableTask {
         long anomalyCount
     ) implements org.elasticsearch.tasks.Task.Status {
 
-        public static String NAME = "verify_repository_status";
+        public static String NAME = "verify_repository_integrity_status";
 
         public Status(StreamInput in) throws IOException {
             this(

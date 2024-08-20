@@ -7,14 +7,12 @@
 
 package org.elasticsearch.repositories.blobstore.testkit.integrity;
 
-import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestUtils;
 import org.elasticsearch.rest.Scope;
 import org.elasticsearch.rest.ServerlessScope;
-import org.elasticsearch.rest.StreamingXContentResponse;
 import org.elasticsearch.rest.action.RestCancellableNodeClient;
 
 import java.util.List;
@@ -39,11 +37,11 @@ public class RestRepositoryVerifyIntegrityAction extends BaseRestHandler {
         final var masterNodeTimeout = RestUtils.getMasterNodeTimeout(request);
         final var requestParams = new RepositoryVerifyIntegrityParams(request);
         return channel -> {
-            final var streamingXContentResponse = new StreamingXContentResponse(channel, request, () -> {});
+            final var responseBuilder = new RepositoryVerifyIntegrityResponseBuilder(channel);
             new RestCancellableNodeClient(client, request.getHttpChannel()).execute(
                 TransportRepositoryVerifyIntegrityCoordinationAction.INSTANCE,
-                new TransportRepositoryVerifyIntegrityCoordinationAction.Request(masterNodeTimeout, requestParams, streamingXContentResponse),
-                ActionListener.releasing(streamingXContentResponse)
+                new TransportRepositoryVerifyIntegrityCoordinationAction.Request(masterNodeTimeout, requestParams, responseBuilder),
+                responseBuilder.getCompletionListener()
             );
         };
     }

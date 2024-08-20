@@ -23,7 +23,6 @@ import org.elasticsearch.common.xcontent.ChunkedToXContentHelper;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.injection.guice.Inject;
-import org.elasticsearch.rest.StreamingXContentResponse;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskId;
@@ -31,6 +30,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportService;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
@@ -48,12 +48,16 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
     public static class Request extends ActionRequest {
         private final TimeValue masterNodeTimeout;
         private final RepositoryVerifyIntegrityParams requestParams;
-        private final StreamingXContentResponse streamingXContentResponse;
+        private final RepositoryVerifyIntegrityResponseBuilder responseBuilder;
 
-        public Request(TimeValue masterNodeTimeout, RepositoryVerifyIntegrityParams requestParams, StreamingXContentResponse streamingXContentResponse) {
+        public Request(
+            TimeValue masterNodeTimeout,
+            RepositoryVerifyIntegrityParams requestParams,
+            RepositoryVerifyIntegrityResponseBuilder responseBuilder
+        ) {
             this.masterNodeTimeout = masterNodeTimeout;
             this.requestParams = requestParams;
-            this.streamingXContentResponse = streamingXContentResponse;
+            this.responseBuilder = responseBuilder;
         }
 
         @Override
@@ -69,8 +73,8 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
             return requestParams;
         }
 
-        public void writeFragment(ChunkedToXContent chunk, Releasable releasable) {
-            streamingXContentResponse.writeFragment(chunk, releasable);
+        public void writeFragment(ChunkedToXContent chunk, Releasable releasable) throws IOException {
+            responseBuilder.writeFragment(chunk, releasable);
         }
 
         @Override
@@ -117,11 +121,6 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
             throw exception;
         }
 
-        request.streamingXContentResponse.writeFragment(
-            p0 -> ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject().startArray("snapshots")),
-            () -> {}
-        );
-
         ActionListener.run(ActionListener.releaseAfter(listener, () -> {
             final var removed = ongoingRequests.remove(task.getId(), request);
             if (removed == false) {
@@ -129,8 +128,13 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
                 assert false : exception;
                 throw exception;
             }
-        }),
-            l -> transportService.sendChildRequest(
+        }), l -> {
+            request.responseBuilder.writeFragment(
+                p0 -> ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject().startArray("snapshots")),
+                () -> {}
+            );
+
+            transportService.sendChildRequest(
                 transportService.getLocalNodeConnection(),
                 TransportRepositoryVerifyIntegrityMasterNodeAction.MASTER_ACTION_NAME,
                 new TransportRepositoryVerifyIntegrityMasterNodeAction.Request(
@@ -145,7 +149,7 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
                     // TODO if completed exceptionally, render the exception in the response
                     ActionListener.runBefore(
                         l,
-                        () -> request.streamingXContentResponse.writeFragment(
+                        () -> request.responseBuilder.writeFragment(
                             p0 -> ChunkedToXContentHelper.singleChunk((b, p) -> b.endArray().endObject()),
                             () -> {}
                         )
@@ -153,7 +157,7 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
                     in -> ActionResponse.Empty.INSTANCE,
                     executor
                 )
-            )
-        );
+            );
+        });
     }
 }

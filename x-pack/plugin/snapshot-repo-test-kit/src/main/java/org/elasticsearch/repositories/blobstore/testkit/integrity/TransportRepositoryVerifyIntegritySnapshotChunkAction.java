@@ -50,9 +50,12 @@ public class TransportRepositoryVerifyIntegritySnapshotChunkAction extends Handl
             throw new ResourceNotFoundException("verify task [" + request.taskId + "] not found");
         }
 
-        outerRequest.writeFragment(
-            p0 -> ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject().field("id", request.id).endObject()),
-            () -> listener.onResponse(ActionResponse.Empty.INSTANCE)
+        ActionListener.run(
+            listener,
+            l -> outerRequest.writeFragment(
+                p0 -> ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject().field("id", request.id).endObject()),
+                () -> l.onResponse(ActionResponse.Empty.INSTANCE)
+            )
         );
     }
 

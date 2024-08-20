@@ -48,7 +48,7 @@ public record RepositoryVerifyIntegrityParams(
 
     RepositoryVerifyIntegrityParams(RestRequest restRequest) {
         this(
-            Objects.requireNonNull(restRequest.param("repository")),
+            restRequest.param("repository"),
             restRequest.paramAsInt("meta_thread_pool_concurrency", 0),
             restRequest.paramAsInt("blob_thread_pool_concurrency", 0),
             restRequest.paramAsInt("snapshot_verification_concurrency", 0),
