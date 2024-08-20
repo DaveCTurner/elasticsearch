@@ -94,4 +94,10 @@ class RepositoryVerifyIntegrityResponseBuilder extends AbstractRefCounted {
             }
         }, this::decRef));
     }
+
+    enum ResponseState {
+        NOT_STARTED,
+        VERIFYING,
+        COMPLETE
+    }
 }

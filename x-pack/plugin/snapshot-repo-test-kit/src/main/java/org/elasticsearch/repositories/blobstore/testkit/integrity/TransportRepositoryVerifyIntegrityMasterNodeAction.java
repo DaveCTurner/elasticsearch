@@ -82,12 +82,12 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends Transpor
             final var completionListener = listeners.acquire();
             ThrottledIterator.run(
                 Iterators.failFast(
-                    Iterators.forRange(0, 20, id -> new TransportRepositoryVerifyIntegritySnapshotChunkAction.Request(request.taskId, id)),
+                    Iterators.forRange(0, 20, id -> new TransportRepositoryVerifyIntegrityResponseChunkAction.Request(request.taskId, id)),
                     () -> cancellableTask.isCancelled() || listeners.isFailing()
                 ),
                 (ref, req) -> transportService.sendChildRequest(
                     request.coordinatingNode,
-                    TransportRepositoryVerifyIntegritySnapshotChunkAction.SNAPSHOT_CHUNK_ACTION_NAME,
+                    TransportRepositoryVerifyIntegrityResponseChunkAction.SNAPSHOT_CHUNK_ACTION_NAME,
                     req,
                     task,
                     TransportRequestOptions.EMPTY,

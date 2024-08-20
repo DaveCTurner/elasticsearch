@@ -22,16 +22,16 @@ import org.elasticsearch.transport.TransportService;
 import java.io.IOException;
 import java.util.concurrent.Executor;
 
-public class TransportRepositoryVerifyIntegritySnapshotChunkAction extends HandledTransportAction<
-    TransportRepositoryVerifyIntegritySnapshotChunkAction.Request,
+public class TransportRepositoryVerifyIntegrityResponseChunkAction extends HandledTransportAction<
+    TransportRepositoryVerifyIntegrityResponseChunkAction.Request,
     ActionResponse.Empty> {
 
     static final String SNAPSHOT_CHUNK_ACTION_NAME = TransportRepositoryVerifyIntegrityCoordinationAction.INSTANCE.name()
-        + "[snapshot_chunk]";
+        + "[response_chunk]";
 
     private final OngoingRequests ongoingRequests;
 
-    public TransportRepositoryVerifyIntegritySnapshotChunkAction(
+    public TransportRepositoryVerifyIntegrityResponseChunkAction(
         TransportService transportService,
         ActionFilters actionFilters,
         Executor executor,
