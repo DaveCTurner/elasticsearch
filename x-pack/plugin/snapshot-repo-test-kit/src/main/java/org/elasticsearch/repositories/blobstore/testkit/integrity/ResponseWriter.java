@@ -114,4 +114,6 @@ public interface ResponseWriter {
     );
 
     void onUnexpectedException(Exception exception, Releasable releasable);
+
+    void recordIndexRestorability(IndexId indexId, int totalSnapshotCount, int restorableSnapshotCount, Releasable releasable);
 }

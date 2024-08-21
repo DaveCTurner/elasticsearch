@@ -46,4 +46,3 @@ public class RestRepositoryVerifyIntegrityAction extends BaseRestHandler {
         };
     }
 }
-

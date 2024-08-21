@@ -43,7 +43,6 @@ import org.elasticsearch.snapshots.SnapshotId;
 import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.tasks.TaskCancelledException;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -68,15 +67,15 @@ public class MetadataVerifier implements Releasable {
         ResponseWriter responseWriter,
         RepositoryVerifyIntegrityParams verifyRequest,
         CancellableThreads cancellableThreads,
-        RepositoryVerifyIntegrityTask backgroundTask,
-        ActionListener<Void> backgroundTaskListener
+        RepositoryVerifyIntegrityTask task,
+        ActionListener<VerificationResult> finalListener
     ) {
         logger.info("[{}] verifying metadata integrity", verifyRequest.repository());
 
         final var repositoryDataFuture = new SubscribableListener<RepositoryData>();
         blobStoreRepository.getRepositoryData(EsExecutors.DIRECT_EXECUTOR_SERVICE, repositoryDataFuture);
 
-        repositoryDataFuture.addListener(backgroundTaskListener.map(repositoryData -> {
+        repositoryDataFuture.addListener(finalListener.map(repositoryData -> {
             try (
                 var metadataVerifier = new MetadataVerifier(
                     blobStoreRepository,
@@ -84,8 +83,8 @@ public class MetadataVerifier implements Releasable {
                     verifyRequest,
                     repositoryData,
                     cancellableThreads,
-                    backgroundTask,
-                    createLoggingListener(verifyRequest, backgroundTaskListener, repositoryData)
+                    task,
+                    createLoggingListener(verifyRequest, finalListener, repositoryData)
                 )
             ) {
                 logger.info(
@@ -105,14 +104,14 @@ public class MetadataVerifier implements Releasable {
         }));
     }
 
-    private static ActionListener<Long> createLoggingListener(
+    private static ActionListener<VerificationResult> createLoggingListener(
         RepositoryVerifyIntegrityParams verifyRequest,
-        ActionListener<Void> l,
+        ActionListener<VerificationResult> l,
         RepositoryData repositoryData
     ) {
         return new ActionListener<>() {
             @Override
-            public void onResponse(Long anomalyCount) {
+            public void onResponse(VerificationResult verificationResult) {
                 logger.info(
                     "[{}] completed verifying metadata integrity for index generation [{}]: "
                         + "repo UUID [{}], cluster UUID [{}], anomalies [{}]",
@@ -120,7 +119,7 @@ public class MetadataVerifier implements Releasable {
                     repositoryData.getGenId(),
                     repositoryData.getUuid(),
                     repositoryData.getClusterUUID(),
-                    anomalyCount
+                    verificationResult.totalAnomalies()
                 );
                 l.onResponse(null);
             }
@@ -143,7 +142,7 @@ public class MetadataVerifier implements Releasable {
 
     private final BlobStoreRepository blobStoreRepository;
     private final ResponseWriter responseWriter;
-    private final ActionListener<Long> finalListener;
+    private final ActionListener<VerificationResult> finalListener;
     private final RefCountingRunnable finalRefs = new RefCountingRunnable(this::onCompletion);
     private final String repositoryName;
     private final RepositoryVerifyIntegrityParams verifyRequest;
@@ -173,7 +172,7 @@ public class MetadataVerifier implements Releasable {
         RepositoryData repositoryData,
         CancellableThreads cancellableThreads,
         RepositoryVerifyIntegrityTask task,
-        ActionListener<Long> finalListener
+        ActionListener<VerificationResult> finalListener
     ) {
         this.blobStoreRepository = blobStoreRepository;
         this.repositoryName = blobStoreRepository.getMetadata().name();
@@ -263,6 +262,7 @@ public class MetadataVerifier implements Releasable {
                             blobStoreRepository.getSnapshotGlobalMetadata(snapshotDescription.snapshotId());
                             // no checks here, loading it is enough
                         } catch (Exception e) {
+                            anomalyCount.incrementAndGet();
                             responseWriter.onFailedToLoadGlobalMetadata(snapshotDescription, e, snapshotRefs.acquire());
                         }
                     }));
@@ -270,6 +270,7 @@ public class MetadataVerifier implements Releasable {
 
                 @Override
                 public void onFailure(Exception e) {
+                    anomalyCount.incrementAndGet();
                     responseWriter.onFailedToLoadSnapshotInfo(snapshotId, e, snapshotRefs.acquire());
                 }
             }, snapshotRefs.acquire()));
@@ -314,17 +315,7 @@ public class MetadataVerifier implements Releasable {
 
         private void recordRestorability(int totalSnapshotCount, int restorableSnapshotCount) {
             if (isCancelledSupplier.getAsBoolean() == false) {
-                // addResult(indexRefs.acquire(), (builder, params) -> {
-                // writeIndexId(indexId, builder, b -> {});
-                // builder.field(
-                // "restorability",
-                // totalSnapshotCount == restorableSnapshotCount ? "full" : 0 < restorableSnapshotCount ? "partial" : "none"
-                // );
-                // builder.field("total_snapshots", totalSnapshotCount);
-                // builder.field("restorable_snapshots", restorableSnapshotCount);
-                // builder.field("unrestorable_snapshots", totalSnapshotCount - restorableSnapshotCount);
-                // return builder;
-                // });
+                responseWriter.recordIndexRestorability(indexId, totalSnapshotCount, restorableSnapshotCount, indexRefs.acquire());
             }
         }
 
@@ -334,6 +325,7 @@ public class MetadataVerifier implements Releasable {
 
                 final var snapshotDescription = snapshotDescriptionsById.get(snapshotId.getUUID());
                 if (snapshotDescription == null) {
+                    anomalyCount.incrementAndGet();
                     responseWriter.onUnknownSnapshotForIndex(indexId, snapshotId, indexSnapshotRefs.acquire());
                     return;
                 }
@@ -396,6 +388,7 @@ public class MetadataVerifier implements Releasable {
                     snapshotDescription.snapshotId()
                 );
             } catch (Exception e) {
+                anomalyCount.incrementAndGet();
                 responseWriter.onFailedToLoadShardSnapshot(snapshotDescription, indexDescription, shardId, e, shardSnapshotsRefs.acquire());
                 throw new AnomalyException(e);
             }
@@ -455,6 +448,7 @@ public class MetadataVerifier implements Releasable {
                 for (final var summaryFile : summary.indexFiles()) {
                     final var snapshotFile = snapshotFiles.get(summaryFile.physicalName());
                     if (snapshotFile == null) {
+                        anomalyCount.incrementAndGet();
                         responseWriter.onFileInShardGenerationNotSnapshot(
                             snapshotDescription,
                             indexDescription,
@@ -463,6 +457,7 @@ public class MetadataVerifier implements Releasable {
                             shardSnapshotsRefs.acquire()
                         );
                     } else if (summaryFile.isSame(snapshotFile) == false) {
+                        anomalyCount.incrementAndGet();
                         responseWriter.onSnapshotShardGenerationMismatch(
                             snapshotDescription,
                             indexDescription,
@@ -478,6 +473,7 @@ public class MetadataVerifier implements Releasable {
                     .collect(Collectors.toMap(BlobStoreIndexShardSnapshot.FileInfo::physicalName, Function.identity()));
                 for (final var snapshotFile : blobStoreIndexShardSnapshot.indexFiles()) {
                     if (summaryFiles.get(snapshotFile.physicalName()) == null) {
+                        anomalyCount.incrementAndGet();
                         responseWriter.onFileInSnapshotNotShardGeneration(
                             snapshotDescription,
                             indexDescription,
@@ -491,6 +487,7 @@ public class MetadataVerifier implements Releasable {
                 return;
             }
 
+            anomalyCount.incrementAndGet();
             responseWriter.onSnapshotNotInShardGeneration(snapshotDescription, indexDescription, shardId, shardSnapshotsRefs.acquire());
         }
 
@@ -510,20 +507,20 @@ public class MetadataVerifier implements Releasable {
                 final var shardId = shardContainerContents.shardId();
                 final var shardBlobs = shardContainerContents.blobsByName();
                 final var fileLength = ByteSizeValue.ofBytes(fileInfo.length());
-                for (int part = 0; part < fileInfo.numberOfParts(); part++) {
-                    final var finalPart = part;
-                    final var blobName = fileInfo.partName(part);
+                for (int partIndex = 0; partIndex < fileInfo.numberOfParts(); partIndex++) {
+                    final var blobName = fileInfo.partName(partIndex);
                     final var blobInfo = shardBlobs.get(blobName);
-                    final var partLength = ByteSizeValue.ofBytes(fileInfo.partBytes(part));
+                    final var partLength = ByteSizeValue.ofBytes(fileInfo.partBytes(partIndex));
                     if (blobInfo == null) {
                         restorable.set(false);
+                        anomalyCount.incrementAndGet();
                         responseWriter.onMissingBlob(
                             snapshotDescription,
                             indexDescription,
                             shardId,
                             blobName,
                             fileInfo.physicalName(),
-                            finalPart,
+                            partIndex,
                             fileInfo.numberOfParts(),
                             fileLength,
                             partLength,
@@ -532,13 +529,14 @@ public class MetadataVerifier implements Releasable {
                         return;
                     } else if (blobInfo.length() != partLength.getBytes()) {
                         restorable.set(false);
+                        anomalyCount.incrementAndGet();
                         responseWriter.onMismatchedBlobLength(
                             snapshotDescription,
                             indexDescription,
                             shardId,
                             blobName,
                             fileInfo.physicalName(),
-                            finalPart,
+                            partIndex,
                             fileInfo.numberOfParts(),
                             fileLength,
                             partLength,
@@ -552,6 +550,7 @@ public class MetadataVerifier implements Releasable {
                 blobContentsListeners(indexDescription, shardContainerContents, fileInfo).addListener(
                     makeListener(fileRefs.acquire(), (Void ignored) -> {}).delegateResponse((l, e) -> {
                         restorable.set(false);
+                        anomalyCount.incrementAndGet();
                         responseWriter.onCorruptDataBlob(
                             snapshotDescription,
                             indexDescription,
@@ -580,6 +579,7 @@ public class MetadataVerifier implements Releasable {
                             blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId).getNumberOfShards()
                         );
                     } catch (Exception e) {
+                        anomalyCount.incrementAndGet();
                         responseWriter.onFailedToLoadIndexMetadata(indexId, indexMetaBlobId, e, indexRefs.acquire());
                         throw new AnomalyException(e);
                     }
@@ -599,12 +599,14 @@ public class MetadataVerifier implements Releasable {
                     try {
                         blobsByName = blobStoreRepository.shardContainer(indexId, shardId).listBlobs(OperationPurpose.REPOSITORY_ANALYSIS);
                     } catch (Exception e) {
+                        anomalyCount.incrementAndGet();
                         responseWriter.onFailedToListShardContainer(indexDescription, shardId, e, indexRefs.acquire());
                         throw new AnomalyException(e);
                     }
 
                     final var shardGen = repositoryData.shardGenerations().getShardGen(indexId, shardId);
                     if (shardGen == null) {
+                        anomalyCount.incrementAndGet();
                         responseWriter.onUndefinedShardGeneration(indexDescription, shardId, indexRefs.acquire());
                         throw new AnomalyException(
                             new ElasticsearchException("undefined shard generation for " + indexId + "[" + shardId + "]")
@@ -626,6 +628,7 @@ public class MetadataVerifier implements Releasable {
             try {
                 return blobStoreRepository.getBlobStoreIndexShardSnapshots(indexId, shardId, shardGen);
             } catch (Exception e) {
+                anomalyCount.incrementAndGet();
                 responseWriter.onFailedToLoadShardGeneration(indexDescription, shardId, shardGen, e, indexRefs.acquire());
                 // failing here is not fatal to snapshot restores, only to creating/deleting snapshots, so we can carry on with the analysis
                 return null;
@@ -678,6 +681,7 @@ public class MetadataVerifier implements Releasable {
                     // already reported
                     return;
                 }
+                anomalyCount.incrementAndGet();
                 responseWriter.onUnexpectedException(exception, refs.acquire());
             }), refs.acquire());
         }
@@ -692,22 +696,28 @@ public class MetadataVerifier implements Releasable {
     }
 
     private void onCompletion() {
-        // try (var completionRefs = new RefCountingRunnable(() -> finalListener.onResponse(anomalyCount.get()))) {
-        // blobStoreRepository.getRepositoryData(
-        // blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT),
-        // makeListener(completionRefs.acquire(), finalRepositoryData -> {
-        // final var finalRepositoryGeneration = finalRepositoryData.getGenId();
-        // addResult(completionRefs.acquire(), (builder, params) -> {
-        // builder.field("completed", true);
-        // builder.field("cancelled", isCancelledSupplier.getAsBoolean());
-        // builder.field("final_repository_generation", finalRepositoryGeneration);
-        // builder.field("total_anomalies", anomalyCount.get());
-        // return builder;
-        // });
-        // })
-        // );
-        // }
+        SubscribableListener
+
+            .<RepositoryData>newForked(
+                l -> blobStoreRepository.getRepositoryData(blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT), l)
+            )
+            .andThenApply(
+                finalRepositoryData -> new VerificationResult(
+                    repositoryData.getGenId(),
+                    finalRepositoryData.getGenId(),
+                    isCancelledSupplier.getAsBoolean(),
+                    anomalyCount.get()
+                )
+            )
+            .addListener(finalListener);
     }
+
+    public record VerificationResult(
+        long originalRepositoryGeneration,
+        long finalRepositoryGeneration,
+        boolean isCancelled,
+        long totalAnomalies
+    ) {}
 
     private static <T> void runThrottled(
         Iterator<T> iterator,
@@ -729,15 +739,6 @@ public class MetadataVerifier implements Releasable {
 
     public long getIndexSnapshotCount() {
         return indexSnapshotCount;
-    }
-
-    private static void writeIndexId(IndexId indexId, XContentBuilder builder, CheckedConsumer<XContentBuilder, IOException> extra)
-        throws IOException {
-        builder.startObject("index");
-        builder.field("id", indexId.getId());
-        builder.field("name", indexId.getName());
-        extra.accept(builder);
-        builder.endObject();
     }
 
     private class IndexInputWrapper extends IndexInput {
