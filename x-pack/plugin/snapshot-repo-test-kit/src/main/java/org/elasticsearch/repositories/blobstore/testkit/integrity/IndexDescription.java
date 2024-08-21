@@ -8,12 +8,5 @@
 package org.elasticsearch.repositories.blobstore.testkit.integrity;
 
 import org.elasticsearch.repositories.IndexId;
-import org.elasticsearch.xcontent.XContentBuilder;
 
-import java.io.IOException;
-
-public record IndexDescription(IndexId indexId, String indexMetadataBlob, int shardCount) {
-    void writeXContent(XContentBuilder builder) throws IOException {
-        MetadataVerifier.writeIndexId(indexId, builder, b -> b.field("metadata_blob", indexMetadataBlob).field("shards", shardCount));
-    }
-}
+public record IndexDescription(IndexId indexId, String indexMetadataBlob, int shardCount) {}

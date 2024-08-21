@@ -15,8 +15,8 @@ import org.apache.lucene.store.RateLimiter;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
-import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.action.support.RefCountingRunnable;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.common.blobstore.OperationPurpose;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.unit.ByteSizeValue;
@@ -63,25 +63,6 @@ import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.new
 public class MetadataVerifier implements Releasable {
     private static final Logger logger = LogManager.getLogger(MetadataVerifier.class);
 
-    public enum Anomaly {
-        FAILED_TO_LOAD_SNAPSHOT_INFO,
-        FAILED_TO_LOAD_GLOBAL_METADATA,
-        FAILED_TO_LOAD_SHARD_SNAPSHOT,
-        FAILED_TO_LOAD_INDEX_METADATA,
-        FAILED_TO_LIST_SHARD_CONTAINER,
-        FAILED_TO_LOAD_SHARD_GENERATION,
-        MISSING_BLOB,
-        MISMATCHED_BLOB_LENGTH,
-        CORRUPT_DATA_BLOB,
-        UNDEFINED_SHARD_GENERATION,
-        UNEXPECTED_EXCEPTION,
-        FILE_IN_SHARD_GENERATION_NOT_SNAPSHOT,
-        SNAPSHOT_SHARD_GENERATION_MISMATCH,
-        FILE_IN_SNAPSHOT_NOT_SHARD_GENERATION,
-        UNKNOWN_SNAPSHOT_FOR_INDEX,
-        SNAPSHOT_NOT_IN_SHARD_GENERATION,
-    }
-
     public static void run(
         BlobStoreRepository blobStoreRepository,
         ResponseWriter responseWriter,
@@ -92,7 +73,7 @@ public class MetadataVerifier implements Releasable {
     ) {
         logger.info("[{}] verifying metadata integrity", verifyRequest.repository());
 
-        final var repositoryDataFuture = new ListenableActionFuture<RepositoryData>();
+        final var repositoryDataFuture = new SubscribableListener<RepositoryData>();
         blobStoreRepository.getRepositoryData(EsExecutors.DIRECT_EXECUTOR_SERVICE, repositoryDataFuture);
 
         repositoryDataFuture.addListener(backgroundTaskListener.map(repositoryData -> {
@@ -306,13 +287,13 @@ public class MetadataVerifier implements Releasable {
     }
 
     private record ShardContainerContents(int shardId, Map<String, BlobMetadata> blobsByName, @Nullable // if it could not be read
-    BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots, Map<String, ListenableActionFuture<Void>> blobContentsListeners) {}
+    BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots, Map<String, SubscribableListener<Void>> blobContentsListeners) {}
 
     private class IndexVerifier {
         private final RefCountingRunnable indexRefs;
         private final IndexId indexId;
-        private final Map<Integer, ListenableActionFuture<ShardContainerContents>> shardContainerContentsListener = newConcurrentMap();
-        private final Map<String, ListenableActionFuture<IndexDescription>> indexDescriptionListenersByBlobId = newConcurrentMap();
+        private final Map<Integer, SubscribableListener<ShardContainerContents>> shardContainerContentsListener = newConcurrentMap();
+        private final Map<String, SubscribableListener<IndexDescription>> indexDescriptionListenersByBlobId = newConcurrentMap();
         private final AtomicInteger totalSnapshotCounter = new AtomicInteger();
         private final AtomicInteger restorableSnapshotCounter = new AtomicInteger();
 
@@ -536,34 +517,34 @@ public class MetadataVerifier implements Releasable {
                     final var partLength = ByteSizeValue.ofBytes(fileInfo.partBytes(part));
                     if (blobInfo == null) {
                         restorable.set(false);
-                        addAnomaly(Anomaly.MISSING_BLOB, fileRefs.acquire(), ((builder, params) -> {
-                            snapshotDescription.writeXContent(builder);
-                            indexDescription.writeXContent(builder);
-                            builder.field("shard", shardId);
-                            builder.field("blob_name", blobName);
-                            builder.field("file_name", fileInfo.physicalName());
-                            builder.field("part", finalPart);
-                            builder.field("number_of_parts", fileInfo.numberOfParts());
-                            builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
-                            builder.humanReadableField("part_length_in_bytes", "part_length", partLength);
-                            return builder;
-                        }));
+                        responseWriter.onMissingBlob(
+                            snapshotDescription,
+                            indexDescription,
+                            shardId,
+                            blobName,
+                            fileInfo.physicalName(),
+                            finalPart,
+                            fileInfo.numberOfParts(),
+                            fileLength,
+                            partLength,
+                            fileRefs.acquire()
+                        );
                         return;
                     } else if (blobInfo.length() != partLength.getBytes()) {
                         restorable.set(false);
-                        addAnomaly(Anomaly.MISMATCHED_BLOB_LENGTH, fileRefs.acquire(), ((builder, params) -> {
-                            snapshotDescription.writeXContent(builder);
-                            indexDescription.writeXContent(builder);
-                            builder.field("shard", shardId);
-                            builder.field("blob_name", blobName);
-                            builder.field("file_name", fileInfo.physicalName());
-                            builder.field("part", finalPart);
-                            builder.field("number_of_parts", fileInfo.numberOfParts());
-                            builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
-                            builder.humanReadableField("part_length_in_bytes", "part_length", partLength);
-                            builder.humanReadableField("actual_length_in_bytes", "actual_length", ByteSizeValue.ofBytes(blobInfo.length()));
-                            return builder;
-                        }));
+                        responseWriter.onMismatchedBlobLength(
+                            snapshotDescription,
+                            indexDescription,
+                            shardId,
+                            blobName,
+                            fileInfo.physicalName(),
+                            finalPart,
+                            fileInfo.numberOfParts(),
+                            fileLength,
+                            partLength,
+                            ByteSizeValue.ofBytes(blobInfo.length()),
+                            fileRefs.acquire()
+                        );
                         return;
                     }
                 }
@@ -571,26 +552,26 @@ public class MetadataVerifier implements Releasable {
                 blobContentsListeners(indexDescription, shardContainerContents, fileInfo).addListener(
                     makeListener(fileRefs.acquire(), (Void ignored) -> {}).delegateResponse((l, e) -> {
                         restorable.set(false);
-                        addAnomaly(Anomaly.CORRUPT_DATA_BLOB, fileRefs.acquire(), ((builder, params) -> {
-                            snapshotDescription.writeXContent(builder);
-                            indexDescription.writeXContent(builder);
-                            builder.field("shard", shardId);
-                            builder.field("blob_name", fileInfo.name());
-                            builder.field("file_name", fileInfo.physicalName());
-                            builder.field("number_of_parts", fileInfo.numberOfParts());
-                            builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
-                            ElasticsearchException.generateFailureXContent(builder, params, e, true);
-                            return builder;
-                        }));
+                        responseWriter.onCorruptDataBlob(
+                            snapshotDescription,
+                            indexDescription,
+                            shardId,
+                            fileInfo.name(),
+                            fileInfo.physicalName(),
+                            fileInfo.numberOfParts(),
+                            fileLength,
+                            e,
+                            fileRefs.acquire()
+                        );
                         l.onResponse(null);
                     })
                 );
             }
         }
 
-        private ListenableActionFuture<IndexDescription> indexDescriptionListeners(SnapshotId snapshotId, String indexMetaBlobId) {
+        private SubscribableListener<IndexDescription> indexDescriptionListeners(SnapshotId snapshotId, String indexMetaBlobId) {
             return indexDescriptionListenersByBlobId.computeIfAbsent(indexMetaBlobId, ignored -> {
-                final var indexDescriptionListener = new ListenableActionFuture<IndexDescription>();
+                final var indexDescriptionListener = new SubscribableListener<IndexDescription>();
                 metadataTaskRunner.run(ActionRunnable.supply(indexDescriptionListener, () -> {
                     try {
                         return new IndexDescription(
@@ -599,11 +580,7 @@ public class MetadataVerifier implements Releasable {
                             blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId).getNumberOfShards()
                         );
                     } catch (Exception e) {
-                        addAnomaly(Anomaly.FAILED_TO_LOAD_INDEX_METADATA, indexRefs.acquire(), (builder, params) -> {
-                            writeIndexId(indexId, builder, b -> b.field("metadata_blob", indexMetaBlobId));
-                            ElasticsearchException.generateFailureXContent(builder, params, e, true);
-                            return builder;
-                        });
+                        responseWriter.onFailedToLoadIndexMetadata(indexId, indexMetaBlobId, e, indexRefs.acquire());
                         throw new AnomalyException(e);
                     }
                 }));
@@ -611,32 +588,24 @@ public class MetadataVerifier implements Releasable {
             });
         }
 
-        private ListenableActionFuture<ShardContainerContents> shardContainerContentsListeners(
+        private SubscribableListener<ShardContainerContents> shardContainerContentsListeners(
             IndexDescription indexDescription,
             int shardId
         ) {
             return shardContainerContentsListener.computeIfAbsent(shardId, ignored -> {
-                final var shardContainerContentsFuture = new ListenableActionFuture<ShardContainerContents>();
+                final var shardContainerContentsFuture = new SubscribableListener<ShardContainerContents>();
                 metadataTaskRunner.run(ActionRunnable.supply(shardContainerContentsFuture, () -> {
                     final Map<String, BlobMetadata> blobsByName;
                     try {
                         blobsByName = blobStoreRepository.shardContainer(indexId, shardId).listBlobs(OperationPurpose.REPOSITORY_ANALYSIS);
                     } catch (Exception e) {
-                        addAnomaly(Anomaly.FAILED_TO_LIST_SHARD_CONTAINER, indexRefs.acquire(), (builder, params) -> {
-                            indexDescription.writeXContent(builder);
-                            builder.field("shard", shardId);
-                            ElasticsearchException.generateFailureXContent(builder, params, e, true);
-                            return builder;
-                        });
+                        responseWriter.onFailedToListShardContainer(indexDescription, shardId, e, indexRefs.acquire());
                         throw new AnomalyException(e);
                     }
 
                     final var shardGen = repositoryData.shardGenerations().getShardGen(indexId, shardId);
                     if (shardGen == null) {
-                        addAnomaly(Anomaly.UNDEFINED_SHARD_GENERATION, indexRefs.acquire(), (builder, params) -> {
-                            indexDescription.writeXContent(builder);
-                            return builder.field("shard", shardId);
-                        });
+                        responseWriter.onUndefinedShardGeneration(indexDescription, shardId, indexRefs.acquire());
                         throw new AnomalyException(
                             new ElasticsearchException("undefined shard generation for " + indexId + "[" + shardId + "]")
                         );
@@ -657,47 +626,44 @@ public class MetadataVerifier implements Releasable {
             try {
                 return blobStoreRepository.getBlobStoreIndexShardSnapshots(indexId, shardId, shardGen);
             } catch (Exception e) {
-                addAnomaly(Anomaly.FAILED_TO_LOAD_SHARD_GENERATION, indexRefs.acquire(), (builder, params) -> {
-                    indexDescription.writeXContent(builder);
-                    builder.field("shard", shardId);
-                    ElasticsearchException.generateFailureXContent(builder, params, e, true);
-                    return builder;
-                });
+                responseWriter.onFailedToLoadShardGeneration(indexDescription, shardId, shardGen, e, indexRefs.acquire());
                 // failing here is not fatal to snapshot restores, only to creating/deleting snapshots, so we can carry on with the analysis
                 return null;
             }
         }
 
-        private ListenableActionFuture<Void> blobContentsListeners(
+        private SubscribableListener<Void> blobContentsListeners(
             IndexDescription indexDescription,
             ShardContainerContents shardContainerContents,
             BlobStoreIndexShardSnapshot.FileInfo fileInfo
         ) {
             return shardContainerContents.blobContentsListeners().computeIfAbsent(fileInfo.name(), ignored -> {
-                var listener = new ListenableActionFuture<Void>();
-
                 if (verifyRequest.verifyBlobContents()) {
-                    // TODO do this on a remote node?
-                    snapshotTaskRunner.run(ActionRunnable.run(listener, () -> {
-                        try (var slicedStream = new SlicedInputStream(fileInfo.numberOfParts()) {
-                            @Override
-                            protected InputStream openSlice(int slice) throws IOException {
-                                return blobStoreRepository.shardContainer(indexDescription.indexId(), shardContainerContents.shardId())
-                                    .readBlob(OperationPurpose.REPOSITORY_ANALYSIS, fileInfo.partName(slice));
+                    return SubscribableListener.newForked(listener -> {
+                        // TODO do this on a remote node?
+                        snapshotTaskRunner.run(ActionRunnable.run(listener, () -> {
+                            try (var slicedStream = new SlicedInputStream(fileInfo.numberOfParts()) {
+                                @Override
+                                protected InputStream openSlice(int slice) throws IOException {
+                                    return blobStoreRepository.shardContainer(indexDescription.indexId(), shardContainerContents.shardId())
+                                        .readBlob(OperationPurpose.REPOSITORY_ANALYSIS, fileInfo.partName(slice));
+                                }
+                            };
+                                var rateLimitedStream = new RateLimitingInputStream(
+                                    slicedStream,
+                                    () -> rateLimiter,
+                                    throttledNanos::addAndGet
+                                );
+                                var indexInput = new IndexInputWrapper(rateLimitedStream, fileInfo.length())
+                            ) {
+                                CodecUtil.checksumEntireFile(indexInput);
                             }
-                        };
-                            var rateLimitedStream = new RateLimitingInputStream(slicedStream, () -> rateLimiter, throttledNanos::addAndGet);
-                            var indexInput = new IndexInputWrapper(rateLimitedStream, fileInfo.length())
-                        ) {
-                            CodecUtil.checksumEntireFile(indexInput);
-                        }
-                    }));
+                        }));
+                    });
                 } else {
                     blobBytesVerified.addAndGet(fileInfo.length());
-                    listener.onResponse(null);
+                    return SubscribableListener.newSucceeded(null);
                 }
-
-                return listener;
             });
         }
     }
@@ -712,10 +678,7 @@ public class MetadataVerifier implements Releasable {
                     // already reported
                     return;
                 }
-                addAnomaly(Anomaly.UNEXPECTED_EXCEPTION, refs.acquire(), (builder, params) -> {
-                    ElasticsearchException.generateFailureXContent(builder, params, exception, true);
-                    return builder;
-                });
+                responseWriter.onUnexpectedException(exception, refs.acquire());
             }), refs.acquire());
         }
     }

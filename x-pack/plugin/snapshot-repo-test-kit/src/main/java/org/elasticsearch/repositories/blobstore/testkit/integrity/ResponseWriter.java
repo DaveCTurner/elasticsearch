@@ -7,8 +7,10 @@
 
 package org.elasticsearch.repositories.blobstore.testkit.integrity;
 
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.repositories.IndexId;
+import org.elasticsearch.repositories.ShardGeneration;
 import org.elasticsearch.snapshots.SnapshotId;
 
 public interface ResponseWriter {
@@ -57,4 +59,59 @@ public interface ResponseWriter {
         int shardId,
         Releasable releasable
     );
+
+    void onMissingBlob(
+        SnapshotDescription snapshotDescription,
+        IndexDescription indexDescription,
+        int shardId,
+        String blobName,
+        String physicalName,
+        int partIndex,
+        int partCount,
+        ByteSizeValue fileLength,
+        ByteSizeValue partLength,
+        Releasable releasable
+    );
+
+    void onMismatchedBlobLength(
+        SnapshotDescription snapshotDescription,
+        IndexDescription indexDescription,
+        int shardId,
+        String blobName,
+        String physicalName,
+        int partIndex,
+        int partCount,
+        ByteSizeValue fileLength,
+        ByteSizeValue partLength,
+        ByteSizeValue blobLength,
+        Releasable releasable
+    );
+
+    void onCorruptDataBlob(
+        SnapshotDescription snapshotDescription,
+        IndexDescription indexDescription,
+        int shardId,
+        String blobName,
+        String physicalName,
+        int partCount,
+        ByteSizeValue fileLength,
+        Exception e,
+        Releasable releasable
+    );
+
+    void onFailedToLoadIndexMetadata(IndexId indexId, String indexMetaBlobId, Exception e, Releasable releasable);
+
+    void onFailedToListShardContainer(IndexDescription indexDescription, int shardId, Exception e, Releasable releasable);
+
+    void onUndefinedShardGeneration(IndexDescription indexDescription, int shardId, Releasable releasable);
+
+    void onFailedToLoadShardGeneration(
+        IndexDescription indexDescription,
+        int shardId,
+        ShardGeneration shardGeneration,
+        Exception e,
+        Releasable releasable
+    );
+
+    void onUnexpectedException(Exception exception, Releasable releasable);
 }
