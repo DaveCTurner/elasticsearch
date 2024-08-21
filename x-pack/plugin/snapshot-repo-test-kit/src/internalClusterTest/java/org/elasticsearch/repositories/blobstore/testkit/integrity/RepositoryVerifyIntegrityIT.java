@@ -14,6 +14,7 @@ import org.elasticsearch.repositories.blobstore.testkit.SnapshotRepositoryTestKi
 import org.elasticsearch.repositories.fs.FsRepository;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.MockTransportService;
 
 import java.io.IOException;
@@ -37,6 +38,7 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
         );
     }
 
+    @TestLogging(reason = "experiments", value = "org.elasticsearch.repositories.blobstore.testkit.integrity:DEBUG")
     public void testResponse() throws IOException {
         if (internalCluster().size() == 1) {
             internalCluster().startNode();

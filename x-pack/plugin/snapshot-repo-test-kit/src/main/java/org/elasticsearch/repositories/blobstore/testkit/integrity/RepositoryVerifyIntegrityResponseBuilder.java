@@ -41,8 +41,7 @@ class RepositoryVerifyIntegrityResponseBuilder extends AbstractRefCounted {
     }
 
     void writeFragment(ChunkedToXContent fragment, Releasable releasable) throws IOException {
-        final var localStreamingXContentResponse = getStreamingXContentResponse();
-        localStreamingXContentResponse.writeFragment(fragment, releasable);
+        getStreamingXContentResponse().writeFragment(fragment, releasable);
     }
 
     /**

@@ -86,7 +86,7 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends Transpor
                 transportService.sendChildRequest(
                     request.coordinatingNode,
                     TransportRepositoryVerifyIntegrityResponseChunkAction.SNAPSHOT_CHUNK_ACTION_NAME,
-                    new TransportRepositoryVerifyIntegrityResponseChunkAction.Request(rawTask.getId(), responseChunk),
+                    new TransportRepositoryVerifyIntegrityResponseChunkAction.Request(request.taskId, responseChunk),
                     rawTask,
                     TransportRequestOptions.EMPTY,
                     new ActionListenerResponseHandler<TransportResponse>(

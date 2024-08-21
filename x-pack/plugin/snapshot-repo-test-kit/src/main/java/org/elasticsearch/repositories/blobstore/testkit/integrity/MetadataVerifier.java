@@ -74,37 +74,40 @@ public class MetadataVerifier implements Releasable {
         ActionListener<VerificationResult> finalListener
     ) {
         logger.info("[{}] verifying metadata integrity", verifyRequest.repository());
-
-        final var repositoryDataFuture = new SubscribableListener<RepositoryData>();
-        blobStoreRepository.getRepositoryData(EsExecutors.DIRECT_EXECUTOR_SERVICE, repositoryDataFuture);
-
-        repositoryDataFuture.addListener(finalListener.map(repositoryData -> {
-            try (
-                var metadataVerifier = new MetadataVerifier(
-                    blobStoreRepository,
-                    responseWriter,
-                    verifyRequest,
-                    repositoryData,
-                    cancellableThreads,
-                    task,
-                    createLoggingListener(verifyRequest, finalListener, repositoryData)
-                )
-            ) {
-                logger.info(
-                    "[{}] verifying metadata integrity for index generation [{}]: "
-                        + "repo UUID [{}], cluster UUID [{}], snapshots [{}], indices [{}], index snapshots [{}]",
-                    verifyRequest.repository(),
-                    repositoryData.getGenId(),
-                    repositoryData.getUuid(),
-                    repositoryData.getClusterUUID(),
-                    metadataVerifier.getSnapshotCount(),
-                    metadataVerifier.getIndexCount(),
-                    metadataVerifier.getIndexSnapshotCount()
-                );
-                metadataVerifier.start();
-                return null;
+        blobStoreRepository.getRepositoryData(EsExecutors.DIRECT_EXECUTOR_SERVICE, new ActionListener<>() {
+            @Override
+            public void onResponse(RepositoryData repositoryData) {
+                try (
+                    var metadataVerifier = new MetadataVerifier(
+                        blobStoreRepository,
+                        responseWriter,
+                        verifyRequest,
+                        repositoryData,
+                        cancellableThreads,
+                        task,
+                        createLoggingListener(verifyRequest, finalListener, repositoryData)
+                    )
+                ) {
+                    logger.info(
+                        "[{}] verifying metadata integrity for index generation [{}]: "
+                            + "repo UUID [{}], cluster UUID [{}], snapshots [{}], indices [{}], index snapshots [{}]",
+                        verifyRequest.repository(),
+                        repositoryData.getGenId(),
+                        repositoryData.getUuid(),
+                        repositoryData.getClusterUUID(),
+                        metadataVerifier.getSnapshotCount(),
+                        metadataVerifier.getIndexCount(),
+                        metadataVerifier.getIndexSnapshotCount()
+                    );
+                    metadataVerifier.start();
+                }
             }
-        }));
+
+            @Override
+            public void onFailure(Exception e) {
+                // TODO return this error to the user
+            }
+        });
     }
 
     private static ActionListener<VerificationResult> createLoggingListener(

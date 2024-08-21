@@ -16,6 +16,8 @@ import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.ChunkedToXContentHelper;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 
@@ -28,6 +30,8 @@ public class TransportRepositoryVerifyIntegrityResponseChunkAction extends Handl
 
     static final String SNAPSHOT_CHUNK_ACTION_NAME = TransportRepositoryVerifyIntegrityCoordinationAction.INSTANCE.name()
         + "[response_chunk]";
+
+    private static final Logger logger = LogManager.getLogger(TransportRepositoryVerifyIntegrityResponseChunkAction.class);
 
     private final OngoingRequests ongoingRequests;
 
@@ -43,14 +47,23 @@ public class TransportRepositoryVerifyIntegrityResponseChunkAction extends Handl
 
     @Override
     protected void doExecute(Task task, Request request, ActionListener<ActionResponse.Empty> listener) {
-        ActionListener.run(
-            listener,
-            l -> ongoingRequests.get(request.taskId)
-                .writeFragment(
-                    p0 -> ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject().value(request.chunkContents(), p).endObject()),
-                    () -> l.onResponse(ActionResponse.Empty.INSTANCE)
-                )
-        );
+        logger.debug("received: [{}]", request.chunkContents());
+        ActionListener.run(new ActionListener<ActionResponse.Empty>() {
+            @Override
+            public void onResponse(ActionResponse.Empty empty) {
+                logger.debug("processed: [{}]", request.chunkContents());
+                listener.onResponse(empty);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                logger.debug("failed to process: [{}]", request.chunkContents(), e);
+                listener.onFailure(e);
+            }
+        }, l -> ongoingRequests.get(request.taskId).writeFragment(p0 -> ChunkedToXContentHelper.singleChunk((b, p) -> {
+            logger.debug("rendering: [{}]", request.chunkContents());
+            return b.startObject().value(request.chunkContents(), p).endObject();
+        }), () -> l.onResponse(ActionResponse.Empty.INSTANCE)));
     }
 
     public static class Request extends ActionRequest {

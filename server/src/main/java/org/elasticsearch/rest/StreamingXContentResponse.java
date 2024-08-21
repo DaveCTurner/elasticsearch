@@ -26,6 +26,8 @@ import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.RestApiVersion;
 import org.elasticsearch.core.Streams;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.transport.Transports;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -129,6 +131,8 @@ public final class StreamingXContentResponse implements Releasable {
             : fragment.fragment().toXContentChunked(params);
     }
 
+    private static final Logger logger = LogManager.getLogger(StreamingXContentResponse.class);
+
     /**
      * Enqueue the given fragment for transmission.
      * @param fragment   The fragment to send.
@@ -140,6 +144,7 @@ public final class StreamingXContentResponse implements Releasable {
      *                   </ul>
      */
     public void writeFragment(ChunkedToXContent fragment, Releasable releasable) {
+        logger.info("--> here! {}", fragment);
         if (tryAcquireQueueRef()) {
             try {
                 fragmentQueue.add(new StreamingFragment(fragment, releasable));
