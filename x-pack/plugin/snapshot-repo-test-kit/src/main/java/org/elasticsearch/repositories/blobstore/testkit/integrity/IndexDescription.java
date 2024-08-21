@@ -7,6 +7,28 @@
 
 package org.elasticsearch.repositories.blobstore.testkit.integrity;
 
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.repositories.IndexId;
 
-public record IndexDescription(IndexId indexId, String indexMetadataBlob, int shardCount) {}
+import java.io.IOException;
+
+public record IndexDescription(IndexId indexId, String indexMetadataBlob, int shardCount) implements Writeable {
+    public IndexDescription {
+        if (indexId == null || shardCount < 0) {
+            throw new IllegalArgumentException("invalid IndexDescription");
+        }
+    }
+
+    public IndexDescription(StreamInput in) throws IOException {
+        this(new IndexId(in), in.readOptionalString(), in.readVInt());
+    }
+
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        indexId.writeTo(out);
+        out.writeOptionalString(indexMetadataBlob);
+        out.writeVInt(shardCount);
+    }
+}

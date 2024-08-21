@@ -19,6 +19,9 @@ import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.common.blobstore.OperationPurpose;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.CancellableThreads;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
@@ -998,7 +1001,20 @@ public class MetadataVerifier implements Releasable {
         long finalRepositoryGeneration,
         boolean isCancelled,
         long totalAnomalies
-    ) {}
+    ) implements Writeable {
+
+        public VerificationResult(StreamInput in) throws IOException {
+            this(in.readLong(), in.readLong(), in.readBoolean(), in.readVLong());
+        }
+
+        @Override
+        public void writeTo(StreamOutput out) throws IOException {
+            out.writeLong(originalRepositoryGeneration);
+            out.writeLong(finalRepositoryGeneration);
+            out.writeBoolean(isCancelled);
+            out.writeVLong(totalAnomalies);
+        }
+    }
 
     private static <T> void runThrottled(
         Iterator<T> iterator,

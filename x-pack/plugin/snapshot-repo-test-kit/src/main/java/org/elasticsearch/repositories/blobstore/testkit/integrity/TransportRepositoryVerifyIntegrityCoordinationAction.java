@@ -20,6 +20,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.xcontent.ChunkedToXContentHelper;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.injection.guice.Inject;
+import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskId;
@@ -83,6 +84,7 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
     public TransportRepositoryVerifyIntegrityCoordinationAction(
         TransportService transportService,
         ClusterService clusterService,
+        RepositoriesService repositoriesService,
         ActionFilters actionFilters,
         IndexNameExpressionResolver indexNameExpressionResolver
     ) {
@@ -100,6 +102,7 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
         new TransportRepositoryVerifyIntegrityMasterNodeAction(
             transportService,
             clusterService,
+            repositoriesService,
             actionFilters,
             indexNameExpressionResolver,
             managementExecutor
@@ -133,13 +136,13 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
                     new ActionListenerResponseHandler<>(
                         // TODO if completed exceptionally, render the exception in the response
                         ActionListener.runBefore(
-                            l,
+                            l.map(ignored -> ActionResponse.Empty.INSTANCE),
                             () -> responseBuilder.writeFragment(
                                 p0 -> ChunkedToXContentHelper.singleChunk((b, p) -> b.endArray().endObject()),
                                 () -> {}
                             )
                         ),
-                        in -> ActionResponse.Empty.INSTANCE,
+                        TransportRepositoryVerifyIntegrityMasterNodeAction.Response::new,
                         managementExecutor
                     )
                 );

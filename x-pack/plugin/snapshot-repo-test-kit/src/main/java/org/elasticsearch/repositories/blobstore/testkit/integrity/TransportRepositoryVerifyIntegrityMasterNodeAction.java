@@ -12,7 +12,6 @@ import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.action.support.master.TransportMasterNodeAction;
 import org.elasticsearch.cluster.ClusterState;
@@ -20,15 +19,17 @@ import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.util.concurrent.ThrottledIterator;
+import org.elasticsearch.common.util.CancellableThreads;
+import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.tasks.CancellableTask;
+import org.elasticsearch.repositories.RepositoriesService;
+import org.elasticsearch.repositories.blobstore.BlobStoreRepository;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.transport.TransportRequestOptions;
+import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
@@ -38,13 +39,15 @@ import java.util.concurrent.Executor;
 
 public class TransportRepositoryVerifyIntegrityMasterNodeAction extends TransportMasterNodeAction<
     TransportRepositoryVerifyIntegrityMasterNodeAction.Request,
-    ActionResponse.Empty> {
+    TransportRepositoryVerifyIntegrityMasterNodeAction.Response> {
 
     static final String MASTER_ACTION_NAME = TransportRepositoryVerifyIntegrityCoordinationAction.INSTANCE.name() + "[m]";
+    private final RepositoriesService repositoriesService;
 
     TransportRepositoryVerifyIntegrityMasterNodeAction(
         TransportService transportService,
         ClusterService clusterService,
+        RepositoriesService repositoriesService,
         ActionFilters actionFilters,
         IndexNameExpressionResolver indexNameExpressionResolver,
         Executor executor
@@ -57,9 +60,10 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends Transpor
             actionFilters,
             TransportRepositoryVerifyIntegrityMasterNodeAction.Request::new,
             indexNameExpressionResolver,
-            in -> ActionResponse.Empty.INSTANCE,
+            TransportRepositoryVerifyIntegrityMasterNodeAction.Response::new,
             executor
         );
+        this.repositoriesService = repositoriesService;
     }
 
     @Override
@@ -69,39 +73,40 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends Transpor
 
     @Override
     protected void masterOperation(
-        Task task,
+        Task rawTask,
         TransportRepositoryVerifyIntegrityMasterNodeAction.Request request,
         ClusterState state,
-        ActionListener<ActionResponse.Empty> listener
+        ActionListener<TransportRepositoryVerifyIntegrityMasterNodeAction.Response> listener
     ) {
-        final var cancellableTask = (CancellableTask) task;
-        try (var listeners = new RefCountingListener(listener.map(v -> {
-            cancellableTask.ensureNotCancelled();
-            return ActionResponse.Empty.INSTANCE;
-        }))) {
-            final var completionListener = listeners.acquire();
-            ThrottledIterator.run(
-                Iterators.failFast(
-                    Iterators.forRange(0, 20, id -> new TransportRepositoryVerifyIntegrityResponseChunkAction.Request(request.taskId, id)),
-                    () -> cancellableTask.isCancelled() || listeners.isFailing()
-                ),
-                (ref, req) -> transportService.sendChildRequest(
+        final var repository = (BlobStoreRepository) repositoriesService.repository(request.requestParams.repository());
+        final var responseWriter = new ResponseWriter() {
+            @Override
+            public void writeResponseChunk(ResponseChunk responseChunk, Releasable releasable) {
+                transportService.sendChildRequest(
                     request.coordinatingNode,
                     TransportRepositoryVerifyIntegrityResponseChunkAction.SNAPSHOT_CHUNK_ACTION_NAME,
-                    req,
-                    task,
+                    new TransportRepositoryVerifyIntegrityResponseChunkAction.Request(rawTask.getId(), responseChunk),
+                    rawTask,
                     TransportRequestOptions.EMPTY,
-                    new ActionListenerResponseHandler<>(
-                        ActionListener.releaseAfter(listeners.acquire(response -> {}), ref),
+                    new ActionListenerResponseHandler<TransportResponse>(
+                        // TODO add failure handling
+                        ActionListener.releasing(releasable),
                         in -> ActionResponse.Empty.INSTANCE,
                         executor
                     )
-                ),
-                5,
-                () -> {},
-                () -> completionListener.onResponse(null)
-            );
-        }
+                );
+            }
+        };
+
+        final var task = (RepositoryVerifyIntegrityTask) rawTask;
+        MetadataVerifier.run(
+            repository,
+            responseWriter,
+            request.requestParams,
+            new CancellableThreads(),
+            task,
+            listener.map(Response::new)
+        );
     }
 
     public static class Request extends MasterNodeRequest<Request> {
@@ -139,6 +144,24 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends Transpor
         @Override
         public Task createTask(long id, String type, String action, TaskId parentTaskId, Map<String, String> headers) {
             return new RepositoryVerifyIntegrityTask(id, type, action, getDescription(), parentTaskId, headers);
+        }
+    }
+
+    public static class Response extends ActionResponse {
+
+        private final MetadataVerifier.VerificationResult verificationResult;
+
+        Response(MetadataVerifier.VerificationResult verificationResult) {
+            this.verificationResult = Objects.requireNonNull(verificationResult);
+        }
+
+        Response(StreamInput in) throws IOException {
+            verificationResult = new MetadataVerifier.VerificationResult(in);
+        }
+
+        @Override
+        public void writeTo(StreamOutput out) throws IOException {
+            verificationResult.writeTo(out);
         }
     }
 }

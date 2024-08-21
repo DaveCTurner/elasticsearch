@@ -7,29 +7,23 @@
 
 package org.elasticsearch.repositories.blobstore.testkit.integrity;
 
-import org.elasticsearch.common.time.DateFormatter;
-import org.elasticsearch.common.time.FormatNames;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.snapshots.SnapshotId;
-import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.io.IOException;
-import java.time.Instant;
-import java.util.Locale;
 
-public record SnapshotDescription(SnapshotId snapshotId, long startTimeMillis, long endTimeMillis) {
+public record SnapshotDescription(SnapshotId snapshotId, long startTimeMillis, long endTimeMillis) implements Writeable {
 
-    private static final DateFormatter dateFormatter = DateFormatter.forPattern(FormatNames.ISO8601.getName()).withLocale(Locale.ROOT);
+    public SnapshotDescription(StreamInput in) throws IOException {
+        this(new SnapshotId(in), in.readZLong(), in.readZLong());
+    }
 
-    void writeXContent(XContentBuilder builder) throws IOException {
-        builder.startObject("snapshot");
-        builder.field("id", snapshotId.getUUID());
-        builder.field("name", snapshotId.getName());
-        if (startTimeMillis != 0) {
-            builder.field("start_time", dateFormatter.format(Instant.ofEpochMilli(startTimeMillis)));
-        }
-        if (endTimeMillis != 0) {
-            builder.field("end_time", dateFormatter.format(Instant.ofEpochMilli(endTimeMillis)));
-        }
-        builder.endObject();
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        snapshotId.writeTo(out);
+        out.writeZLong(startTimeMillis);
+        out.writeZLong(endTimeMillis);
     }
 }

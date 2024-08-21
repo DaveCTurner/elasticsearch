@@ -47,7 +47,7 @@ public class TransportRepositoryVerifyIntegrityResponseChunkAction extends Handl
             listener,
             l -> ongoingRequests.get(request.taskId)
                 .writeFragment(
-                    p0 -> ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject().field("id", request.id).endObject()),
+                    p0 -> ChunkedToXContentHelper.singleChunk((b, p) -> b.startObject().value(request.chunkContents(), p).endObject()),
                     () -> l.onResponse(ActionResponse.Empty.INSTANCE)
                 )
         );
@@ -56,29 +56,33 @@ public class TransportRepositoryVerifyIntegrityResponseChunkAction extends Handl
     public static class Request extends ActionRequest {
 
         private final long taskId;
-        private final int id;
+        private final ResponseWriter.ResponseChunk chunkContents;
 
-        public Request(long taskId, int id) {
+        public Request(long taskId, ResponseWriter.ResponseChunk chunkContents) {
             this.taskId = taskId;
-            this.id = id;
+            this.chunkContents = chunkContents;
         }
 
         public Request(StreamInput in) throws IOException {
             super(in);
             taskId = in.readVLong();
-            id = in.readVInt();
+            chunkContents = new ResponseWriter.ResponseChunk(in);
         }
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
             super.writeTo(out);
             out.writeVLong(taskId);
-            out.writeVInt(id);
+            chunkContents.writeTo(out);
         }
 
         @Override
         public ActionRequestValidationException validate() {
             return null;
+        }
+
+        public ResponseWriter.ResponseChunk chunkContents() {
+            return chunkContents;
         }
     }
 }
