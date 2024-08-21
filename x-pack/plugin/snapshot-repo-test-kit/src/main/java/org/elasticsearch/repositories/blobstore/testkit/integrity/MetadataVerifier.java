@@ -263,7 +263,26 @@ public class MetadataVerifier implements Releasable {
                             // no checks here, loading it is enough
                         } catch (Exception e) {
                             anomalyCount.incrementAndGet();
-                            responseWriter.onFailedToLoadGlobalMetadata(snapshotDescription, e, snapshotRefs.acquire());
+                            responseWriter.writeResponseChunk(
+                                new ResponseWriter.ResponseChunk(
+                                    "failed to load global metadata",
+                                    snapshotDescription,
+                                    null,
+                                    -1,
+                                    null,
+                                    null,
+                                    null,
+                                    -1,
+                                    -1,
+                                    ByteSizeValue.MINUS_ONE,
+                                    ByteSizeValue.MINUS_ONE,
+                                    ByteSizeValue.MINUS_ONE,
+                                    -1,
+                                    -1,
+                                    e
+                                ),
+                                snapshotRefs.acquire()
+                            );
                         }
                     }));
                 }
@@ -271,7 +290,26 @@ public class MetadataVerifier implements Releasable {
                 @Override
                 public void onFailure(Exception e) {
                     anomalyCount.incrementAndGet();
-                    responseWriter.onFailedToLoadSnapshotInfo(snapshotId, e, snapshotRefs.acquire());
+                    responseWriter.writeResponseChunk(
+                        new ResponseWriter.ResponseChunk(
+                            "failed to load snapshot info",
+                            new SnapshotDescription(snapshotId, 0, 0),
+                            null,
+                            -1,
+                            null,
+                            null,
+                            null,
+                            -1,
+                            -1,
+                            ByteSizeValue.MINUS_ONE,
+                            ByteSizeValue.MINUS_ONE,
+                            ByteSizeValue.MINUS_ONE,
+                            -1,
+                            -1,
+                            e
+                        ),
+                        snapshotRefs.acquire()
+                    );
                 }
             }, snapshotRefs.acquire()));
         }
@@ -321,7 +359,26 @@ public class MetadataVerifier implements Releasable {
 
         private void recordRestorability(int totalSnapshotCount, int restorableSnapshotCount) {
             if (isCancelledSupplier.getAsBoolean() == false) {
-                responseWriter.recordIndexRestorability(indexId, totalSnapshotCount, restorableSnapshotCount, indexRefs.acquire());
+                responseWriter.writeResponseChunk(
+                    new ResponseWriter.ResponseChunk(
+                        null,
+                        null,
+                        new IndexDescription(indexId, null, 0),
+                        -1,
+                        null,
+                        null,
+                        null,
+                        -1,
+                        -1,
+                        ByteSizeValue.MINUS_ONE,
+                        ByteSizeValue.MINUS_ONE,
+                        ByteSizeValue.MINUS_ONE,
+                        totalSnapshotCount,
+                        restorableSnapshotCount,
+                        null
+                    ),
+                    indexRefs.acquire()
+                );
             }
         }
 
@@ -332,7 +389,26 @@ public class MetadataVerifier implements Releasable {
                 final var snapshotDescription = snapshotDescriptionsById.get(snapshotId.getUUID());
                 if (snapshotDescription == null) {
                     anomalyCount.incrementAndGet();
-                    responseWriter.onUnknownSnapshotForIndex(indexId, snapshotId, indexSnapshotRefs.acquire());
+                    responseWriter.writeResponseChunk(
+                        new ResponseWriter.ResponseChunk(
+                            "unknown snapshot for index",
+                            new SnapshotDescription(snapshotId, 0, 0),
+                            new IndexDescription(indexId, null, 0),
+                            -1,
+                            null,
+                            null,
+                            null,
+                            -1,
+                            -1,
+                            ByteSizeValue.MINUS_ONE,
+                            ByteSizeValue.MINUS_ONE,
+                            ByteSizeValue.MINUS_ONE,
+                            -1,
+                            -1,
+                            null
+                        ),
+                        indexSnapshotRefs.acquire()
+                    );
                     return;
                 }
 
@@ -395,7 +471,26 @@ public class MetadataVerifier implements Releasable {
                 );
             } catch (Exception e) {
                 anomalyCount.incrementAndGet();
-                responseWriter.onFailedToLoadShardSnapshot(snapshotDescription, indexDescription, shardId, e, shardSnapshotsRefs.acquire());
+                responseWriter.writeResponseChunk(
+                    new ResponseWriter.ResponseChunk(
+                        "failed to load shard snapshot",
+                        snapshotDescription,
+                        indexDescription,
+                        shardId,
+                        null,
+                        null,
+                        null,
+                        -1,
+                        -1,
+                        ByteSizeValue.MINUS_ONE,
+                        ByteSizeValue.MINUS_ONE,
+                        ByteSizeValue.MINUS_ONE,
+                        -1,
+                        -1,
+                        e
+                    ),
+                    shardSnapshotsRefs.acquire()
+                );
                 throw new AnomalyException(e);
             }
 
@@ -455,20 +550,46 @@ public class MetadataVerifier implements Releasable {
                     final var snapshotFile = snapshotFiles.get(summaryFile.physicalName());
                     if (snapshotFile == null) {
                         anomalyCount.incrementAndGet();
-                        responseWriter.onFileInShardGenerationNotSnapshot(
-                            snapshotDescription,
-                            indexDescription,
-                            shardId,
-                            summaryFile.physicalName(),
+                        responseWriter.writeResponseChunk(
+                            new ResponseWriter.ResponseChunk(
+                                "blob in shard generation but not snapshot",
+                                snapshotDescription,
+                                indexDescription,
+                                shardId,
+                                null,
+                                null,
+                                summaryFile.physicalName(),
+                                -1,
+                                -1,
+                                ByteSizeValue.MINUS_ONE,
+                                ByteSizeValue.MINUS_ONE,
+                                ByteSizeValue.MINUS_ONE,
+                                -1,
+                                -1,
+                                null
+                            ),
                             shardSnapshotsRefs.acquire()
                         );
                     } else if (summaryFile.isSame(snapshotFile) == false) {
                         anomalyCount.incrementAndGet();
-                        responseWriter.onSnapshotShardGenerationMismatch(
-                            snapshotDescription,
-                            indexDescription,
-                            shardId,
-                            summaryFile.physicalName(),
+                        responseWriter.writeResponseChunk(
+                            new ResponseWriter.ResponseChunk(
+                                "snapshot shard generation mismatch",
+                                snapshotDescription,
+                                indexDescription,
+                                shardId,
+                                null,
+                                null,
+                                summaryFile.physicalName(),
+                                -1,
+                                -1,
+                                ByteSizeValue.MINUS_ONE,
+                                ByteSizeValue.MINUS_ONE,
+                                ByteSizeValue.MINUS_ONE,
+                                -1,
+                                -1,
+                                null
+                            ),
                             shardSnapshotsRefs.acquire()
                         );
                     }
@@ -480,11 +601,24 @@ public class MetadataVerifier implements Releasable {
                 for (final var snapshotFile : blobStoreIndexShardSnapshot.indexFiles()) {
                     if (summaryFiles.get(snapshotFile.physicalName()) == null) {
                         anomalyCount.incrementAndGet();
-                        responseWriter.onFileInSnapshotNotShardGeneration(
-                            snapshotDescription,
-                            indexDescription,
-                            shardId,
-                            snapshotFile.physicalName(),
+                        responseWriter.writeResponseChunk(
+                            new ResponseWriter.ResponseChunk(
+                                "blob in snapshot but not shard generation",
+                                snapshotDescription,
+                                indexDescription,
+                                shardId,
+                                null,
+                                null,
+                                snapshotFile.physicalName(),
+                                -1,
+                                -1,
+                                ByteSizeValue.MINUS_ONE,
+                                ByteSizeValue.MINUS_ONE,
+                                ByteSizeValue.MINUS_ONE,
+                                -1,
+                                -1,
+                                null
+                            ),
                             shardSnapshotsRefs.acquire()
                         );
                     }
@@ -494,7 +628,26 @@ public class MetadataVerifier implements Releasable {
             }
 
             anomalyCount.incrementAndGet();
-            responseWriter.onSnapshotNotInShardGeneration(snapshotDescription, indexDescription, shardId, shardSnapshotsRefs.acquire());
+            responseWriter.writeResponseChunk(
+                new ResponseWriter.ResponseChunk(
+                    "snapshot not in shard generation",
+                    snapshotDescription,
+                    indexDescription,
+                    shardId,
+                    null,
+                    null,
+                    null,
+                    -1,
+                    -1,
+                    ByteSizeValue.MINUS_ONE,
+                    ByteSizeValue.MINUS_ONE,
+                    ByteSizeValue.MINUS_ONE,
+                    -1,
+                    -1,
+                    null
+                ),
+                shardSnapshotsRefs.acquire()
+            );
         }
 
         private void verifyFileInfo(
@@ -520,33 +673,48 @@ public class MetadataVerifier implements Releasable {
                     if (blobInfo == null) {
                         restorable.set(false);
                         anomalyCount.incrementAndGet();
-                        responseWriter.onMissingBlob(
-                            snapshotDescription,
-                            indexDescription,
-                            shardId,
-                            blobName,
-                            fileInfo.physicalName(),
-                            partIndex,
-                            fileInfo.numberOfParts(),
-                            fileLength,
-                            partLength,
+                        responseWriter.writeResponseChunk(
+                            new ResponseWriter.ResponseChunk(
+                                "missing blob",
+                                snapshotDescription,
+                                indexDescription,
+                                shardId,
+                                null,
+                                blobName,
+                                fileInfo.physicalName(),
+                                partIndex,
+                                fileInfo.numberOfParts(),
+                                fileLength,
+                                partLength,
+                                ByteSizeValue.MINUS_ONE,
+                                -1,
+                                -1,
+                                null
+                            ),
                             fileRefs.acquire()
                         );
                         return;
                     } else if (blobInfo.length() != partLength.getBytes()) {
                         restorable.set(false);
                         anomalyCount.incrementAndGet();
-                        responseWriter.onMismatchedBlobLength(
-                            snapshotDescription,
-                            indexDescription,
-                            shardId,
-                            blobName,
-                            fileInfo.physicalName(),
-                            partIndex,
-                            fileInfo.numberOfParts(),
-                            fileLength,
-                            partLength,
-                            ByteSizeValue.ofBytes(blobInfo.length()),
+                        responseWriter.writeResponseChunk(
+                            new ResponseWriter.ResponseChunk(
+                                "mismatched blob length",
+                                snapshotDescription,
+                                indexDescription,
+                                shardId,
+                                null,
+                                blobName,
+                                fileInfo.physicalName(),
+                                partIndex,
+                                fileInfo.numberOfParts(),
+                                fileLength,
+                                partLength,
+                                ByteSizeValue.ofBytes(blobInfo.length()),
+                                -1,
+                                -1,
+                                null
+                            ),
                             fileRefs.acquire()
                         );
                         return;
@@ -557,15 +725,24 @@ public class MetadataVerifier implements Releasable {
                     makeListener(fileRefs.acquire(), (Void ignored) -> {}).delegateResponse((l, e) -> {
                         restorable.set(false);
                         anomalyCount.incrementAndGet();
-                        responseWriter.onCorruptDataBlob(
-                            snapshotDescription,
-                            indexDescription,
-                            shardId,
-                            fileInfo.name(),
-                            fileInfo.physicalName(),
-                            fileInfo.numberOfParts(),
-                            fileLength,
-                            e,
+                        responseWriter.writeResponseChunk(
+                            new ResponseWriter.ResponseChunk(
+                                "corrupt data blob",
+                                snapshotDescription,
+                                indexDescription,
+                                shardId,
+                                null,
+                                fileInfo.name(),
+                                fileInfo.physicalName(),
+                                -1,
+                                fileInfo.numberOfParts(),
+                                fileLength,
+                                ByteSizeValue.MINUS_ONE,
+                                ByteSizeValue.MINUS_ONE,
+                                -1,
+                                -1,
+                                e
+                            ),
                             fileRefs.acquire()
                         );
                         l.onResponse(null);
@@ -587,7 +764,26 @@ public class MetadataVerifier implements Releasable {
                             );
                         } catch (Exception e) {
                             anomalyCount.incrementAndGet();
-                            responseWriter.onFailedToLoadIndexMetadata(indexId, indexMetaBlobId, e, indexRefs.acquire());
+                            responseWriter.writeResponseChunk(
+                                new ResponseWriter.ResponseChunk(
+                                    "failed to load index metadata",
+                                    null,
+                                    new IndexDescription(indexId, indexMetaBlobId, 0),
+                                    -1,
+                                    null,
+                                    null,
+                                    null,
+                                    -1,
+                                    -1,
+                                    ByteSizeValue.MINUS_ONE,
+                                    ByteSizeValue.MINUS_ONE,
+                                    ByteSizeValue.MINUS_ONE,
+                                    -1,
+                                    -1,
+                                    e
+                                ),
+                                indexRefs.acquire()
+                            );
                             throw new AnomalyException(e);
                         }
                     }))
@@ -609,14 +805,52 @@ public class MetadataVerifier implements Releasable {
                                 .listBlobs(OperationPurpose.REPOSITORY_ANALYSIS);
                         } catch (Exception e) {
                             anomalyCount.incrementAndGet();
-                            responseWriter.onFailedToListShardContainer(indexDescription, shardId, e, indexRefs.acquire());
+                            responseWriter.writeResponseChunk(
+                                new ResponseWriter.ResponseChunk(
+                                    "failed to list shard container contents",
+                                    null,
+                                    indexDescription,
+                                    shardId,
+                                    null,
+                                    null,
+                                    null,
+                                    -1,
+                                    -1,
+                                    ByteSizeValue.MINUS_ONE,
+                                    ByteSizeValue.MINUS_ONE,
+                                    ByteSizeValue.MINUS_ONE,
+                                    -1,
+                                    -1,
+                                    e
+                                ),
+                                indexRefs.acquire()
+                            );
                             throw new AnomalyException(e);
                         }
 
                         final var shardGen = repositoryData.shardGenerations().getShardGen(indexId, shardId);
                         if (shardGen == null) {
                             anomalyCount.incrementAndGet();
-                            responseWriter.onUndefinedShardGeneration(indexDescription, shardId, indexRefs.acquire());
+                            responseWriter.writeResponseChunk(
+                                new ResponseWriter.ResponseChunk(
+                                    "shard generation not defined",
+                                    null,
+                                    indexDescription,
+                                    shardId,
+                                    null,
+                                    null,
+                                    null,
+                                    -1,
+                                    -1,
+                                    ByteSizeValue.MINUS_ONE,
+                                    ByteSizeValue.MINUS_ONE,
+                                    ByteSizeValue.MINUS_ONE,
+                                    -1,
+                                    -1,
+                                    null
+                                ),
+                                indexRefs.acquire()
+                            );
                             throw new AnomalyException(
                                 new ElasticsearchException("undefined shard generation for " + indexId + "[" + shardId + "]")
                             );
@@ -638,7 +872,26 @@ public class MetadataVerifier implements Releasable {
                 return blobStoreRepository.getBlobStoreIndexShardSnapshots(indexId, shardId, shardGen);
             } catch (Exception e) {
                 anomalyCount.incrementAndGet();
-                responseWriter.onFailedToLoadShardGeneration(indexDescription, shardId, shardGen, e, indexRefs.acquire());
+                responseWriter.writeResponseChunk(
+                    new ResponseWriter.ResponseChunk(
+                        "failed to load shard generation",
+                        null,
+                        indexDescription,
+                        shardId,
+                        shardGen,
+                        null,
+                        null,
+                        -1,
+                        -1,
+                        ByteSizeValue.MINUS_ONE,
+                        ByteSizeValue.MINUS_ONE,
+                        ByteSizeValue.MINUS_ONE,
+                        -1,
+                        -1,
+                        e
+                    ),
+                    indexRefs.acquire()
+                );
                 // failing here is not fatal to snapshot restores, only to creating/deleting snapshots, so we can carry on with the analysis
                 return null;
             }
@@ -691,7 +944,26 @@ public class MetadataVerifier implements Releasable {
                     return;
                 }
                 anomalyCount.incrementAndGet();
-                responseWriter.onUnexpectedException(exception, refs.acquire());
+                responseWriter.writeResponseChunk(
+                    new ResponseWriter.ResponseChunk(
+                        "unexpected exception",
+                        null,
+                        null,
+                        -1,
+                        null,
+                        null,
+                        null,
+                        -1,
+                        -1,
+                        ByteSizeValue.MINUS_ONE,
+                        ByteSizeValue.MINUS_ONE,
+                        ByteSizeValue.MINUS_ONE,
+                        -1,
+                        -1,
+                        exception
+                    ),
+                    refs.acquire()
+                );
             }), refs.acquire());
         }
     }
