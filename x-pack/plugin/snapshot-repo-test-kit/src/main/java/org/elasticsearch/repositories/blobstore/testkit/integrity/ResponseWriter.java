@@ -83,9 +83,9 @@ public interface ResponseWriter {
             out.writeOptionalString(physicalFileName);
             out.writeInt(partIndex);
             out.writeInt(partCount);
-            out.writeOptionalWriteable(fileLength);
-            out.writeOptionalWriteable(partLength);
-            out.writeOptionalWriteable(blobLength);
+            fileLength.writeTo(out);
+            partLength.writeTo(out);
+            blobLength.writeTo(out);
             out.writeInt(totalSnapshotCount);
             out.writeInt(restorableSnapshotCount);
             out.writeException(exception);

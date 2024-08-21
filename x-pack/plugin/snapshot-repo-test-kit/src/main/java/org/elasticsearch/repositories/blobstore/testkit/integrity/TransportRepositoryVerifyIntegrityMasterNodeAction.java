@@ -28,6 +28,7 @@ import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.blobstore.BlobStoreRepository;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskId;
+import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
@@ -102,7 +103,7 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends Transpor
         MetadataVerifier.run(
             repository,
             responseWriter,
-            request.requestParams,
+            request.requestParams.withResolvedDefaults(repository.threadPool().info(ThreadPool.Names.SNAPSHOT_META)),
             new CancellableThreads(),
             task,
             listener.map(Response::new)
