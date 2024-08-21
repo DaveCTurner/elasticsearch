@@ -287,8 +287,14 @@ public class MetadataVerifier implements Releasable {
         );
     }
 
-    private record ShardContainerContents(int shardId, Map<String, BlobMetadata> blobsByName, @Nullable // if it could not be read
-    BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots, Map<String, SubscribableListener<Void>> blobContentsListeners) {}
+    private record ShardContainerContents(
+        int shardId,
+        Map<String, BlobMetadata> blobsByName,
+        // shard gen contents
+        @Nullable // if shard gen blob could not be read
+        BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots,
+        Map<String, SubscribableListener<Void>> blobContentsListeners
+    ) {}
 
     private class IndexVerifier {
         private final RefCountingRunnable indexRefs;
