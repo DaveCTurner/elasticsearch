@@ -569,59 +569,62 @@ public class MetadataVerifier implements Releasable {
         }
 
         private SubscribableListener<IndexDescription> indexDescriptionListeners(SnapshotId snapshotId, String indexMetaBlobId) {
-            return indexDescriptionListenersByBlobId.computeIfAbsent(indexMetaBlobId, ignored -> {
-                final var indexDescriptionListener = new SubscribableListener<IndexDescription>();
-                metadataTaskRunner.run(ActionRunnable.supply(indexDescriptionListener, () -> {
-                    try {
-                        return new IndexDescription(
-                            indexId,
-                            indexMetaBlobId,
-                            blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId).getNumberOfShards()
-                        );
-                    } catch (Exception e) {
-                        anomalyCount.incrementAndGet();
-                        responseWriter.onFailedToLoadIndexMetadata(indexId, indexMetaBlobId, e, indexRefs.acquire());
-                        throw new AnomalyException(e);
-                    }
-                }));
-                return indexDescriptionListener;
-            });
+            return indexDescriptionListenersByBlobId.computeIfAbsent(
+                indexMetaBlobId,
+                ignored -> SubscribableListener.newForked(
+                    indexDescriptionListener -> metadataTaskRunner.run(ActionRunnable.supply(indexDescriptionListener, () -> {
+                        try {
+                            return new IndexDescription(
+                                indexId,
+                                indexMetaBlobId,
+                                blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId).getNumberOfShards()
+                            );
+                        } catch (Exception e) {
+                            anomalyCount.incrementAndGet();
+                            responseWriter.onFailedToLoadIndexMetadata(indexId, indexMetaBlobId, e, indexRefs.acquire());
+                            throw new AnomalyException(e);
+                        }
+                    }))
+                )
+            );
         }
 
         private SubscribableListener<ShardContainerContents> shardContainerContentsListeners(
             IndexDescription indexDescription,
             int shardId
         ) {
-            return shardContainerContentsListener.computeIfAbsent(shardId, ignored -> {
-                final var shardContainerContentsFuture = new SubscribableListener<ShardContainerContents>();
-                metadataTaskRunner.run(ActionRunnable.supply(shardContainerContentsFuture, () -> {
-                    final Map<String, BlobMetadata> blobsByName;
-                    try {
-                        blobsByName = blobStoreRepository.shardContainer(indexId, shardId).listBlobs(OperationPurpose.REPOSITORY_ANALYSIS);
-                    } catch (Exception e) {
-                        anomalyCount.incrementAndGet();
-                        responseWriter.onFailedToListShardContainer(indexDescription, shardId, e, indexRefs.acquire());
-                        throw new AnomalyException(e);
-                    }
+            return shardContainerContentsListener.computeIfAbsent(
+                shardId,
+                ignored -> SubscribableListener.newForked(
+                    shardContainerContentsListener -> metadataTaskRunner.run(ActionRunnable.supply(shardContainerContentsListener, () -> {
+                        final Map<String, BlobMetadata> blobsByName;
+                        try {
+                            blobsByName = blobStoreRepository.shardContainer(indexId, shardId)
+                                .listBlobs(OperationPurpose.REPOSITORY_ANALYSIS);
+                        } catch (Exception e) {
+                            anomalyCount.incrementAndGet();
+                            responseWriter.onFailedToListShardContainer(indexDescription, shardId, e, indexRefs.acquire());
+                            throw new AnomalyException(e);
+                        }
 
-                    final var shardGen = repositoryData.shardGenerations().getShardGen(indexId, shardId);
-                    if (shardGen == null) {
-                        anomalyCount.incrementAndGet();
-                        responseWriter.onUndefinedShardGeneration(indexDescription, shardId, indexRefs.acquire());
-                        throw new AnomalyException(
-                            new ElasticsearchException("undefined shard generation for " + indexId + "[" + shardId + "]")
+                        final var shardGen = repositoryData.shardGenerations().getShardGen(indexId, shardId);
+                        if (shardGen == null) {
+                            anomalyCount.incrementAndGet();
+                            responseWriter.onUndefinedShardGeneration(indexDescription, shardId, indexRefs.acquire());
+                            throw new AnomalyException(
+                                new ElasticsearchException("undefined shard generation for " + indexId + "[" + shardId + "]")
+                            );
+                        }
+
+                        return new ShardContainerContents(
+                            shardId,
+                            blobsByName,
+                            loadShardGeneration(indexDescription, shardId, shardGen),
+                            ConcurrentCollections.newConcurrentMap()
                         );
-                    }
-
-                    return new ShardContainerContents(
-                        shardId,
-                        blobsByName,
-                        loadShardGeneration(indexDescription, shardId, shardGen),
-                        ConcurrentCollections.newConcurrentMap()
-                    );
-                }));
-                return shardContainerContentsFuture;
-            });
+                    }))
+                )
+            );
         }
 
         private BlobStoreIndexShardSnapshots loadShardGeneration(IndexDescription indexDescription, int shardId, ShardGeneration shardGen) {
