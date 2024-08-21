@@ -13,6 +13,7 @@ import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.repositories.ShardGeneration;
+import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.xcontent.ToXContentFragment;
 import org.elasticsearch.xcontent.XContentBuilder;
 
@@ -23,6 +24,7 @@ public interface ResponseWriter {
     record ResponseChunk(
         String anomaly,
         SnapshotDescription snapshotDescription,
+        SnapshotInfo snapshotInfo,
         IndexDescription indexDescription,
         int shardId,
         ShardGeneration shardGeneration,
@@ -56,6 +58,7 @@ public interface ResponseWriter {
             this(
                 in.readOptionalString(),
                 in.readOptionalWriteable(SnapshotDescription::new),
+                in.readOptionalWriteable(SnapshotInfo::readFrom),
                 in.readOptionalWriteable(IndexDescription::new),
                 in.readInt(),
                 in.readOptionalWriteable(ShardGeneration::new),
@@ -76,6 +79,7 @@ public interface ResponseWriter {
         public void writeTo(StreamOutput out) throws IOException {
             out.writeOptionalString(anomaly);
             out.writeOptionalWriteable(snapshotDescription);
+            out.writeOptionalWriteable(snapshotInfo);
             out.writeOptionalWriteable(indexDescription);
             out.writeInt(shardId);
             out.writeOptionalWriteable(shardGeneration);
@@ -96,9 +100,13 @@ public interface ResponseWriter {
             if (anomaly() != null) {
                 builder.field("anomaly", anomaly());
             }
-            if (snapshotDescription() != null) {
+
+            if (snapshotInfo() != null) {
+                builder.field("snapshot");
+                snapshotInfo().toXContentExternal(builder, params);
+            } else if (snapshotDescription() != null) {
                 builder.startObject("snapshot");
-                builder.field("name", snapshotDescription().snapshotId().getName());
+                builder.field("snapshot", snapshotDescription().snapshotId().getName());
                 builder.field("uuid", snapshotDescription().snapshotId().getUUID());
                 if (snapshotDescription().startTimeMillis() > 0) {
                     builder.timeField("start_time_millis", "start_time", snapshotDescription().startTimeMillis());
@@ -108,6 +116,7 @@ public interface ResponseWriter {
                 }
                 builder.endObject();
             }
+
             if (indexDescription() != null) {
                 builder.startObject("index");
                 builder.field("name", indexDescription().indexId().getName());

@@ -262,6 +262,27 @@ public class MetadataVerifier implements Releasable {
                 @Override
                 public void onResponse(SnapshotInfo snapshotInfo) {
                     final var snapshotDescription = new SnapshotDescription(snapshotId, snapshotInfo.startTime(), snapshotInfo.endTime());
+                    responseWriter.writeResponseChunk(
+                        new ResponseWriter.ResponseChunk(
+                            null,
+                            null,
+                            snapshotInfo,
+                            null,
+                            -1,
+                            null,
+                            null,
+                            null,
+                            -1,
+                            -1,
+                            ByteSizeValue.MINUS_ONE,
+                            ByteSizeValue.MINUS_ONE,
+                            ByteSizeValue.MINUS_ONE,
+                            -1,
+                            -1,
+                            null
+                        ),
+                        snapshotRefs.acquire()
+                    );
                     snapshotDescriptionsById.put(snapshotId.getUUID(), snapshotDescription);
                     metadataTaskRunner.run(ActionRunnable.run(snapshotRefs.acquireListener(), () -> {
                         try {
@@ -273,6 +294,7 @@ public class MetadataVerifier implements Releasable {
                                 new ResponseWriter.ResponseChunk(
                                     "failed to load global metadata",
                                     snapshotDescription,
+                                    null,
                                     null,
                                     -1,
                                     null,
@@ -300,6 +322,7 @@ public class MetadataVerifier implements Releasable {
                         new ResponseWriter.ResponseChunk(
                             "failed to load snapshot info",
                             new SnapshotDescription(snapshotId, 0, 0),
+                            null,
                             null,
                             -1,
                             null,
@@ -369,6 +392,7 @@ public class MetadataVerifier implements Releasable {
                     new ResponseWriter.ResponseChunk(
                         null,
                         null,
+                        null,
                         new IndexDescription(indexId, null, 0),
                         -1,
                         null,
@@ -399,6 +423,7 @@ public class MetadataVerifier implements Releasable {
                         new ResponseWriter.ResponseChunk(
                             "unknown snapshot for index",
                             new SnapshotDescription(snapshotId, 0, 0),
+                            null,
                             new IndexDescription(indexId, null, 0),
                             -1,
                             null,
@@ -481,6 +506,7 @@ public class MetadataVerifier implements Releasable {
                     new ResponseWriter.ResponseChunk(
                         "failed to load shard snapshot",
                         snapshotDescription,
+                        null,
                         indexDescription,
                         shardId,
                         null,
@@ -560,6 +586,7 @@ public class MetadataVerifier implements Releasable {
                             new ResponseWriter.ResponseChunk(
                                 "blob in shard generation but not snapshot",
                                 snapshotDescription,
+                                null,
                                 indexDescription,
                                 shardId,
                                 null,
@@ -582,6 +609,7 @@ public class MetadataVerifier implements Releasable {
                             new ResponseWriter.ResponseChunk(
                                 "snapshot shard generation mismatch",
                                 snapshotDescription,
+                                null,
                                 indexDescription,
                                 shardId,
                                 null,
@@ -611,6 +639,7 @@ public class MetadataVerifier implements Releasable {
                             new ResponseWriter.ResponseChunk(
                                 "blob in snapshot but not shard generation",
                                 snapshotDescription,
+                                null,
                                 indexDescription,
                                 shardId,
                                 null,
@@ -638,6 +667,7 @@ public class MetadataVerifier implements Releasable {
                 new ResponseWriter.ResponseChunk(
                     "snapshot not in shard generation",
                     snapshotDescription,
+                    null,
                     indexDescription,
                     shardId,
                     null,
@@ -683,6 +713,7 @@ public class MetadataVerifier implements Releasable {
                             new ResponseWriter.ResponseChunk(
                                 "missing blob",
                                 snapshotDescription,
+                                null,
                                 indexDescription,
                                 shardId,
                                 null,
@@ -707,6 +738,7 @@ public class MetadataVerifier implements Releasable {
                             new ResponseWriter.ResponseChunk(
                                 "mismatched blob length",
                                 snapshotDescription,
+                                null,
                                 indexDescription,
                                 shardId,
                                 null,
@@ -735,6 +767,7 @@ public class MetadataVerifier implements Releasable {
                             new ResponseWriter.ResponseChunk(
                                 "corrupt data blob",
                                 snapshotDescription,
+                                null,
                                 indexDescription,
                                 shardId,
                                 null,
@@ -773,6 +806,7 @@ public class MetadataVerifier implements Releasable {
                             responseWriter.writeResponseChunk(
                                 new ResponseWriter.ResponseChunk(
                                     "failed to load index metadata",
+                                    null,
                                     null,
                                     new IndexDescription(indexId, indexMetaBlobId, 0),
                                     -1,
@@ -815,6 +849,7 @@ public class MetadataVerifier implements Releasable {
                                 new ResponseWriter.ResponseChunk(
                                     "failed to list shard container contents",
                                     null,
+                                    null,
                                     indexDescription,
                                     shardId,
                                     null,
@@ -840,6 +875,7 @@ public class MetadataVerifier implements Releasable {
                             responseWriter.writeResponseChunk(
                                 new ResponseWriter.ResponseChunk(
                                     "shard generation not defined",
+                                    null,
                                     null,
                                     indexDescription,
                                     shardId,
@@ -881,6 +917,7 @@ public class MetadataVerifier implements Releasable {
                 responseWriter.writeResponseChunk(
                     new ResponseWriter.ResponseChunk(
                         "failed to load shard generation",
+                        null,
                         null,
                         indexDescription,
                         shardId,
@@ -953,6 +990,7 @@ public class MetadataVerifier implements Releasable {
                 responseWriter.writeResponseChunk(
                     new ResponseWriter.ResponseChunk(
                         "unexpected exception",
+                        null,
                         null,
                         null,
                         -1,

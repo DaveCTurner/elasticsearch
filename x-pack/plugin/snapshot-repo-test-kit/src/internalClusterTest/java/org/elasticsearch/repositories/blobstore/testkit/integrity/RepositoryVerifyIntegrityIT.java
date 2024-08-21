@@ -76,6 +76,8 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
         final var nonMasterName = randomValueOtherThan(masterName, () -> internalCluster().getRandomNodeName());
         try (var client = createRestClient(nonMasterName)) {
             final var request = new Request("POST", "/_snapshot/" + repositoryName + "/_verify_integrity");
+            request.addParameter("human", null);
+            request.addParameter("pretty", null);
             final var response = client.performRequest(request);
             logger.info("--> response body: {}", new String(response.getEntity().getContent().readAllBytes(), StandardCharsets.UTF_8));
         }
