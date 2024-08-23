@@ -568,10 +568,9 @@ public class RepositoryIntegrityVerifier {
                     )
                 );
             } catch (Exception e) {
-                ActionListener<Void> listener1 = listener.map(v -> null);
                 anomaly("failed to load index metadata").indexDescription(new IndexDescription(indexId, indexMetaBlobId, 0))
                     .exception(e)
-                    .write(listener1);
+                    .write(listener.map(v -> null));
             }
         }
 
@@ -598,17 +597,15 @@ public class RepositoryIntegrityVerifier {
             try {
                 blobsByName = blobStoreRepository.shardContainer(indexId, shardId).listBlobs(OperationPurpose.REPOSITORY_ANALYSIS);
             } catch (Exception e) {
-                ActionListener<Void> listener1 = listener.map(v -> null);
                 anomaly("failed to list shard container contents").shardDescription(indexDescription, shardId)
                     .exception(e)
-                    .write(listener1);
+                    .write(listener.map(v -> null));
                 return;
             }
 
             final var shardGen = repositoryData.shardGenerations().getShardGen(indexId, shardId);
             if (shardGen == null) {
-                ActionListener<Void> listener1 = listener.map(v -> null);
-                anomaly("shard generation not defined").shardDescription(indexDescription, shardId).write(listener1);
+                anomaly("shard generation not defined").shardDescription(indexDescription, shardId).write(listener.map(v -> null));
                 return;
             }
 
@@ -620,11 +617,10 @@ public class RepositoryIntegrityVerifier {
                     } catch (Exception e) {
                         // failing here is not fatal to snapshot restores, only to creating/deleting snapshots, so we can return null
                         // and carry on with the analysis
-                        ActionListener<Void> listener1 = listener.map(v -> null);
                         anomaly("failed to load shard generation").shardDescription(indexDescription, shardId)
                             .shardGeneration(shardGen)
                             .exception(e)
-                            .write(listener1);
+                            .write(listener.map(v -> null));
                     }
                 })
                 .andThenApply(
