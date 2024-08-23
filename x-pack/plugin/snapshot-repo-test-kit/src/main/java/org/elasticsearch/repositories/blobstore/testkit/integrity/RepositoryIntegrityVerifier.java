@@ -46,6 +46,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -69,6 +70,7 @@ public class RepositoryIntegrityVerifier {
     private final CancellableRunner snapshotTaskRunner;
     private final RateLimiter rateLimiter;
 
+    private final Set<String> unreadableSnapshotInfoUuids = ConcurrentCollections.newConcurrentSet();
     private final long snapshotCount;
     private final AtomicLong snapshotProgress = new AtomicLong();
     private final long indexCount;
@@ -240,6 +242,7 @@ public class RepositoryIntegrityVerifier {
 
             @Override
             public void onFailure(Exception e) {
+                unreadableSnapshotInfoUuids.add(snapshotId.getUUID());
                 anomaly("failed to load snapshot info").snapshotId(snapshotId).exception(e).write(listener);
             }
         });
@@ -314,6 +317,7 @@ public class RepositoryIntegrityVerifier {
                     ensureNotCancelled();
                     int totalSnapshotCount = totalSnapshotCounter.get();
                     int restorableSnapshotCount = restorableSnapshotCounter.get();
+                    logger.info("--> reporting restorability of [{}]: [{}] vs [{}]", indexId, totalSnapshotCount, restorableSnapshotCount);
                     new RepositoryVerifyIntegrityResponseChunk.Builder(
                         responseChunkWriter,
                         RepositoryVerifyIntegrityResponseChunk.Type.INDEX_RESTORABILITY
@@ -342,7 +346,14 @@ public class RepositoryIntegrityVerifier {
         private void verifyShardSnapshots(SnapshotId snapshotId, IndexDescription indexDescription, ActionListener<Void> listener) {
             final var restorableShardCount = new AtomicInteger();
             try (var listeners = new RefCountingListener(1, listener.map(v -> {
-                if (indexDescription.shardCount() == restorableShardCount.get()) {
+                if (unreadableSnapshotInfoUuids.contains(snapshotId.getUUID()) == false
+                    && indexDescription.shardCount() == restorableShardCount.get()) {
+                    logger.info(
+                        "--> snapshot [{}] index [{}] all [{}] shards restorable",
+                        snapshotId,
+                        indexDescription,
+                        indexDescription.shardCount()
+                    );
                     restorableSnapshotCounter.incrementAndGet();
                 }
                 return v;
@@ -627,7 +638,7 @@ public class RepositoryIntegrityVerifier {
                         anomaly("failed to load shard generation").shardDescription(indexDescription, shardId)
                             .shardGeneration(shardGen)
                             .exception(e)
-                            .write(listener.map(v -> null));
+                            .write(l.map(v -> null));
                     }
                 })
                 .andThenApply(

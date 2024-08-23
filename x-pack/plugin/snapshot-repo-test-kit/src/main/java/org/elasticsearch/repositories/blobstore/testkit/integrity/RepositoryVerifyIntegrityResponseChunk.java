@@ -7,6 +7,8 @@
 
 package org.elasticsearch.repositories.blobstore.testkit.integrity;
 
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -126,7 +128,7 @@ public record RepositoryVerifyIntegrityResponseChunk(
             ByteSizeValue.readFrom(in),
             in.readInt(),
             in.readInt(),
-            in.readOptionalWriteable(StreamInput::readException)
+            in.readBoolean() ? in.readException() : null
         );
     }
 
@@ -148,8 +150,12 @@ public record RepositoryVerifyIntegrityResponseChunk(
         blobLength.writeTo(out);
         out.writeInt(totalSnapshotCount);
         out.writeInt(restorableSnapshotCount);
-        out.writeOptionalWriteable(o -> o.writeException(exception));
-        out.writeException(exception);
+        if (exception == null) {
+            out.writeBoolean(false);
+        } else {
+            out.writeBoolean(true);
+            out.writeException(exception);
+        }
     }
 
     @Override
@@ -210,8 +216,14 @@ public record RepositoryVerifyIntegrityResponseChunk(
         if (totalSnapshotCount() >= 0 && restorableSnapshotCount() >= 0) {
             builder.startObject("snapshots");
             builder.field("total_count", totalSnapshotCount());
-            builder.field("restorable_count", totalSnapshotCount());
+            builder.field("restorable_count", restorableSnapshotCount());
             builder.endObject();
+        }
+        if (exception() != null) {
+            builder.startObject("exception")
+                .value((bb, pp) -> ElasticsearchException.generateFailureXContent(bb, pp, exception(), true))
+                .field("status", ExceptionsHelper.status(exception()))
+                .endObject();
         }
         return builder;
     }

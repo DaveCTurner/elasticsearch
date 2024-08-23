@@ -9,21 +9,20 @@ package org.elasticsearch.repositories.blobstore.testkit.integrity;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
+import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.SubscribableListener;
-import org.elasticsearch.action.support.master.MasterNodeRequest;
-import org.elasticsearch.action.support.master.TransportMasterNodeAction;
-import org.elasticsearch.cluster.ClusterState;
-import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.CancellableThreads;
-import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.blobstore.BlobStoreRepository;
@@ -39,47 +38,33 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 
-public class TransportRepositoryVerifyIntegrityMasterNodeAction extends TransportMasterNodeAction<
+public class TransportRepositoryVerifyIntegrityMasterNodeAction extends HandledTransportAction<
     TransportRepositoryVerifyIntegrityMasterNodeAction.Request,
     RepositoryVerifyIntegrityResponse> {
 
     static final String ACTION_NAME = TransportRepositoryVerifyIntegrityCoordinationAction.INSTANCE.name() + "[m]";
     private final RepositoriesService repositoriesService;
+    private final TransportService transportService;
+    private final Executor executor;
 
     TransportRepositoryVerifyIntegrityMasterNodeAction(
         TransportService transportService,
-        ClusterService clusterService,
         RepositoriesService repositoriesService,
         ActionFilters actionFilters,
-        IndexNameExpressionResolver indexNameExpressionResolver,
         Executor executor
     ) {
-        super(
-            ACTION_NAME,
-            transportService,
-            clusterService,
-            transportService.getThreadPool(),
-            actionFilters,
-            TransportRepositoryVerifyIntegrityMasterNodeAction.Request::new,
-            indexNameExpressionResolver,
-            RepositoryVerifyIntegrityResponse::new,
-            executor
-        );
+        super(ACTION_NAME, transportService, actionFilters, TransportRepositoryVerifyIntegrityMasterNodeAction.Request::new, executor);
         this.repositoriesService = repositoriesService;
+        this.transportService = transportService;
+        this.executor = executor;
     }
 
-    public static class Request extends MasterNodeRequest<Request> {
+    public static class Request extends ActionRequest {
         private final DiscoveryNode coordinatingNode;
         private final long coordinatingTaskId;
         private final RepositoryVerifyIntegrityParams requestParams;
 
-        Request(
-            TimeValue masterNodeTimeout,
-            DiscoveryNode coordinatingNode,
-            long coordinatingTaskId,
-            RepositoryVerifyIntegrityParams requestParams
-        ) {
-            super(masterNodeTimeout);
+        Request(DiscoveryNode coordinatingNode, long coordinatingTaskId, RepositoryVerifyIntegrityParams requestParams) {
             this.coordinatingNode = coordinatingNode;
             this.coordinatingTaskId = coordinatingTaskId;
             this.requestParams = Objects.requireNonNull(requestParams);
@@ -112,17 +97,7 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends Transpor
     }
 
     @Override
-    protected ClusterBlockException checkBlock(TransportRepositoryVerifyIntegrityMasterNodeAction.Request request, ClusterState state) {
-        return null;
-    }
-
-    @Override
-    protected void masterOperation(
-        Task rawTask,
-        TransportRepositoryVerifyIntegrityMasterNodeAction.Request request,
-        ClusterState state,
-        ActionListener<RepositoryVerifyIntegrityResponse> listener
-    ) {
+    protected void doExecute(Task rawTask, Request request, ActionListener<RepositoryVerifyIntegrityResponse> listener) {
         final var responseWriter = new RepositoryVerifyIntegrityResponseChunk.Writer() {
             @Override
             public void writeResponseChunk(RepositoryVerifyIntegrityResponseChunk responseChunk, ActionListener<Void> listener) {
@@ -161,6 +136,7 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends Transpor
                 return verifier;
             })
             .<RepositoryIntegrityVerifier>andThen((l, repositoryIntegrityVerifier) -> {
+                logger.info("--> starting response for [{}] in task [{}]", request.coordinatingTaskId, rawTask.getId());
                 new RepositoryVerifyIntegrityResponseChunk.Builder(
                     responseWriter,
                     RepositoryVerifyIntegrityResponseChunk.Type.START_RESPONSE
@@ -170,4 +146,5 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends Transpor
             .addListener(listener);
     }
 
+    private static final Logger logger = LogManager.getLogger(TransportRepositoryVerifyIntegrityMasterNodeAction.class);
 }

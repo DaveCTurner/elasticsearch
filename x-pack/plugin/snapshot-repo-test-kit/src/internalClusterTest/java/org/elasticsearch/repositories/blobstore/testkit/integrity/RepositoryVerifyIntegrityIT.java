@@ -66,6 +66,7 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
             createSnapshot(repositoryName, snapshotName, indexNames);
         }
 
+        disableRepoConsistencyCheck("corrupting the repository breaks consistency checks");
         final var corruptedFile = BlobStoreCorruptionUtils.corruptRandomFile(repositoryRootPath);
         final var corruptedFileType = RepositoryFileType.getRepositoryFileType(repositoryRootPath, corruptedFile);
         logger.info("--> corrupted file: {}", corruptedFile);
@@ -121,17 +122,24 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
 
         switch (corruptedFileType) {
             case SNAPSHOT_INFO -> {
-                anomalies.remove("");
+                anomalies.remove("failed to load snapshot info");
             }
             case GLOBAL_METADATA -> {
+                anomalies.remove("failed to load global metadata");
             }
             case INDEX_METADATA -> {
+                anomalies.remove("failed to load index metadata");
             }
             case SHARD_GENERATION -> {
+                anomalies.remove("failed to load shard generation");
             }
             case SHARD_SNAPSHOT_INFO -> {
+                anomalies.remove("failed to load shard snapshot");
             }
             case SHARD_DATA -> {
+                anomalies.remove("missing blob");
+                anomalies.remove("mismatched blob length");
+                anomalies.remove("corrupt data blob");
             }
         }
         assertThat(anomalies, empty());

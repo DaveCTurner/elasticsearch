@@ -14,9 +14,8 @@ import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.discovery.MasterNotDiscoveredException;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.tasks.CancellableTask;
@@ -40,19 +39,14 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
     private final ActiveRepositoryVerifyIntegrityTasks activeRepositoryVerifyIntegrityTasks = new ActiveRepositoryVerifyIntegrityTasks();
 
     private final TransportService transportService;
+    private final ClusterService clusterService;
     private final Executor managementExecutor;
 
     public static class Request extends ActionRequest {
-        private final TimeValue masterNodeTimeout;
         private final RepositoryVerifyIntegrityParams requestParams;
         private final RepositoryVerifyIntegrityResponseStream responseBuilder;
 
-        public Request(
-            TimeValue masterNodeTimeout,
-            RepositoryVerifyIntegrityParams requestParams,
-            RepositoryVerifyIntegrityResponseStream responseBuilder
-        ) {
-            this.masterNodeTimeout = masterNodeTimeout;
+        public Request(RepositoryVerifyIntegrityParams requestParams, RepositoryVerifyIntegrityResponseStream responseBuilder) {
             this.requestParams = requestParams;
             this.responseBuilder = responseBuilder;
         }
@@ -60,10 +54,6 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
         @Override
         public ActionRequestValidationException validate() {
             return null;
-        }
-
-        public TimeValue masterNodeTimeout() {
-            return masterNodeTimeout;
         }
 
         public RepositoryVerifyIntegrityParams requestParams() {
@@ -85,8 +75,7 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
         TransportService transportService,
         ClusterService clusterService,
         RepositoriesService repositoriesService,
-        ActionFilters actionFilters,
-        IndexNameExpressionResolver indexNameExpressionResolver
+        ActionFilters actionFilters
     ) {
         super(
             INSTANCE.name(),
@@ -96,17 +85,11 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
         );
 
         this.transportService = transportService;
+        this.clusterService = clusterService;
         this.managementExecutor = transportService.getThreadPool().executor(ThreadPool.Names.MANAGEMENT);
 
         // register subsidiary actions
-        new TransportRepositoryVerifyIntegrityMasterNodeAction(
-            transportService,
-            clusterService,
-            repositoriesService,
-            actionFilters,
-            indexNameExpressionResolver,
-            managementExecutor
-        );
+        new TransportRepositoryVerifyIntegrityMasterNodeAction(transportService, repositoriesService, actionFilters, managementExecutor);
 
         new TransportRepositoryVerifyIntegrityResponseChunkAction(
             transportService,
@@ -123,19 +106,25 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
                 listener,
                 activeRepositoryVerifyIntegrityTasks.registerResponseBuilder(task.getId(), request.responseBuilder())
             ),
-            l -> transportService.sendChildRequest(
-                transportService.getLocalNodeConnection(),
-                TransportRepositoryVerifyIntegrityMasterNodeAction.ACTION_NAME,
-                new TransportRepositoryVerifyIntegrityMasterNodeAction.Request(
-                    request.masterNodeTimeout(),
-                    transportService.getLocalNode(),
-                    task.getId(),
-                    request.requestParams()
-                ),
-                task,
-                TransportRequestOptions.EMPTY,
-                new ActionListenerResponseHandler<>(l, RepositoryVerifyIntegrityResponse::new, managementExecutor)
-            )
+            l -> {
+                final var master = clusterService.state().nodes().getMasterNode();
+                if (master == null) {
+                    // no waiting around or retries here, we just fail immediately
+                    throw new MasterNotDiscoveredException();
+                }
+                transportService.sendChildRequest(
+                    master,
+                    TransportRepositoryVerifyIntegrityMasterNodeAction.ACTION_NAME,
+                    new TransportRepositoryVerifyIntegrityMasterNodeAction.Request(
+                        transportService.getLocalNode(),
+                        task.getId(),
+                        request.requestParams()
+                    ),
+                    task,
+                    TransportRequestOptions.EMPTY,
+                    new ActionListenerResponseHandler<>(l, RepositoryVerifyIntegrityResponse::new, managementExecutor)
+                );
+            }
         );
     }
 }
