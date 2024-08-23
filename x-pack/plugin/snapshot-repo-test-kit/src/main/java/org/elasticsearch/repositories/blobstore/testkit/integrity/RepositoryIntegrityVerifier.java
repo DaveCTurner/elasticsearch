@@ -325,6 +325,7 @@ public class RepositoryIntegrityVerifier {
         private void verifyIndexSnapshot(SnapshotId snapshotId, ActionListener<Void> listener) {
             totalSnapshotCounter.incrementAndGet();
             final var indexMetaBlobId = repositoryData.indexMetaDataGenerations().indexMetaBlobId(snapshotId, indexId);
+            logger.info("--> snapshot [{}] index [{}] metadata blob [{}]", snapshotId, indexId, indexMetaBlobId);
             indexDescriptionListeners(snapshotId, indexMetaBlobId)
                 // deduplicating reads of index metadata blobs
                 .<Void>andThen((l, indexDescription) -> {
@@ -398,6 +399,12 @@ public class RepositoryIntegrityVerifier {
             final var restorable = new AtomicBoolean(true);
             final var listeners = new RefCountingListener(1, listener.map(v -> {
                 if (restorable.get()) {
+                    logger.info(
+                        "--> snapshot [{}] index [{}] shard [{}] restorable",
+                        snapshotId,
+                        indexDescription,
+                        shardContainerContents.shardId()
+                    );
                     restorableShardCount.incrementAndGet();
                 }
                 return v;

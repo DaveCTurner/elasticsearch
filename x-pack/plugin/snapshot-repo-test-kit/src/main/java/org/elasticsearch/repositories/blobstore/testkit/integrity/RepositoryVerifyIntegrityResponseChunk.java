@@ -148,6 +148,7 @@ public record RepositoryVerifyIntegrityResponseChunk(
         blobLength.writeTo(out);
         out.writeInt(totalSnapshotCount);
         out.writeInt(restorableSnapshotCount);
+        out.writeOptionalWriteable(o -> o.writeException(exception));
         out.writeException(exception);
     }
 

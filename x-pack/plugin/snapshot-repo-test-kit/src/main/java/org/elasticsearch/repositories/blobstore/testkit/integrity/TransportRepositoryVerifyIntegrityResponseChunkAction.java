@@ -15,6 +15,8 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 
@@ -72,8 +74,11 @@ public class TransportRepositoryVerifyIntegrityResponseChunkAction extends Handl
         }
     }
 
+    private static final Logger logger = LogManager.getLogger(TransportRepositoryVerifyIntegrityResponseChunkAction.class);
+
     @Override
     protected void doExecute(Task task, Request request, ActionListener<ActionResponse.Empty> listener) {
+        logger.info("--> handling [{}] for [{}]", request.chunkContents().type(), request.coordinatingTaskId);
         ActionListener.run(listener, l -> {
             final var ongoingRequest = activeRepositoryVerifyIntegrityTasks.acquire(request.coordinatingTaskId);
             try {
