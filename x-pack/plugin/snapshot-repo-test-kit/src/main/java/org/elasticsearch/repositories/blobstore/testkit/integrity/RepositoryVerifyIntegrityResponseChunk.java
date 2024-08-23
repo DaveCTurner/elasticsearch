@@ -337,7 +337,7 @@ public record RepositoryVerifyIntegrityResponseChunk(
                     restorableSnapshotCount,
                     exception
                 ),
-                listener
+                ActionListener.assertOnce(listener)
             );
         }
     }

@@ -60,7 +60,7 @@ public class RepositoryIntegrityVerifier {
     private static final Logger logger = LogManager.getLogger(RepositoryIntegrityVerifier.class);
 
     private final BlobStoreRepository blobStoreRepository;
-    private final RepositoryVerifyIntegrityResponseChunk.Writer responseWriter;
+    private final RepositoryVerifyIntegrityResponseChunk.Writer responseChunkWriter;
     private final String repositoryName;
     private final RepositoryVerifyIntegrityParams requestParams;
     private final RepositoryData repositoryData;
@@ -81,14 +81,14 @@ public class RepositoryIntegrityVerifier {
 
     RepositoryIntegrityVerifier(
         BlobStoreRepository blobStoreRepository,
-        RepositoryVerifyIntegrityResponseChunk.Writer responseWriter,
+        RepositoryVerifyIntegrityResponseChunk.Writer responseChunkWriter,
         RepositoryVerifyIntegrityParams requestParams,
         RepositoryData repositoryData,
         CancellableThreads cancellableThreads
     ) {
         this.blobStoreRepository = blobStoreRepository;
         this.repositoryName = blobStoreRepository.getMetadata().name();
-        this.responseWriter = responseWriter;
+        this.responseChunkWriter = responseChunkWriter;
         this.requestParams = requestParams;
         this.repositoryData = repositoryData;
         this.isCancelledSupplier = cancellableThreads::isCancelled;
@@ -222,17 +222,20 @@ public class RepositoryIntegrityVerifier {
         blobStoreRepository.getSnapshotInfo(snapshotId, new ActionListener<>() {
             @Override
             public void onResponse(SnapshotInfo snapshotInfo) {
-                SubscribableListener
-                    // record the SnapshotInfo in the response
-                    .<Void>newForked(
-                        l -> new RepositoryVerifyIntegrityResponseChunk.Builder(
-                            responseWriter,
-                            RepositoryVerifyIntegrityResponseChunk.Type.SNAPSHOT_INFO
-                        ).snapshotInfo(snapshotInfo).write(l)
-                    )
-                    // check the global metadata is readable
-                    .<Void>andThen(l -> verifySnapshotGlobalMetadata(snapshotId, ActionListener.assertOnce(l)))
-                    .addListener(listener);
+                final var chunkBuilder = new RepositoryVerifyIntegrityResponseChunk.Builder(
+                    responseChunkWriter,
+                    RepositoryVerifyIntegrityResponseChunk.Type.SNAPSHOT_INFO
+                ).snapshotInfo(snapshotInfo);
+
+                // record the SnapshotInfo in the response
+                final var chunkWrittenStep = SubscribableListener.<Void>newForked(chunkBuilder::write);
+
+                // check the global metadata is readable if present
+                final var globalMetadataOkStep = Boolean.TRUE.equals(snapshotInfo.includeGlobalState())
+                    ? chunkWrittenStep.<Void>andThen(l -> verifySnapshotGlobalMetadata(snapshotId, l))
+                    : chunkWrittenStep;
+
+                globalMetadataOkStep.addListener(listener);
             }
 
             @Override
@@ -245,7 +248,6 @@ public class RepositoryIntegrityVerifier {
     private void verifySnapshotGlobalMetadata(SnapshotId snapshotId, ActionListener<Void> listener) {
         metadataTaskRunner.run(ActionRunnable.wrap(listener, l -> {
             try {
-                // TODO what if snapshot omitted global metadata?
                 blobStoreRepository.getSnapshotGlobalMetadata(snapshotId);
                 // no checks here, loading it is enough
                 l.onResponse(null);
@@ -313,7 +315,7 @@ public class RepositoryIntegrityVerifier {
                     int totalSnapshotCount = totalSnapshotCounter.get();
                     int restorableSnapshotCount = restorableSnapshotCounter.get();
                     new RepositoryVerifyIntegrityResponseChunk.Builder(
-                        responseWriter,
+                        responseChunkWriter,
                         RepositoryVerifyIntegrityResponseChunk.Type.INDEX_RESTORABILITY
                     ).indexRestorability(indexId, totalSnapshotCount, restorableSnapshotCount).write(l);
                 })
@@ -683,7 +685,7 @@ public class RepositoryIntegrityVerifier {
     }
 
     private RepositoryVerifyIntegrityResponseChunk.Builder anomaly(String anomaly) {
-        return new RepositoryVerifyIntegrityResponseChunk.Builder(responseWriter, RepositoryVerifyIntegrityResponseChunk.Type.ANOMALY)
+        return new RepositoryVerifyIntegrityResponseChunk.Builder(responseChunkWriter, RepositoryVerifyIntegrityResponseChunk.Type.ANOMALY)
             .anomaly(anomaly);
     }
 

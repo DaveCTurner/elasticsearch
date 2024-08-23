@@ -161,11 +161,10 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends Transpor
                 return verifier;
             })
             .<RepositoryIntegrityVerifier>andThen((l, repositoryIntegrityVerifier) -> {
-                ActionListener<Void> listener1 = l.map(ignored -> repositoryIntegrityVerifier);
                 new RepositoryVerifyIntegrityResponseChunk.Builder(
                     responseWriter,
                     RepositoryVerifyIntegrityResponseChunk.Type.START_RESPONSE
-                ).write(listener1);
+                ).write(l.map(ignored -> repositoryIntegrityVerifier));
             })
             .<RepositoryVerifyIntegrityResponse>andThen((l, repositoryIntegrityVerifier) -> repositoryIntegrityVerifier.start(l))
             .addListener(listener);
