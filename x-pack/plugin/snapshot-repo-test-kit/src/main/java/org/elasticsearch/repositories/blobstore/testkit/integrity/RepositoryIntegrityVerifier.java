@@ -440,6 +440,7 @@ public class RepositoryIntegrityVerifier {
                 listeners
             );
 
+            // NB this next step doesn't matter for restorability, it is just verifying that the shard gen blob matches the shard snapshots
             verifyConsistentShardFiles(snapshotId, indexDescription, shardContainerContents, blobStoreIndexShardSnapshot, listeners);
             startedListener.onResponse(null);
         }
@@ -663,7 +664,6 @@ public class RepositoryIntegrityVerifier {
             return shardContainerContents.blobContentsListeners().computeIfAbsent(fileInfo.name(), ignored -> {
                 if (requestParams.verifyBlobContents()) {
                     return SubscribableListener.newForked(listener -> {
-                        // TODO do this on a remote node?
                         snapshotTaskRunner.run(ActionRunnable.run(listener, () -> {
                             try (var slicedStream = new SlicedInputStream(fileInfo.numberOfParts()) {
                                 @Override
