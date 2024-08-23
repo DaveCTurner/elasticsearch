@@ -470,16 +470,16 @@ public class RepositoryIntegrityVerifier {
                 for (final var summaryFile : summary.indexFiles()) {
                     final var snapshotFile = snapshotFiles.get(summaryFile.physicalName());
                     if (snapshotFile == null) {
-                        String physicalFileName = summaryFile.physicalName();
+                        // TODO test needed
                         anomaly("blob in shard generation but not snapshot").snapshotId(snapshotId)
                             .shardDescription(indexDescription, shardId)
-                            .physicalFileName(physicalFileName)
+                            .physicalFileName(summaryFile.physicalName())
                             .write(listeners.acquire());
                     } else if (summaryFile.isSame(snapshotFile) == false) {
-                        String physicalFileName = summaryFile.physicalName();
+                        // TODO test needed
                         anomaly("snapshot shard generation mismatch").snapshotId(snapshotId)
                             .shardDescription(indexDescription, shardId)
-                            .physicalFileName(physicalFileName)
+                            .physicalFileName(summaryFile.physicalName())
                             .write(listeners.acquire());
                     }
                 }
@@ -489,10 +489,10 @@ public class RepositoryIntegrityVerifier {
                     .collect(Collectors.toMap(BlobStoreIndexShardSnapshot.FileInfo::physicalName, Function.identity()));
                 for (final var snapshotFile : blobStoreIndexShardSnapshot.indexFiles()) {
                     if (summaryFiles.get(snapshotFile.physicalName()) == null) {
-                        String physicalFileName = snapshotFile.physicalName();
+                        // TODO test needed
                         anomaly("blob in snapshot but not shard generation").snapshotId(snapshotId)
                             .shardDescription(indexDescription, shardId)
-                            .physicalFileName(physicalFileName)
+                            .physicalFileName(snapshotFile.physicalName())
                             .write(listeners.acquire());
                     }
                 }
@@ -500,6 +500,7 @@ public class RepositoryIntegrityVerifier {
                 return;
             }
 
+            // TODO test needed
             anomaly("snapshot not in shard generation").snapshotId(snapshotId)
                 .shardDescription(indexDescription, shardId)
                 .write(listeners.acquire());
@@ -615,6 +616,7 @@ public class RepositoryIntegrityVerifier {
             try {
                 blobsByName = blobStoreRepository.shardContainer(indexId, shardId).listBlobs(OperationPurpose.REPOSITORY_ANALYSIS);
             } catch (Exception e) {
+                // TODO test needed
                 anomaly("failed to list shard container contents").shardDescription(indexDescription, shardId)
                     .exception(e)
                     .write(listener.map(v -> null));
@@ -623,6 +625,7 @@ public class RepositoryIntegrityVerifier {
 
             final var shardGen = repositoryData.shardGenerations().getShardGen(indexId, shardId);
             if (shardGen == null) {
+                // TODO test needed
                 anomaly("shard generation not defined").shardDescription(indexDescription, shardId).write(listener.map(v -> null));
                 return;
             }
