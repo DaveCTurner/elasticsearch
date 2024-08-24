@@ -32,6 +32,60 @@ public class TransportRepositoryVerifyIntegrityCoordinationAction extends Transp
     TransportRepositoryVerifyIntegrityCoordinationAction.Request,
     RepositoryVerifyIntegrityResponse> {
 
+    /*
+     * Message flow: the coordinating node (the one running this action) forwards the request on to a master node which actually runs the
+     * verification. The master node in turn sends requests back to this node containing chunks of response, either information about the
+     * snapshots processed, or about the restorability of the indices in the repository, or details of any verification anomalies found.
+     * When the process is complete the master responds to the original transport request with the final results:
+     *
+     * +---------+                         +-------------+              +--------+
+     * | Client  |                         | Coordinator |              | Master |
+     * +---------+                         +-------------+              +--------+
+     *      |                                     |                          |
+     *      | REST request                        |                          |
+     *      |------------------------------------>| Transport request        |
+     *      |                                     |------------------------->| ----------------------\
+     *      |                                     |                          |-| Initialize verifier |
+     *      |                                     |           START_RESPONSE | |---------------------|
+     *      |        Headers & initial JSON chunk |<-------------------------|
+     *      |<------------------------------------| ACK                      |
+     *      |                                     |------------------------->| ------------------\
+     *      |                                     |                          |-| Verify snapshot |
+     *      |                                     |            SNAPSHOT_INFO | |-----------------|
+     *      |                          JSON chunk |<-------------------------|
+     *      |<------------------------------------| ACK                      |
+     *      |                                     |------------------------->| ------------------\
+     *      |                                     |                          |-| Verify snapshot |
+     *      |                                     |            SNAPSHOT_INFO | |-----------------|
+     *      |                          JSON chunk |<-------------------------|
+     *      |<------------------------------------| ACK                      |
+     *      |                                     |------------------------->| ...
+     *      .                                     .                          .
+     *      .                                     .                          .
+     *      |                                     |                          | -----------------------------\
+     *      |                                     |                          |-| Verify index restorability |
+     *      |                                     |      INDEX_RESTORABILITY | |----------------------------|
+     *      |                          JSON chunk |<-------------------------|
+     *      |<------------------------------------| ACK                      |
+     *      |                                     |------------------------->| -----------------------------\
+     *      |                                     |                          |-| Verify index restorability |
+     *      |                                     |      INDEX_RESTORABILITY | |----------------------------|
+     *      |                          JSON chunk |<-------------------------|
+     *      |<------------------------------------| ACK                      |
+     *      |                                     |------------------------->| ...
+     *      .                                     .                          .
+     *      .                                     .                          .
+     *      |                                     |       Transport response |
+     *      |                    Final JSON chunk |<-------------------------|
+     *      |<------------------------------------|                          |
+     *
+     * This message flow ties the lifecycle of the verification process to that of the transport request sent from coordinator to master,
+     * which means it integrates well with the tasks framework and handles network issues properly. An alternative would be for the
+     * coordinator to repeatedly request chunks from the master, but that would mean that there's no one task representing the whole
+     * process, and it'd be a little tricky for the master node to know if the coordinator has failed and the verification should be
+     * cancelled.
+     */
+
     public static final ActionType<RepositoryVerifyIntegrityResponse> INSTANCE = new ActionType<>(
         "cluster:admin/repository/verify_integrity"
     );
