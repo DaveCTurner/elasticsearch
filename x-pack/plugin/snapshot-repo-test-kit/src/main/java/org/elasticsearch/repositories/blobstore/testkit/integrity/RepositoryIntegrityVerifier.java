@@ -21,6 +21,7 @@ import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.CancellableThreads;
+import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.ThrottledIterator;
@@ -45,6 +46,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -199,6 +201,14 @@ public class RepositoryIntegrityVerifier {
     }
 
     private void verifySnapshots(ActionListener<Void> listener) {
+
+        final Map<String, Set<String>> indexNamesBySnapshotName = Maps.newHashMapWithExpectedSize(repositoryData.getIndices().size());
+        for (final var indexId : repositoryData.getIndices().values()) {
+            for (final var snapshotId : repositoryData.getSnapshots(indexId)) {
+                indexNamesBySnapshotName.computeIfAbsent(snapshotId.getName(), ignored -> new HashSet<>()).add(indexId.getName());
+            }
+        }
+
         var listeners = new RefCountingListener(listener);
         runThrottled(
             Iterators.failFast(
@@ -207,6 +217,7 @@ public class RepositoryIntegrityVerifier {
             ),
             (releasable, snapshotId) -> verifySnapshot(
                 snapshotId,
+                indexNamesBySnapshotName,
                 ActionListener.assertOnce(ActionListener.releaseAfter(listeners.acquire(), releasable))
             ),
             requestParams.snapshotVerificationConcurrency(),
@@ -215,9 +226,9 @@ public class RepositoryIntegrityVerifier {
         );
     }
 
-    private void verifySnapshot(SnapshotId snapshotId, ActionListener<Void> listener) {
+    private void verifySnapshot(SnapshotId snapshotId, Map<String, Set<String>> indexNamesBySnapshotName, ActionListener<Void> listener) {
         if (isCancelledSupplier.getAsBoolean()) {
-            // getSnapshotInfo does its own forking so we must check for cancellation here
+            // getSnapshotInfo does its own forking, so we must check for cancellation here
             listener.onResponse(null);
             return;
         }
@@ -233,10 +244,20 @@ public class RepositoryIntegrityVerifier {
                 // record the SnapshotInfo in the response
                 final var chunkWrittenStep = SubscribableListener.<Void>newForked(chunkBuilder::write);
 
+                // check the indices in the SnapshotInfo match those in RepositoryData
+                final var snapshotContentsOkStep = chunkWrittenStep.<Void>andThen(l -> {
+                    if (Set.copyOf(snapshotInfo.indices()).equals(indexNamesBySnapshotName.get(snapshotId.getName()))) {
+                        l.onResponse(null);
+                    } else {
+                        // TODO test needed
+                        anomaly("snapshot contents mismatch").snapshotId(snapshotId).write(l);
+                    }
+                });
+
                 // check the global metadata is readable if present
                 final var globalMetadataOkStep = Boolean.TRUE.equals(snapshotInfo.includeGlobalState())
-                    ? chunkWrittenStep.<Void>andThen(l -> verifySnapshotGlobalMetadata(snapshotId, l))
-                    : chunkWrittenStep;
+                    ? snapshotContentsOkStep.<Void>andThen(l -> verifySnapshotGlobalMetadata(snapshotId, l))
+                    : snapshotContentsOkStep;
 
                 globalMetadataOkStep.addListener(listener);
             }
@@ -697,26 +718,20 @@ public class RepositoryIntegrityVerifier {
         ) {
             return shardContainerContents.blobContentsListeners().computeIfAbsent(fileInfo.name(), ignored -> {
                 if (requestParams.verifyBlobContents()) {
-                    return SubscribableListener.newForked(listener -> {
-                        snapshotTaskRunner.run(ActionRunnable.run(listener, () -> {
-                            try (var slicedStream = new SlicedInputStream(fileInfo.numberOfParts()) {
-                                @Override
-                                protected InputStream openSlice(int slice) throws IOException {
-                                    return blobStoreRepository.shardContainer(indexDescription.indexId(), shardContainerContents.shardId())
-                                        .readBlob(OperationPurpose.REPOSITORY_ANALYSIS, fileInfo.partName(slice));
-                                }
-                            };
-                                var rateLimitedStream = new RateLimitingInputStream(
-                                    slicedStream,
-                                    () -> rateLimiter,
-                                    throttledNanos::addAndGet
-                                );
-                                var indexInput = new IndexInputWrapper(rateLimitedStream, fileInfo.length())
-                            ) {
-                                CodecUtil.checksumEntireFile(indexInput);
+                    return SubscribableListener.newForked(listener -> snapshotTaskRunner.run(ActionRunnable.run(listener, () -> {
+                        try (var slicedStream = new SlicedInputStream(fileInfo.numberOfParts()) {
+                            @Override
+                            protected InputStream openSlice(int slice) throws IOException {
+                                return blobStoreRepository.shardContainer(indexDescription.indexId(), shardContainerContents.shardId())
+                                    .readBlob(OperationPurpose.REPOSITORY_ANALYSIS, fileInfo.partName(slice));
                             }
-                        }));
-                    });
+                        };
+                            var rateLimitedStream = new RateLimitingInputStream(slicedStream, () -> rateLimiter, throttledNanos::addAndGet);
+                            var indexInput = new IndexInputWrapper(rateLimitedStream, fileInfo.length())
+                        ) {
+                            CodecUtil.checksumEntireFile(indexInput);
+                        }
+                    })));
                 } else {
                     blobBytesVerified.addAndGet(fileInfo.length());
                     return SubscribableListener.newSucceeded(null);
