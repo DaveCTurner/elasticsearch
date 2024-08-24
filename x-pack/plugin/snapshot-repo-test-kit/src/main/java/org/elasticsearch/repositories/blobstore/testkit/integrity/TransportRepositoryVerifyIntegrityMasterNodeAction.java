@@ -40,6 +40,8 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends HandledT
     TransportRepositoryVerifyIntegrityMasterNodeAction.Request,
     RepositoryVerifyIntegrityResponse> {
 
+    // NB not an actual TransportMasterNodeAction, we don't want to retry on a master failover
+
     static final String ACTION_NAME = TransportRepositoryVerifyIntegrityCoordinationAction.INSTANCE.name() + "[m]";
     private final RepositoriesService repositoriesService;
     private final TransportService transportService;
