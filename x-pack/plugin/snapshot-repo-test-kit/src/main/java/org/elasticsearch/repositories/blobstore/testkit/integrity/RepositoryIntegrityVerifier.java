@@ -290,9 +290,8 @@ public class RepositoryIntegrityVerifier {
             int shardId,
             Map<String, BlobMetadata> blobsByName,
             ShardGeneration shardGeneration,
-            // shard gen contents
-            @Nullable // if shard gen blob could not be read
-            BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots,
+            @Nullable /* if shard gen blob could not be read */
+            Map<String, Map<String, BlobStoreIndexShardSnapshot.FileInfo>> filesByPhysicalNameBySnapshotName,
             Map<String, SubscribableListener<Void>> blobContentsListeners
         ) {}
 
@@ -519,68 +518,63 @@ public class RepositoryIntegrityVerifier {
             BlobStoreIndexShardSnapshot blobStoreIndexShardSnapshot,
             ActionListener<Void> listener
         ) {
-            final var blobStoreIndexShardSnapshots = shardContainerContents.blobStoreIndexShardSnapshots();
-            if (blobStoreIndexShardSnapshots == null) {
-                // already reported
+            final var summaryFilesByPhysicalNameBySnapshotName = shardContainerContents.filesByPhysicalNameBySnapshotName();
+            if (summaryFilesByPhysicalNameBySnapshotName == null) {
+                // couldn't read shard gen blob at all - already reported, nothing more to do here
                 listener.onResponse(null);
                 return;
             }
 
             final var shardId = shardContainerContents.shardId();
-            for (SnapshotFiles summary : blobStoreIndexShardSnapshots.snapshots()) {
-                if (summary.snapshot().equals(snapshotId.getName()) == false) {
-                    continue;
-                }
 
-                final var snapshotFiles = blobStoreIndexShardSnapshot.indexFiles()
-                    .stream()
-                    .collect(Collectors.toMap(BlobStoreIndexShardSnapshot.FileInfo::physicalName, Function.identity()));
-
-                for (final var summaryFile : summary.indexFiles()) {
-                    final var snapshotFile = snapshotFiles.get(summaryFile.physicalName());
-                    if (snapshotFile == null) {
-                        // TODO test needed
-                        anomaly("blob in shard generation but not snapshot").snapshotId(snapshotId)
-                            .shardDescription(indexDescription, shardId)
-                            .shardGeneration(shardContainerContents.shardGeneration())
-                            .physicalFileName(summaryFile.physicalName())
-                            .write(listener);
-                        return;
-                    } else if (summaryFile.isSame(snapshotFile) == false) {
-                        // TODO test needed
-                        anomaly("snapshot shard generation mismatch").snapshotId(snapshotId)
-                            .shardDescription(indexDescription, shardId)
-                            .shardGeneration(shardContainerContents.shardGeneration())
-                            .physicalFileName(summaryFile.physicalName())
-                            .write(listener);
-                        return;
-                    }
-                }
-
-                final var summaryFiles = summary.indexFiles()
-                    .stream()
-                    .collect(Collectors.toMap(BlobStoreIndexShardSnapshot.FileInfo::physicalName, Function.identity()));
-                for (final var snapshotFile : blobStoreIndexShardSnapshot.indexFiles()) {
-                    if (summaryFiles.get(snapshotFile.physicalName()) == null) {
-                        // TODO test needed
-                        anomaly("blob in snapshot but not shard generation").snapshotId(snapshotId)
-                            .shardDescription(indexDescription, shardId)
-                            .shardGeneration(shardContainerContents.shardGeneration())
-                            .physicalFileName(snapshotFile.physicalName())
-                            .write(listener);
-                        return;
-                    }
-                }
-
-                listener.onResponse(null);
+            final var summaryFilesByPhysicalName = summaryFilesByPhysicalNameBySnapshotName.get(snapshotId.getName());
+            if (summaryFilesByPhysicalName == null) {
+                // TODO test needed
+                anomaly("snapshot not in shard generation").snapshotId(snapshotId)
+                    .shardDescription(indexDescription, shardId)
+                    .shardGeneration(shardContainerContents.shardGeneration())
+                    .write(listener);
                 return;
             }
 
-            // TODO test needed
-            anomaly("snapshot not in shard generation").snapshotId(snapshotId)
-                .shardDescription(indexDescription, shardId)
-                .shardGeneration(shardContainerContents.shardGeneration())
-                .write(listener);
+            final var snapshotFiles = blobStoreIndexShardSnapshot.indexFiles()
+                .stream()
+                .collect(Collectors.toMap(BlobStoreIndexShardSnapshot.FileInfo::physicalName, Function.identity()));
+
+            for (final var summaryFile : summaryFilesByPhysicalName.values()) {
+                final var snapshotFile = snapshotFiles.get(summaryFile.physicalName());
+                if (snapshotFile == null) {
+                    // TODO test needed
+                    anomaly("blob in shard generation but not snapshot").snapshotId(snapshotId)
+                        .shardDescription(indexDescription, shardId)
+                        .shardGeneration(shardContainerContents.shardGeneration())
+                        .physicalFileName(summaryFile.physicalName())
+                        .write(listener);
+                    return;
+                } else if (summaryFile.isSame(snapshotFile) == false) {
+                    // TODO test needed
+                    anomaly("snapshot shard generation mismatch").snapshotId(snapshotId)
+                        .shardDescription(indexDescription, shardId)
+                        .shardGeneration(shardContainerContents.shardGeneration())
+                        .physicalFileName(summaryFile.physicalName())
+                        .write(listener);
+                    return;
+                }
+            }
+
+            for (final var snapshotFile : blobStoreIndexShardSnapshot.indexFiles()) {
+                if (summaryFilesByPhysicalName.get(snapshotFile.physicalName()) == null) {
+                    // TODO test needed
+                    anomaly("blob in snapshot but not shard generation").snapshotId(snapshotId)
+                        .shardDescription(indexDescription, shardId)
+                        .shardGeneration(shardContainerContents.shardGeneration())
+                        .physicalFileName(snapshotFile.physicalName())
+                        .write(listener);
+                    return;
+                }
+            }
+
+            listener.onResponse(null);
         }
 
         private SubscribableListener<IndexDescription> indexDescriptionListeners(SnapshotId snapshotId, String indexMetaBlobId) {
@@ -671,11 +665,29 @@ public class RepositoryIntegrityVerifier {
                         shardId,
                         blobsByName,
                         shardGen,
-                        blobStoreIndexShardSnapshots,
+                        getFilesByPhysicalNameBySnapshotName(blobStoreIndexShardSnapshots),
                         ConcurrentCollections.newConcurrentMap()
                     )
                 )
                 .addListener(listener);
+        }
+
+        private static Map<String, Map<String, BlobStoreIndexShardSnapshot.FileInfo>> getFilesByPhysicalNameBySnapshotName(
+            BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots
+        ) {
+            if (blobStoreIndexShardSnapshots == null) {
+                return null;
+            }
+            return blobStoreIndexShardSnapshots.snapshots()
+                .stream()
+                .collect(
+                    Collectors.toMap(
+                        SnapshotFiles::snapshot,
+                        s -> s.indexFiles()
+                            .stream()
+                            .collect(Collectors.toMap(BlobStoreIndexShardSnapshot.FileInfo::physicalName, Function.identity()))
+                    )
+                );
         }
 
         private SubscribableListener<Void> blobContentsListeners(
