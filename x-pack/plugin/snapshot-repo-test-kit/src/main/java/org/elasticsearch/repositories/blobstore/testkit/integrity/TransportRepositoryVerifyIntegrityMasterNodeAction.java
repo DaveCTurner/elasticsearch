@@ -27,6 +27,7 @@ import org.elasticsearch.repositories.blobstore.BlobStoreRepository;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
@@ -99,10 +100,12 @@ public class TransportRepositoryVerifyIntegrityMasterNodeAction extends HandledT
     @Override
     protected void doExecute(Task rawTask, Request request, ActionListener<RepositoryVerifyIntegrityResponse> listener) {
         final var responseWriter = new RepositoryVerifyIntegrityResponseChunk.Writer() {
+            final Transport.Connection responseConnection = transportService.getConnection(request.coordinatingNode);
+
             @Override
             public void writeResponseChunk(RepositoryVerifyIntegrityResponseChunk responseChunk, ActionListener<Void> listener) {
                 transportService.sendChildRequest(
-                    request.coordinatingNode,
+                    responseConnection,
                     TransportRepositoryVerifyIntegrityResponseChunkAction.ACTION_NAME,
                     new TransportRepositoryVerifyIntegrityResponseChunkAction.Request(request.coordinatingTaskId, responseChunk),
                     rawTask,
