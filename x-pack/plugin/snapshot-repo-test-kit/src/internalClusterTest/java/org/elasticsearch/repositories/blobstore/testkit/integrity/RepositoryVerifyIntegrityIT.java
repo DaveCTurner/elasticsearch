@@ -10,7 +10,9 @@ package org.elasticsearch.repositories.blobstore.testkit.integrity;
 import org.elasticsearch.action.support.ActionTestUtils;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.client.Request;
+import org.elasticsearch.client.Response;
 import org.elasticsearch.common.util.CollectionUtils;
+import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshotsIntegritySuppressor;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.repositories.blobstore.BlobStoreCorruptionUtils;
 import org.elasticsearch.repositories.blobstore.RepositoryFileType;
@@ -21,10 +23,12 @@ import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.rest.ObjectPath;
 import org.elasticsearch.test.transport.MockTransportService;
 
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -66,23 +70,29 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
             createSnapshot(repositoryName, snapshotName, indexNames);
         }
 
-        disableRepoConsistencyCheck("corrupting the repository breaks consistency checks");
-        final var corruptedFile = BlobStoreCorruptionUtils.corruptRandomFile(repositoryRootPath);
-        final var corruptedFileType = RepositoryFileType.getRepositoryFileType(repositoryRootPath, corruptedFile);
-        logger.info("--> corrupted file: {}", corruptedFile);
-        logger.info("--> corrupted file type: {}", corruptedFileType);
+        final Response response;
+        final Path corruptedFile;
+        final RepositoryFileType corruptedFileType;
+        try (var ignored = new BlobStoreIndexShardSnapshotsIntegritySuppressor()) {
+            corruptedFile = BlobStoreCorruptionUtils.corruptRandomFile(repositoryRootPath);
+            corruptedFileType = RepositoryFileType.getRepositoryFileType(repositoryRootPath, corruptedFile);
+            logger.info("--> corrupted file: {}", corruptedFile);
+            logger.info("--> corrupted file type: {}", corruptedFileType);
 
-        final var request = new Request("POST", "/_snapshot/" + repositoryName + "/_verify_integrity");
-        if (randomBoolean()) {
-            request.addParameter("human", null);
+            final var request = new Request("POST", "/_snapshot/" + repositoryName + "/_verify_integrity");
+            if (randomBoolean()) {
+                request.addParameter("human", null);
+            }
+            if (randomBoolean()) {
+                request.addParameter("pretty", null);
+            }
+            if (corruptedFileType == RepositoryFileType.SHARD_DATA || randomBoolean()) {
+                request.addParameter("verify_blob_contents", null);
+            }
+            response = getRestClient().performRequest(request);
+        } finally {
+            assertAcked(client().admin().cluster().prepareDeleteRepository(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT, repositoryName));
         }
-        if (randomBoolean()) {
-            request.addParameter("pretty", null);
-        }
-        if (corruptedFileType == RepositoryFileType.SHARD_DATA || randomBoolean()) {
-            request.addParameter("verify_blob_contents", null);
-        }
-        final var response = getRestClient().performRequest(request);
         assertEquals(200, response.getStatusLine().getStatusCode());
         final var responseObjectPath = ObjectPath.createFromResponse(response);
         logger.info("--> op: {}", responseObjectPath);
