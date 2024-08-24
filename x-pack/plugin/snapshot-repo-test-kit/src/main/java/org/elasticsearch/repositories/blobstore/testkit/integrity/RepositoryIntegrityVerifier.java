@@ -35,6 +35,7 @@ import org.elasticsearch.index.snapshots.blobstore.SlicedInputStream;
 import org.elasticsearch.index.snapshots.blobstore.SnapshotFiles;
 import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.RepositoryData;
+import org.elasticsearch.repositories.ShardGeneration;
 import org.elasticsearch.repositories.blobstore.BlobStoreRepository;
 import org.elasticsearch.snapshots.SnapshotId;
 import org.elasticsearch.snapshots.SnapshotInfo;
@@ -288,6 +289,7 @@ public class RepositoryIntegrityVerifier {
         private record ShardContainerContents(
             int shardId,
             Map<String, BlobMetadata> blobsByName,
+            ShardGeneration shardGeneration,
             // shard gen contents
             @Nullable // if shard gen blob could not be read
             BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots,
@@ -420,7 +422,7 @@ public class RepositoryIntegrityVerifier {
                 }
                 return v;
             }));
-            final var startedListener = listeners.acquire();
+            final var shardGenerationConsistencyListener = listeners.acquire();
 
             runThrottled(
                 Iterators.failFast(
@@ -441,70 +443,13 @@ public class RepositoryIntegrityVerifier {
             );
 
             // NB this next step doesn't matter for restorability, it is just verifying that the shard gen blob matches the shard snapshots
-            verifyConsistentShardFiles(snapshotId, indexDescription, shardContainerContents, blobStoreIndexShardSnapshot, listeners);
-            startedListener.onResponse(null);
-        }
-
-        private void verifyConsistentShardFiles(
-            SnapshotId snapshotId,
-            IndexDescription indexDescription,
-            ShardContainerContents shardContainerContents,
-            BlobStoreIndexShardSnapshot blobStoreIndexShardSnapshot,
-            RefCountingListener listeners
-        ) {
-            final var blobStoreIndexShardSnapshots = shardContainerContents.blobStoreIndexShardSnapshots();
-            if (blobStoreIndexShardSnapshots == null) {
-                // already reported
-                return;
-            }
-
-            final var shardId = shardContainerContents.shardId();
-            for (SnapshotFiles summary : blobStoreIndexShardSnapshots.snapshots()) {
-                if (summary.snapshot().equals(snapshotId.getName()) == false) {
-                    continue;
-                }
-
-                final var snapshotFiles = blobStoreIndexShardSnapshot.indexFiles()
-                    .stream()
-                    .collect(Collectors.toMap(BlobStoreIndexShardSnapshot.FileInfo::physicalName, Function.identity()));
-
-                for (final var summaryFile : summary.indexFiles()) {
-                    final var snapshotFile = snapshotFiles.get(summaryFile.physicalName());
-                    if (snapshotFile == null) {
-                        // TODO test needed
-                        anomaly("blob in shard generation but not snapshot").snapshotId(snapshotId)
-                            .shardDescription(indexDescription, shardId)
-                            .physicalFileName(summaryFile.physicalName())
-                            .write(listeners.acquire());
-                    } else if (summaryFile.isSame(snapshotFile) == false) {
-                        // TODO test needed
-                        anomaly("snapshot shard generation mismatch").snapshotId(snapshotId)
-                            .shardDescription(indexDescription, shardId)
-                            .physicalFileName(summaryFile.physicalName())
-                            .write(listeners.acquire());
-                    }
-                }
-
-                final var summaryFiles = summary.indexFiles()
-                    .stream()
-                    .collect(Collectors.toMap(BlobStoreIndexShardSnapshot.FileInfo::physicalName, Function.identity()));
-                for (final var snapshotFile : blobStoreIndexShardSnapshot.indexFiles()) {
-                    if (summaryFiles.get(snapshotFile.physicalName()) == null) {
-                        // TODO test needed
-                        anomaly("blob in snapshot but not shard generation").snapshotId(snapshotId)
-                            .shardDescription(indexDescription, shardId)
-                            .physicalFileName(snapshotFile.physicalName())
-                            .write(listeners.acquire());
-                    }
-                }
-
-                return;
-            }
-
-            // TODO test needed
-            anomaly("snapshot not in shard generation").snapshotId(snapshotId)
-                .shardDescription(indexDescription, shardId)
-                .write(listeners.acquire());
+            verifyShardGenerationConsistency(
+                snapshotId,
+                indexDescription,
+                shardContainerContents,
+                blobStoreIndexShardSnapshot,
+                shardGenerationConsistencyListener
+            );
         }
 
         private void verifyFileInfo(
@@ -567,6 +512,77 @@ public class RepositoryIntegrityVerifier {
             }));
         }
 
+        private void verifyShardGenerationConsistency(
+            SnapshotId snapshotId,
+            IndexDescription indexDescription,
+            ShardContainerContents shardContainerContents,
+            BlobStoreIndexShardSnapshot blobStoreIndexShardSnapshot,
+            ActionListener<Void> listener
+        ) {
+            final var blobStoreIndexShardSnapshots = shardContainerContents.blobStoreIndexShardSnapshots();
+            if (blobStoreIndexShardSnapshots == null) {
+                // already reported
+                listener.onResponse(null);
+                return;
+            }
+
+            final var shardId = shardContainerContents.shardId();
+            for (SnapshotFiles summary : blobStoreIndexShardSnapshots.snapshots()) {
+                if (summary.snapshot().equals(snapshotId.getName()) == false) {
+                    continue;
+                }
+
+                final var snapshotFiles = blobStoreIndexShardSnapshot.indexFiles()
+                    .stream()
+                    .collect(Collectors.toMap(BlobStoreIndexShardSnapshot.FileInfo::physicalName, Function.identity()));
+
+                for (final var summaryFile : summary.indexFiles()) {
+                    final var snapshotFile = snapshotFiles.get(summaryFile.physicalName());
+                    if (snapshotFile == null) {
+                        // TODO test needed
+                        anomaly("blob in shard generation but not snapshot").snapshotId(snapshotId)
+                            .shardDescription(indexDescription, shardId)
+                            .shardGeneration(shardContainerContents.shardGeneration())
+                            .physicalFileName(summaryFile.physicalName())
+                            .write(listener);
+                        return;
+                    } else if (summaryFile.isSame(snapshotFile) == false) {
+                        // TODO test needed
+                        anomaly("snapshot shard generation mismatch").snapshotId(snapshotId)
+                            .shardDescription(indexDescription, shardId)
+                            .shardGeneration(shardContainerContents.shardGeneration())
+                            .physicalFileName(summaryFile.physicalName())
+                            .write(listener);
+                        return;
+                    }
+                }
+
+                final var summaryFiles = summary.indexFiles()
+                    .stream()
+                    .collect(Collectors.toMap(BlobStoreIndexShardSnapshot.FileInfo::physicalName, Function.identity()));
+                for (final var snapshotFile : blobStoreIndexShardSnapshot.indexFiles()) {
+                    if (summaryFiles.get(snapshotFile.physicalName()) == null) {
+                        // TODO test needed
+                        anomaly("blob in snapshot but not shard generation").snapshotId(snapshotId)
+                            .shardDescription(indexDescription, shardId)
+                            .shardGeneration(shardContainerContents.shardGeneration())
+                            .physicalFileName(snapshotFile.physicalName())
+                            .write(listener);
+                        return;
+                    }
+                }
+
+                listener.onResponse(null);
+                return;
+            }
+
+            // TODO test needed
+            anomaly("snapshot not in shard generation").snapshotId(snapshotId)
+                .shardDescription(indexDescription, shardId)
+                .shardGeneration(shardContainerContents.shardGeneration())
+                .write(listener);
+        }
+
         private SubscribableListener<IndexDescription> indexDescriptionListeners(SnapshotId snapshotId, String indexMetaBlobId) {
             return indexDescriptionListenersByBlobId.computeIfAbsent(
                 indexMetaBlobId,
@@ -627,7 +643,12 @@ public class RepositoryIntegrityVerifier {
             final var shardGen = repositoryData.shardGenerations().getShardGen(indexId, shardId);
             if (shardGen == null) {
                 // TODO test needed
-                anomaly("shard generation not defined").shardDescription(indexDescription, shardId).write(listener.map(v -> null));
+                anomaly("shard generation not defined").shardDescription(indexDescription, shardId)
+                    .write(
+                        listener.map(
+                            v -> new ShardContainerContents(shardId, blobsByName, null, null, ConcurrentCollections.newConcurrentMap())
+                        )
+                    );
                 return;
             }
 
@@ -649,6 +670,7 @@ public class RepositoryIntegrityVerifier {
                     blobStoreIndexShardSnapshots -> new ShardContainerContents(
                         shardId,
                         blobsByName,
+                        shardGen,
                         blobStoreIndexShardSnapshots,
                         ConcurrentCollections.newConcurrentMap()
                     )
