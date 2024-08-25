@@ -46,8 +46,9 @@ class RepositoryVerifyIntegrityResponseStream extends AbstractRefCounted {
         ActionListener.releaseAfter(finalResultListener, this::decRef)
     );
 
+    // set in startResponse and this is acked before any chunks are written (and before closeInternal()) so no need to be volatile
     @Nullable // if not yet started
-    private volatile StreamingXContentResponse streamingXContentResponse;
+    private StreamingXContentResponse streamingXContentResponse;
 
     private final AtomicLong anomalyCount = new AtomicLong();
 
