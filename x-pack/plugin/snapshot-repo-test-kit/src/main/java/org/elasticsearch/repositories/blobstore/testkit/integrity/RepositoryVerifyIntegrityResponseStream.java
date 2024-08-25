@@ -46,7 +46,7 @@ class RepositoryVerifyIntegrityResponseStream extends AbstractRefCounted {
         ActionListener.releaseAfter(finalResultListener, this::decRef)
     );
 
-    // set in startResponse and this is acked before any chunks are written (and before closeInternal()) so no need to be volatile
+    // set in startResponse() which completes before any calls to writeChunk() or closeInternal() so no need to be volatile
     @Nullable // if not yet started
     private StreamingXContentResponse streamingXContentResponse;
 
