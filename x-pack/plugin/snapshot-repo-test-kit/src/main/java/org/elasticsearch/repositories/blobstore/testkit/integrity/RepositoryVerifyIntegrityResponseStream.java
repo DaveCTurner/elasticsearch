@@ -129,7 +129,6 @@ class RepositoryVerifyIntegrityResponseStream extends AbstractRefCounted {
                     } else {
                         // didn't even get as far as starting to stream the response, must have hit an early exception (e.g. repo not found)
                         // so we can return this exception directly.
-                        assert streamingXContentResponse == null;
                         try {
                             restChannel.sendResponse(new RestResponse(restChannel, e));
                         } catch (IOException e2) {
