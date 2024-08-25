@@ -35,11 +35,11 @@ public class RestRepositoryVerifyIntegrityAction extends BaseRestHandler {
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) {
         final var requestParams = new RepositoryVerifyIntegrityParams(request);
         return channel -> {
-            final var responseBuilder = new RepositoryVerifyIntegrityResponseStream(channel);
+            final var responseStream = new RepositoryVerifyIntegrityResponseStream(channel);
             new RestCancellableNodeClient(client, request.getHttpChannel()).execute(
                 TransportRepositoryVerifyIntegrityCoordinationAction.INSTANCE,
-                new TransportRepositoryVerifyIntegrityCoordinationAction.Request(requestParams, responseBuilder),
-                responseBuilder.getCompletionListener()
+                new TransportRepositoryVerifyIntegrityCoordinationAction.Request(requestParams, responseStream),
+                responseStream.getCompletionListener()
             );
         };
     }

@@ -10,6 +10,7 @@ package org.elasticsearch.repositories.blobstore.testkit.integrity;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.common.xcontent.ChunkedToXContentHelper;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.Nullable;
@@ -38,11 +39,12 @@ class RepositoryVerifyIntegrityResponseStream extends AbstractRefCounted {
 
     private final RestChannel restChannel;
 
-    @Nullable // if still running, or completed without an exception
-    private volatile Exception finalException;
+    private final SubscribableListener<RepositoryVerifyIntegrityResponse> finalResultListener = new SubscribableListener<>();
 
-    @Nullable // if still running, or completed exceptionally
-    private volatile RepositoryVerifyIntegrityResponse finalResult;
+    // the listener exposed to the transport response handler
+    private final ActionListener<RepositoryVerifyIntegrityResponse> completionListener = ActionListener.assertOnce(
+        ActionListener.releaseAfter(finalResultListener, this::decRef)
+    );
 
     @Nullable // if not yet started
     private volatile StreamingXContentResponse streamingXContentResponse;
@@ -66,8 +68,6 @@ class RepositoryVerifyIntegrityResponseStream extends AbstractRefCounted {
     void writeChunk(RepositoryVerifyIntegrityResponseChunk chunk, Releasable releasable) {
         assert hasReferences();
         assert streamingXContentResponse != null;
-        assert finalResult == null;
-        // finalException might be set here due to e.g. a network disconnect
 
         if (chunk.type() == RepositoryVerifyIntegrityResponseChunk.Type.ANOMALY) {
             anomalyCount.incrementAndGet();
@@ -81,83 +81,71 @@ class RepositoryVerifyIntegrityResponseStream extends AbstractRefCounted {
     @Override
     protected void closeInternal() {
         try {
-            assert (finalResult == null) != (finalException == null);
-            assert finalResult == null || streamingXContentResponse != null;
-
-            if (finalResult != null) {
-                // success - finish the response with the final results
-                assert streamingXContentResponse != null;
-                assert finalException == null;
-                streamingXContentResponse.writeFragment(
-                    p0 -> ChunkedToXContentHelper.singleChunk(
-                        (b, p) -> b.endArray()
-                            .startObject("results")
-                            .field("original_repository_generation", finalResult.originalRepositoryGeneration())
-                            .field("final_repository_generation", finalResult.finalRepositoryGeneration())
-                            .field("total_anomalies", anomalyCount.get())
-                            .field(
-                                "result",
-                                anomalyCount.get() == 0
-                                    ? finalResult.originalRepositoryGeneration() == finalResult.finalRepositoryGeneration()
-                                        ? "pass"
-                                        : "inconclusive due to concurrent writes"
-                                    : "fail"
-                            )
-                            .endObject()
-                            .endObject()
-                    ),
-                    () -> {}
-                );
-            } else if (streamingXContentResponse != null) {
-                // failure after starting the response - finish the response with a rendering of the final exception
-                assert finalResult == null;
-                assert finalException != null;
-                streamingXContentResponse.writeFragment(
-                    p0 -> ChunkedToXContentHelper.singleChunk(
-                        (b, p) -> b.endArray()
-                            .startObject("exception")
-                            .value((bb, pp) -> ElasticsearchException.generateFailureXContent(bb, pp, finalException, true))
-                            .field("status", ExceptionsHelper.status(finalException))
-                            .endObject()
-                            .endObject()
-                    ),
-                    () -> {}
-                );
-            } else {
-                // didn't even get as far as starting to stream the response, must have hit an early exception (e.g. repo not found) so
-                // we can return this exception directly.
-                assert streamingXContentResponse == null;
-                assert finalResult == null;
-                assert finalException != null;
-                try {
-                    restChannel.sendResponse(new RestResponse(restChannel, finalException));
-                } catch (IOException e) {
-                    finalException.addSuppressed(e);
-                    logger.error("error building error response", finalException);
-                    assert false : finalException; // shouldn't actually throw anything here
-                    restChannel.request().getHttpChannel().close();
+            assert finalResultListener.isDone();
+            finalResultListener.addListener(new ActionListener<>() {
+                @Override
+                public void onResponse(RepositoryVerifyIntegrityResponse repositoryVerifyIntegrityResponse) {
+                    // success - finish the response with the final results
+                    assert streamingXContentResponse != null;
+                    streamingXContentResponse.writeFragment(
+                        p0 -> ChunkedToXContentHelper.singleChunk(
+                            (b, p) -> b.endArray()
+                                .startObject("results")
+                                .field("original_repository_generation", repositoryVerifyIntegrityResponse.originalRepositoryGeneration())
+                                .field("final_repository_generation", repositoryVerifyIntegrityResponse.finalRepositoryGeneration())
+                                .field("total_anomalies", anomalyCount.get())
+                                .field(
+                                    "result",
+                                    anomalyCount.get() == 0
+                                        ? repositoryVerifyIntegrityResponse
+                                            .originalRepositoryGeneration() == repositoryVerifyIntegrityResponse.finalRepositoryGeneration()
+                                                ? "pass"
+                                                : "inconclusive due to concurrent writes"
+                                        : "fail"
+                                )
+                                .endObject()
+                                .endObject()
+                        ),
+                        () -> {}
+                    );
                 }
-            }
+
+                @Override
+                public void onFailure(Exception e) {
+                    if (streamingXContentResponse != null) {
+                        // failure after starting the response - finish the response with a rendering of the final exception
+                        streamingXContentResponse.writeFragment(
+                            p0 -> ChunkedToXContentHelper.singleChunk(
+                                (b, p) -> b.endArray()
+                                    .startObject("exception")
+                                    .value((bb, pp) -> ElasticsearchException.generateFailureXContent(bb, pp, e, true))
+                                    .field("status", ExceptionsHelper.status(e))
+                                    .endObject()
+                                    .endObject()
+                            ),
+                            () -> {}
+                        );
+                    } else {
+                        // didn't even get as far as starting to stream the response, must have hit an early exception (e.g. repo not found)
+                        // so we can return this exception directly.
+                        assert streamingXContentResponse == null;
+                        try {
+                            restChannel.sendResponse(new RestResponse(restChannel, e));
+                        } catch (IOException e2) {
+                            e.addSuppressed(e2);
+                            logger.error("error building error response", e);
+                            assert false : e; // shouldn't actually throw anything here
+                            restChannel.request().getHttpChannel().close();
+                        }
+                    }
+                }
+            });
         } finally {
             Releasables.closeExpectNoException(streamingXContentResponse);
         }
     }
 
     public ActionListener<RepositoryVerifyIntegrityResponse> getCompletionListener() {
-        return ActionListener.assertOnce(ActionListener.releaseAfter(new ActionListener<>() {
-            @Override
-            public void onResponse(RepositoryVerifyIntegrityResponse result) {
-                assert hasReferences();
-                assert finalException == null && finalResult == null && result != null;
-                finalResult = result;
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                assert hasReferences();
-                assert finalException == null && finalResult == null && e != null;
-                finalException = e;
-            }
-        }, this::decRef));
+        return completionListener;
     }
 }
