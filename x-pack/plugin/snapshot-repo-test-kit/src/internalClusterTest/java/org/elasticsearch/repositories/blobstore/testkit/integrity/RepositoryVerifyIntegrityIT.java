@@ -33,6 +33,7 @@ import org.elasticsearch.transport.TransportResponse;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -62,31 +63,49 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
     }
 
     public void testSuccess() throws Exception {
-        final var repositoryName = randomIdentifier();
-        final var repositoryRootPath = randomRepoPath();
-
-        createRepository(repositoryName, FsRepository.TYPE, repositoryRootPath);
-
-        final var indexNames = randomList(1, 3, ESTestCase::randomIdentifier);
-        for (var indexName : indexNames) {
-            createIndexWithRandomDocs(indexName, between(1, 100));
-            flushAndRefresh(indexName);
+        final var testContext = createTestContext();
+        final var request = testContext.getVerifyIntegrityRequest();
+        if (randomBoolean()) {
+            request.addParameter("verify_blob_contents", null);
         }
-
-        final var snapshotNames = randomList(1, 3, ESTestCase::randomIdentifier);
-        for (var snapshotName : snapshotNames) {
-            createSnapshot(repositoryName, snapshotName, indexNames);
+        final var response = getRestClient().performRequest(request);
+        assertEquals(200, response.getStatusLine().getStatusCode());
+        final var responseObjectPath = ObjectPath.createFromResponse(response);
+        final var logEntryCount = responseObjectPath.evaluateArraySize("log");
+        final var seenSnapshotNames = new HashSet<String>();
+        final var seenIndexNames = new HashSet<String>();
+        for (int i = 0; i < logEntryCount; i++) {
+            final String maybeSnapshotName = responseObjectPath.evaluate("log." + i + ".snapshot.snapshot");
+            if (maybeSnapshotName != null) {
+                assertTrue(seenSnapshotNames.add(maybeSnapshotName));
+            } else {
+                final String indexName = responseObjectPath.evaluate("log." + i + ".index.name");
+                assertNotNull(indexName);
+                assertTrue(seenIndexNames.add(indexName));
+                assertEquals(testContext.snapshotNames().size(), (int) responseObjectPath.evaluate("log." + i + ".snapshots.total_count"));
+                assertEquals(
+                    testContext.snapshotNames().size(),
+                    (int) responseObjectPath.evaluate("log." + i + ".snapshots.restorable_count")
+                );
+            }
         }
+        assertEquals(Set.copyOf(testContext.snapshotNames()), seenSnapshotNames);
+        assertEquals(Set.copyOf(testContext.indexNames()), seenIndexNames);
+
+        assertEquals(0, (int) responseObjectPath.evaluate("results.total_anomalies"));
+        assertEquals("pass", responseObjectPath.evaluate("results.result"));
+    }
+
+    public void testTaskStatus() throws Exception {
+        final var testContext = createTestContext();
 
         // use non-master node to coordinate the request so that we can capture chunks being sent back
-        if (internalCluster().size() == 1) {
-            internalCluster().startNode();
-        }
-        final var coordNodeName = randomValueOtherThan(internalCluster().getMasterName(), () -> internalCluster().getRandomNodeName());
+        final var coordNodeName = getCoordinatingNodeName();
         final var coordNodeTransportService = MockTransportService.getInstance(coordNodeName);
         final var masterTaskManager = MockTransportService.getInstance(internalCluster().getMasterName()).getTaskManager();
 
         final SubscribableListener<RepositoryVerifyIntegrityTask.Status> snapshotsCompleteStatusListener = new SubscribableListener<>();
+        final AtomicInteger chunksSeenCounter = new AtomicInteger();
 
         coordNodeTransportService.<TransportRepositoryVerifyIntegrityResponseChunkAction.Request>addRequestHandlingBehavior(
             TransportRepositoryVerifyIntegrityResponseChunkAction.ACTION_NAME,
@@ -97,12 +116,12 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
                             RepositoryVerifyIntegrityTask.Status.class,
                             masterTaskManager.getTask(task.getParentTaskId().getId()).getStatus()
                         );
-                        assertEquals(repositoryName, status.repositoryName());
-                        assertEquals(snapshotNames.size(), status.snapshotCount());
+                        assertEquals(testContext.repositoryName(), status.repositoryName());
+                        assertEquals(testContext.snapshotNames().size(), status.snapshotCount());
                         assertEquals(0L, status.snapshotsVerified());
-                        assertEquals(indexNames.size(), status.indexCount());
+                        assertEquals(testContext.indexNames().size(), status.indexCount());
                         assertEquals(0L, status.indicesVerified());
-                        assertEquals(indexNames.size() * snapshotNames.size(), status.indexSnapshotCount());
+                        assertEquals(testContext.indexNames().size() * testContext.snapshotNames().size(), status.indexSnapshotCount());
                         assertEquals(0L, status.indexSnapshotsVerified());
                         assertEquals(0L, status.blobsVerified());
                         assertEquals(0L, status.blobBytesVerified());
@@ -118,10 +137,10 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
                             )
                         );
                         yield snapshotsCompleteStatusListener.andThenAccept(status -> {
-                            assertEquals(repositoryName, status.repositoryName());
-                            assertEquals(snapshotNames.size(), status.snapshotCount());
-                            assertEquals(snapshotNames.size(), status.snapshotsVerified());
-                            assertEquals(indexNames.size(), status.indexCount());
+                            assertEquals(testContext.repositoryName(), status.repositoryName());
+                            assertEquals(testContext.snapshotNames().size(), status.snapshotCount());
+                            assertEquals(testContext.snapshotNames().size(), status.snapshotsVerified());
+                            assertEquals(testContext.indexNames().size(), status.indexCount());
                             assertEquals(0L, status.indicesVerified());
                         });
                     }
@@ -129,44 +148,18 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
                     case ANOMALY -> fail(null, "should not see anomalies");
                 };
 
-                unblockChunkHandlingListener.addListener(
-                    ActionTestUtils.assertNoFailureListener(ignored -> handler.messageReceived(request, channel, task))
-                );
+                unblockChunkHandlingListener.addListener(ActionTestUtils.assertNoFailureListener(ignored -> {
+                    chunksSeenCounter.incrementAndGet();
+                    handler.messageReceived(request, channel, task);
+                }));
             }
         );
 
         try (var client = createRestClient(coordNodeName)) {
-            final var request = new Request("POST", "/_snapshot/" + repositoryName + "/_verify_integrity");
-            if (randomBoolean()) {
-                request.addParameter("human", null);
-            }
-            if (randomBoolean()) {
-                request.addParameter("pretty", null);
-            }
-            if (randomBoolean()) {
-                request.addParameter("verify_blob_contents", null);
-            }
-            final var response = client.performRequest(request);
+            final var response = client.performRequest(testContext.getVerifyIntegrityRequest());
+            assertEquals(1 + testContext.indexNames().size() + testContext.snapshotNames().size(), chunksSeenCounter.get());
             assertEquals(200, response.getStatusLine().getStatusCode());
             final var responseObjectPath = ObjectPath.createFromResponse(response);
-            final var logEntryCount = responseObjectPath.evaluateArraySize("log");
-            final var seenSnapshotNames = new HashSet<String>();
-            final var seenIndexNames = new HashSet<String>();
-            for (int i = 0; i < logEntryCount; i++) {
-                final String maybeSnapshotName = responseObjectPath.evaluate("log." + i + ".snapshot.snapshot");
-                if (maybeSnapshotName != null) {
-                    assertTrue(seenSnapshotNames.add(maybeSnapshotName));
-                } else {
-                    final String indexName = responseObjectPath.evaluate("log." + i + ".index.name");
-                    assertNotNull(indexName);
-                    assertTrue(seenIndexNames.add(indexName));
-                    assertEquals(snapshotNames.size(), (int) responseObjectPath.evaluate("log." + i + ".snapshots.total_count"));
-                    assertEquals(snapshotNames.size(), (int) responseObjectPath.evaluate("log." + i + ".snapshots.restorable_count"));
-                }
-            }
-            assertEquals(Set.copyOf(snapshotNames), seenSnapshotNames);
-            assertEquals(Set.copyOf(indexNames), seenIndexNames);
-
             assertEquals(0, (int) responseObjectPath.evaluate("results.total_anomalies"));
             assertEquals("pass", responseObjectPath.evaluate("results.result"));
         } finally {
@@ -175,44 +168,26 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
     }
 
     public void testCorruption() throws Exception {
-        final var repositoryName = randomIdentifier();
-        final var repositoryRootPath = randomRepoPath();
-
-        createRepository(repositoryName, FsRepository.TYPE, repositoryRootPath);
-
-        final var indexNames = randomList(1, 3, ESTestCase::randomIdentifier);
-        for (var indexName : indexNames) {
-            createIndexWithRandomDocs(indexName, between(1, 100));
-            flushAndRefresh(indexName);
-        }
-
-        final var snapshotNames = randomList(1, 3, ESTestCase::randomIdentifier);
-        for (var snapshotName : snapshotNames) {
-            createSnapshot(repositoryName, snapshotName, indexNames);
-        }
+        final var testContext = createTestContext();
 
         final Response response;
         final Path corruptedFile;
         final RepositoryFileType corruptedFileType;
         try (var ignored = new BlobStoreIndexShardSnapshotsIntegritySuppressor()) {
-            corruptedFile = BlobStoreCorruptionUtils.corruptRandomFile(repositoryRootPath);
-            corruptedFileType = RepositoryFileType.getRepositoryFileType(repositoryRootPath, corruptedFile);
+            corruptedFile = BlobStoreCorruptionUtils.corruptRandomFile(testContext.repositoryRootPath());
+            corruptedFileType = RepositoryFileType.getRepositoryFileType(testContext.repositoryRootPath(), corruptedFile);
             logger.info("--> corrupted file: {}", corruptedFile);
             logger.info("--> corrupted file type: {}", corruptedFileType);
 
-            final var request = new Request("POST", "/_snapshot/" + repositoryName + "/_verify_integrity");
-            if (randomBoolean()) {
-                request.addParameter("human", null);
-            }
-            if (randomBoolean()) {
-                request.addParameter("pretty", null);
-            }
+            final var request = testContext.getVerifyIntegrityRequest();
             if (corruptedFileType == RepositoryFileType.SHARD_DATA || randomBoolean()) {
                 request.addParameter("verify_blob_contents", null);
             }
             response = getRestClient().performRequest(request);
         } finally {
-            assertAcked(client().admin().cluster().prepareDeleteRepository(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT, repositoryName));
+            assertAcked(
+                client().admin().cluster().prepareDeleteRepository(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT, testContext.repositoryName())
+            );
         }
         assertEquals(200, response.getStatusLine().getStatusCode());
         final var responseObjectPath = ObjectPath.createFromResponse(response);
@@ -229,7 +204,7 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
                 final String indexName = responseObjectPath.evaluate("log." + i + ".index.name");
                 if (indexName != null) {
                     assertTrue(seenIndexNames.add(indexName));
-                    assertThat(indexNames, hasItem(indexName));
+                    assertThat(testContext.indexNames(), hasItem(indexName));
                     final int totalSnapshots = responseObjectPath.evaluate("log." + i + ".snapshots.total_count");
                     final int restorableSnapshots = responseObjectPath.evaluate("log." + i + ".snapshots.restorable_count");
                     if (totalSnapshots == restorableSnapshots) {
@@ -242,8 +217,8 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
         assertThat(
             fullyRestorableIndices,
             corruptedFileType == RepositoryFileType.SHARD_GENERATION || corruptedFileType.equals(RepositoryFileType.GLOBAL_METADATA)
-                ? equalTo(indexNames.size())
-                : lessThan(indexNames.size())
+                ? equalTo(testContext.indexNames().size())
+                : lessThan(testContext.indexNames().size())
         );
         assertThat(anomalies, not(empty()));
         assertThat(responseObjectPath.evaluate("results.total_anomalies"), greaterThanOrEqualTo(anomalies.size()));
@@ -251,22 +226,13 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
 
         logger.info("--> anomalies: {}", anomalies);
 
+        // remove permitted/expected anomalies to verify that no unexpected ones were seen
         switch (corruptedFileType) {
-            case SNAPSHOT_INFO -> {
-                anomalies.remove("failed to load snapshot info");
-            }
-            case GLOBAL_METADATA -> {
-                anomalies.remove("failed to load global metadata");
-            }
-            case INDEX_METADATA -> {
-                anomalies.remove("failed to load index metadata");
-            }
-            case SHARD_GENERATION -> {
-                anomalies.remove("failed to load shard generation");
-            }
-            case SHARD_SNAPSHOT_INFO -> {
-                anomalies.remove("failed to load shard snapshot");
-            }
+            case SNAPSHOT_INFO -> anomalies.remove("failed to load snapshot info");
+            case GLOBAL_METADATA -> anomalies.remove("failed to load global metadata");
+            case INDEX_METADATA -> anomalies.remove("failed to load index metadata");
+            case SHARD_GENERATION -> anomalies.remove("failed to load shard generation");
+            case SHARD_SNAPSHOT_INFO -> anomalies.remove("failed to load shard snapshot");
             case SHARD_DATA -> {
                 anomalies.remove("missing blob");
                 anomalies.remove("mismatched blob length");
@@ -277,34 +243,17 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
     }
 
     public void testTransportException() throws Exception {
-        final var repositoryName = randomIdentifier();
-        final var repositoryRootPath = randomRepoPath();
-
-        createRepository(repositoryName, FsRepository.TYPE, repositoryRootPath);
-
-        final var indexNames = randomList(1, 3, ESTestCase::randomIdentifier);
-        for (var indexName : indexNames) {
-            createIndexWithRandomDocs(indexName, between(1, 100));
-            flushAndRefresh(indexName);
-        }
-
-        final var snapshotNames = randomList(1, 3, ESTestCase::randomIdentifier);
-        for (var snapshotName : snapshotNames) {
-            createSnapshot(repositoryName, snapshotName, indexNames);
-        }
+        final var testContext = createTestContext();
 
         // use non-master node to coordinate the request so that we can capture chunks being sent back
-        if (internalCluster().size() == 1) {
-            internalCluster().startNode();
-        }
-        final var coordNodeName = randomValueOtherThan(internalCluster().getMasterName(), () -> internalCluster().getRandomNodeName());
+        final var coordNodeName = getCoordinatingNodeName();
         final var coordNodeTransportService = MockTransportService.getInstance(coordNodeName);
         final var masterTransportService = MockTransportService.getInstance(internalCluster().getMasterName());
 
         final var messageCount = 2 // request & response
             * (1 // forward to master
                 + 1 // start response
-                + indexNames.size() + snapshotNames.size());
+                + testContext.indexNames().size() + testContext.snapshotNames().size());
         final var failureStep = between(1, messageCount);
 
         final var failTransportMessageBehaviour = new StubbableTransport.RequestHandlingBehavior<>() {
@@ -358,13 +307,7 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
             failTransportMessageBehaviour
         );
 
-        final var request = new Request("POST", "/_snapshot/" + repositoryName + "/_verify_integrity");
-        if (randomBoolean()) {
-            request.addParameter("human", null);
-        }
-        if (randomBoolean()) {
-            request.addParameter("pretty", null);
-        }
+        final var request = testContext.getVerifyIntegrityRequest();
         if (failureStep <= 2) {
             request.addParameter("ignore", "500");
         }
@@ -385,5 +328,45 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
         }
 
         assertNull(responseObjectPath.evaluate("results"));
+    }
+
+    private record TestContext(String repositoryName, Path repositoryRootPath, List<String> indexNames, List<String> snapshotNames) {
+        Request getVerifyIntegrityRequest() {
+            final var request = new Request("POST", "/_snapshot/" + repositoryName + "/_verify_integrity");
+            if (randomBoolean()) {
+                request.addParameter("human", null);
+            }
+            if (randomBoolean()) {
+                request.addParameter("pretty", null);
+            }
+            return request;
+        }
+    }
+
+    private TestContext createTestContext() throws Exception {
+        final var repositoryName = randomIdentifier();
+        final var repositoryRootPath = randomRepoPath();
+
+        createRepository(repositoryName, FsRepository.TYPE, repositoryRootPath);
+
+        final var indexNames = randomList(1, 3, ESTestCase::randomIdentifier);
+        for (var indexName : indexNames) {
+            createIndexWithRandomDocs(indexName, between(1, 100));
+            flushAndRefresh(indexName);
+        }
+
+        final var snapshotNames = randomList(1, 3, ESTestCase::randomIdentifier);
+        for (var snapshotName : snapshotNames) {
+            createSnapshot(repositoryName, snapshotName, indexNames);
+        }
+
+        return new TestContext(repositoryName, repositoryRootPath, indexNames, snapshotNames);
+    }
+
+    private static String getCoordinatingNodeName() {
+        if (internalCluster().size() == 1) {
+            internalCluster().startNode();
+        }
+        return randomValueOtherThan(internalCluster().getMasterName(), () -> internalCluster().getRandomNodeName());
     }
 }
