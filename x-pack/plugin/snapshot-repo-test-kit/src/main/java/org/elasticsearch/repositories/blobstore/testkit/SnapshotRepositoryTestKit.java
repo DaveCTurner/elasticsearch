@@ -22,6 +22,8 @@ import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.repositories.blobstore.testkit.analyze.RepositoryAnalyzeAction;
 import org.elasticsearch.repositories.blobstore.testkit.analyze.RestRepositoryAnalyzeAction;
+import org.elasticsearch.repositories.blobstore.testkit.integrity.RestRepositoryVerifyIntegrityAction;
+import org.elasticsearch.repositories.blobstore.testkit.integrity.TransportRepositoryVerifyIntegrityCoordinationAction;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -35,7 +37,13 @@ public class SnapshotRepositoryTestKit extends Plugin implements ActionPlugin {
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        return List.of(new ActionHandler<>(RepositoryAnalyzeAction.INSTANCE, RepositoryAnalyzeAction.class));
+        return List.of(
+            new ActionHandler<>(RepositoryAnalyzeAction.INSTANCE, RepositoryAnalyzeAction.class),
+            new ActionHandler<>(
+                TransportRepositoryVerifyIntegrityCoordinationAction.INSTANCE,
+                TransportRepositoryVerifyIntegrityCoordinationAction.class
+            )
+        );
     }
 
     @Override
@@ -50,7 +58,7 @@ public class SnapshotRepositoryTestKit extends Plugin implements ActionPlugin {
         Supplier<DiscoveryNodes> nodesInCluster,
         Predicate<NodeFeature> clusterSupportsFeature
     ) {
-        return List.of(new RestRepositoryAnalyzeAction());
+        return List.of(new RestRepositoryAnalyzeAction(), new RestRepositoryVerifyIntegrityAction());
     }
 
     public static void humanReadableNanos(XContentBuilder builder, String rawFieldName, String readableFieldName, long nanos)
