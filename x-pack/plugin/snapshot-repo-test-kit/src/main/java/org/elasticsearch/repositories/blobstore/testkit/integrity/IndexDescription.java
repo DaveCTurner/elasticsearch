@@ -11,6 +11,8 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.repositories.IndexId;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.io.IOException;
 
@@ -18,7 +20,7 @@ import java.io.IOException;
  * Details of an index in a specific snapshot, identifying its corresponding {@link org.elasticsearch.cluster.metadata.IndexMetadata} blob
  * and the number of shards.
  */
-public record IndexDescription(IndexId indexId, String indexMetadataBlob, int shardCount) implements Writeable {
+public record IndexDescription(IndexId indexId, String indexMetadataBlob, int shardCount) implements Writeable, ToXContentObject {
 
     public IndexDescription {
         if (indexId == null || shardCount < 0) {
@@ -35,5 +37,19 @@ public record IndexDescription(IndexId indexId, String indexMetadataBlob, int sh
         indexId.writeTo(out);
         out.writeOptionalString(indexMetadataBlob);
         out.writeVInt(shardCount);
+    }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startObject("index");
+        builder.field("name", indexId.getName());
+        builder.field("uuid", indexId.getId());
+        if (indexMetadataBlob != null) {
+            builder.field("metadata_blob", indexMetadataBlob);
+        }
+        if (shardCount > 0) {
+            builder.field("shards", shardCount);
+        }
+        return builder.endObject();
     }
 }

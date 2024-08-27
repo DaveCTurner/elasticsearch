@@ -175,22 +175,13 @@ public record RepositoryVerifyIntegrityResponseChunk(
         }
 
         if (indexDescription() != null) {
-            builder.startObject("index");
-            builder.field("name", indexDescription().indexId().getName());
-            builder.field("uuid", indexDescription().indexId().getId());
-            if (indexDescription().indexMetadataBlob() != null) {
-                builder.field("metadata_blob", indexDescription().indexMetadataBlob());
-            }
-            if (indexDescription().shardCount() > 0) {
-                builder.field("shards", indexDescription().shardCount());
-            }
-            builder.endObject();
+            builder.field("index", indexDescription(), params);
         }
         if (shardId() >= 0) {
             builder.field("shard_id", shardId());
         }
         if (shardGeneration() != null) {
-            builder.field("shard_generation", shardGeneration());
+            builder.field("shard_generation", shardGeneration(), params);
         }
         if (blobName() != null) {
             builder.field("blob_name", blobName());

@@ -19,12 +19,13 @@ import java.util.Map;
  */
 public class ActiveRepositoryVerifyIntegrityTasks {
 
-    private final Map<Long, RepositoryVerifyIntegrityResponseStream> responseBuildersByTaskId = ConcurrentCollections.newConcurrentMap();
+    private final Map<Long, RepositoryVerifyIntegrityResponseStream> responseStreamsByCoordinatingTaskId = ConcurrentCollections
+        .newConcurrentMap();
 
-    public Releasable registerResponseBuilder(long coordinatingTaskId, RepositoryVerifyIntegrityResponseStream responseBuilder) {
-        assert responseBuilder.hasReferences(); // ref held until the REST-layer listener is completed
+    public Releasable registerResponseBuilder(long coordinatingTaskId, RepositoryVerifyIntegrityResponseStream responseStream) {
+        assert responseStream.hasReferences(); // ref held until the REST-layer listener is completed
 
-        final var previous = responseBuildersByTaskId.putIfAbsent(coordinatingTaskId, responseBuilder);
+        final var previous = responseStreamsByCoordinatingTaskId.putIfAbsent(coordinatingTaskId, responseStream);
         if (previous != null) {
             final var exception = new IllegalStateException("already executing verify task [" + coordinatingTaskId + "]");
             assert false : exception;
@@ -32,7 +33,7 @@ public class ActiveRepositoryVerifyIntegrityTasks {
         }
 
         return Releasables.assertOnce(() -> {
-            final var removed = responseBuildersByTaskId.remove(coordinatingTaskId, responseBuilder);
+            final var removed = responseStreamsByCoordinatingTaskId.remove(coordinatingTaskId, responseStream);
             if (removed == false) {
                 final var exception = new IllegalStateException("already completed verify task [" + coordinatingTaskId + "]");
                 assert false : exception;
@@ -42,11 +43,11 @@ public class ActiveRepositoryVerifyIntegrityTasks {
     }
 
     /**
-     * Obtain the response builder for the given coordinating-node task ID, and increment its refcount.
-     * @throws ResourceNotFoundException if the task is not found or its refcount already reached zero (likely because it completed)
+     * Obtain the response stream for the given coordinating-node task ID, and increment its refcount.
+     * @throws ResourceNotFoundException if the task is not running or its refcount already reached zero (likely because it completed)
      */
     public RepositoryVerifyIntegrityResponseStream acquire(long taskId) {
-        final var outerRequest = responseBuildersByTaskId.get(taskId);
+        final var outerRequest = responseStreamsByCoordinatingTaskId.get(taskId);
         if (outerRequest == null || outerRequest.tryIncRef() == false) {
             throw new ResourceNotFoundException("verify task [" + taskId + "] not found");
         }
