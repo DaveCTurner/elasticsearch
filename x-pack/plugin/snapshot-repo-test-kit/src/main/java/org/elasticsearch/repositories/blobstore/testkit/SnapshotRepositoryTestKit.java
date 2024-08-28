@@ -22,10 +22,12 @@ import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.repositories.blobstore.testkit.analyze.RepositoryAnalyzeAction;
 import org.elasticsearch.repositories.blobstore.testkit.analyze.RestRepositoryAnalyzeAction;
+import org.elasticsearch.repositories.blobstore.testkit.integrity.RepositoryVerifyIntegrityTask;
 import org.elasticsearch.repositories.blobstore.testkit.integrity.RestRepositoryVerifyIntegrityAction;
 import org.elasticsearch.repositories.blobstore.testkit.integrity.TransportRepositoryVerifyIntegrityCoordinationAction;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.io.IOException;
@@ -70,5 +72,16 @@ public class SnapshotRepositoryTestKit extends Plugin implements ActionPlugin {
         }
 
         builder.field(rawFieldName, nanos);
+    }
+
+    @Override
+    public List<NamedWriteableRegistry.Entry> getNamedWriteables() {
+        return List.of(
+            new NamedWriteableRegistry.Entry(
+                Task.Status.class,
+                RepositoryVerifyIntegrityTask.Status.NAME,
+                RepositoryVerifyIntegrityTask.Status::new
+            )
+        );
     }
 }

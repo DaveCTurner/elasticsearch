@@ -14,30 +14,34 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import java.io.IOException;
 
 public class RepositoryVerifyIntegrityResponse extends ActionResponse {
-    private final long originalRepositoryGeneration;
+    private final RepositoryVerifyIntegrityTask.Status finalTaskStatus;
     private final long finalRepositoryGeneration;
 
-    RepositoryVerifyIntegrityResponse(long originalRepositoryGeneration, long finalRepositoryGeneration) {
-        this.originalRepositoryGeneration = originalRepositoryGeneration;
+    RepositoryVerifyIntegrityResponse(RepositoryVerifyIntegrityTask.Status finalTaskStatus, long finalRepositoryGeneration) {
+        this.finalTaskStatus = finalTaskStatus;
         this.finalRepositoryGeneration = finalRepositoryGeneration;
     }
 
     RepositoryVerifyIntegrityResponse(StreamInput in) throws IOException {
-        originalRepositoryGeneration = in.readLong();
         finalRepositoryGeneration = in.readLong();
+        finalTaskStatus = new RepositoryVerifyIntegrityTask.Status(in);
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        out.writeLong(originalRepositoryGeneration);
         out.writeLong(finalRepositoryGeneration);
-    }
-
-    public long originalRepositoryGeneration() {
-        return originalRepositoryGeneration;
+        finalTaskStatus.writeTo(out);
     }
 
     public long finalRepositoryGeneration() {
         return finalRepositoryGeneration;
+    }
+
+    public RepositoryVerifyIntegrityTask.Status finalTaskStatus() {
+        return finalTaskStatus;
+    }
+
+    public long originalRepositoryGeneration() {
+        return finalTaskStatus.repositoryGeneration();
     }
 }

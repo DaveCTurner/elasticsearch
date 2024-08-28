@@ -136,16 +136,15 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
                     case START_RESPONSE -> {
                         final var status = asInstanceOf(
                             RepositoryVerifyIntegrityTask.Status.class,
-                            masterTaskManager.getTask(task.getParentTaskId().getId()).getStatus()
-                        // randomBoolean() || true
-                        // ? masterTaskManager.getTask(task.getParentTaskId().getId()).getStatus()
-                        // : client().admin()
-                        // .cluster()
-                        // .prepareGetTask(task.getParentTaskId())
-                        // .get(SAFE_AWAIT_TIMEOUT)
-                        // .getTask()
-                        // .getTask()
-                        // .status()
+                            randomBoolean()
+                                ? masterTaskManager.getTask(task.getParentTaskId().getId()).getStatus()
+                                : client().admin()
+                                    .cluster()
+                                    .prepareGetTask(task.getParentTaskId())
+                                    .get(SAFE_AWAIT_TIMEOUT)
+                                    .getTask()
+                                    .getTask()
+                                    .status()
                         );
                         assertEquals(testContext.repositoryName(), status.repositoryName());
                         assertEquals(testContext.snapshotNames().size(), status.snapshotCount());

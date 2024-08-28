@@ -92,7 +92,7 @@ class RepositoryVerifyIntegrityResponseStream extends AbstractRefCounted {
                         p0 -> ChunkedToXContentHelper.singleChunk(
                             (b, p) -> b.endArray()
                                 .startObject("results")
-                                .field("original_repository_generation", repositoryVerifyIntegrityResponse.originalRepositoryGeneration())
+                                .field("status", repositoryVerifyIntegrityResponse.finalTaskStatus())
                                 .field("final_repository_generation", repositoryVerifyIntegrityResponse.finalRepositoryGeneration())
                                 .field("total_anomalies", anomalyCount.get())
                                 .field(

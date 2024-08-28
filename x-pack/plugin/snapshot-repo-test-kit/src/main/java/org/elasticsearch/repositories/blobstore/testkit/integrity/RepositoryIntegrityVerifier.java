@@ -173,7 +173,7 @@ public class RepositoryIntegrityVerifier {
                         repositoryData.getUuid(),
                         repositoryData.getClusterUUID()
                     );
-                    listener.onResponse(new RepositoryVerifyIntegrityResponse(repositoryData.getGenId(), finalRepositoryData.getGenId()));
+                    listener.onResponse(new RepositoryVerifyIntegrityResponse(getStatus(), finalRepositoryData.getGenId()));
                 }
 
                 @Override
