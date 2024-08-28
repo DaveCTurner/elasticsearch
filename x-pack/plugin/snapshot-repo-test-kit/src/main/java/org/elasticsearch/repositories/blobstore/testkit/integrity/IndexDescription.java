@@ -41,7 +41,7 @@ public record IndexDescription(IndexId indexId, String indexMetadataBlob, int sh
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject("index");
+        builder.startObject();
         builder.field("name", indexId.getName());
         builder.field("uuid", indexId.getId());
         if (indexMetadataBlob != null) {
