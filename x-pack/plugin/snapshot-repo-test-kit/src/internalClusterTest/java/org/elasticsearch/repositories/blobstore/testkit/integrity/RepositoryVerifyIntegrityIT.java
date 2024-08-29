@@ -19,6 +19,7 @@ import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.index.IndexVersion;
+import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshots;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshotsIntegritySuppressor;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.repositories.RepositoriesService;
@@ -55,9 +56,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import static org.elasticsearch.cluster.metadata.IndexMetadata.INDEX_ROUTING_INCLUDE_GROUP_SETTING;
+import static org.elasticsearch.repositories.blobstore.BlobStoreRepository.INDEX_SHARD_SNAPSHOTS_FORMAT;
 import static org.elasticsearch.repositories.blobstore.BlobStoreRepository.SNAPSHOT_FORMAT;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.hamcrest.Matchers.empty;
@@ -499,7 +502,7 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
         final Response response;
         try (var ignored = new BlobStoreIndexShardSnapshotsIntegritySuppressor()) {
             IOUtils.rm(shardPath);
-            Files.write(shardPath, new byte[0]);
+            Files.write(shardPath, new byte[0], StandardOpenOption.TRUNCATE_EXISTING);
             response = getRestClient().performRequest(testContext.getVerifyIntegrityRequest());
         } finally {
             assertAcked(
@@ -579,6 +582,58 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
         }
         assertEquals(200, response.getStatusLine().getStatusCode());
         assertThat(getAnomalies(ObjectPath.createFromResponse(response)), equalTo(Set.of("shard generation not defined")));
+    }
+
+    public void testSnapshotNotInShardGeneration() throws IOException {
+        final var testContext = createTestContext();
+
+        runInconsistentShardGenerationBlobTest(
+            testContext,
+            bl -> bl.withRetainedSnapshots(
+                testContext.snapshotNames().stream().skip(1).map(n -> new SnapshotId(n, "_na_")).collect(Collectors.toSet())
+            ),
+            "snapshot not in shard generation"
+        );
+    }
+
+    private void runInconsistentShardGenerationBlobTest(
+        TestContext testContext,
+        UnaryOperator<BlobStoreIndexShardSnapshots> shardGenerationUpdater,
+        String expectedAnomaly
+    ) throws IOException {
+
+        final var shardGenerationBlob = BlobStoreCorruptionUtils.getRandomFileToCorrupt(
+            testContext.repositoryRootPath(),
+            RepositoryFileType.SHARD_GENERATION
+        );
+
+        final BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots;
+        try (var inputStream = Files.newInputStream(shardGenerationBlob)) {
+            blobStoreIndexShardSnapshots = INDEX_SHARD_SNAPSHOTS_FORMAT.deserialize(
+                testContext.repositoryName(),
+                xContentRegistry(),
+                inputStream
+            );
+        }
+
+        final Response response;
+        try (var ignored = new BlobStoreIndexShardSnapshotsIntegritySuppressor()) {
+            try (var outputStream = Files.newOutputStream(shardGenerationBlob)) {
+                INDEX_SHARD_SNAPSHOTS_FORMAT.serialize(
+                    shardGenerationUpdater.apply(blobStoreIndexShardSnapshots),
+                    shardGenerationBlob.toString(),
+                    randomBoolean(),
+                    outputStream
+                );
+            }
+            response = getRestClient().performRequest(testContext.getVerifyIntegrityRequest());
+        } finally {
+            assertAcked(
+                client().admin().cluster().prepareDeleteRepository(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT, testContext.repositoryName())
+            );
+        }
+        assertEquals(200, response.getStatusLine().getStatusCode());
+        assertThat(getAnomalies(ObjectPath.createFromResponse(response)), equalTo(Set.of(expectedAnomaly)));
     }
 
     private Set<String> getAnomalies(ObjectPath responseObjectPath) throws IOException {

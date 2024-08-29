@@ -558,7 +558,6 @@ public class RepositoryIntegrityVerifier {
 
                     final var summaryFilesByPhysicalName = summaryFilesByPhysicalNameBySnapshotName.get(snapshotId.getName());
                     if (summaryFilesByPhysicalName == null) {
-                        // TODO test needed
                         anomaly("snapshot not in shard generation").snapshotId(snapshotId)
                             .shardDescription(indexDescription, shardId)
                             .shardGeneration(shardContainerContents.shardGeneration())
