@@ -507,7 +507,7 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
         final Response response;
         try (var ignored = new BlobStoreIndexShardSnapshotsIntegritySuppressor()) {
             IOUtils.rm(shardPath);
-            Files.write(shardPath, new byte[0], StandardOpenOption.TRUNCATE_EXISTING);
+            Files.write(shardPath, new byte[0], StandardOpenOption.CREATE_NEW);
             response = getRestClient().performRequest(testContext.getVerifyIntegrityRequest());
         } finally {
             assertAcked(
