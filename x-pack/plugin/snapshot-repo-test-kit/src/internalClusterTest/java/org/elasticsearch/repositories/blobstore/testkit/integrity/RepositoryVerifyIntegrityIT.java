@@ -8,6 +8,7 @@
 package org.elasticsearch.repositories.blobstore.testkit.integrity;
 
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.Version;
 import org.elasticsearch.action.support.ActionTestUtils;
 import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.SubscribableListener;
@@ -15,12 +16,16 @@ import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.index.IndexVersion;
+import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshots;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshotsIntegritySuppressor;
+import org.elasticsearch.index.snapshots.blobstore.SnapshotFiles;
+import org.elasticsearch.index.store.StoreFileMetadata;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.RepositoryData;
@@ -586,14 +591,90 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
 
     public void testSnapshotNotInShardGeneration() throws IOException {
         final var testContext = createTestContext();
-
         runInconsistentShardGenerationBlobTest(
             testContext,
-            bl -> bl.withRetainedSnapshots(
+            blobStoreIndexShardSnapshots -> blobStoreIndexShardSnapshots.withRetainedSnapshots(
                 testContext.snapshotNames().stream().skip(1).map(n -> new SnapshotId(n, "_na_")).collect(Collectors.toSet())
             ),
             "snapshot not in shard generation"
         );
+    }
+
+    public void testBlobInShardGenerationButNotSnapshot() throws IOException {
+        final var testContext = createTestContext();
+        final var snapshotToUpdate = randomFrom(testContext.snapshotNames());
+        runInconsistentShardGenerationBlobTest(testContext, blobStoreIndexShardSnapshots -> {
+            BlobStoreIndexShardSnapshots result = BlobStoreIndexShardSnapshots.EMPTY;
+            for (final var snapshotFiles : blobStoreIndexShardSnapshots.snapshots()) {
+                if (snapshotFiles.snapshot().equals(snapshotToUpdate)) {
+                    result = result.withAddedSnapshot(
+                        new SnapshotFiles(
+                            snapshotToUpdate,
+                            CollectionUtils.appendToCopy(
+                                snapshotFiles.indexFiles(),
+                                new BlobStoreIndexShardSnapshot.FileInfo(
+                                    "extra",
+                                    new StoreFileMetadata("extra", 1L, "checksum", Version.CURRENT.toString()),
+                                    ByteSizeValue.ONE
+                                )
+                            ),
+                            snapshotFiles.shardStateIdentifier()
+                        )
+                    );
+                } else {
+                    result = result.withAddedSnapshot(snapshotFiles);
+                }
+            }
+            return result;
+        }, "blob in shard generation but not snapshot");
+    }
+
+    public void testSnapshotShardGenerationMismatch() throws IOException {
+        final var testContext = createTestContext();
+        runInconsistentShardGenerationBlobTest(testContext, blobStoreIndexShardSnapshots -> {
+            final var fileToUpdate = randomFrom(blobStoreIndexShardSnapshots.iterator().next().indexFiles());
+            final var updatedFile = new BlobStoreIndexShardSnapshot.FileInfo(
+                fileToUpdate.name(),
+                fileToUpdate.metadata(),
+                ByteSizeValue.ONE
+            );
+            assertFalse(fileToUpdate.isSame(updatedFile));
+
+            BlobStoreIndexShardSnapshots result = BlobStoreIndexShardSnapshots.EMPTY;
+            for (final var snapshotFiles : blobStoreIndexShardSnapshots.snapshots()) {
+                result = result.withAddedSnapshot(
+                    new SnapshotFiles(
+                        snapshotFiles.snapshot(),
+                        snapshotFiles.indexFiles()
+                            .stream()
+                            .map(fileInfo -> fileInfo.name().equals(fileToUpdate.name()) ? updatedFile : fileInfo)
+                            .toList(),
+                        snapshotFiles.shardStateIdentifier()
+                    )
+                );
+            }
+            return result;
+        }, "snapshot shard generation mismatch");
+    }
+
+    public void testBlobInSnapshotNotShardGeneration() throws IOException {
+        final var testContext = createTestContext();
+        final var snapshotToUpdate = randomFrom(testContext.snapshotNames());
+        runInconsistentShardGenerationBlobTest(testContext, blobStoreIndexShardSnapshots -> {
+            BlobStoreIndexShardSnapshots result = BlobStoreIndexShardSnapshots.EMPTY;
+            for (final var snapshotFiles : blobStoreIndexShardSnapshots.snapshots()) {
+                if (snapshotFiles.snapshot().equals(snapshotToUpdate)) {
+                    final var indexFilesCopy = new ArrayList<>(snapshotFiles.indexFiles());
+                    indexFilesCopy.remove(between(0, indexFilesCopy.size()));
+                    result = result.withAddedSnapshot(
+                        new SnapshotFiles(snapshotToUpdate, indexFilesCopy, snapshotFiles.shardStateIdentifier())
+                    );
+                } else {
+                    result = result.withAddedSnapshot(snapshotFiles);
+                }
+            }
+            return result;
+        }, "blob in snapshot but not shard generation");
     }
 
     private void runInconsistentShardGenerationBlobTest(

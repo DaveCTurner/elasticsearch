@@ -570,7 +570,6 @@ public class RepositoryIntegrityVerifier {
                     for (final var summaryFile : summaryFilesByPhysicalName.values()) {
                         final var snapshotFile = snapshotFiles.get(summaryFile.physicalName());
                         if (snapshotFile == null) {
-                            // TODO test needed
                             anomaly("blob in shard generation but not snapshot").snapshotId(snapshotId)
                                 .shardDescription(indexDescription, shardId)
                                 .shardGeneration(shardContainerContents.shardGeneration())
@@ -578,7 +577,6 @@ public class RepositoryIntegrityVerifier {
                                 .write(listener);
                             return;
                         } else if (summaryFile.isSame(snapshotFile) == false) {
-                            // TODO test needed
                             anomaly("snapshot shard generation mismatch").snapshotId(snapshotId)
                                 .shardDescription(indexDescription, shardId)
                                 .shardGeneration(shardContainerContents.shardGeneration())
