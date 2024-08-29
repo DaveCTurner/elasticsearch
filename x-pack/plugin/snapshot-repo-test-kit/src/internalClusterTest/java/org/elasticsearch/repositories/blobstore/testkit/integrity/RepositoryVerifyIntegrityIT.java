@@ -665,7 +665,7 @@ public class RepositoryVerifyIntegrityIT extends AbstractSnapshotIntegTestCase {
             for (final var snapshotFiles : blobStoreIndexShardSnapshots.snapshots()) {
                 if (snapshotFiles.snapshot().equals(snapshotToUpdate)) {
                     final var indexFilesCopy = new ArrayList<>(snapshotFiles.indexFiles());
-                    indexFilesCopy.remove(between(0, indexFilesCopy.size()));
+                    indexFilesCopy.remove(between(0, indexFilesCopy.size() - 1));
                     result = result.withAddedSnapshot(
                         new SnapshotFiles(snapshotToUpdate, indexFilesCopy, snapshotFiles.shardStateIdentifier())
                     );
