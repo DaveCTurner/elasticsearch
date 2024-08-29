@@ -128,7 +128,7 @@ public record RepositoryVerifyIntegrityResponseChunk(
             ByteSizeValue.readFrom(in),
             in.readInt(),
             in.readInt(),
-            in.readBoolean() ? in.readException() : null
+            in.readOptional(StreamInput::readException)
         );
     }
 
@@ -150,12 +150,7 @@ public record RepositoryVerifyIntegrityResponseChunk(
         blobLength.writeTo(out);
         out.writeInt(totalSnapshotCount);
         out.writeInt(restorableSnapshotCount);
-        if (exception == null) {
-            out.writeBoolean(false);
-        } else {
-            out.writeBoolean(true);
-            out.writeException(exception);
-        }
+        out.writeOptional(StreamOutput::writeException, exception);
     }
 
     @Override
