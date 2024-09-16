@@ -11,6 +11,7 @@ package org.elasticsearch.index.engine;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
+import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.MergePolicy;
 import org.apache.lucene.index.MergeScheduler;
 import org.apache.lucene.util.SameThreadExecutorService;
@@ -30,6 +31,7 @@ import org.elasticsearch.index.shard.ShardId;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -232,6 +234,37 @@ class ElasticsearchConcurrentMergeScheduler extends ConcurrentMergeScheduler {
             enableAutoIOThrottle();
         } else if (config.isAutoThrottle() == false && isEnabled) {
             disableAutoIOThrottle();
+        }
+    }
+
+    /**
+     * Waits for all (currently-running and pending) merges to complete.
+     */
+    void awaitMerges(IndexWriter indexWriter) {
+        try {
+            final List<MergeThread> mergeThreadsToAwait;
+            while (true) {
+                synchronized (this) {
+                    if (indexWriter.hasPendingMerges() == false) {
+                        mergeThreadsToAwait = List.copyOf(mergeThreads);
+                        break;
+                    }
+                }
+                // noinspection BusyWait
+                Thread.sleep(1000);
+            }
+
+            for (final var mergeThread : mergeThreadsToAwait) {
+                if (mergeThread.getState() == Thread.State.NEW) {
+                    // shouldn't really happen, but if it does then we must have failed in between creating and starting the thread, so
+                    // no need to wait
+                    continue;
+                }
+                mergeThread.join();
+            }
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+            throw new EngineException(shardId, "interrupted while awaiting completion of merges");
         }
     }
 }

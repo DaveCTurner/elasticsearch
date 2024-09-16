@@ -1871,6 +1871,22 @@ public class InternalEngineTests extends EngineTestCase {
 
     }
 
+    
+    public void testForceMergeAwaitsCompletion() throws IOException {
+        try (Store store = createStore()) {
+            final InternalEngine engine = createEngine(store, createTempDir());
+            for (int j = between(1, 20); j > 0; j--) {
+                engine.index(indexForDoc(testParsedDocument(Integer.toString(j), null, testDocument(), B_1, null)));
+                if (randomBoolean()) {
+                    engine.refresh("test");
+                }
+            }
+            engine.forceMerge(randomBoolean(), -1, false, randomUUID());
+            assertEquals(0L, engine.getMergeStats().getCurrent());
+            IOUtils.close(engine);
+        }
+    }
+
     public void testVersioningCreateExistsException() throws IOException {
         ParsedDocument doc = testParsedDocument("1", null, testDocument(), B_1, null);
         Engine.Index create = new Engine.Index(

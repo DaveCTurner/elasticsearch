@@ -2428,6 +2428,7 @@ public class InternalEngine extends Engine {
                     indexWriter.forceMergeDeletes(true /* blocks and waits for merges*/);
                 } else if (maxNumSegments <= 0) {
                     indexWriter.maybeMerge();
+                    mergeScheduler.awaitMerges(indexWriter); /* blocks and waits for merges */
                 } else {
                     indexWriter.forceMerge(maxNumSegments, true /* blocks and waits for merges*/);
                     this.forceMergeUUID = forceMergeUUID;
