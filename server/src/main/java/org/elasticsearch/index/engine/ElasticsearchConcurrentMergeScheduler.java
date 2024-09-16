@@ -205,6 +205,7 @@ class ElasticsearchConcurrentMergeScheduler extends ConcurrentMergeScheduler {
         thread.setName(
             EsExecutors.threadName(indexSettings, "[" + shardId.getIndexName() + "][" + shardId.id() + "]: " + thread.getName())
         );
+        logger.trace("--> created merge thread [{}]", thread.getName());
         return thread;
     }
 
@@ -250,12 +251,12 @@ class ElasticsearchConcurrentMergeScheduler extends ConcurrentMergeScheduler {
                         break;
                     }
                 }
-                logger.trace("IW has pending merges, retrying");
+                logger.trace("--> IW has pending merges, retrying");
                 // noinspection BusyWait
                 Thread.sleep(1000);
             }
 
-            logger.trace("IW has no pending merges, awaiting these threads: ", mergeThreadsToAwait);
+            logger.trace("--> IW has no pending merges; awaiting [{}] threads: {}", mergeThreadsToAwait.size(), mergeThreadsToAwait);
 
             for (final var mergeThread : mergeThreadsToAwait) {
                 if (mergeThread.getState() == Thread.State.NEW) {
@@ -264,7 +265,7 @@ class ElasticsearchConcurrentMergeScheduler extends ConcurrentMergeScheduler {
                     continue;
                 }
                 mergeThread.join();
-                logger.trace("thread [{}] completed", mergeThread.getName());
+                logger.trace("--> merge thread [{}] completed", mergeThread.getName());
             }
         } catch (InterruptedException interruptedException) {
             Thread.currentThread().interrupt();
