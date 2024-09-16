@@ -134,6 +134,7 @@ import org.elasticsearch.indices.breaker.NoneCircuitBreakerService;
 import org.elasticsearch.indices.recovery.RecoverySettings;
 import org.elasticsearch.test.IndexSettingsModule;
 import org.elasticsearch.test.index.IndexVersionUtils;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentType;
 import org.hamcrest.MatcherAssert;
@@ -1871,17 +1872,22 @@ public class InternalEngineTests extends EngineTestCase {
 
     }
 
-    
+    @TestLogging(reason = "nocommit", value = "_root:TRACE")
     public void testForceMergeAwaitsCompletion() throws IOException {
         try (Store store = createStore()) {
             final InternalEngine engine = createEngine(store, createTempDir());
+            logger.info("--> start indexing");
             for (int j = between(1, 20); j > 0; j--) {
+                logger.info("--> index doc [{}]", j);
                 engine.index(indexForDoc(testParsedDocument(Integer.toString(j), null, testDocument(), B_1, null)));
                 if (randomBoolean()) {
+                    logger.info("--> refresh after indexing doc [{}]", j);
                     engine.refresh("test");
                 }
             }
+            logger.info("--> force merge start");
             engine.forceMerge(randomBoolean(), -1, false, randomUUID());
+            logger.info("--> force merge complete");
             assertEquals(0L, engine.getMergeStats().getCurrent());
             IOUtils.close(engine);
         }
