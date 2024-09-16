@@ -250,9 +250,12 @@ class ElasticsearchConcurrentMergeScheduler extends ConcurrentMergeScheduler {
                         break;
                     }
                 }
+                logger.trace("IW has pending merges, retrying");
                 // noinspection BusyWait
                 Thread.sleep(1000);
             }
+
+            logger.trace("IW has no pending merges, awaiting these threads: ", mergeThreadsToAwait);
 
             for (final var mergeThread : mergeThreadsToAwait) {
                 if (mergeThread.getState() == Thread.State.NEW) {
@@ -261,6 +264,7 @@ class ElasticsearchConcurrentMergeScheduler extends ConcurrentMergeScheduler {
                     continue;
                 }
                 mergeThread.join();
+                logger.trace("thread [{}] completed", mergeThread.getName());
             }
         } catch (InterruptedException interruptedException) {
             Thread.currentThread().interrupt();
