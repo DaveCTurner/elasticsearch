@@ -18,6 +18,7 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.transport.RemoteClusterService;
+import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportResponse;
 
 import java.util.concurrent.Executor;
@@ -81,6 +82,22 @@ public class ParentTaskAssigningClient extends FilterClient {
             ) {
                 request.setParentTask(parentTask);
                 delegate.execute(action, request, listener);
+            }
+
+            @Override
+            public <Request extends ActionRequest, Response extends TransportResponse> void execute(
+                Transport.Connection connection,
+                RemoteClusterActionType<Response> action,
+                Request request,
+                ActionListener<Response> listener
+            ) {
+                request.setParentTask(parentTask);
+                delegate.execute(connection, action, request, listener);
+            }
+
+            @Override
+            public <Request extends ActionRequest> void getConnection(Request request, ActionListener<Transport.Connection> listener) {
+                delegate.getConnection(request, listener);
             }
         };
     }
