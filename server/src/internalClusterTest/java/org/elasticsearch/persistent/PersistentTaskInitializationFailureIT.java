@@ -23,6 +23,7 @@ import org.elasticsearch.plugins.PersistentTaskPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.tasks.TaskManager;
+import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
@@ -34,8 +35,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import static org.hamcrest.Matchers.empty;
-
 public class PersistentTaskInitializationFailureIT extends ESIntegTestCase {
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
@@ -43,26 +42,33 @@ public class PersistentTaskInitializationFailureIT extends ESIntegTestCase {
     }
 
     public void testPersistentTasksThatFailDuringInitializationAreRemovedFromClusterState() throws Exception {
-        PersistentTasksService persistentTasksService = internalCluster().getInstance(PersistentTasksService.class);
-        PlainActionFuture<PersistentTasksCustomMetadata.PersistentTask<FailingInitializationTaskParams>> startPersistentTaskFuture =
-            new PlainActionFuture<>();
+        final var persistentTasksService = internalCluster().getInstance(PersistentTasksService.class);
+        final var clusterService = internalCluster().getInstance(ClusterService.class);
+
+        final var taskCreatedAndRemovedListener = ClusterServiceUtils
+            // listen for the task creation
+            .addTemporaryStateListener(
+                clusterService,
+                clusterState -> findTasks(clusterState, FailingInitializationPersistentTaskExecutor.TASK_NAME).isEmpty() == false
+            )
+            // then listen for its removal
+            .<Void>andThen(
+                l -> ClusterServiceUtils.addTemporaryStateListener(
+                    clusterService,
+                    clusterState -> findTasks(clusterState, FailingInitializationPersistentTaskExecutor.TASK_NAME).isEmpty()
+                ).addListener(l)
+            );
+
+        final var startRequestFuture = new PlainActionFuture<>();
         persistentTasksService.sendStartRequest(
             UUIDs.base64UUID(),
             FailingInitializationPersistentTaskExecutor.TASK_NAME,
             new FailingInitializationTaskParams(),
             null,
-            startPersistentTaskFuture
+            startRequestFuture.map(ignored -> null)
         );
-        startPersistentTaskFuture.actionGet();
-
-        assertBusy(() -> {
-            final ClusterService clusterService = internalCluster().getAnyMasterNodeInstance(ClusterService.class);
-            List<PersistentTasksCustomMetadata.PersistentTask<?>> tasks = findTasks(
-                clusterService.state(),
-                FailingInitializationPersistentTaskExecutor.TASK_NAME
-            );
-            assertThat(tasks.toString(), tasks, empty());
-        });
+        safeAwait(taskCreatedAndRemovedListener);
+        startRequestFuture.result(); // shouldn't throw
     }
 
     public static class FailingInitializationPersistentTasksPlugin extends Plugin implements PersistentTaskPlugin {
@@ -106,7 +112,7 @@ public class PersistentTaskInitializationFailureIT extends ESIntegTestCase {
     public static class FailingInitializationTaskParams implements PersistentTaskParams {
         public FailingInitializationTaskParams() {}
 
-        public FailingInitializationTaskParams(StreamInput in) throws IOException {}
+        public FailingInitializationTaskParams(StreamInput in) {}
 
         @Override
         public String getWriteableName() {
@@ -119,13 +125,11 @@ public class PersistentTaskInitializationFailureIT extends ESIntegTestCase {
         }
 
         @Override
-        public void writeTo(StreamOutput out) throws IOException {}
+        public void writeTo(StreamOutput out) {}
 
         @Override
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-            builder.startObject();
-            builder.endObject();
-            return builder;
+            return builder.startObject().endObject();
         }
     }
 
@@ -153,14 +157,14 @@ public class PersistentTaskInitializationFailureIT extends ESIntegTestCase {
                     String persistentTaskId,
                     long allocationId
                 ) {
-                    throw new RuntimeException("BOOM");
+                    throw new RuntimeException("simulated exception from task init");
                 }
             };
         }
 
         @Override
         protected void nodeOperation(AllocatedPersistentTask task, FailingInitializationTaskParams params, PersistentTaskState state) {
-            assert false : "Unexpected call";
+            fail("execution is unexpected");
         }
     }
 }
