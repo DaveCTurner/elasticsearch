@@ -196,6 +196,7 @@ import org.elasticsearch.transport.TestTransportChannel;
 import org.elasticsearch.transport.TransportInterceptor;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestHandler;
+import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.usage.UsageService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
@@ -204,6 +205,7 @@ import org.junit.Before;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -220,6 +222,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -1275,27 +1278,26 @@ public class SnapshotResiliencyTests extends ESTestCase {
         }
     }
 
-    public void testSnapshotCompletedByNodeLeft() {
+    // A transport interceptor that throttles the shard snapshot status updates to run one at a time, for more interesting interleavings
+    private final TransportInterceptor throttlingInterceptor = new TransportInterceptor() {
+        private final ThrottledTaskRunner runner = new ThrottledTaskRunner(
+            SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME + "-throttle",
+            1,
+            SnapshotResiliencyTests.this::scheduleNow
+        );
 
-        // A transport interceptor that throttles the shard snapshot status updates to run one at a time, for more interesting interleavings
-        final TransportInterceptor throttlingInterceptor = new TransportInterceptor() {
-            private final ThrottledTaskRunner runner = new ThrottledTaskRunner(
-                SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME + "-throttle",
-                1,
-                SnapshotResiliencyTests.this::scheduleNow
-            );
-
-            @Override
-            public <T extends TransportRequest> TransportRequestHandler<T> interceptHandler(
-                String action,
-                Executor executor,
-                boolean forceExecution,
-                TransportRequestHandler<T> actualHandler
-            ) {
-                if (action.equals(SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME)) {
-                    return (request, channel, task) -> ActionListener.run(
-                        new ChannelActionListener<>(channel),
-                        l -> runner.enqueueTask(
+        @Override
+        public <T extends TransportRequest> TransportRequestHandler<T> interceptHandler(
+            String action,
+            Executor executor,
+            boolean forceExecution,
+            TransportRequestHandler<T> actualHandler
+        ) {
+            if (action.equals(SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME)) {
+                return (request, channel, task) -> ActionListener.run(
+                    new ChannelActionListener<>(channel),
+                    l -> scheduleNow(
+                        () -> runner.enqueueTask(
                             l.delegateFailureAndWrap(
                                 (ll, ref) -> actualHandler.messageReceived(
                                     request,
@@ -1304,12 +1306,15 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                 )
                             )
                         )
-                    );
-                } else {
-                    return actualHandler;
-                }
+                    )
+                );
+            } else {
+                return actualHandler;
             }
-        };
+        }
+    };
+
+    public void testSnapshotCompletedByNodeLeft() {
 
         setupTestCluster(1, 1, node -> node.isMasterNode() ? throttlingInterceptor : TransportService.NOOP_TRANSPORT_INTERCEPTOR);
 
@@ -1371,6 +1376,17 @@ public class SnapshotResiliencyTests extends ESTestCase {
                         )
                     )
                 );
+                if (randomBoolean()) {
+                    testListener = testListener.andThen((stepListener, v) -> {
+                        scheduleNow(
+                            ActionRunnable.<AcknowledgedResponse>wrap(
+                                ActionTestUtils.assertNoFailureListener(r -> {}),
+                                l -> client.admin().cluster().prepareDeleteSnapshot(TEST_REQUEST_TIMEOUT, repoName, snapshotName).execute(l)
+                            )
+                        );
+                        stepListener.onResponse(null);
+                    });
+                }
             } else {
                 final var cloneName = "clone-" + i;
                 testListener = testListener.andThen(stepListener -> scheduleNow(ActionRunnable.wrap(stepListener, l -> {
@@ -1409,6 +1425,290 @@ public class SnapshotResiliencyTests extends ESTestCase {
             testListener.isDone()
         );
         safeAwait(testListener); // shouldn't throw
+    }
+
+    private static class ShardSnapshotUpdatesSequencer {
+
+        private final Map<String, Map<String, SubscribableListener<Void>>> shardSnapshotUpdatesBlockMap = new HashMap<>();
+
+        private static final SubscribableListener<Void> ALWAYS_PROCEED = SubscribableListener.newSucceeded(null);
+
+        SubscribableListener<Void> listenerFor(String snapshot, String index) {
+            if ("last-snapshot".equals(snapshot)) {
+                return ALWAYS_PROCEED;
+            }
+
+            return shardSnapshotUpdatesBlockMap
+                //
+                .computeIfAbsent(snapshot, v -> new HashMap<>())
+                .computeIfAbsent(index, v -> new SubscribableListener<>());
+        }
+
+        void assertAllComplete() {
+            final var incompleteValues = new ArrayList<String>();
+            shardSnapshotUpdatesBlockMap.forEach((snapshot, indicesMap) -> indicesMap.forEach((index, listener) -> {
+                if (listener.isDone() == false) {
+                    incompleteValues.add(snapshot + "/" + index);
+                }
+            }));
+            assertThat(incompleteValues, empty());
+        }
+
+        void releaseBlock(String snapshot, String index) {
+            listenerFor(snapshot, index).onResponse(null);
+        }
+    }
+
+    public void testDeleteIndexBetweenSuccessAndFinalization() {
+
+        setupTestCluster(1, 1, node -> node.isMasterNode() ? throttlingInterceptor : TransportService.NOOP_TRANSPORT_INTERCEPTOR);
+
+        final var masterNode = testClusterNodes.randomMasterNodeSafe();
+        final var client = masterNode.client;
+        final var masterClusterService = masterNode.clusterService;
+
+        final var indices = IntStream.range(0, 2).mapToObj(i -> "index-" + i).toList();
+        final var repoName = "repo";
+        final var indexToRecreate = randomFrom(indices);
+
+        var testListener = SubscribableListener
+
+            // Create the repo and indices
+            .<Void>newForked(stepListener -> {
+                try (var listeners = new RefCountingListener(stepListener)) {
+                    client().admin()
+                        .cluster()
+                        .preparePutRepository(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT, repoName)
+                        .setType(FsRepository.TYPE)
+                        .setSettings(Settings.builder().put("location", randomAlphaOfLength(10)))
+                        .execute(listeners.acquire(createRepoResponse -> {}));
+
+                    for (final var index : indices) {
+                        client.admin()
+                            .indices()
+                            .create(
+                                new CreateIndexRequest(index).waitForActiveShards(ActiveShardCount.ALL).settings(defaultIndexSettings(1)),
+                                listeners.acquire(createIndexResponse -> {})
+                            );
+                    }
+                }
+            })
+
+            // start a couple of snapshots
+            .andThen(
+                l -> client.admin()
+                    .cluster()
+                    .prepareCreateSnapshot(TEST_REQUEST_TIMEOUT, repoName, "snapshot-1")
+                    .setIndices(randomNonEmptySubsetOf(indices).toArray(String[]::new))
+                    .setPartial(true)
+                    .execute(l.map(createSnapshotResponse -> null))
+            )
+            .andThen(
+                l -> client.admin()
+                    .cluster()
+                    .prepareCreateSnapshot(TEST_REQUEST_TIMEOUT, repoName, "snapshot-2")
+                    .setIndices(randomNonEmptySubsetOf(indices).toArray(String[]::new))
+                    .setPartial(true)
+                    .execute(l.map(createSnapshotResponse -> null))
+            )
+            .andThen(
+                l -> ClusterServiceUtils.addTemporaryStateListener(
+                    masterClusterService,
+                    clusterState -> SnapshotsInProgress.get(clusterState)
+                        .asStream()
+                        .allMatch(
+                            e -> e.shards()
+                                .entrySet()
+                                .stream()
+                                .filter(e2 -> e2.getKey().getIndexName().equals(indexToRecreate))
+                                .allMatch(e2 -> e2.getValue().state() == SnapshotsInProgress.ShardState.SUCCESS)
+                        )
+                ).addListener(l.map(v -> null))
+            )
+            // delete and re-create the target index
+            .andThen(l -> client.admin().indices().delete(new DeleteIndexRequest(indexToRecreate), l.map(acknowledgedResponse -> null)))
+            .andThen(
+                l -> client.admin()
+                    .indices()
+                    .create(
+                        new CreateIndexRequest(indexToRecreate).waitForActiveShards(ActiveShardCount.ALL).settings(defaultIndexSettings(1)),
+                        l.map(createIndexResponse -> null)
+                    )
+            )
+
+            // start another couple of snapshots
+            .andThen(
+                l -> client.admin()
+                    .cluster()
+                    .prepareCreateSnapshot(TEST_REQUEST_TIMEOUT, repoName, "snapshot-3")
+                    .setIndices(randomNonEmptySubsetOf(indices).toArray(String[]::new))
+                    .setPartial(randomBoolean())
+                    .execute(l.map(createSnapshotResponse -> null))
+            )
+            .andThen(
+                l -> client.admin()
+                    .cluster()
+                    .prepareCreateSnapshot(TEST_REQUEST_TIMEOUT, repoName, "snapshot-4")
+                    .setIndices(randomNonEmptySubsetOf(indices).toArray(String[]::new))
+                    .setPartial(randomBoolean())
+                    .execute(l.map(createSnapshotResponse -> null))
+            )
+
+            // wait for all the snapshots to complete
+            .andThen(
+                l -> ClusterServiceUtils.addTemporaryStateListener(masterClusterService, cs -> SnapshotsInProgress.get(cs).isEmpty())
+                    .addListener(l.map(v -> null))
+            );
+
+        deterministicTaskQueue.runAllRunnableTasks();
+        assertTrue(
+            "executed all runnable tasks but test steps are still incomplete: "
+                + Strings.toString(SnapshotsInProgress.get(masterClusterService.state()), true, true),
+            testListener.isDone()
+        );
+        safeAwait(testListener); // shouldn't throw
+    }
+
+    public void testOutOfOrderFinalizationWithOngoingSnapshot() {
+
+        final var sequencer = new ShardSnapshotUpdatesSequencer();
+
+        // A transport interceptor that throttles the shard snapshot status updates to run one at a time, for more interesting interleavings
+        final TransportInterceptor throttlingInterceptor = new TransportInterceptor() {
+            @Override
+            public <T extends TransportRequest> TransportRequestHandler<T> interceptHandler(
+                String action,
+                Executor executor,
+                boolean forceExecution,
+                TransportRequestHandler<T> actualHandler
+            ) {
+                if (action.equals(SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME)) {
+                    return (request, channel, task) -> ActionListener.run(
+                        ActionTestUtils.<TransportResponse>assertNoFailureListener(new ChannelActionListener<>(channel)::onResponse),
+                        l -> {
+                            final var updateRequest = asInstanceOf(UpdateIndexShardSnapshotStatusRequest.class, request);
+                            sequencer.listenerFor(
+                                updateRequest.snapshot().getSnapshotId().getName(),
+                                updateRequest.shardId().getIndexName()
+                            )
+                                .<TransportResponse>andThen(
+                                    ll -> actualHandler.messageReceived(request, new TestTransportChannel(ll), task)
+                                )
+                                .addListener(l);
+                        }
+                    );
+                } else {
+                    return actualHandler;
+                }
+            }
+        };
+
+        setupTestCluster(1, 1, node -> node.isMasterNode() ? throttlingInterceptor : TransportService.NOOP_TRANSPORT_INTERCEPTOR);
+
+        final var masterNode = testClusterNodes.randomMasterNodeSafe();
+        final var client = masterNode.client;
+        final var masterClusterService = masterNode.clusterService;
+
+        final var indices = IntStream.range(0, 2).mapToObj(i -> "index-" + i).toList();
+        final var repoName = "repo";
+
+        var testListener = SubscribableListener
+
+            // Create the repo and indices
+            .<Void>newForked(stepListener -> {
+                try (var listeners = new RefCountingListener(stepListener)) {
+                    client().admin()
+                        .cluster()
+                        .preparePutRepository(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT, repoName)
+                        .setType(FsRepository.TYPE)
+                        .setSettings(Settings.builder().put("location", randomAlphaOfLength(10)))
+                        .execute(listeners.acquire(createRepoResponse -> {}));
+
+                    for (final var index : indices) {
+                        client.admin()
+                            .indices()
+                            .create(
+                                new CreateIndexRequest(index).waitForActiveShards(ActiveShardCount.ALL).settings(defaultIndexSettings(1)),
+                                listeners.acquire(createIndexResponse -> {})
+                            );
+                    }
+                }
+            });
+
+        final Function<String, SubscribableListener<Void>> snapshotCompletionListener = snapshotName -> ClusterServiceUtils
+            .addTemporaryStateListener(
+                masterClusterService,
+                cs -> SnapshotsInProgress.get(cs)
+                    .forRepo(repoName)
+                    .stream()
+                    .noneMatch(e -> e.snapshot().getSnapshotId().getName().equals(snapshotName))
+            );
+
+        testListener = testListener
+            // start a snapshot of both indices (its finalization will be delayed)
+            .andThen(
+                l -> client.admin()
+                    .cluster()
+                    .prepareCreateSnapshot(TEST_REQUEST_TIMEOUT, repoName, "snapshot-1")
+                    .setIndices("index-0", "index-1")
+                    .execute(l.map(createSnapshotResponse -> null))
+            )
+            .andThenAccept(v -> sequencer.releaseBlock("snapshot-1", "index-0"))
+            // start another snapshot of index-1 to space out the queue
+            .andThen(
+                l -> client.admin()
+                    .cluster()
+                    .prepareCreateSnapshot(TEST_REQUEST_TIMEOUT, repoName, "snapshot-1b")
+                    .setIndices("index-1")
+                    .execute(l.map(createSnapshotResponse -> null))
+            )
+            .andThenAccept(v -> sequencer.releaseBlock("snapshot-1b", "index-1"))
+            // start another snapshot of just one index (will finalize first)
+            .andThen(
+                l -> client.admin()
+                    .cluster()
+                    .prepareCreateSnapshot(TEST_REQUEST_TIMEOUT, repoName, "snapshot-2")
+                    .setIndices("index-0")
+                    .execute(l.map(createSnapshotResponse -> null))
+            )
+            .andThenAccept(v -> sequencer.releaseBlock("snapshot-2", "index-0"))
+            // start another snapshot of the same index (should trip the bug)
+            .andThen(
+                l -> client.admin()
+                    .cluster()
+                    .prepareCreateSnapshot(TEST_REQUEST_TIMEOUT, repoName, "snapshot-3")
+                    .setIndices("index-0")
+                    .execute(l.map(createSnapshotResponse -> null))
+            )
+            // wait for snapshot-2 to complete before letting snapshot-3 update its shard state
+            .andThen(
+                l -> snapshotCompletionListener.apply("snapshot-2")
+                    .andThenAccept(v -> sequencer.releaseBlock("snapshot-3", "index-0"))
+                    .addListener(l.map(v -> null))
+            )
+            // wait for snapshot-3 to complete before letting snapshot-0 update its other shard state
+            .andThen(
+                l -> snapshotCompletionListener.apply("snapshot-3")
+                    .andThenAccept(v -> sequencer.releaseBlock("snapshot-1", "index-1"))
+                    .addListener(l.map(v -> null))
+            )
+            // wait for all the snapshots to complete
+            .andThen(
+                l -> ClusterServiceUtils.addTemporaryStateListener(masterClusterService, cs -> SnapshotsInProgress.get(cs).isEmpty())
+                    .addListener(l.map(v -> null))
+            )
+            // ensure all the shard snap listeners completed without failure too
+            .andThenAccept(v -> sequencer.assertAllComplete());
+
+        deterministicTaskQueue.runAllRunnableTasks();
+        assertTrue(
+            "executed all runnable tasks but test steps are still incomplete: "
+                + Strings.toString(SnapshotsInProgress.get(masterClusterService.state()), true, true),
+            testListener.isDone()
+        );
+        safeAwait(testListener); // shouldn't throw
+
+        fail("boom");
     }
 
     @TestLogging(reason = "testing logging at INFO level", value = "org.elasticsearch.snapshots.SnapshotsService:INFO")

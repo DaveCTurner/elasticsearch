@@ -12,6 +12,7 @@ package org.elasticsearch.snapshots;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.TransportVersions;
@@ -844,6 +845,8 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
     public void applyClusterState(ClusterChangedEvent event) {
         try {
             if (event.localNodeMaster()) {
+                logCurrentState();
+
                 // We don't remove old master when master flips anymore. So, we need to check for change in master
                 SnapshotsInProgress snapshotsInProgress = SnapshotsInProgress.get(event.state());
                 final boolean newMaster = event.previousState().nodes().isLocalNodeElectedMaster() == false;
@@ -898,6 +901,13 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
         }
         assert assertConsistentWithClusterState(event.state());
         assert assertNoDanglingSnapshots(event.state());
+    }
+
+    private synchronized void logCurrentState() {
+        logger.info("currentlyFinalizing: {}", currentlyFinalizing.toString());
+        logger.info("currentlyCloning: {}", currentlyCloning.toString());
+        logger.info("endingSnapshots: {}", endingSnapshots.toString());
+        logger.info("initializingClones: {}", initializingClones.toString());
     }
 
     private boolean assertConsistentWithClusterState(ClusterState state) {
@@ -1416,10 +1426,29 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
         assert currentlyFinalizing.contains(snapshot.getRepository());
         assert repositoryOperations.assertNotQueued(snapshot);
         try {
-            SnapshotsInProgress.Entry entry = SnapshotsInProgress.get(clusterService.state()).snapshot(snapshot);
+            final var clusterState = clusterService.state();
+            SnapshotsInProgress.Entry entry = SnapshotsInProgress.get(clusterState).snapshot(snapshot);
             final String failure = entry.failure();
             logger.trace("[{}] finalizing snapshot in repository, state: [{}], failure[{}]", snapshot, entry.state(), failure);
             final ShardGenerations shardGenerations = buildGenerations(entry, metadata);
+            logger.info(
+                Strings.format(
+                    """
+                        [%s] finalizing snapshot using repo data gen [%d] and shard generations [%s] \
+                        computed from entry in cluster state [term=%d, version=%d] and metadata [version=%d] on thread [%s]: %s
+                        %s""",
+                    snapshot,
+                    repositoryData.getGenId(),
+                    shardGenerations,
+                    clusterState.term(),
+                    clusterState.version(),
+                    metadata.version(),
+                    Thread.currentThread().getName(),
+                    entry.shardSnapshotStatusByRepoShardId(),
+                    Strings.toString(entry)
+                ),
+                new ElasticsearchException("stack trace")
+            );
             final List<String> finalIndices = shardGenerations.indices().stream().map(IndexId::getName).toList();
             final Set<String> indexNames = new HashSet<>(finalIndices);
             ArrayList<SnapshotShardFailure> shardFailures = new ArrayList<>();
@@ -2242,6 +2271,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                         return;
                     }
                     if (newDelete.state() == SnapshotDeletionsInProgress.State.STARTED) {
+                        logger.trace("Delete [{}] executing immediately", newDelete);
                         if (tryEnterRepoLoop(repositoryName)) {
                             deleteSnapshotsFromRepository(
                                 newDelete,
@@ -2252,7 +2282,12 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                             logger.trace("Delete [{}] could not execute directly and was queued", newDelete);
                         }
                     } else {
+                        logger.trace("Delete [{}] deferred with endingSnapshots={}", newDelete, endingSnapshots);
                         for (SnapshotsInProgress.Entry completedSnapshot : completedWithCleanup) {
+                            logger.info("Delete [{}] causes endSnapshot [{}]", newDelete, completedSnapshot.snapshot());
+                            if (endingSnapshots.contains(completedSnapshot.snapshot())) {
+                                logger.warn("--> YIKES ENDING [{}] TWICE!!!", completedSnapshot.snapshot());
+                            }
                             endSnapshot(completedSnapshot, newState.metadata(), repositoryData);
                         }
                     }
@@ -3814,6 +3849,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
             final Snapshot nextEntry;
             final Deque<Snapshot> queued = snapshotsToFinalize.get(repository);
             if (queued == null) {
+                logger.info("pollFinalization[{}]: nothing to do", repository);
                 return null;
             }
             nextEntry = queued.pollFirst();
@@ -3826,19 +3862,24 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                 latestKnownMetaData = null;
             }
             assert assertConsistent();
+            logger.info("pollFinalization[{}]: got [{}], leaving [{}]", repository, res.v1(), snapshotsToFinalize);
             return res;
         }
 
         boolean startDeletion(String deleteUUID) {
-            return runningDeletions.add(deleteUUID);
+            final var res = runningDeletions.add(deleteUUID);
+            logger.info("startDeletion[{}], state now [{}]", deleteUUID, runningDeletions);
+            return res;
         }
 
         void finishDeletion(String deleteUUID) {
             runningDeletions.remove(deleteUUID);
+            logger.info("finishDeletion[{}], state now [{}]", deleteUUID, runningDeletions);
         }
 
         synchronized void addFinalization(Snapshot snapshot, Metadata metadata) {
             snapshotsToFinalize.computeIfAbsent(snapshot.getRepository(), k -> new LinkedList<>()).add(snapshot);
+            logger.info("addFinalization: [{}], state now {}", snapshot, snapshotsToFinalize);
             this.latestKnownMetaData = metadata;
             assertConsistent();
         }
@@ -3848,6 +3889,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
          * being master.
          */
         synchronized void clear() {
+            logger.info("clear OngoingRepositoryOperations");
             snapshotsToFinalize.clear();
             runningDeletions.clear();
             latestKnownMetaData = null;

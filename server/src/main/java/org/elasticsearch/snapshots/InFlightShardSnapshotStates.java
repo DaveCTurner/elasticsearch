@@ -53,7 +53,7 @@ public final class InFlightShardSnapshotStates {
                 .shardSnapshotStatusByRepoShardId()
                 .entrySet()) {
                 final RepositoryShardId sid = shard.getKey();
-                addStateInformation(generations, busyIds, shard.getValue(), sid.shardId(), sid.indexName());
+                addStateInformation(generations, busyIds, shard.getValue(), sid.shardId(), sid.indexName(), runningSnapshot.snapshot());
             }
         }
         return new InFlightShardSnapshotStates(generations, busyIds);
@@ -64,11 +64,12 @@ public final class InFlightShardSnapshotStates {
         Map<String, Set<Integer>> busyIds,
         SnapshotsInProgress.ShardSnapshotStatus shardState,
         int shardId,
-        String indexName
+        String indexName,
+        Snapshot snapshot
     ) {
         if (shardState.isActive()) {
             busyIds.computeIfAbsent(indexName, k -> new HashSet<>()).add(shardId);
-            assert assertGenerationConsistency(generations, indexName, shardId, shardState.generation());
+            assert assertGenerationConsistency(generations, indexName, shardId, shardState.generation(), snapshot, shardState);
         } else if (shardState.state() == SnapshotsInProgress.ShardState.SUCCESS) {
             assert busyIds.getOrDefault(indexName, Collections.emptySet()).contains(shardId) == false
                 : "Can't have a successful operation queued after an in-progress operation";
@@ -96,11 +97,24 @@ public final class InFlightShardSnapshotStates {
         Map<String, Map<Integer, ShardGeneration>> generations,
         String indexName,
         int shardId,
-        @Nullable ShardGeneration activeGeneration
+        @Nullable ShardGeneration activeGeneration,
+        Snapshot snapshot,
+        SnapshotsInProgress.ShardSnapshotStatus shardState
     ) {
         final ShardGeneration bestGeneration = generations.getOrDefault(indexName, Collections.emptyMap()).get(shardId);
         assert bestGeneration == null || activeGeneration == null || activeGeneration.equals(bestGeneration)
-            : "[" + indexName + "][" + shardId + "]: " + bestGeneration + " vs " + activeGeneration;
+            : "["
+                + indexName
+                + "]["
+                + shardId
+                + "]: "
+                + bestGeneration
+                + " vs "
+                + activeGeneration
+                + " when processing "
+                + snapshot
+                + " containing "
+                + shardState;
         return true;
     }
 
