@@ -8,8 +8,6 @@
  */
 package org.elasticsearch.discovery.ec2;
 
-import com.amazonaws.util.DateUtils;
-
 import org.apache.http.NameValuePair;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -26,13 +24,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Date;
+import java.time.Clock;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import javax.xml.XMLConstants;
 import javax.xml.stream.XMLOutputFactory;
@@ -117,7 +116,6 @@ public class AmazonEC2Fixture extends AbstractHttpFixture {
             || ("/latest/meta-data/iam/security-credentials/my_iam_profile".equals(request.getPath())
                 && HttpGet.METHOD_NAME.equals(request.getMethod())
                 && request.getHeaders().getOrDefault(X_AWS_EC_2_METADATA_TOKEN, "").equals(IMDSV_2_TOKEN))) {
-            final Date expiration = new Date(new Date().getTime() + TimeUnit.DAYS.toMillis(1));
             final String response = String.format(Locale.ROOT, """
                 {
                   "AccessKeyId": "ec2_integration_test_access_key",
@@ -125,7 +123,7 @@ public class AmazonEC2Fixture extends AbstractHttpFixture {
                   "RoleArn": "test",
                   "SecretAccessKey": "ec2_integration_test_secret_key",
                   "Token": "test"
-                }""", DateUtils.formatISO8601Date(expiration));
+                }""", ZonedDateTime.now(Clock.systemUTC()).plusDays(1L).format(DateTimeFormatter.ISO_DATE_TIME));
 
             final Map<String, String> headers = new HashMap<>(contentType("application/json"));
             return new Response(RestStatus.OK.getStatus(), headers, response.getBytes(UTF_8));
