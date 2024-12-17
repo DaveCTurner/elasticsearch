@@ -67,6 +67,7 @@ tasks.named("dependencyLicenses").configure {
   mapping from: 'apache-client',            to: 'aws-sdk-2'
   mapping from: 'auth',                     to: 'aws-sdk-2'
   mapping from: 'aws-core',                 to: 'aws-sdk-2'
+  mapping from: 'aws-query-protocol',       to: 'aws-sdk-2'
   mapping from: 'checksums',                to: 'aws-sdk-2'
   mapping from: 'checksums-spi',            to: 'aws-sdk-2'
   mapping from: 'ec2',                      to: 'aws-sdk-2'
