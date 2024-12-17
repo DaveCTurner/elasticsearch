@@ -30,6 +30,7 @@ dependencies {
   implementation "software.amazon.awssdk:sdk-core:${versions.awsv2sdk}"
   implementation "software.amazon.awssdk:utils:${versions.awsv2sdk}"
 
+  runtimeOnly "software.amazon.awssdk:aws-query-protocol:${versions.awsv2sdk}"
   runtimeOnly "software.amazon.awssdk:checksums-spi:${versions.awsv2sdk}"
   runtimeOnly "software.amazon.awssdk:checksums:${versions.awsv2sdk}"
   runtimeOnly "software.amazon.awssdk:http-auth-aws:${versions.awsv2sdk}"
@@ -53,6 +54,7 @@ dependencies {
   runtimeOnly "org.slf4j:slf4j-nop:${versions.slf4j}"
   // runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:${versions.log4j}") https://github.com/elastic/elasticsearch/issues/93714
   runtimeOnly "org.slf4j:slf4j-api:${versions.slf4j}"
+  runtimeOnly "org.reactivestreams:reactive-streams:${versions.reactive_streams}"
 
   javaRestTestImplementation project(':plugins:discovery-ec2')
   javaRestTestImplementation project(':test:fixtures:ec2-imds-fixture')
@@ -127,6 +129,7 @@ tasks.register("writeTestJavaPolicy") {
         [
           "grant {",
           "  permission java.util.PropertyPermission \"com.amazonaws.sdk.ec2MetadataServiceEndpointOverride\", \"write\";",
+          "  permission java.io.FilePermission \"${buildDir}/tmp/nonexistent_aws_config/*\", \"read\";",
           "};"
         ].join("\n"))
     }
@@ -145,6 +148,11 @@ tasks.withType(Test).configureEach {
   } else {
     nonInputProperties.systemProperty 'java.security.policy', "file://${buildDir}/tmp/java.policy"
   }
+
+  // TODO how do we set these in prod too?
+  nonInputProperties.systemProperty 'aws.sharedCredentialsFile', "${buildDir}/tmp/nonexistent_aws_config/credentials"
+  nonInputProperties.systemProperty 'aws.configFile',            "${buildDir}/tmp/nonexistent_aws_config/config"
+  nonInputProperties.systemProperty 'aws.region',                "es-test-region-name"
 }
 
 tasks.named("check").configure {
