@@ -61,8 +61,13 @@ class Ec2NameResolver implements CustomNameResolver {
     public InetAddress[] resolveIfPossible(String value) throws IOException {
         for (Ec2HostnameType type : Ec2HostnameType.values()) {
             if (type.configName.equals(value)) {
-                // only one address: because we explicitly ask for only one via the Ec2HostnameType
-                return new InetAddress[] { InetAddress.getByName(AwsEc2Utils.getInstanceMetadata("/latest/meta-data/" + type.ec2Name)) };
+                final var metadataPath = "/latest/meta-data/" + type.ec2Name;
+                try {
+                    // only one address: because we explicitly ask for only one via the Ec2HostnameType
+                    return new InetAddress[] { InetAddress.getByName(AwsEc2Utils.getInstanceMetadata(metadataPath)) };
+                } catch (Exception e) {
+                    throw new IOException("Exception caught when resolving EC2 address from [" + metadataPath + "]");
+                }
             }
         }
         return null;
