@@ -89,7 +89,7 @@ tasks.named("yamlRestTest").configure { enabled = false }
     setting 'network.host', '_ec2_'
     setting 'discovery.ec2.endpoint', { "http://${-> addressAndPortSource.get()}" }, IGNORE_VALUE
 
-    systemProperty "com.amazonaws.sdk.ec2MetadataServiceEndpointOverride", { "http://${-> addressAndPortSource.get()}" }, IGNORE_VALUE
+    systemProperty "aws.ec2MetadataServiceEndpoint", { "http://${-> addressAndPortSource.get()}" }, IGNORE_VALUE
   }
 }
 

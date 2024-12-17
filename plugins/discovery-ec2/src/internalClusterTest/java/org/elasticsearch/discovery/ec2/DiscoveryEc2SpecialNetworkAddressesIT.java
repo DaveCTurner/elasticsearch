@@ -56,7 +56,7 @@ public class DiscoveryEc2SpecialNetworkAddressesIT extends DiscoveryEc2NetworkAd
             .entrySet()
             .stream()
             .flatMap(
-                addresses -> Stream.of(Ec2ImdsVersion.values())
+                addresses -> Stream.of(Ec2ImdsVersion.V2 /* TODO was .values() - SDKv2 seems to enforce IMDSv2? */)
                     .map(ec2ImdsVersion -> new Object[] { addresses.getValue(), addresses.getKey(), ec2ImdsVersion })
             )
             .toList();

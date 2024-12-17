@@ -15,6 +15,7 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.core.SuppressForbidden;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.rest.RestStatus;
 
 import java.io.IOException;
@@ -78,6 +79,8 @@ public class Ec2ImdsHttpHandler implements HttpHandler {
                         validImdsTokens.add(token);
                         final var responseBody = token.getBytes(StandardCharsets.UTF_8);
                         exchange.getResponseHeaders().add("Content-Type", "text/plain");
+                        exchange.getResponseHeaders()
+                            .add("x-aws-ec2-metadata-token-ttl-seconds", Long.toString(TimeValue.timeValueDays(1).seconds()));
                         exchange.sendResponseHeaders(RestStatus.OK.getStatus(), responseBody.length);
                         exchange.getResponseBody().write(responseBody);
                     }
