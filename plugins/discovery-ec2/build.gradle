@@ -150,7 +150,7 @@ tasks.withType(Test).configureEach {
     nonInputProperties.systemProperty 'java.security.policy', "file://${buildDir}/tmp/java.policy"
   }
 
-  // TODO how do we set these in prod too?
+  // TODO NOMERGE how do we set these in prod too?
   nonInputProperties.systemProperty 'aws.sharedCredentialsFile', "${buildDir}/tmp/nonexistent_aws_config/credentials"
   nonInputProperties.systemProperty 'aws.configFile',            "${buildDir}/tmp/nonexistent_aws_config/config"
   nonInputProperties.systemProperty 'aws.region',                "es-test-region-name"
