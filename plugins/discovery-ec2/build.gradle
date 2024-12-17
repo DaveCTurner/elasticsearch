@@ -171,10 +171,7 @@ tasks.named("thirdPartyAudit").configure {
           'org.apache.log.Logger',
           'javax.jms.Message',
 
-          // reactive streams and eventstream not used by the sync client
-          'org.reactivestreams.Publisher',
-          'org.reactivestreams.Subscriber',
-          'org.reactivestreams.Subscription',
+          // eventstream not used by the sync client
           'software.amazon.eventstream.HeaderValue',
           'software.amazon.eventstream.Message',
           'software.amazon.eventstream.MessageDecoder',
@@ -192,11 +189,5 @@ tasks.named("thirdPartyAudit").configure {
           'software.amazon.awssdk.crt.http.HttpHeader',
           'software.amazon.awssdk.crt.http.HttpRequest',
           'software.amazon.awssdk.crt.http.HttpRequestBodyStream',
-
-          // we don't use anything involving the query protocol
-          'software.amazon.awssdk.protocols.query.AwsEc2ProtocolFactory',
-          'software.amazon.awssdk.protocols.query.AwsEc2ProtocolFactory$Builder',
-          'software.amazon.awssdk.protocols.query.AwsQueryProtocolFactory',
-
   )
 }
