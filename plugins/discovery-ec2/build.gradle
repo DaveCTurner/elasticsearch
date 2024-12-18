@@ -125,6 +125,7 @@ tasks.register("writeTestJavaPolicy") {
           "permission java.io.FilePermission \"\${user.home}/.aws/credentials\", \"read\";",
           "permission java.io.FilePermission \"\${user.home}/.aws/config\", \"read\";",
           "permission java.util.PropertyPermission \"http.proxyHost\", \"read\";",
+          "permission java.util.PropertyPermission \"aws.region\", \"read\";",
           "};"
         ].join("\n")
       )
@@ -136,6 +137,7 @@ tasks.register("writeTestJavaPolicy") {
           "permission java.io.FilePermission \"\${user.home}/.aws/credentials\", \"read\";",
           "permission java.io.FilePermission \"\${user.home}/.aws/config\", \"read\";",
           "permission java.util.PropertyPermission \"http.proxyHost\", \"read\";",
+          "permission java.util.PropertyPermission \"aws.region\", \"read\";",
           "};"
         ].join("\n"))
     }
@@ -154,6 +156,8 @@ tasks.withType(Test).configureEach {
   } else {
     nonInputProperties.systemProperty 'java.security.policy', "file://${buildDir}/tmp/java.policy"
   }
+
+  systemProperty 'aws.region', 'es-test-region'
 }
 
 tasks.named("check").configure {
