@@ -20,13 +20,14 @@ import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
 import org.elasticsearch.test.cluster.ElasticsearchCluster;
 import org.elasticsearch.test.cluster.LogType;
-import org.elasticsearch.test.cluster.local.DefaultLocalElasticsearchCluster;
 import org.elasticsearch.test.rest.ESRestTestCase;
 import org.junit.ClassRule;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.stream.IntStream;
 
 public class DiscoveryEc2ClusterFormationIT extends ESRestTestCase {
 
@@ -40,7 +41,7 @@ public class DiscoveryEc2ClusterFormationIT extends ESRestTestCase {
         ).newCredentialsConsumer(dynamicCredentials::addValidCredentials)
     );
 
-    private static final Ec2ApiHttpFixture ec2ApiFixture = new Ec2ApiHttpFixture(DiscoveryEc2ClusterFormationIT::configPath);
+    private static final Ec2ApiHttpFixture ec2ApiFixture = new Ec2ApiHttpFixture(DiscoveryEc2ClusterFormationIT::getTransportAddresses);
 
     private static final ElasticsearchCluster cluster = ElasticsearchCluster.local()
         .nodes(2)
@@ -52,11 +53,8 @@ public class DiscoveryEc2ClusterFormationIT extends ESRestTestCase {
         .systemProperty(Ec2ImdsHttpFixture.ENDPOINT_OVERRIDE_SYSPROP_NAME_SDK2, ec2ImdsHttpFixture::getAddress)
         .build();
 
-    private static String configPath() {
-        final var cluster2 = (DefaultLocalElasticsearchCluster) cluster;
-        cluster2.
-        logger.info("--> {}", cluster2);
-        return "";
+    private static List<String> getTransportAddresses() {
+        return IntStream.range(0, 2).mapToObj(cluster::getNodeTransportAddress).toList();
     }
 
     @ClassRule

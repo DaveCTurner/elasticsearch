@@ -110,4 +110,6 @@ public interface LocalClusterHandle extends ClusterHandle {
      * storage is currently supported
      */
     void updateStoredSecureSettings();
+
+    String getNodeTransportAddress(int index);
 }

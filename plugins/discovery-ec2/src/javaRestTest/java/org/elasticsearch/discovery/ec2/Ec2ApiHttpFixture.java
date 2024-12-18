@@ -17,14 +17,15 @@ import org.junit.rules.ExternalResource;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.List;
 import java.util.function.Supplier;
 
 public class Ec2ApiHttpFixture extends ExternalResource {
-    private final Supplier<String> configPathSupplier;
+    private final Supplier<List<String>> transportAddressesSupplier;
     private HttpServer server;
 
-    public Ec2ApiHttpFixture(Supplier<String> configPathSupplier) {
-        this.configPathSupplier = configPathSupplier;
+    public Ec2ApiHttpFixture(Supplier<List<String>> transportAddressesSupplier) {
+        this.transportAddressesSupplier = transportAddressesSupplier;
     }
 
     public String getAddress() {
@@ -53,7 +54,7 @@ public class Ec2ApiHttpFixture extends ExternalResource {
 
     private void handleRequest(HttpExchange exchange) {
         try (exchange) {
-            configPathSupplier.get();
+            final var transportAddresses = transportAddressesSupplier.get();
             throw new UnsupportedOperationException("boom");
         }
     }

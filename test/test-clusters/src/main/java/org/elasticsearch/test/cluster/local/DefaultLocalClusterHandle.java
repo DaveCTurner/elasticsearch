@@ -187,6 +187,11 @@ public class DefaultLocalClusterHandle implements LocalClusterHandle {
     }
 
     @Override
+    public String getNodeTransportAddress(int index) {
+        return nodes.get(index).getTransportEndpoint();
+    }
+
+    @Override
     public void updateStoredSecureSettings() {
         execute(() -> nodes.parallelStream().forEach(Node::updateStoredSecureSettings));
     }

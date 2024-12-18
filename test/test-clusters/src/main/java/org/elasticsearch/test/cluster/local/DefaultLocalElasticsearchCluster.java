@@ -163,6 +163,12 @@ public class DefaultLocalElasticsearchCluster<S extends LocalClusterSpec, H exte
     }
 
     @Override
+    public String getNodeTransportAddress(int index) {
+        checkHandle();
+        return handle.getNodeTransportAddress(index);
+    }
+
+    @Override
     public void updateStoredSecureSettings() {
         checkHandle();
         handle.updateStoredSecureSettings();
