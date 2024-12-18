@@ -14,13 +14,10 @@ import fixture.aws.imds.Ec2ImdsHttpFixture;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.test.cluster.ElasticsearchCluster;
-import org.elasticsearch.test.cluster.SystemPropertyProvider;
-import org.elasticsearch.test.cluster.local.LocalClusterSpec;
 import org.elasticsearch.test.rest.ESRestTestCase;
 import org.hamcrest.Matchers;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -40,22 +37,6 @@ public abstract class DiscoveryEc2AvailabilityZoneAttributeTestCase extends ESRe
             .plugin("discovery-ec2")
             .setting(AwsEc2Service.AUTO_ATTRIBUTE_SETTING.getKey(), "true")
             .systemProperty(Ec2ImdsHttpFixture.ENDPOINT_OVERRIDE_SYSPROP_NAME_SDK2, imdsFixtureAddressSupplier)
-            .systemProperties(new SystemPropertyProvider() {
-                @Override
-                public Map<String, String> get(LocalClusterSpec.LocalNodeSpec localNodeSpec) {
-                    // TODO NOMERGE this needs to be automatic
-                    return Map.of(
-                        "aws.sharedCredentialsFile",
-                        "config/nonexistent_aws_config/credentials",
-                        "aws.configFile",
-                        "config/nonexistent_aws_config/config",
-                        "aws.region",
-                        "es-test-region-name",
-                        "security.debug",
-                        "access"
-                    );
-                }
-            })
             .build();
     }
 

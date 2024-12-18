@@ -117,11 +117,14 @@ tasks.register("writeTestJavaPolicy") {
           "permission org.bouncycastle.crypto.CryptoServicesPermission \"exportSecretKey\";",
           "permission org.bouncycastle.crypto.CryptoServicesPermission \"exportPrivateKey\";",
           "permission java.io.FilePermission \"\${javax.net.ssl.trustStore}\", \"read\";",
-          "permission java.util.PropertyPermission \"aws.ec2MetadataServiceEndpoint\", \"write\";",
           "permission java.security.SecurityPermission \"getProperty.jdk.tls.disabledAlgorithms\";",
           "permission java.security.SecurityPermission \"getProperty.jdk.certpath.disabledAlgorithms\";",
           "permission java.security.SecurityPermission \"getProperty.keystore.type.compat\";",
           "permission java.security.SecurityPermission \"getProperty.org.bouncycastle.ec.max_f2m_field_size\";",
+          "permission java.util.PropertyPermission \"aws.ec2MetadataServiceEndpoint\", \"write\";",
+          "permission java.io.FilePermission \"${user.home}/.aws/credentials\", \"read\";",
+          "permission java.io.FilePermission \"${user.home}/.aws/config\", \"read\";",
+          "permission java.util.PropertyPermission \"http.proxyHost\", \"read\";",
           "};"
         ].join("\n")
       )
@@ -129,8 +132,10 @@ tasks.register("writeTestJavaPolicy") {
       javaPolicy.write(
         [
           "grant {",
-          "  permission java.util.PropertyPermission \"aws.ec2MetadataServiceEndpoint\", \"write\";",
-          "  permission java.io.FilePermission \"${buildDir}/tmp/nonexistent_aws_config/*\", \"read\";",
+          "permission java.util.PropertyPermission \"aws.ec2MetadataServiceEndpoint\", \"write\";",
+          "permission java.io.FilePermission \"${user.home}/.aws/credentials\", \"read\";",
+          "permission java.io.FilePermission \"${user.home}/.aws/config\", \"read\";",
+          "permission java.util.PropertyPermission \"http.proxyHost\", \"read\";",
           "};"
         ].join("\n"))
     }
@@ -149,11 +154,6 @@ tasks.withType(Test).configureEach {
   } else {
     nonInputProperties.systemProperty 'java.security.policy', "file://${buildDir}/tmp/java.policy"
   }
-
-  // TODO NOMERGE how do we set these in prod too?
-  nonInputProperties.systemProperty 'aws.sharedCredentialsFile', "${buildDir}/tmp/nonexistent_aws_config/credentials"
-  nonInputProperties.systemProperty 'aws.configFile',            "${buildDir}/tmp/nonexistent_aws_config/config"
-  nonInputProperties.systemProperty 'aws.region',                "es-test-region-name"
 }
 
 tasks.named("check").configure {
