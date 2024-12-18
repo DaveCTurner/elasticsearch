@@ -54,7 +54,7 @@ public class DiscoveryEc2ClusterFormationIT extends ESRestTestCase {
         .build();
 
     private static List<String> getTransportAddresses() {
-        return IntStream.range(0, 2).mapToObj(cluster::getTransportEndpoint).toList();
+        return IntStream.range(0, cluster.getNumNodes()).mapToObj(cluster::getTransportEndpoint).toList();
     }
 
     @ClassRule
