@@ -113,6 +113,21 @@ public class Ec2ImdsHttpHandlerTests extends ESTestCase {
         assertEquals(generatedAvailabilityZones, Set.of(availabilityZone));
     }
 
+    public void testInstanceIdentityDocument() {
+        final Set<String> generatedRegions = new HashSet<>();
+        final var handler = new Ec2ImdsServiceBuilder(Ec2ImdsVersion.V1).instanceIdentityDocument((builder, params) -> {
+            final var newRegion = randomIdentifier();
+            generatedRegions.add(newRegion);
+            return builder.field("region", newRegion);
+        }).buildHandler();
+
+        final var instanceIdentityResponse = handleRequest(handler, "GET", "/latest/dynamic/instance-identity/document");
+        assertEquals(RestStatus.OK, instanceIdentityResponse.status());
+        final var instanceIdentityString = instanceIdentityResponse.body().utf8ToString();
+
+        assertEquals(Strings.format("{\"region\":\"%s\"}", generatedRegions.iterator().next()), instanceIdentityString);
+    }
+
     private record TestHttpResponse(RestStatus status, BytesReference body) {}
 
     private static TestHttpResponse checkImdsV2GetRequest(Ec2ImdsHttpHandler handler, String uri, String token) {

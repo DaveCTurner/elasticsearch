@@ -58,6 +58,7 @@ dependencies {
 
   javaRestTestImplementation project(':plugins:discovery-ec2')
   javaRestTestImplementation project(':test:fixtures:ec2-imds-fixture')
+  javaRestTestImplementation project(':test:fixtures:s3-fixture')
 
   internalClusterTestImplementation project(':test:fixtures:ec2-imds-fixture')
 }

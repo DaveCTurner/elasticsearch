@@ -14,9 +14,12 @@ import com.sun.net.httpserver.HttpHandler;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
+import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.xcontent.ToXContent;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -48,12 +51,15 @@ public class Ec2ImdsHttpHandler implements HttpHandler {
     private final Map<String, String> instanceAddresses;
     private final Set<String> validCredentialsEndpoints = ConcurrentCollections.newConcurrentSet();
     private final Supplier<String> availabilityZoneSupplier;
+    @Nullable // if instance identity document not available
+    private final ToXContent instanceIdentityDocument;
 
     public Ec2ImdsHttpHandler(
         Ec2ImdsVersion ec2ImdsVersion,
         BiConsumer<String, String> newCredentialsConsumer,
         Collection<String> alternativeCredentialsEndpoints,
         Supplier<String> availabilityZoneSupplier,
+        @Nullable ToXContent instanceIdentityDocument,
         Map<String, String> instanceAddresses
     ) {
         this.ec2ImdsVersion = Objects.requireNonNull(ec2ImdsVersion);
@@ -61,6 +67,7 @@ public class Ec2ImdsHttpHandler implements HttpHandler {
         this.instanceAddresses = instanceAddresses;
         this.validCredentialsEndpoints.addAll(alternativeCredentialsEndpoints);
         this.availabilityZoneSupplier = availabilityZoneSupplier;
+        this.instanceIdentityDocument = instanceIdentityDocument;
     }
 
     @Override
@@ -109,6 +116,9 @@ public class Ec2ImdsHttpHandler implements HttpHandler {
                 } else if (path.equals("/latest/meta-data/placement/availability-zone")) {
                     final var availabilityZone = availabilityZoneSupplier.get();
                     sendStringResponse(exchange, availabilityZone);
+                    return;
+                } else if (instanceIdentityDocument != null && path.equals("/latest/dynamic/instance-identity/document")) {
+                    sendStringResponse(exchange, Strings.toString(instanceIdentityDocument));
                     return;
                 } else if (validCredentialsEndpoints.contains(path)) {
                     final String accessKey = randomIdentifier();
