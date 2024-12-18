@@ -20,7 +20,7 @@ class AwsEc2Utils {
     static String getInstanceMetadata(String metadataPath) {
         final var httpClientBuilder = ApacheHttpClient.builder();
         httpClientBuilder.connectionTimeout(Duration.ofSeconds(2));
-        try (var ec2Client = Ec2MetadataClient.builder().httpClient(httpClientBuilder).build()) {
+        try (var ec2Client = SocketAccess.doPrivileged(Ec2MetadataClient.builder().httpClient(httpClientBuilder)::build)) {
             final var metadataValue = SocketAccess.doPrivileged(() -> ec2Client.get(metadataPath)).asString();
             if (Strings.hasText(metadataValue) == false) {
                 throw new IllegalStateException("no ec2 metadata returned from " + metadataPath);
