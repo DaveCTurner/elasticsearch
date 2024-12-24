@@ -32,7 +32,7 @@ import java.util.function.Supplier;
 public class Ec2DiscoveryPlugin extends Plugin implements DiscoveryPlugin, ReloadablePlugin {
 
     private static final Logger logger = LogManager.getLogger(Ec2DiscoveryPlugin.class);
-    public static final String EC2 = "ec2";
+    public static final String EC2_SEED_HOSTS_PROVIDER_NAME = "ec2";
 
     static {
         SpecialPermission.check();
@@ -62,7 +62,10 @@ public class Ec2DiscoveryPlugin extends Plugin implements DiscoveryPlugin, Reloa
 
     @Override
     public Map<String, Supplier<SeedHostsProvider>> getSeedHostProviders(TransportService transportService, NetworkService networkService) {
-        return Collections.singletonMap(EC2, () -> new AwsEc2SeedHostsProvider(settings, transportService, ec2Service));
+        return Collections.singletonMap(
+            EC2_SEED_HOSTS_PROVIDER_NAME,
+            () -> new AwsEc2SeedHostsProvider(settings, transportService, ec2Service)
+        );
     }
 
     @Override

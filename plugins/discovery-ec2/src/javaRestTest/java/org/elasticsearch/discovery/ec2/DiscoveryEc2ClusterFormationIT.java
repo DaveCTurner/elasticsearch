@@ -9,6 +9,7 @@
 
 package org.elasticsearch.discovery.ec2;
 
+import fixture.aws.ec2.AwsEc2HttpFixture;
 import fixture.aws.imds.Ec2ImdsHttpFixture;
 import fixture.aws.imds.Ec2ImdsServiceBuilder;
 import fixture.aws.imds.Ec2ImdsVersion;
@@ -41,13 +42,15 @@ public class DiscoveryEc2ClusterFormationIT extends ESRestTestCase {
         ).newCredentialsConsumer(dynamicCredentials::addValidCredentials)
     );
 
-    private static final Ec2ApiHttpFixture ec2ApiFixture = new Ec2ApiHttpFixture(DiscoveryEc2ClusterFormationIT::getTransportAddresses);
+    private static final AwsEc2HttpFixture ec2ApiFixture = new AwsEc2HttpFixture(
+        (ignored1, ignored2) -> true /* NOMERGE */,
+        DiscoveryEc2ClusterFormationIT::getTransportAddresses
+    );
 
     private static final ElasticsearchCluster cluster = ElasticsearchCluster.local()
         .nodes(2)
         .plugin("discovery-ec2")
-        .setting(AwsEc2Service.AUTO_ATTRIBUTE_SETTING.getKey(), "true")
-        .setting(DiscoveryModule.DISCOVERY_SEED_PROVIDERS_SETTING.getKey(), "ec2")
+        .setting(DiscoveryModule.DISCOVERY_SEED_PROVIDERS_SETTING.getKey(), Ec2DiscoveryPlugin.EC2_SEED_HOSTS_PROVIDER_NAME)
         .setting("logger." + AwsEc2SeedHostsProvider.class.getCanonicalName(), "DEBUG")
         .setting(Ec2ClientSettings.ENDPOINT_SETTING.getKey(), ec2ApiFixture::getAddress)
         .systemProperty(Ec2ImdsHttpFixture.ENDPOINT_OVERRIDE_SYSPROP_NAME_SDK2, ec2ImdsHttpFixture::getAddress)
