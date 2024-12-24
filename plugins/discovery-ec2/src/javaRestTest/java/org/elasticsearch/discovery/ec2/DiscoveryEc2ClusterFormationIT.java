@@ -15,7 +15,6 @@ import fixture.aws.imds.Ec2ImdsServiceBuilder;
 import fixture.aws.imds.Ec2ImdsVersion;
 import fixture.s3.DynamicS3Credentials;
 
-import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.discovery.DiscoveryModule;
 import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
@@ -26,8 +25,15 @@ import org.junit.ClassRule;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 import java.util.List;
+import java.util.regex.Pattern;
+
+import static org.hamcrest.Matchers.hasItem;
 
 public class DiscoveryEc2ClusterFormationIT extends ESRestTestCase {
 
@@ -37,12 +43,12 @@ public class DiscoveryEc2ClusterFormationIT extends ESRestTestCase {
 
     private static final Ec2ImdsHttpFixture ec2ImdsHttpFixture = new Ec2ImdsHttpFixture(
         new Ec2ImdsServiceBuilder(Ec2ImdsVersion.V2).instanceIdentityDocument(
-            (builder, params) -> builder.field("region", "es-test-region")
+            (builder, params) -> builder.field("region", randomIdentifier())
         ).newCredentialsConsumer(dynamicCredentials::addValidCredentials)
     );
 
     private static final AwsEc2HttpFixture ec2ApiFixture = new AwsEc2HttpFixture(
-        (ignored1, ignored2) -> true /* NOMERGE */,
+        dynamicCredentials::isAuthorized,
         DiscoveryEc2ClusterFormationIT::getTransportAddresses
     );
 
@@ -68,6 +74,32 @@ public class DiscoveryEc2ClusterFormationIT extends ESRestTestCase {
     }
 
     public void testClusterFormation() throws IOException {
-        logger.info("--> {}", new BytesArray(cluster.getNodeLog(0, LogType.SERVER).readAllBytes()).utf8ToString());
+
+        final var expectedAddresses = new HashSet<>(getTransportAddresses());
+        final var addressesPattern = Pattern.compile(".* using dynamic transport addresses \\[(.*)]");
+
+        for (int nodeIndex = 0; nodeIndex < cluster.getNumNodes(); nodeIndex++) {
+            try (
+                var logStream = cluster.getNodeLog(nodeIndex, LogType.SERVER);
+                var logReader = new InputStreamReader(logStream, StandardCharsets.UTF_8);
+                var bufReader = new BufferedReader(logReader)
+            ) {
+                do {
+                    final var line = bufReader.readLine();
+                    if (line == null) {
+                        break;
+                    }
+
+                    final var matcher = addressesPattern.matcher(line);
+                    if (matcher.matches()) {
+                        for (final var address : matcher.group(1).split(", ")) {
+                            // TODO NOMERGE also add some nodes to the DescribeInstances output which are filtered out, and verify that
+                            // we do not see their addresses here
+                            assertThat(expectedAddresses, hasItem(address));
+                        }
+                    }
+                } while (true);
+            }
+        }
     }
 }

@@ -11,15 +11,16 @@ package fixture.aws.ec2;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
+import org.apache.http.client.utils.URLEncodedUtils;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.rest.RestStatus;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
@@ -27,7 +28,10 @@ import javax.xml.XMLConstants;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
 
+import static fixture.s3.S3HttpHandler.sendError;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.elasticsearch.test.ESTestCase.randomIdentifier;
+import static org.junit.Assert.assertNull;
 
 /**
  * Minimal HTTP handler that emulates the AWS EC2 DescribeInstances endpoint
@@ -46,12 +50,35 @@ public class AwsEc2HttpHandler implements HttpHandler {
     @Override
     public void handle(final HttpExchange exchange) throws IOException {
         try (exchange) {
-            // TODO NOMERGE authz
-            // TODO NOMERGE check it's a DescribeInstancesRequest
-            final var responseBody = generateDescribeInstancesResponse();
-            exchange.getResponseHeaders().add("Content-Type", "text/xml; charset=UTF-8");
-            exchange.sendResponseHeaders(RestStatus.OK.getStatus(), responseBody.length);
-            exchange.getResponseBody().write(responseBody);
+
+            if ("POST".equals(exchange.getRequestMethod()) && "/".equals(exchange.getRequestURI().getPath())) {
+
+                if (authorizationPredicate.test(
+                    exchange.getRequestHeaders().getFirst("Authorization"),
+                    exchange.getRequestHeaders().getFirst("x-amz-security-token")
+                ) == false) {
+                    sendError(exchange, RestStatus.FORBIDDEN, "AccessDenied", "Access denied by " + authorizationPredicate);
+                    return;
+                }
+
+                final var parsedRequest = new HashMap<String, String>();
+                for (final var nameValuePair : URLEncodedUtils.parse(new String(exchange.getRequestBody().readAllBytes(), UTF_8), UTF_8)) {
+                    assertNull(nameValuePair.getName(), parsedRequest.put(nameValuePair.getName(), nameValuePair.getValue()));
+                }
+
+                if ("DescribeInstances".equals(parsedRequest.get("Action")) == false) {
+                    throw new UnsupportedOperationException(parsedRequest.toString());
+                }
+
+                final var responseBody = generateDescribeInstancesResponse();
+                exchange.getResponseHeaders().add("Content-Type", "text/xml; charset=UTF-8");
+                exchange.sendResponseHeaders(RestStatus.OK.getStatus(), responseBody.length);
+                exchange.getResponseBody().write(responseBody);
+                return;
+            }
+
+            throw new UnsupportedOperationException("can only handle DescribeInstances requests");
+
         } catch (Exception e) {
             ExceptionsHelper.maybeDieOnAnotherThread(new AssertionError(e));
         }
@@ -73,7 +100,7 @@ public class AwsEc2HttpHandler implements HttpHandler {
             sw.writeStartElement(XMLConstants.DEFAULT_NS_PREFIX, "DescribeInstancesResponse", XML_NAMESPACE);
             {
                 sw.writeStartElement("requestId");
-                sw.writeCharacters(UUID.randomUUID().toString());
+                sw.writeCharacters(randomIdentifier());
                 sw.writeEndElement();
 
                 sw.writeStartElement("reservationSet");
@@ -83,7 +110,7 @@ public class AwsEc2HttpHandler implements HttpHandler {
                         sw.writeStartElement("item");
                         {
                             sw.writeStartElement("reservationId");
-                            sw.writeCharacters(UUID.randomUUID().toString());
+                            sw.writeCharacters(randomIdentifier());
                             sw.writeEndElement();
 
                             sw.writeStartElement("instancesSet");
@@ -91,11 +118,11 @@ public class AwsEc2HttpHandler implements HttpHandler {
                                 sw.writeStartElement("item");
                                 {
                                     sw.writeStartElement("instanceId");
-                                    sw.writeCharacters(UUID.randomUUID().toString());
+                                    sw.writeCharacters(randomIdentifier());
                                     sw.writeEndElement();
 
                                     sw.writeStartElement("imageId");
-                                    sw.writeCharacters(UUID.randomUUID().toString());
+                                    sw.writeCharacters(randomIdentifier());
                                     sw.writeEndElement();
 
                                     sw.writeStartElement("instanceState");
@@ -119,13 +146,13 @@ public class AwsEc2HttpHandler implements HttpHandler {
                                     sw.writeEndElement();
 
                                     sw.writeStartElement("instanceType");
-                                    sw.writeCharacters("m1.medium");
+                                    sw.writeCharacters("m1.medium"); // TODO randomize
                                     sw.writeEndElement();
 
                                     sw.writeStartElement("placement");
                                     {
                                         sw.writeStartElement("availabilityZone");
-                                        sw.writeCharacters("use-east-1e");
+                                        sw.writeCharacters(randomIdentifier());
                                         sw.writeEndElement();
 
                                         sw.writeEmptyElement("groupName");

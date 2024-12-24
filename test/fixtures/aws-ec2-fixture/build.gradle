@@ -16,4 +16,5 @@ dependencies {
     transitive = false
   }
   api project(':test:framework')
+  api project(':test:fixtures:s3-fixture') /* TODO NOMERGE pull out utils to common lib */
 }
