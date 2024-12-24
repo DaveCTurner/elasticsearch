@@ -48,7 +48,8 @@ public class Ec2ImdsHttpHandler implements HttpHandler {
 
     private final BiConsumer<String, String> newCredentialsConsumer;
     private final Map<String, String> instanceAddresses;
-    private final Set<String> validCredentialsEndpoints = ConcurrentCollections.newConcurrentSet();
+    private final Set<String> validCredentialsEndpoints;
+    private final boolean dynamicProfileNames;
     private final Supplier<String> availabilityZoneSupplier;
     @Nullable // if instance identity document not available
     private final ToXContent instanceIdentityDocument;
@@ -64,7 +65,15 @@ public class Ec2ImdsHttpHandler implements HttpHandler {
         this.ec2ImdsVersion = Objects.requireNonNull(ec2ImdsVersion);
         this.newCredentialsConsumer = Objects.requireNonNull(newCredentialsConsumer);
         this.instanceAddresses = instanceAddresses;
-        this.validCredentialsEndpoints.addAll(alternativeCredentialsEndpoints);
+
+        if (alternativeCredentialsEndpoints.isEmpty()) {
+            dynamicProfileNames = true;
+            validCredentialsEndpoints = ConcurrentCollections.newConcurrentSet();
+        } else {
+            dynamicProfileNames = false;
+            validCredentialsEndpoints = Set.copyOf(alternativeCredentialsEndpoints);
+        }
+
         this.availabilityZoneSupplier = availabilityZoneSupplier;
         this.instanceIdentityDocument = instanceIdentityDocument;
     }
@@ -107,7 +116,7 @@ public class Ec2ImdsHttpHandler implements HttpHandler {
             }
 
             if ("GET".equals(requestMethod)) {
-                if (path.equals(IMDS_SECURITY_CREDENTIALS_PATH)) {
+                if (path.equals(IMDS_SECURITY_CREDENTIALS_PATH) && dynamicProfileNames) {
                     final var profileName = randomIdentifier();
                     validCredentialsEndpoints.add(IMDS_SECURITY_CREDENTIALS_PATH + profileName);
                     sendStringResponse(exchange, profileName);
