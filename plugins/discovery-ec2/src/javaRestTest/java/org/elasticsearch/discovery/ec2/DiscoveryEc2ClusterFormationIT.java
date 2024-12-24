@@ -28,7 +28,6 @@ import org.junit.rules.TestRule;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.stream.IntStream;
 
 public class DiscoveryEc2ClusterFormationIT extends ESRestTestCase {
 
@@ -57,7 +56,7 @@ public class DiscoveryEc2ClusterFormationIT extends ESRestTestCase {
         .build();
 
     private static List<String> getTransportAddresses() {
-        return IntStream.range(0, cluster.getNumNodes()).mapToObj(cluster::getTransportEndpoint).toList();
+        return cluster.getAvailableTransportEndpoints();
     }
 
     @ClassRule

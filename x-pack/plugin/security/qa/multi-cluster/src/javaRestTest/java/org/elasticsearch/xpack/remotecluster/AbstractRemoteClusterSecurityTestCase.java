@@ -276,7 +276,7 @@ public abstract class AbstractRemoteClusterSecurityTestCase extends ESRestTestCa
                     .count();
                 if (numberOfFcNodes == 0) {
                     // The cluster is an RCS 1.0 remote cluster
-                    numberOfFcNodes = targetFulfillingCluster.getTransportEndpoints().split(",").length;
+                    numberOfFcNodes = targetFulfillingCluster.getNumNodes();
                 }
                 assertThat(remoteInfoObjectPath.evaluate(clusterAlias + ".num_nodes_connected"), equalTo(numberOfFcNodes));
             }

@@ -24,6 +24,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -128,8 +129,20 @@ public class DefaultLocalClusterHandle implements LocalClusterHandle {
 
     @Override
     public String getTransportEndpoints() {
-        start();
         return execute(() -> nodes.parallelStream().map(Node::getTransportEndpoint).collect(Collectors.joining(",")));
+    }
+
+    @Override
+    public List<String> getAvailableTransportEndpoints() {
+        final var results = new ArrayList<String>(nodes.size() * 2);
+        for (final var node : nodes) {
+            try {
+                results.addAll(node.getAvailableTransportEndpoints());
+            } catch (Exception e) {
+                LOGGER.warn("failure reading available transport endpoints from [{}]", node.getName(), e);
+            }
+        }
+        return results;
     }
 
     @Override
@@ -249,7 +262,10 @@ public class DefaultLocalClusterHandle implements LocalClusterHandle {
     }
 
     private void writeUnicastHostsFile() {
-        String transportUris = execute(() -> nodes.parallelStream().map(Node::getTransportEndpoint).collect(Collectors.joining("\n")));
+        String transportUris = execute(() -> nodes.parallelStream().map(node -> {
+            node.waitUntilReady();
+            return node.getTransportEndpoint();
+        }).collect(Collectors.joining("\n")));
         execute(() -> nodes.parallelStream().forEach(node -> {
             try {
                 Path hostsFile = node.getWorkingDir().resolve("config").resolve("unicast_hosts.txt");
