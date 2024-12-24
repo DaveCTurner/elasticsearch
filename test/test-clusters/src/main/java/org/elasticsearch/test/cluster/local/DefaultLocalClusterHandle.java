@@ -129,6 +129,7 @@ public class DefaultLocalClusterHandle implements LocalClusterHandle {
 
     @Override
     public String getTransportEndpoints() {
+        start();
         return execute(() -> nodes.parallelStream().map(Node::getTransportEndpoint).collect(Collectors.joining(",")));
     }
 
@@ -262,10 +263,7 @@ public class DefaultLocalClusterHandle implements LocalClusterHandle {
     }
 
     private void writeUnicastHostsFile() {
-        String transportUris = execute(() -> nodes.parallelStream().map(node -> {
-            node.waitUntilReady();
-            return node.getTransportEndpoint();
-        }).collect(Collectors.joining("\n")));
+        String transportUris = execute(() -> nodes.parallelStream().map(Node::getTransportEndpoint).collect(Collectors.joining("\n")));
         execute(() -> nodes.parallelStream().forEach(node -> {
             try {
                 Path hostsFile = node.getWorkingDir().resolve("config").resolve("unicast_hosts.txt");
