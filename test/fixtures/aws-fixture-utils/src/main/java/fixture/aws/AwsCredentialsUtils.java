@@ -7,13 +7,13 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-package fixture.s3;
+package fixture.aws;
 
 import java.util.Objects;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
-public enum StaticAwsCredentialsUtils {
+public enum AwsCredentialsUtils {
     ;
 
     public static BiPredicate<String, String> fixedAccessKey(String accessKey) {

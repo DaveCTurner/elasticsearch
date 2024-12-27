@@ -9,6 +9,7 @@
 
 package org.elasticsearch.repositories.s3;
 
+import fixture.aws.AwsCredentialsUtils;
 import fixture.s3.S3HttpFixture;
 import io.netty.handler.codec.http.HttpMethod;
 
@@ -42,7 +43,7 @@ public class RepositoryS3RestReloadCredentialsIT extends ESRestTestCase {
         true,
         BUCKET,
         BASE_PATH,
-        S3HttpFixture.mutableAccessKey(() -> repositoryAccessKey)
+        AwsCredentialsUtils.mutableAccessKey(() -> repositoryAccessKey)
     );
 
     private static final MutableSettingsProvider keystoreSettings = new MutableSettingsProvider();

@@ -10,7 +10,7 @@
 package org.elasticsearch.repositories.s3;
 
 import fixture.aws.sts.AwsStsHttpFixture;
-import fixture.s3.DynamicS3Credentials;
+import fixture.s3.DynamicAwsCredentials;
 import fixture.s3.S3HttpFixture;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
@@ -32,7 +32,7 @@ public class RepositoryS3StsCredentialsRestIT extends AbstractRepositoryS3RestTe
     private static final String BASE_PATH = PREFIX + "base_path";
     private static final String CLIENT = "sts_credentials_client";
 
-    private static final DynamicS3Credentials dynamicS3Credentials = new DynamicS3Credentials();
+    private static final DynamicAwsCredentials dynamicS3Credentials = new DynamicAwsCredentials();
 
     private static final S3HttpFixture s3HttpFixture = new S3HttpFixture(true, BUCKET, BASE_PATH, dynamicS3Credentials::isAuthorized);
 

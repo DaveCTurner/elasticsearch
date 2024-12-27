@@ -7,7 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-package fixture.s3;
+package fixture.aws;
 
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 
