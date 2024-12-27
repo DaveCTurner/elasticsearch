@@ -34,7 +34,7 @@ public class RepositoryS3ClientYamlTestSuiteIT extends AbstractRepositoryS3Clien
         true,
         "bucket",
         "base_path_integration_tests",
-        S3HttpFixture.fixedAccessKey(ACCESS_KEY)
+        fixedAccessKey(ACCESS_KEY)
     );
 
     public static ElasticsearchCluster cluster = ElasticsearchCluster.local()

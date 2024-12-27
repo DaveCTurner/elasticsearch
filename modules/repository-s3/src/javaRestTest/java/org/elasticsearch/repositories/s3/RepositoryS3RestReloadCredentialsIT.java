@@ -9,7 +9,6 @@
 
 package org.elasticsearch.repositories.s3;
 
-import fixture.aws.AwsCredentialsUtils;
 import fixture.s3.S3HttpFixture;
 import io.netty.handler.codec.http.HttpMethod;
 
@@ -27,6 +26,7 @@ import org.junit.rules.TestRule;
 
 import java.io.IOException;
 
+import static fixture.aws.AwsCredentialsUtils.mutableAccessKey;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.equalTo;
@@ -39,12 +39,7 @@ public class RepositoryS3RestReloadCredentialsIT extends ESRestTestCase {
 
     private static volatile String repositoryAccessKey;
 
-    public static final S3HttpFixture s3Fixture = new S3HttpFixture(
-        true,
-        BUCKET,
-        BASE_PATH,
-        AwsCredentialsUtils.mutableAccessKey(() -> repositoryAccessKey)
-    );
+    public static final S3HttpFixture s3Fixture = new S3HttpFixture(true, BUCKET, BASE_PATH, mutableAccessKey(() -> repositoryAccessKey));
 
     private static final MutableSettingsProvider keystoreSettings = new MutableSettingsProvider();
 

@@ -9,10 +9,10 @@
 
 package org.elasticsearch.repositories.s3;
 
+import fixture.aws.DynamicAwsCredentials;
 import fixture.aws.imds.Ec2ImdsHttpFixture;
 import fixture.aws.imds.Ec2ImdsServiceBuilder;
 import fixture.aws.imds.Ec2ImdsVersion;
-import fixture.s3.DynamicAwsCredentials;
 import fixture.s3.S3HttpFixture;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;

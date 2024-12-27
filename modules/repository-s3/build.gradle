@@ -44,6 +44,7 @@ dependencies {
   internalClusterTestRuntimeOnly "org.slf4j:slf4j-simple:${versions.slf4j}"
 
   yamlRestTestImplementation project(':modules:repository-s3')
+  yamlRestTestImplementation project(':test:fixtures:aws-fixture-utils')
   yamlRestTestImplementation project(':test:fixtures:s3-fixture')
   yamlRestTestImplementation project(':test:fixtures:testcontainer-utils')
   yamlRestTestImplementation project(':test:framework')

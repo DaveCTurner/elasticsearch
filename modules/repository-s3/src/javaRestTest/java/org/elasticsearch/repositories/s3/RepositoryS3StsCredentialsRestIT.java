@@ -9,8 +9,8 @@
 
 package org.elasticsearch.repositories.s3;
 
+import fixture.aws.DynamicAwsCredentials;
 import fixture.aws.sts.AwsStsHttpFixture;
-import fixture.s3.DynamicAwsCredentials;
 import fixture.s3.S3HttpFixture;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
