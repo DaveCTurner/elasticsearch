@@ -29,7 +29,7 @@ public class DiscoveryEc2EcsCredentialsIT extends DiscoveryEc2ClusterFormationTe
     private static final DynamicS3Credentials dynamicCredentials = new DynamicS3Credentials();
 
     private static final Ec2ImdsHttpFixture ec2ImdsHttpFixture = new Ec2ImdsHttpFixture(
-        new Ec2ImdsServiceBuilder(Ec2ImdsVersion.V2).newCredentialsConsumer(dynamicCredentials::addValidCredentials)
+        new Ec2ImdsServiceBuilder(Ec2ImdsVersion.V1).newCredentialsConsumer(dynamicCredentials::addValidCredentials)
             .alternativeCredentialsEndpoints(Set.of("/ecs_credentials_endpoint"))
     );
 
@@ -43,6 +43,7 @@ public class DiscoveryEc2EcsCredentialsIT extends DiscoveryEc2ClusterFormationTe
         .plugin("discovery-ec2")
         .setting(DiscoveryModule.DISCOVERY_SEED_PROVIDERS_SETTING.getKey(), Ec2DiscoveryPlugin.EC2_SEED_HOSTS_PROVIDER_NAME)
         .setting("logger." + AwsEc2SeedHostsProvider.class.getCanonicalName(), "DEBUG")
+        .setting("logger.org.elasticsearch.discovery.ec2", "DEBUG") /* TODO NOMERGE */
         .setting(Ec2ClientSettings.ENDPOINT_SETTING.getKey(), ec2ApiFixture::getAddress)
         .environment("AWS_CONTAINER_CREDENTIALS_FULL_URI", () -> ec2ImdsHttpFixture.getAddress() + "/ecs_credentials_endpoint")
         .environment("AWS_REGION", "es-test-region" /* TODO NOMERGE vary this */)

@@ -69,6 +69,10 @@ public class Ec2ImdsHttpHandler implements HttpHandler {
         if (alternativeCredentialsEndpoints.isEmpty()) {
             dynamicProfileNames = true;
             validCredentialsEndpoints = ConcurrentCollections.newConcurrentSet();
+        } else if (ec2ImdsVersion == Ec2ImdsVersion.V2) {
+            throw new IllegalArgumentException(
+                Strings.format("alternative credentials endpoints %s requires IMDSv1", alternativeCredentialsEndpoints)
+            );
         } else {
             dynamicProfileNames = false;
             validCredentialsEndpoints = Set.copyOf(alternativeCredentialsEndpoints);
