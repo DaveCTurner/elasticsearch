@@ -9,6 +9,7 @@
 
 package org.elasticsearch.discovery.ec2;
 
+import org.elasticsearch.cluster.routing.Murmur3HashFunction;
 import org.elasticsearch.test.cluster.ElasticsearchCluster;
 import org.elasticsearch.test.cluster.LogType;
 import org.elasticsearch.test.rest.ESRestTestCase;
@@ -61,5 +62,9 @@ public abstract class DiscoveryEc2ClusterFormationTestCase extends ESRestTestCas
                 } while (true);
             }
         }
+    }
+
+    protected static String getIdentifierPrefix(String testSuiteName) {
+        return testSuiteName + "-" + Integer.toString(Murmur3HashFunction.hash(testSuiteName + System.getProperty("tests.seed")), 16) + "-";
     }
 }
