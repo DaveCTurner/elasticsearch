@@ -162,11 +162,6 @@ tasks.withType(Test).configureEach {
   systemProperty 'aws.region', 'es-test-region'
 }
 
-tasks.named("check").configure {
-  // also execute the QA tests when testing the plugin
-  dependsOn 'qa:amazon-ec2:check'
-}
-
 tasks.named("thirdPartyAudit").configure {
   ignoreMissingClasses(
           // classes are missing
