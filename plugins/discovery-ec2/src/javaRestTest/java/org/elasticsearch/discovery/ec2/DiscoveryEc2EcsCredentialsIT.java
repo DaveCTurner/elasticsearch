@@ -9,11 +9,11 @@
 
 package org.elasticsearch.discovery.ec2;
 
+import fixture.aws.DynamicAwsCredentials;
 import fixture.aws.ec2.AwsEc2HttpFixture;
 import fixture.aws.imds.Ec2ImdsHttpFixture;
 import fixture.aws.imds.Ec2ImdsServiceBuilder;
 import fixture.aws.imds.Ec2ImdsVersion;
-import fixture.s3.DynamicAwsCredentials;
 
 import org.elasticsearch.discovery.DiscoveryModule;
 import org.elasticsearch.test.cluster.ElasticsearchCluster;

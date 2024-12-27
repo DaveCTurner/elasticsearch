@@ -9,11 +9,11 @@
 
 package org.elasticsearch.discovery.ec2;
 
+import fixture.aws.DynamicAwsCredentials;
 import fixture.aws.ec2.AwsEc2HttpFixture;
 import fixture.aws.imds.Ec2ImdsHttpFixture;
 import fixture.aws.imds.Ec2ImdsServiceBuilder;
 import fixture.aws.imds.Ec2ImdsVersion;
-import fixture.s3.DynamicS3Credentials;
 
 import org.elasticsearch.discovery.DiscoveryModule;
 import org.elasticsearch.test.cluster.ElasticsearchCluster;
@@ -25,7 +25,7 @@ import java.util.List;
 
 public class DiscoveryEc2InstanceProfileIT extends DiscoveryEc2ClusterFormationTestCase {
 
-    private static final DynamicS3Credentials dynamicCredentials = new DynamicS3Credentials();
+    private static final DynamicAwsCredentials dynamicCredentials = new DynamicAwsCredentials();
 
     private static final Ec2ImdsHttpFixture ec2ImdsHttpFixture = new Ec2ImdsHttpFixture(
         new Ec2ImdsServiceBuilder(Ec2ImdsVersion.V2).instanceIdentityDocument(

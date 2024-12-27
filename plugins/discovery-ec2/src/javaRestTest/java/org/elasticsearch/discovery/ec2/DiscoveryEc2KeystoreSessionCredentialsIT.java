@@ -10,7 +10,6 @@
 package org.elasticsearch.discovery.ec2;
 
 import fixture.aws.ec2.AwsEc2HttpFixture;
-import fixture.s3.S3HttpFixture;
 
 import org.elasticsearch.discovery.DiscoveryModule;
 import org.elasticsearch.test.ESTestCase;
@@ -21,6 +20,8 @@ import org.junit.rules.TestRule;
 
 import java.util.List;
 
+import static fixture.aws.AwsCredentialsUtils.fixedAccessKeyAndToken;
+
 public class DiscoveryEc2KeystoreSessionCredentialsIT extends DiscoveryEc2ClusterFormationTestCase {
 
     private static final String PREFIX = getIdentifierPrefix("DiscoveryEc2KeystoreSessionCredentialsIT");
@@ -29,7 +30,7 @@ public class DiscoveryEc2KeystoreSessionCredentialsIT extends DiscoveryEc2Cluste
     private static final String SESSION_TOKEN = PREFIX + "-session-token";
 
     private static final AwsEc2HttpFixture ec2ApiFixture = new AwsEc2HttpFixture(
-        S3HttpFixture.fixedAccessKeyAndToken(ACCESS_KEY, SESSION_TOKEN),
+        fixedAccessKeyAndToken(ACCESS_KEY, SESSION_TOKEN),
         DiscoveryEc2KeystoreSessionCredentialsIT::getAvailableTransportEndpoints
     );
 

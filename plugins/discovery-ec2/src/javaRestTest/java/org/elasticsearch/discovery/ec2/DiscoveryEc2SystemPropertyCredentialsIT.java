@@ -10,7 +10,6 @@
 package org.elasticsearch.discovery.ec2;
 
 import fixture.aws.ec2.AwsEc2HttpFixture;
-import fixture.s3.S3HttpFixture;
 
 import org.elasticsearch.discovery.DiscoveryModule;
 import org.elasticsearch.test.ESTestCase;
@@ -21,6 +20,8 @@ import org.junit.rules.TestRule;
 
 import java.util.List;
 
+import static fixture.aws.AwsCredentialsUtils.fixedAccessKey;
+
 public class DiscoveryEc2SystemPropertyCredentialsIT extends DiscoveryEc2ClusterFormationTestCase {
 
     private static final String PREFIX = getIdentifierPrefix("DiscoveryEc2SystemPropertyCredentialsIT");
@@ -28,7 +29,7 @@ public class DiscoveryEc2SystemPropertyCredentialsIT extends DiscoveryEc2Cluster
     private static final String ACCESS_KEY = PREFIX + "-access-key";
 
     private static final AwsEc2HttpFixture ec2ApiFixture = new AwsEc2HttpFixture(
-        S3HttpFixture.fixedAccessKey(ACCESS_KEY),
+        fixedAccessKey(ACCESS_KEY),
         DiscoveryEc2SystemPropertyCredentialsIT::getAvailableTransportEndpoints
     );
 
