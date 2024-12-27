@@ -26,7 +26,7 @@ import java.util.Objects;
 
 public class Ec2ImdsHttpFixture extends ExternalResource {
 
-    public static final String ENDPOINT_OVERRIDE_SYSPROP_NAME_SDK1 = "com.amazonaws.sdk.ec2MetadataServiceEndpointOverride";
+    public static final String ENDPOINT_OVERRIDE_SYSPROP_NAME = "com.amazonaws.sdk.ec2MetadataServiceEndpointOverride";
     public static final String ENDPOINT_OVERRIDE_SYSPROP_NAME_SDK2 = "aws.ec2MetadataServiceEndpoint";
 
     private final Ec2ImdsServiceBuilder ec2ImdsServiceBuilder;
