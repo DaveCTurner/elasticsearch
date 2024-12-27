@@ -17,12 +17,11 @@ import org.elasticsearch.rest.RestStatus;
 import org.junit.rules.ExternalResource;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.Objects;
 import java.util.function.BiPredicate;
-import java.util.function.Supplier;
+
+import static fixture.s3.StaticAwsCredentialsUtils.fixedAccessKey;
+import static fixture.s3.StaticAwsCredentialsUtils.getLocalFixtureAddress;
 
 public class S3HttpFixture extends ExternalResource {
 
@@ -76,8 +75,7 @@ public class S3HttpFixture extends ExternalResource {
 
     protected void before() throws Throwable {
         if (enabled) {
-            InetSocketAddress inetSocketAddress = resolveAddress();
-            this.server = HttpServer.create(inetSocketAddress, 0);
+            this.server = HttpServer.create(getLocalFixtureAddress(), 0);
             HttpHandler handler = createHandler();
             this.server.createContext("/", Objects.requireNonNull(handler));
             server.start();
