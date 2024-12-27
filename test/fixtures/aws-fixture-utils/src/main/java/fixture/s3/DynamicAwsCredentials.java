@@ -36,4 +36,3 @@ public class DynamicAwsCredentials {
         ).add(Objects.requireNonNull(accessKey, "accessKey"));
     }
 }
-

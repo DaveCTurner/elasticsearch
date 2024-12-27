@@ -20,8 +20,9 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.function.BiPredicate;
 
+import static fixture.s3.AwsFixtureUtils.getLocalFixtureAddress;
+import static fixture.s3.AwsFixtureUtils.sendError;
 import static fixture.s3.StaticAwsCredentialsUtils.fixedAccessKey;
-import static fixture.s3.StaticAwsCredentialsUtils.getLocalFixtureAddress;
 
 public class S3HttpFixture extends ExternalResource {
 

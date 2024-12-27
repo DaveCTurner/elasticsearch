@@ -28,7 +28,7 @@ import javax.xml.XMLConstants;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
 
-import static fixture.s3.S3HttpHandler.sendError;
+import static fixture.s3.AwsFixtureUtils.sendError;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.elasticsearch.test.ESTestCase.randomIdentifier;
 import static org.junit.Assert.assertNull;

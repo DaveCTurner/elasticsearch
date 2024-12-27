@@ -9,23 +9,12 @@
 
 package fixture.s3;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.Objects;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
 public enum StaticAwsCredentialsUtils {
     ;
-
-    public static InetSocketAddress getLocalFixtureAddress() {
-        try {
-            return new InetSocketAddress(InetAddress.getByName("localhost"), 0);
-        } catch (UnknownHostException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     public static BiPredicate<String, String> fixedAccessKey(String accessKey) {
         return mutableAccessKey(() -> accessKey);
