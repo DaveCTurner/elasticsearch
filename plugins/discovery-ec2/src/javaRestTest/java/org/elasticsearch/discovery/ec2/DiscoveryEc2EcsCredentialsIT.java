@@ -13,7 +13,7 @@ import fixture.aws.ec2.AwsEc2HttpFixture;
 import fixture.aws.imds.Ec2ImdsHttpFixture;
 import fixture.aws.imds.Ec2ImdsServiceBuilder;
 import fixture.aws.imds.Ec2ImdsVersion;
-import fixture.s3.DynamicS3Credentials;
+import fixture.s3.DynamicAwsCredentials;
 
 import org.elasticsearch.discovery.DiscoveryModule;
 import org.elasticsearch.test.cluster.ElasticsearchCluster;
@@ -26,7 +26,7 @@ import java.util.Set;
 
 public class DiscoveryEc2EcsCredentialsIT extends DiscoveryEc2ClusterFormationTestCase {
 
-    private static final DynamicAwsCredentials dynamicCredentials = new DynamicS3Credentials();
+    private static final DynamicAwsCredentials dynamicCredentials = new DynamicAwsCredentials();
 
     private static final String PREFIX = getIdentifierPrefix("DiscoveryEc2EcsCredentialsIT");
     private static final String REGION = PREFIX + "-region";
