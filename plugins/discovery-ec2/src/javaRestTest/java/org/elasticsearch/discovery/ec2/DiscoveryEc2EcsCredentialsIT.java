@@ -31,7 +31,6 @@ public class DiscoveryEc2EcsCredentialsIT extends DiscoveryEc2ClusterFormationTe
     private static final Ec2ImdsHttpFixture ec2ImdsHttpFixture = new Ec2ImdsHttpFixture(
         new Ec2ImdsServiceBuilder(Ec2ImdsVersion.V2).newCredentialsConsumer(dynamicCredentials::addValidCredentials)
             .alternativeCredentialsEndpoints(Set.of("/ecs_credentials_endpoint"))
-            .instanceIdentityDocument((builder, params) -> builder.field("region", randomIdentifier()))
     );
 
     private static final AwsEc2HttpFixture ec2ApiFixture = new AwsEc2HttpFixture(
@@ -45,7 +44,8 @@ public class DiscoveryEc2EcsCredentialsIT extends DiscoveryEc2ClusterFormationTe
         .setting(DiscoveryModule.DISCOVERY_SEED_PROVIDERS_SETTING.getKey(), Ec2DiscoveryPlugin.EC2_SEED_HOSTS_PROVIDER_NAME)
         .setting("logger." + AwsEc2SeedHostsProvider.class.getCanonicalName(), "DEBUG")
         .setting(Ec2ClientSettings.ENDPOINT_SETTING.getKey(), ec2ApiFixture::getAddress)
-        .systemProperty(Ec2ImdsHttpFixture.ENDPOINT_OVERRIDE_SYSPROP_NAME_SDK2, ec2ImdsHttpFixture::getAddress)
+        .environment("AWS_CONTAINER_CREDENTIALS_FULL_URI", () -> ec2ImdsHttpFixture.getAddress() + "/ecs_credentials_endpoint")
+        .environment("AWS_REGION", "es-test-region" /* TODO NOMERGE vary this */)
         .build();
 
     private static List<String> getAvailableTransportEndpoints() {
