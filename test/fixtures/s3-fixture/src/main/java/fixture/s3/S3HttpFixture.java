@@ -90,28 +90,4 @@ public class S3HttpFixture extends ExternalResource {
             stop(0);
         }
     }
-
-    private static InetSocketAddress resolveAddress() {
-        try {
-            return new InetSocketAddress(InetAddress.getByName("localhost"), 0);
-        } catch (UnknownHostException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static BiPredicate<String, String> fixedAccessKey(String accessKey) {
-        return mutableAccessKey(() -> accessKey);
-    }
-
-    public static BiPredicate<String, String> mutableAccessKey(Supplier<String> accessKeySupplier) {
-        return (authorizationHeader, sessionTokenHeader) -> authorizationHeader != null
-            && authorizationHeader.contains(accessKeySupplier.get());
-    }
-
-    public static BiPredicate<String, String> fixedAccessKeyAndToken(String accessKey, String sessionToken) {
-        Objects.requireNonNull(sessionToken);
-        final var accessKeyPredicate = fixedAccessKey(accessKey);
-        return (authorizationHeader, sessionTokenHeader) -> accessKeyPredicate.test(authorizationHeader, sessionTokenHeader)
-            && sessionToken.equals(sessionTokenHeader);
-    }
 }

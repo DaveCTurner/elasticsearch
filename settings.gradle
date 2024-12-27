@@ -88,6 +88,7 @@ List projects = [
   'server',
   'test:framework',
   'test:fixtures:aws-ec2-fixture',
+  'test:fixtures:aws-fixture-utils',
   'test:fixtures:aws-sts-fixture',
   'test:fixtures:azure-fixture',
   'test:fixtures:ec2-imds-fixture',

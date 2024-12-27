@@ -26,7 +26,7 @@ import java.util.Set;
 
 public class DiscoveryEc2EcsCredentialsIT extends DiscoveryEc2ClusterFormationTestCase {
 
-    private static final DynamicS3Credentials dynamicCredentials = new DynamicS3Credentials();
+    private static final DynamicAwsCredentials dynamicCredentials = new DynamicS3Credentials();
 
     private static final String PREFIX = getIdentifierPrefix("DiscoveryEc2EcsCredentialsIT");
     private static final String REGION = PREFIX + "-region";
