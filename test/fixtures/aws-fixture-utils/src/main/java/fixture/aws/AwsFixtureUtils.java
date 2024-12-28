@@ -23,6 +23,9 @@ import java.nio.charset.StandardCharsets;
 public enum AwsFixtureUtils {
     ;
 
+    /**
+     * @return an {@link InetSocketAddress} for a test fixture running on {@code localhost} which binds to any available port.
+     */
     public static InetSocketAddress getLocalFixtureAddress() {
         try {
             return new InetSocketAddress(InetAddress.getByName("localhost"), 0);
@@ -31,6 +34,9 @@ public enum AwsFixtureUtils {
         }
     }
 
+    /**
+     * Send an XML-formatted error response typical of an AWS service.
+     */
     public static void sendError(final HttpExchange exchange, final RestStatus status, final String errorCode, final String message)
         throws IOException {
         final Headers headers = exchange.getResponseHeaders();

@@ -13,16 +13,15 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.rest.RestStatus;
 import org.junit.rules.ExternalResource;
 
 import java.io.IOException;
 import java.util.Objects;
 import java.util.function.BiPredicate;
 
+import static fixture.aws.AwsCredentialsUtils.checkAuthorization;
 import static fixture.aws.AwsCredentialsUtils.fixedAccessKey;
 import static fixture.aws.AwsFixtureUtils.getLocalFixtureAddress;
-import static fixture.aws.AwsFixtureUtils.sendError;
 
 public class S3HttpFixture extends ExternalResource {
 
@@ -49,14 +48,9 @@ public class S3HttpFixture extends ExternalResource {
             @Override
             public void handle(final HttpExchange exchange) throws IOException {
                 try {
-                    if (authorizationPredicate.test(
-                        exchange.getRequestHeaders().getFirst("Authorization"),
-                        exchange.getRequestHeaders().getFirst("x-amz-security-token")
-                    ) == false) {
-                        sendError(exchange, RestStatus.FORBIDDEN, "AccessDenied", "Access denied by " + authorizationPredicate);
-                        return;
+                    if (checkAuthorization(authorizationPredicate, exchange)) {
+                        super.handle(exchange);
                     }
-                    super.handle(exchange);
                 } catch (Error e) {
                     // HttpServer catches Throwable, so we must throw errors on another thread
                     ExceptionsHelper.maybeDieOnAnotherThread(e);
@@ -77,8 +71,7 @@ public class S3HttpFixture extends ExternalResource {
     protected void before() throws Throwable {
         if (enabled) {
             this.server = HttpServer.create(getLocalFixtureAddress(), 0);
-            HttpHandler handler = createHandler();
-            this.server.createContext("/", Objects.requireNonNull(handler));
+            this.server.createContext("/", Objects.requireNonNull(createHandler()));
             server.start();
         }
     }

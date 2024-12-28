@@ -11,9 +11,6 @@ apply plugin: 'elasticsearch.java'
 description = 'Utils for AWS-related fixtures'
 
 dependencies {
-  api project(':server')
-  api("junit:junit:${versions.junit}") {
-    transitive = false
-  }
+  implementation project(':server')
   implementation project(':test:framework')
 }
