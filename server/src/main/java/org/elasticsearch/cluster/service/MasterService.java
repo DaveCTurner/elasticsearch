@@ -24,9 +24,13 @@ import org.elasticsearch.cluster.ClusterStateTaskExecutor;
 import org.elasticsearch.cluster.ClusterStateTaskListener;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.NotMasterException;
+import org.elasticsearch.cluster.RepositoryCleanupInProgress;
+import org.elasticsearch.cluster.SnapshotDeletionsInProgress;
+import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.cluster.coordination.ClusterStatePublisher;
 import org.elasticsearch.cluster.coordination.FailedToCommitClusterStateException;
 import org.elasticsearch.cluster.metadata.ProcessClusterEventTimeoutException;
+import org.elasticsearch.cluster.metadata.RepositoriesMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.Priority;
@@ -71,6 +75,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.elasticsearch.common.util.concurrent.EsExecutors.daemonThreadFactory;
@@ -208,6 +213,12 @@ public class MasterService extends AbstractLifecycleComponent {
         final BatchSummary summary,
         final ActionListener<Void> listener
     ) {
+        logger.info("""
+            Computing cluster state update for: {}
+            Tasks:
+            {}
+            """, summary, executionResults.stream().map(r -> r.getTask().toString()).collect(Collectors.joining("\n")));
+
         if (lifecycle.started() == false) {
             logger.debug("processing [{}]: ignoring, master service not started", summary);
             listener.onResponse(null);
@@ -346,6 +357,29 @@ public class MasterService extends AbstractLifecycleComponent {
                 );
             }
         }
+
+        logger.info(
+            """
+                Publishing cluster state version [{}] in term [{}]
+                Source: {}
+                Tasks:
+                {}
+                Metadata version: {}
+                RepositoriesMetadata: {}
+                SnapshotsInProgress: {}
+                SnapshotDeletionsInProgress: {}
+                RepositoryCleanupInProgress: {}
+                """,
+            newClusterState.version(),
+            newClusterState.term(),
+            summary,
+            executionResults.stream().map(r -> r.getTask().toString()).collect(Collectors.joining("\n")),
+            newClusterState.metadata().version(),
+            Strings.toString(RepositoriesMetadata.get(newClusterState)),
+            Strings.toString(SnapshotsInProgress.get(newClusterState).getDebugXContent()),
+            Strings.toString(SnapshotDeletionsInProgress.get(newClusterState)),
+            Strings.toString(RepositoryCleanupInProgress.get(newClusterState))
+        );
 
         logger.debug("publishing cluster state version [{}]", newClusterState.version());
         // initialize routing nodes and the indices lookup concurrently, we will need both of them for the cluster state
@@ -1736,5 +1770,5 @@ public class MasterService extends AbstractLifecycleComponent {
         }
     }
 
-    static final int MAX_TASK_DESCRIPTION_CHARS = 8 * 1024;
+    static final int MAX_TASK_DESCRIPTION_CHARS = 80 * 1024;
 }

@@ -9,6 +9,7 @@
 
 package org.elasticsearch.cluster;
 
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.cluster.ClusterState.Custom;
@@ -124,7 +125,22 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
     private SnapshotsInProgress(Map<String, ByRepo> entries, Set<String> nodesIdsForRemoval) {
         this.entries = Map.copyOf(entries);
         this.nodesIdsForRemoval = nodesIdsForRemoval;
-        assert assertConsistentEntries(this.entries);
+        boolean initSuccess = false;
+        try {
+            logger.info("SnapshotsInProgress#<init>: {}", Strings.toString(new DebugXContent(entries)));
+            assert assertConsistentEntries(this.entries);
+            initSuccess = true;
+        } finally {
+            if (initSuccess == false) {
+                logger.error(
+                    Strings.format(
+                        "SnapshotsInProgress#<init> FAILED\nSnapshotsInProgress: %s",
+                        Strings.toString(new DebugXContent(entries))
+                    ),
+                    new ElasticsearchException("stack trace")
+                );
+            }
+        }
     }
 
     public SnapshotsInProgress withUpdatedEntriesForRepo(String repository, List<Entry> updatedEntries) {
@@ -1868,6 +1884,44 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
                 diffBySnapshotUUID.writeTo(out);
                 positionDiff.writeTo(out);
             }
+        }
+    }
+
+    public ToXContentObject getDebugXContent() {
+        return new DebugXContent(entries);
+    }
+
+    private record DebugXContent(Map<String, ByRepo> entries) implements ToXContentObject {
+        @Override
+        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+            builder.startObject();
+            for (final var byRepoEntry : entries.entrySet()) {
+                builder.startArray(byRepoEntry.getKey());
+                for (final var entry : byRepoEntry.getValue().entries) {
+                    builder.startObject();
+                    builder.field("entry", entry);
+                    builder.startArray("snapshotIndices");
+                    for (final var snapshotIndexEntry : entry.snapshotIndices.entrySet()) {
+                        builder.startObject()
+                            .field("key", snapshotIndexEntry.getKey())
+                            .field("index", snapshotIndexEntry.getValue())
+                            .endObject();
+                    }
+                    builder.endArray();
+                    builder.startArray("shardStatusByRepoShardId");
+                    for (Map.Entry<RepositoryShardId, ShardSnapshotStatus> shardEntry : entry.shardStatusByRepoShardId.entrySet()) {
+                        builder.startObject()
+                            .field("repo_index", shardEntry.getKey().index())
+                            .field("shard", shardEntry.getKey().shardId())
+                            .field("shard_snapshot_status", shardEntry.getValue().toString())
+                            .endObject();
+                    }
+                    builder.endArray();
+                    builder.endObject();
+                }
+                builder.endArray();
+            }
+            return builder.endObject();
         }
     }
 }

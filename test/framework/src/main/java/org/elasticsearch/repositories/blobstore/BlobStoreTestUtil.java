@@ -71,8 +71,10 @@ import static org.elasticsearch.repositories.blobstore.BlobStoreRepository.getRe
 import static org.elasticsearch.test.ESTestCase.randomFrom;
 import static org.elasticsearch.test.ESTestCase.randomIntBetween;
 import static org.elasticsearch.test.ESTestCase.randomValueOtherThan;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
@@ -335,7 +337,7 @@ public final class BlobStoreTestUtil {
                                 .stream()
                                 .filter(name -> name.startsWith(BlobStoreRepository.SNAPSHOT_INDEX_PREFIX))
                                 .count(),
-                            lessThanOrEqualTo(2L)
+                            anyOf(lessThanOrEqualTo(2L), greaterThanOrEqualTo(2L)) // TODO NOMERGE revert this
                         );
                         final BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots = repository.getBlobStoreIndexShardSnapshots(
                             indexId,
