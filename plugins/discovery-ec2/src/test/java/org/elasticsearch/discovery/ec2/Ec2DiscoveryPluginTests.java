@@ -15,6 +15,8 @@ import org.elasticsearch.test.ESTestCase;
 @SuppressForbidden(reason = "Uses an HttpServer to emulate the Instance Metadata Service")
 public class Ec2DiscoveryPluginTests extends ESTestCase {
 
+    // TODO NOMERGE reinstate tests
+
     // private Settings getNodeAttributes(Settings settings, String url, String tokenUrl) {
     // final Settings realSettings = Settings.builder().put(AwsEc2Service.AUTO_ATTRIBUTE_SETTING.getKey(), true).put(settings).build();
     // return Ec2DiscoveryPlugin.getAvailabilityZoneNodeAttributes(realSettings, url, tokenUrl);

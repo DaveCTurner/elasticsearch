@@ -12,6 +12,8 @@ package org.elasticsearch.discovery.ec2;
 import org.elasticsearch.test.ESTestCase;
 
 public class AwsEc2ServiceImplTests extends ESTestCase {
+    // TODO NOMERGE reinstate tests
+
     //
     // // we need our own ES logger, rather than log4j logging
     // private static final Logger logger = LogManager.getLogger(AwsEc2ServiceImplTests.class);

@@ -209,7 +209,7 @@ final class Ec2ClientSettings {
                 PROXY_SCHEME_SETTING.get(settings),
                 proxyUsername.toString(),
                 proxyPassword.toString(),
-                (int) READ_TIMEOUT_SETTING.get(settings).millis()
+                Math.toIntExact(READ_TIMEOUT_SETTING.get(settings).millis())
             );
         }
     }

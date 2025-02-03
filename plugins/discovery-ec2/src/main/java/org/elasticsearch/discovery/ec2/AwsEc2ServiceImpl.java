@@ -47,7 +47,7 @@ class AwsEc2ServiceImpl implements AwsEc2Service {
 
     // proxy for testing
     Ec2Client buildClient(AwsCredentialsProvider credentials, Ec2ClientSettings clientSettings) {
-        // TODO protocol no longer supported? clientConfiguration.setProtocol(clientSettings.protocol);
+        // TODO NOMERGE protocol no longer supported? clientConfiguration.setProtocol(clientSettings.protocol);
 
         final var httpClientBuilder = ApacheHttpClient.builder();
         httpClientBuilder.socketTimeout(Duration.of(clientSettings.readTimeoutMillis, ChronoUnit.MILLIS));
@@ -90,7 +90,7 @@ class AwsEc2ServiceImpl implements AwsEc2Service {
         return SocketAccess.doPrivileged(ec2ClientBuilder::build);
     }
 
-    // TODO reinstate client settings
+    // TODO NOMERGE reinstate client settings
 
     // pkg private for tests
     static AwsCredentialsProvider buildCredentials(Logger logger, Ec2ClientSettings clientSettings) {
