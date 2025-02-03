@@ -14,6 +14,7 @@ import fixture.aws.imds.Ec2ImdsServiceBuilder;
 import fixture.aws.imds.Ec2ImdsVersion;
 
 import org.elasticsearch.test.cluster.ElasticsearchCluster;
+import org.junit.AssumptionViolatedException;
 import org.junit.ClassRule;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
@@ -33,5 +34,10 @@ public class DiscoveryEc2AvailabilityZoneAttributeImdsV1IT extends DiscoveryEc2A
     @Override
     protected String getTestRestCluster() {
         return cluster.getHttpAddresses();
+    }
+
+    @Override
+    public void testAvailabilityZoneAttribute() {
+        throw new AssumptionViolatedException("NOMERGE IMDSv1 no longer supported");
     }
 }
