@@ -18,7 +18,7 @@ import org.junit.ClassRule;
 @ThreadLeakFilters(filters = TestClustersThreadFilter.class)
 public class EsqlSpecIT extends EsqlSpecTestCase {
     @ClassRule
-    public static ElasticsearchCluster cluster = Clusters.testCluster();
+    public static ElasticsearchCluster cluster = Clusters.testCluster(spec -> spec.plugin("inference-service-test"));
 
     @Override
     protected String getTestRestCluster() {
@@ -41,5 +41,15 @@ public class EsqlSpecIT extends EsqlSpecTestCase {
     protected boolean enableRoundingDoubleValuesOnAsserting() {
         // This suite runs with more than one node and three shards in serverless
         return cluster.getNumNodes() > 1;
+    }
+
+    @Override
+    protected boolean shouldSkipTestsWithSemanticTextFields() {
+        return cluster.getNumNodes() > 1;
+    }
+
+    @Override
+    protected boolean supportsSourceFieldMapping() {
+        return cluster.getNumNodes() == 1;
     }
 }

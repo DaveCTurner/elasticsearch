@@ -599,7 +599,7 @@ public class ShardStateActionTests extends ESTestCase {
             assertThat(deserialized.primaryTerm, equalTo(primaryTerm));
             assertThat(deserialized.message, equalTo(message));
             assertThat(deserialized.timestampRange, equalTo(timestampRange));
-            if (version.before(TransportVersions.EVENT_INGESTED_RANGE_IN_CLUSTER_STATE)) {
+            if (version.before(TransportVersions.V_8_15_0)) {
                 assertThat(deserialized.eventIngestedRange, equalTo(ShardLongFieldRange.UNKNOWN));
             } else {
                 assertThat(deserialized.eventIngestedRange, equalTo(eventIngestedRange));
@@ -612,11 +612,7 @@ public class ShardStateActionTests extends ESTestCase {
         final String allocationId = randomRealisticUnicodeOfCodepointLengthBetween(10, 100);
         final long primaryTerm = randomIntBetween(0, 100);
         final String message = randomRealisticUnicodeOfCodepointLengthBetween(10, 100);
-        final TransportVersion version = randomFrom(
-            getFirstVersion(),
-            getPreviousVersion(TransportVersions.MINIMUM_COMPATIBLE),
-            getPreviousVersion(TransportVersions.EVENT_INGESTED_RANGE_IN_CLUSTER_STATE)
-        );
+        final TransportVersion version = randomFrom(getFirstVersion(), getPreviousVersion(TransportVersions.V_8_15_0));
         final ShardLongFieldRange timestampRange = ShardLongFieldRangeWireTests.randomRange();
         final ShardLongFieldRange eventIngestedRange = ShardLongFieldRangeWireTests.randomRange();
         var startedShardEntry = new StartedShardEntry(shardId, allocationId, primaryTerm, message, timestampRange, eventIngestedRange);

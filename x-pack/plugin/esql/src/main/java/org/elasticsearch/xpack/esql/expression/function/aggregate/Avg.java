@@ -10,12 +10,14 @@ package org.elasticsearch.xpack.esql.expression.function.aggregate;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.xpack.esql.core.expression.Expression;
+import org.elasticsearch.xpack.esql.core.expression.Literal;
 import org.elasticsearch.xpack.esql.core.tree.NodeInfo;
 import org.elasticsearch.xpack.esql.core.tree.Source;
 import org.elasticsearch.xpack.esql.core.type.DataType;
 import org.elasticsearch.xpack.esql.expression.SurrogateExpression;
 import org.elasticsearch.xpack.esql.expression.function.Example;
 import org.elasticsearch.xpack.esql.expression.function.FunctionInfo;
+import org.elasticsearch.xpack.esql.expression.function.FunctionType;
 import org.elasticsearch.xpack.esql.expression.function.Param;
 import org.elasticsearch.xpack.esql.expression.function.scalar.multivalue.MvAvg;
 import org.elasticsearch.xpack.esql.expression.predicate.operator.arithmetic.Div;
@@ -23,6 +25,7 @@ import org.elasticsearch.xpack.esql.expression.predicate.operator.arithmetic.Div
 import java.io.IOException;
 import java.util.List;
 
+import static java.util.Collections.emptyList;
 import static org.elasticsearch.xpack.esql.core.expression.TypeResolutions.ParamOrdinal.DEFAULT;
 import static org.elasticsearch.xpack.esql.core.expression.TypeResolutions.isType;
 
@@ -32,7 +35,7 @@ public class Avg extends AggregateFunction implements SurrogateExpression {
     @FunctionInfo(
         returnType = "double",
         description = "The average of a numeric field.",
-        isAggregation = true,
+        type = FunctionType.AGGREGATE,
         examples = {
             @Example(file = "stats", tag = "avg"),
             @Example(
@@ -44,7 +47,11 @@ public class Avg extends AggregateFunction implements SurrogateExpression {
             ) }
     )
     public Avg(Source source, @Param(name = "number", type = { "double", "integer", "long" }) Expression field) {
-        super(source, field);
+        this(source, field, Literal.TRUE);
+    }
+
+    public Avg(Source source, Expression field, Expression filter) {
+        super(source, field, filter, emptyList());
     }
 
     @Override
@@ -74,12 +81,17 @@ public class Avg extends AggregateFunction implements SurrogateExpression {
 
     @Override
     protected NodeInfo<Avg> info() {
-        return NodeInfo.create(this, Avg::new, field());
+        return NodeInfo.create(this, Avg::new, field(), filter());
     }
 
     @Override
     public Avg replaceChildren(List<Expression> newChildren) {
-        return new Avg(source(), newChildren.get(0));
+        return new Avg(source(), newChildren.get(0), newChildren.get(1));
+    }
+
+    @Override
+    public Avg withFilter(Expression filter) {
+        return new Avg(source(), field(), filter);
     }
 
     @Override
@@ -87,6 +99,8 @@ public class Avg extends AggregateFunction implements SurrogateExpression {
         var s = source();
         var field = field();
 
-        return field().foldable() ? new MvAvg(s, field) : new Div(s, new Sum(s, field), new Count(s, field), dataType());
+        return field().foldable()
+            ? new MvAvg(s, field)
+            : new Div(s, new Sum(s, field, filter()), new Count(s, field, filter()), dataType());
     }
 }

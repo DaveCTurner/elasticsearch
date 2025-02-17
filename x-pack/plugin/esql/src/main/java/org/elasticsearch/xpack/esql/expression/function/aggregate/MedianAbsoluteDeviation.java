@@ -14,17 +14,21 @@ import org.elasticsearch.compute.aggregation.MedianAbsoluteDeviationDoubleAggreg
 import org.elasticsearch.compute.aggregation.MedianAbsoluteDeviationIntAggregatorFunctionSupplier;
 import org.elasticsearch.compute.aggregation.MedianAbsoluteDeviationLongAggregatorFunctionSupplier;
 import org.elasticsearch.xpack.esql.core.expression.Expression;
+import org.elasticsearch.xpack.esql.core.expression.Literal;
 import org.elasticsearch.xpack.esql.core.tree.NodeInfo;
 import org.elasticsearch.xpack.esql.core.tree.Source;
 import org.elasticsearch.xpack.esql.expression.SurrogateExpression;
 import org.elasticsearch.xpack.esql.expression.function.Example;
 import org.elasticsearch.xpack.esql.expression.function.FunctionInfo;
+import org.elasticsearch.xpack.esql.expression.function.FunctionType;
 import org.elasticsearch.xpack.esql.expression.function.Param;
 import org.elasticsearch.xpack.esql.expression.function.scalar.convert.ToDouble;
 import org.elasticsearch.xpack.esql.expression.function.scalar.multivalue.MvMedianAbsoluteDeviation;
 
 import java.io.IOException;
 import java.util.List;
+
+import static java.util.Collections.emptyList;
 
 public class MedianAbsoluteDeviation extends NumericAggregate implements SurrogateExpression {
     public static final NamedWriteableRegistry.Entry ENTRY = new NamedWriteableRegistry.Entry(
@@ -51,11 +55,11 @@ public class MedianAbsoluteDeviation extends NumericAggregate implements Surroga
             `MEDIAN_ABSOLUTE_DEVIATION` is also {wikipedia}/Nondeterministic_algorithm[non-deterministic].
             This means you can get slightly different results using the same data.
             ====""",
-        isAggregation = true,
+        type = FunctionType.AGGREGATE,
         examples = {
             @Example(file = "median_absolute_deviation", tag = "median-absolute-deviation"),
             @Example(
-                description = "The expression can use inline functions. For example, to calculate the the "
+                description = "The expression can use inline functions. For example, to calculate the "
                     + "median absolute deviation of the maximum values of a multivalued column, first "
                     + "use `MV_MAX` to get the maximum value per row, and use the result with the "
                     + "`MEDIAN_ABSOLUTE_DEVIATION` function",
@@ -64,7 +68,11 @@ public class MedianAbsoluteDeviation extends NumericAggregate implements Surroga
             ), }
     )
     public MedianAbsoluteDeviation(Source source, @Param(name = "number", type = { "double", "integer", "long" }) Expression field) {
-        super(source, field);
+        this(source, field, Literal.TRUE);
+    }
+
+    public MedianAbsoluteDeviation(Source source, Expression field, Expression filter) {
+        super(source, field, filter, emptyList());
     }
 
     private MedianAbsoluteDeviation(StreamInput in) throws IOException {
@@ -78,27 +86,32 @@ public class MedianAbsoluteDeviation extends NumericAggregate implements Surroga
 
     @Override
     protected NodeInfo<MedianAbsoluteDeviation> info() {
-        return NodeInfo.create(this, MedianAbsoluteDeviation::new, field());
+        return NodeInfo.create(this, MedianAbsoluteDeviation::new, field(), filter());
     }
 
     @Override
     public MedianAbsoluteDeviation replaceChildren(List<Expression> newChildren) {
-        return new MedianAbsoluteDeviation(source(), newChildren.get(0));
+        return new MedianAbsoluteDeviation(source(), newChildren.get(0), newChildren.get(1));
     }
 
     @Override
-    protected AggregatorFunctionSupplier longSupplier(List<Integer> inputChannels) {
-        return new MedianAbsoluteDeviationLongAggregatorFunctionSupplier(inputChannels);
+    public MedianAbsoluteDeviation withFilter(Expression filter) {
+        return new MedianAbsoluteDeviation(source(), field(), filter);
     }
 
     @Override
-    protected AggregatorFunctionSupplier intSupplier(List<Integer> inputChannels) {
-        return new MedianAbsoluteDeviationIntAggregatorFunctionSupplier(inputChannels);
+    protected AggregatorFunctionSupplier longSupplier() {
+        return new MedianAbsoluteDeviationLongAggregatorFunctionSupplier();
     }
 
     @Override
-    protected AggregatorFunctionSupplier doubleSupplier(List<Integer> inputChannels) {
-        return new MedianAbsoluteDeviationDoubleAggregatorFunctionSupplier(inputChannels);
+    protected AggregatorFunctionSupplier intSupplier() {
+        return new MedianAbsoluteDeviationIntAggregatorFunctionSupplier();
+    }
+
+    @Override
+    protected AggregatorFunctionSupplier doubleSupplier() {
+        return new MedianAbsoluteDeviationDoubleAggregatorFunctionSupplier();
     }
 
     @Override

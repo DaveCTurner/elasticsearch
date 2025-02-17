@@ -27,12 +27,11 @@ import static org.hamcrest.Matchers.equalTo;
 public class FilteredAggregatorFunctionTests extends AggregatorFunctionTestCase {
     private final List<Exception> unclosed = Collections.synchronizedList(new ArrayList<>());
 
-    // TODO some version of this test that applies across all aggs
     @Override
-    protected AggregatorFunctionSupplier aggregatorFunction(List<Integer> inputChannels) {
+    protected AggregatorFunctionSupplier aggregatorFunction() {
         return new FilteredAggregatorFunctionSupplier(
-            new SumIntAggregatorFunctionSupplier(inputChannels),
-            new FilteredGroupingAggregatorFunctionTests.AnyGreaterThanFactory(unclosed, inputChannels)
+            new SumIntAggregatorFunctionSupplier(),
+            new FilteredGroupingAggregatorFunctionTests.AnyGreaterThanFactory(unclosed, List.of(0))
         );
     }
 
@@ -101,6 +100,11 @@ public class FilteredAggregatorFunctionTests extends AggregatorFunctionTestCase 
 
     @Override
     public void testAllFiltered() {
+        assumeFalse("can't double filter. tests already filter.", true);
+    }
+
+    @Override
+    public void testSomeFiltered() {
         assumeFalse("can't double filter. tests already filter.", true);
     }
 }

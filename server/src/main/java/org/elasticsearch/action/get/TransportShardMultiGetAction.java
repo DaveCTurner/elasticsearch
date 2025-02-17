@@ -11,6 +11,7 @@ package org.elasticsearch.action.get;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.store.AlreadyClosedException;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
@@ -19,6 +20,7 @@ import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.indices.refresh.TransportShardRefreshAction;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.ContextPreservingActionListener;
 import org.elasticsearch.action.support.TransportActions;
 import org.elasticsearch.action.support.replication.BasicReplicationRequest;
 import org.elasticsearch.action.support.single.shard.TransportSingleShardAction;
@@ -27,8 +29,6 @@ import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateObserver;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.cluster.routing.OperationRouting;
-import org.elasticsearch.cluster.routing.PlainShardIterator;
 import org.elasticsearch.cluster.routing.ShardIterator;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.Writeable;
@@ -112,10 +112,7 @@ public class TransportShardMultiGetAction extends TransportSingleShardAction<Mul
         if (iterator == null) {
             return null;
         }
-        return new PlainShardIterator(
-            iterator.shardId(),
-            iterator.getShardRoutings().stream().filter(shardRouting -> OperationRouting.canSearchShard(shardRouting, state)).toList()
-        );
+        return ShardIterator.allSearchableShards(iterator);
     }
 
     @Override
@@ -127,10 +124,8 @@ public class TransportShardMultiGetAction extends TransportSingleShardAction<Mul
             handleMultiGetOnUnpromotableShard(request, indexShard, listener);
             return;
         }
-        // TODO: adapt assertion to assert only that it is not stateless (ES-9563)
-        assert DiscoveryNode.isStateless(clusterService.getSettings()) == false || indexShard.indexSettings().isFastRefresh()
-            : "in Stateless a promotable to primary shard can receive a TransportShardMultiGetAction only if an index has "
-                + "the fast refresh setting";
+        assert DiscoveryNode.isStateless(clusterService.getSettings()) == false
+            : "in Stateless a promotable to primary shard should not receive a TransportShardMultiGetAction";
         if (request.realtime()) { // we are not tied to a refresh cycle here anyway
             asyncShardMultiGet(request, shardId, listener);
         } else {
@@ -217,7 +212,10 @@ public class TransportShardMultiGetAction extends TransportSingleShardAction<Mul
         final var retryingListener = listener.delegateResponse((l, e) -> {
             final var cause = ExceptionsHelper.unwrapCause(e);
             logger.debug("mget_from_translog[shard] failed", cause);
-            if (cause instanceof ShardNotFoundException || cause instanceof IndexNotFoundException) {
+            if (cause instanceof ShardNotFoundException
+                || cause instanceof IndexNotFoundException
+                || cause instanceof AlreadyClosedException) {
+                // TODO AlreadyClosedException the engine reset should be fixed by ES-10826
                 logger.debug("retrying mget_from_translog[shard]");
                 observer.waitForNextChange(new ClusterStateObserver.Listener() {
                     @Override
@@ -232,7 +230,13 @@ public class TransportShardMultiGetAction extends TransportSingleShardAction<Mul
 
                     @Override
                     public void onTimeout(TimeValue timeout) {
-                        l.onFailure(new ElasticsearchException("Timed out retrying mget_from_translog[shard]", cause));
+                        // TODO AlreadyClosedException the engine reset should be fixed by ES-10826
+                        if (cause instanceof AlreadyClosedException) {
+                            // Do an additional retry just in case AlreadyClosedException didn't generate a cluster update
+                            tryShardMultiGetFromTranslog(request, indexShard, node, l);
+                        } else {
+                            l.onFailure(new ElasticsearchException("Timed out retrying mget_from_translog[shard]", cause));
+                        }
                     }
                 });
             } else {
@@ -280,15 +284,15 @@ public class TransportShardMultiGetAction extends TransportSingleShardAction<Mul
                     } else {
                         assert r.segmentGeneration() > -1L;
                         assert r.primaryTerm() > Engine.UNKNOWN_PRIMARY_TERM;
-                        indexShard.waitForPrimaryTermAndGeneration(
-                            r.primaryTerm(),
-                            r.segmentGeneration(),
+                        final ActionListener<Long> termAndGenerationListener = ContextPreservingActionListener.wrapPreservingContext(
                             listener.delegateFailureAndWrap(
                                 (ll, aLong) -> getExecutor(request, shardId).execute(
                                     ActionRunnable.supply(ll, () -> handleLocalGets(request, r.multiGetShardResponse(), shardId))
                                 )
-                            )
+                            ),
+                            threadPool.getThreadContext()
                         );
+                        indexShard.waitForPrimaryTermAndGeneration(r.primaryTerm(), r.segmentGeneration(), termAndGenerationListener);
                     }
                 }
             }), TransportShardMultiGetFomTranslogAction.Response::new, getExecutor(request, shardId))
@@ -318,7 +322,7 @@ public class TransportShardMultiGetAction extends TransportSingleShardAction<Mul
         MultiGetRequest.Item item = request.items.get(location);
         try {
             GetResult getResult = indexShard.getService()
-                .get(
+                .mget(
                     item.id(),
                     item.storedFields(),
                     request.realtime(),

@@ -54,6 +54,14 @@ public interface DataSourceHandler {
         return null;
     }
 
+    default DataSourceResponse.RepeatingWrapper handle(DataSourceRequest.RepeatingWrapper request) {
+        return null;
+    }
+
+    default DataSourceResponse.MalformedWrapper handle(DataSourceRequest.MalformedWrapper request) {
+        return null;
+    }
+
     default DataSourceResponse.ChildFieldGenerator handle(DataSourceRequest.ChildFieldGenerator request) {
         return null;
     }
@@ -71,6 +79,10 @@ public interface DataSourceHandler {
     }
 
     default DataSourceResponse.ObjectMappingParametersGenerator handle(DataSourceRequest.ObjectMappingParametersGenerator request) {
+        return null;
+    }
+
+    default DataSourceResponse.DynamicMappingGenerator handle(DataSourceRequest.DynamicMappingGenerator request) {
         return null;
     }
 }

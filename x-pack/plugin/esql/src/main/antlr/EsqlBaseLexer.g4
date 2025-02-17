@@ -73,6 +73,7 @@ SHOW : 'show'                 -> pushMode(SHOW_MODE);
 SORT : 'sort'                 -> pushMode(EXPRESSION_MODE);
 STATS : 'stats'               -> pushMode(EXPRESSION_MODE);
 WHERE : 'where'               -> pushMode(EXPRESSION_MODE);
+JOIN_LOOKUP : 'lookup'        -> pushMode(JOIN_MODE);
 //
 // in development
 //
@@ -84,10 +85,16 @@ WHERE : 'where'               -> pushMode(EXPRESSION_MODE);
 // Once the command has been stabilized, remove the DEV_ prefix and the {}? conditional and move the command to the
 // main section while preserving alphabetical order:
 // MYCOMMAND : 'mycommand' -> ...
-DEV_INLINESTATS : {this.isDevVersion()}? 'inlinestats'   -> pushMode(EXPRESSION_MODE);
-DEV_LOOKUP :      {this.isDevVersion()}? 'lookup'        -> pushMode(LOOKUP_MODE);
-DEV_MATCH :       {this.isDevVersion()}? 'match'         -> pushMode(EXPRESSION_MODE);
-DEV_METRICS :     {this.isDevVersion()}? 'metrics'       -> pushMode(METRICS_MODE);
+DEV_CHANGE_POINT : {this.isDevVersion()}? 'change_point'  -> pushMode(CHANGE_POINT_MODE);
+DEV_INLINESTATS :  {this.isDevVersion()}? 'inlinestats'   -> pushMode(EXPRESSION_MODE);
+DEV_INSIST :      {this.isDevVersion()}? 'insist_🐔'      -> pushMode(PROJECT_MODE);
+DEV_LOOKUP :       {this.isDevVersion()}? 'lookup_🐔'     -> pushMode(LOOKUP_MODE);
+DEV_METRICS :      {this.isDevVersion()}? 'metrics'       -> pushMode(METRICS_MODE);
+// list of all JOIN commands
+DEV_JOIN_FULL :    {this.isDevVersion()}? 'full'          -> pushMode(JOIN_MODE);
+DEV_JOIN_LEFT :    {this.isDevVersion()}? 'left'          -> pushMode(JOIN_MODE);
+DEV_JOIN_RIGHT :   {this.isDevVersion()}? 'right'         -> pushMode(JOIN_MODE);
+
 
 //
 // Catch-all for unrecognized commands - don't define any beyond this line
@@ -176,6 +183,7 @@ AND : 'and';
 ASC : 'asc';
 ASSIGN : '=';
 CAST_OP : '::';
+COLON : ':';
 COMMA : ',';
 DESC : 'desc';
 DOT : '.';
@@ -209,8 +217,10 @@ ASTERISK : '*';
 SLASH : '/';
 PERCENT : '%';
 
-// move it in the main section if the feature gets promoted
-DEV_MATCH_OP : {this.isDevVersion()}? DEV_MATCH -> type(DEV_MATCH);
+LEFT_BRACES : '{';
+RIGHT_BRACES : '}';
+
+NESTED_WHERE : WHERE -> type(WHERE);
 
 NAMED_OR_POSITIONAL_PARAM
     : PARAM (LETTER | UNDERSCORE) UNQUOTED_ID_BODY*
@@ -299,13 +309,16 @@ FROM_MULTILINE_COMMENT
 FROM_WS
     : WS -> channel(HIDDEN)
     ;
+
 //
-// DROP, KEEP
+// DROP, KEEP, INSIST
 //
 mode PROJECT_MODE;
 PROJECT_PIPE : PIPE -> type(PIPE), popMode;
 PROJECT_DOT: DOT -> type(DOT);
 PROJECT_COMMA : COMMA -> type(COMMA);
+PROJECT_PARAM : PARAM -> type(PARAM);
+PROJECT_NAMED_OR_POSITIONAL_PARAM : NAMED_OR_POSITIONAL_PARAM -> type(NAMED_OR_POSITIONAL_PARAM);
 
 fragment UNQUOTED_ID_BODY_WITH_PATTERN
     : (LETTER | DIGIT | UNDERSCORE | ASTERISK)
@@ -339,6 +352,8 @@ RENAME_PIPE : PIPE -> type(PIPE), popMode;
 RENAME_ASSIGN : ASSIGN -> type(ASSIGN);
 RENAME_COMMA : COMMA -> type(COMMA);
 RENAME_DOT: DOT -> type(DOT);
+RENAME_PARAM : PARAM -> type(PARAM);
+RENAME_NAMED_OR_POSITIONAL_PARAM : NAMED_OR_POSITIONAL_PARAM -> type(NAMED_OR_POSITIONAL_PARAM);
 
 AS : 'as';
 
@@ -410,6 +425,9 @@ ENRICH_FIELD_QUOTED_IDENTIFIER
     : QUOTED_IDENTIFIER -> type(QUOTED_IDENTIFIER)
     ;
 
+ENRICH_FIELD_PARAM : PARAM -> type(PARAM);
+ENRICH_FIELD_NAMED_OR_POSITIONAL_PARAM : NAMED_OR_POSITIONAL_PARAM -> type(NAMED_OR_POSITIONAL_PARAM);
+
 ENRICH_FIELD_LINE_COMMENT
     : LINE_COMMENT -> channel(HIDDEN)
     ;
@@ -425,6 +443,8 @@ ENRICH_FIELD_WS
 mode MVEXPAND_MODE;
 MVEXPAND_PIPE : PIPE -> type(PIPE), popMode;
 MVEXPAND_DOT: DOT -> type(DOT);
+MVEXPAND_PARAM : PARAM -> type(PARAM);
+MVEXPAND_NAMED_OR_POSITIONAL_PARAM : NAMED_OR_POSITIONAL_PARAM -> type(NAMED_OR_POSITIONAL_PARAM);
 
 MVEXPAND_QUOTED_IDENTIFIER
     : QUOTED_IDENTIFIER -> type(QUOTED_IDENTIFIER)
@@ -469,7 +489,7 @@ SHOW_WS
 mode SETTING_MODE;
 SETTING_CLOSING_BRACKET : CLOSING_BRACKET -> type(CLOSING_BRACKET), popMode;
 
-COLON : ':';
+SETTING_COLON : COLON -> type(COLON);
 
 SETTING
     : (ASPERAND | DIGIT| DOT | LETTER | UNDERSCORE)+
@@ -534,6 +554,35 @@ LOOKUP_FIELD_WS
     ;
 
 //
+// JOIN-related commands
+//
+mode JOIN_MODE;
+JOIN_PIPE : PIPE -> type(PIPE), popMode;
+JOIN : 'join';
+JOIN_AS : AS -> type(AS);
+JOIN_ON : ON -> type(ON), popMode, pushMode(EXPRESSION_MODE);
+USING : 'USING' -> popMode, pushMode(EXPRESSION_MODE);
+
+JOIN_UNQUOTED_SOURCE: UNQUOTED_SOURCE -> type(UNQUOTED_SOURCE);
+JOIN_QUOTED_SOURCE : QUOTED_STRING -> type(QUOTED_STRING);
+JOIN_COLON : COLON -> type(COLON);
+
+JOIN_UNQUOTED_IDENTIFER: UNQUOTED_IDENTIFIER -> type(UNQUOTED_IDENTIFIER);
+JOIN_QUOTED_IDENTIFIER : QUOTED_IDENTIFIER -> type(QUOTED_IDENTIFIER);
+
+JOIN_LINE_COMMENT
+    : LINE_COMMENT -> channel(HIDDEN)
+    ;
+
+JOIN_MULTILINE_COMMENT
+    : MULTILINE_COMMENT -> channel(HIDDEN)
+    ;
+
+JOIN_WS
+    : WS -> channel(HIDDEN)
+    ;
+
+//
 // METRICS command
 //
 mode METRICS_MODE;
@@ -592,3 +641,30 @@ CLOSING_METRICS_BY
 CLOSING_METRICS_PIPE
     : PIPE -> type(PIPE), popMode
     ;
+
+///
+/// CHANGE_POINT command
+///
+mode CHANGE_POINT_MODE;
+
+CHANGE_POINT_PIPE : PIPE -> type(PIPE), popMode;
+CHANGE_POINT_ON : ON -> type(ON);
+CHANGE_POINT_AS : AS -> type(AS);
+CHANGE_POINT_DOT: DOT -> type(DOT);
+CHANGE_POINT_COMMA: COMMA -> type(COMMA);
+CHANGE_POINT_QUOTED_IDENTIFIER: QUOTED_IDENTIFIER -> type(QUOTED_IDENTIFIER);
+CHANGE_POINT_UNQUOTED_IDENTIFIER: UNQUOTED_IDENTIFIER -> type(UNQUOTED_IDENTIFIER);
+CHANGE_POINT_LINE_COMMENT: LINE_COMMENT -> channel(HIDDEN);
+CHANGE_POINT_MULTILINE_COMMENT: MULTILINE_COMMENT -> channel(HIDDEN);
+CHANGE_POINT_WS: WS -> channel(HIDDEN);
+
+//
+// INSIST command
+//
+mode INSIST_MODE;
+INSIST_PIPE : PIPE -> type(PIPE), popMode;
+INSIST_IDENTIFIER: UNQUOTED_IDENTIFIER -> type(UNQUOTED_IDENTIFIER);
+
+INSIST_WS : WS -> channel(HIDDEN);
+INSIST_LINE_COMMENT : LINE_COMMENT -> channel(HIDDEN);
+INSIST_MULTILINE_COMMENT : MULTILINE_COMMENT -> channel(HIDDEN);

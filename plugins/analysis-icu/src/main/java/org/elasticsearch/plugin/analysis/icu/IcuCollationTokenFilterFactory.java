@@ -44,14 +44,14 @@ public class IcuCollationTokenFilterFactory extends AbstractTokenFilterFactory {
 
     @SuppressWarnings("HiddenField")
     public IcuCollationTokenFilterFactory(IndexSettings indexSettings, Environment environment, String name, Settings settings) {
-        super(name, settings);
+        super(name);
 
         Collator collator;
         String rules = settings.get("rules");
         if (rules != null) {
             Exception failureToResolve = null;
             try {
-                rules = Streams.copyToString(Files.newBufferedReader(environment.configFile().resolve(rules), Charset.forName("UTF-8")));
+                rules = Streams.copyToString(Files.newBufferedReader(environment.configDir().resolve(rules), Charset.forName("UTF-8")));
             } catch (IOException | SecurityException | InvalidPathException e) {
                 failureToResolve = e;
             }

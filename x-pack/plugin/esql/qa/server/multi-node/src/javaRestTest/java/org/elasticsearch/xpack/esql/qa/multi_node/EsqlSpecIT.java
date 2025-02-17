@@ -12,9 +12,11 @@ import org.elasticsearch.xpack.esql.CsvSpecReader.CsvTestCase;
 import org.elasticsearch.xpack.esql.qa.rest.EsqlSpecTestCase;
 import org.junit.ClassRule;
 
+import java.io.IOException;
+
 public class EsqlSpecIT extends EsqlSpecTestCase {
     @ClassRule
-    public static ElasticsearchCluster cluster = Clusters.testCluster(spec -> {});
+    public static ElasticsearchCluster cluster = Clusters.testCluster(spec -> spec.plugin("inference-service-test"));
 
     @Override
     protected String getTestRestCluster() {
@@ -36,5 +38,10 @@ public class EsqlSpecIT extends EsqlSpecTestCase {
     @Override
     protected boolean enableRoundingDoubleValuesOnAsserting() {
         return true;
+    }
+
+    @Override
+    protected boolean supportsSourceFieldMapping() throws IOException {
+        return false;
     }
 }

@@ -271,7 +271,7 @@ public class AbstractHttpServerTransportTests extends ESTestCase {
         final RestRequest fakeRequest = new FakeRestRequest.Builder(xContentRegistry()).withHeaders(restHeaders).build();
         final RestControllerTests.AssertingChannel channel = new RestControllerTests.AssertingChannel(
             fakeRequest,
-            false,
+            randomBoolean(),
             RestStatus.BAD_REQUEST
         );
 
@@ -355,13 +355,15 @@ public class AbstractHttpServerTransportTests extends ESTestCase {
             }
 
         };
-        // the set of headers to copy
-        Set<RestHeaderDefinition> headers = Set.of(new RestHeaderDefinition(Task.TRACE_PARENT_HTTP_HEADER, false));
         // sample request headers to test with
         Map<String, List<String>> restHeaders = new HashMap<>();
         restHeaders.put(Task.TRACE_PARENT_HTTP_HEADER, Collections.singletonList(traceParentValue));
         RestRequest fakeRequest = new FakeRestRequest.Builder(xContentRegistry()).withHeaders(restHeaders).build();
-        RestControllerTests.AssertingChannel channel = new RestControllerTests.AssertingChannel(fakeRequest, false, RestStatus.BAD_REQUEST);
+        RestControllerTests.AssertingChannel channel = new RestControllerTests.AssertingChannel(
+            fakeRequest,
+            randomBoolean(),
+            RestStatus.BAD_REQUEST
+        );
 
         try (
             AbstractHttpServerTransport transport = new AbstractHttpServerTransport(
@@ -393,7 +395,7 @@ public class AbstractHttpServerTransportTests extends ESTestCase {
 
                 @Override
                 protected void populatePerRequestThreadContext(RestRequest restRequest, ThreadContext threadContext) {
-                    getFakeActionModule(headers).copyRequestHeadersToThreadContext(restRequest.getHttpRequest(), threadContext);
+                    getFakeActionModule(Set.of()).copyRequestHeadersToThreadContext(restRequest.getHttpRequest(), threadContext);
                 }
             }
         ) {
@@ -1179,7 +1181,7 @@ public class AbstractHttpServerTransportTests extends ESTestCase {
             null,
             List.of(),
             RestExtension.allowAll(),
-            new IncrementalBulkService(null, null, new ThreadContext(Settings.EMPTY))
+            new IncrementalBulkService(null, null)
         );
     }
 

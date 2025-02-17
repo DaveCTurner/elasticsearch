@@ -104,7 +104,7 @@ public class TimeSeriesIndexSearcher {
             Scorer scorer = weight.scorer(leaf);
             if (scorer != null) {
                 if (minimumScore != null) {
-                    scorer = new MinScoreScorer(weight, scorer, minimumScore);
+                    scorer = new MinScoreScorer(scorer, minimumScore);
                 }
                 LeafWalker leafWalker = new LeafWalker(leaf, scorer, bucketCollector, () -> tsidOrd[0]);
                 if (leafWalker.nextDoc() != DocIdSetIterator.NO_MORE_DOCS) {
@@ -263,11 +263,7 @@ public class TimeSeriesIndexSearcher {
 
         // true if the TSID ord has changed since the last time we checked
         boolean shouldPop() throws IOException {
-            if (tsidOrd != tsids.ordValue()) {
-                return true;
-            } else {
-                return false;
-            }
+            return tsidOrd != tsids.ordValue();
         }
     }
 }

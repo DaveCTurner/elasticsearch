@@ -22,8 +22,13 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
+import org.elasticsearch.index.mapper.vectors.DenseVectorFieldMapper;
+import org.elasticsearch.inference.InferenceService;
+import org.elasticsearch.inference.MinimalServiceSettings;
+import org.elasticsearch.inference.SimilarityMeasure;
 import org.elasticsearch.inference.TaskType;
 import org.elasticsearch.inference.UnparsedModel;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.SearchResponseUtils;
@@ -35,19 +40,22 @@ import org.junit.After;
 import org.junit.Before;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.elasticsearch.core.Strings.format;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.sameInstance;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class ModelRegistryTests extends ESTestCase {
@@ -186,7 +194,6 @@ public class ModelRegistryTests extends ESTestCase {
         var listener = new PlainActionFuture<UnparsedModel>();
         registry.getModel("1", listener);
 
-        registry.getModel("1", listener);
         var modelConfig = listener.actionGet(TIMEOUT);
         assertEquals("1", modelConfig.inferenceEntityId());
         assertEquals("foo", modelConfig.service());
@@ -292,58 +299,89 @@ public class ModelRegistryTests extends ESTestCase {
         );
     }
 
-    @SuppressWarnings("unchecked")
-    public void testDeepCopyDefaultConfig() {
-        {
-            var toCopy = new UnparsedModel("tocopy", randomFrom(TaskType.values()), "service-a", Map.of(), Map.of());
-            var copied = ModelRegistry.deepCopyDefaultConfig(toCopy);
-            assertThat(copied, not(sameInstance(toCopy)));
-            assertThat(copied.taskType(), is(toCopy.taskType()));
-            assertThat(copied.service(), is(toCopy.service()));
-            assertThat(copied.secrets(), not(sameInstance(toCopy.secrets())));
-            assertThat(copied.secrets(), is(toCopy.secrets()));
-            // Test copied is a modifiable map
-            copied.secrets().put("foo", "bar");
+    public void testRemoveDefaultConfigs_DoesNotCallClient_WhenPassedAnEmptySet() {
+        var client = mock(Client.class);
 
-            assertThat(copied.settings(), not(sameInstance(toCopy.settings())));
-            assertThat(copied.settings(), is(toCopy.settings()));
-            // Test copied is a modifiable map
-            copied.settings().put("foo", "bar");
-        }
+        var registry = new ModelRegistry(client);
+        var listener = new PlainActionFuture<Boolean>();
 
-        {
-            Map<String, Object> secretsMap = Map.of("secret", "value");
-            Map<String, Object> chunking = Map.of("strategy", "word");
-            Map<String, Object> task = Map.of("user", "name");
-            Map<String, Object> service = Map.of("num_threads", 1, "adaptive_allocations", Map.of("enabled", true));
-            Map<String, Object> settings = Map.of("chunking_settings", chunking, "service_settings", service, "task_settings", task);
+        registry.removeDefaultConfigs(Set.of(), listener);
 
-            var toCopy = new UnparsedModel("tocopy", randomFrom(TaskType.values()), "service-a", settings, secretsMap);
-            var copied = ModelRegistry.deepCopyDefaultConfig(toCopy);
-            assertThat(copied, not(sameInstance(toCopy)));
+        assertTrue(listener.actionGet(TIMEOUT));
+        verify(client, times(0)).execute(any(), any(), any());
+    }
 
-            assertThat(copied.secrets(), not(sameInstance(toCopy.secrets())));
-            assertThat(copied.secrets(), is(toCopy.secrets()));
-            // Test copied is a modifiable map
-            copied.secrets().remove("secret");
+    public void testDeleteModels_Returns_ConflictException_WhenModelIsBeingAdded() {
+        var client = mockClient();
 
-            assertThat(copied.settings(), not(sameInstance(toCopy.settings())));
-            assertThat(copied.settings(), is(toCopy.settings()));
-            // Test copied is a modifiable map
-            var chunkOut = (Map<String, Object>) copied.settings().get("chunking_settings");
-            assertThat(chunkOut, is(chunking));
-            chunkOut.remove("strategy");
+        var registry = new ModelRegistry(client);
+        var model = TestModel.createRandomInstance();
+        var newModel = TestModel.createRandomInstance();
+        registry.updateModelTransaction(newModel, model, new PlainActionFuture<>());
 
-            var taskOut = (Map<String, Object>) copied.settings().get("task_settings");
-            assertThat(taskOut, is(task));
-            taskOut.remove("user");
+        var listener = new PlainActionFuture<Boolean>();
 
-            var serviceOut = (Map<String, Object>) copied.settings().get("service_settings");
-            assertThat(serviceOut, is(service));
-            var adaptiveOut = (Map<String, Object>) serviceOut.remove("adaptive_allocations");
-            assertThat(adaptiveOut, is(Map.of("enabled", true)));
-            adaptiveOut.remove("enabled");
-        }
+        registry.deleteModels(Set.of(newModel.getInferenceEntityId()), listener);
+        var exception = expectThrows(ElasticsearchStatusException.class, () -> listener.actionGet(TIMEOUT));
+        assertThat(
+            exception.getMessage(),
+            containsString("are currently being updated, please wait until after they are finished updating to delete.")
+        );
+        assertThat(exception.status(), is(RestStatus.CONFLICT));
+    }
+
+    public void testIdMatchedDefault() {
+        var defaultConfigIds = new ArrayList<InferenceService.DefaultConfigId>();
+        defaultConfigIds.add(
+            new InferenceService.DefaultConfigId("foo", MinimalServiceSettings.sparseEmbedding(), mock(InferenceService.class))
+        );
+        defaultConfigIds.add(
+            new InferenceService.DefaultConfigId("bar", MinimalServiceSettings.sparseEmbedding(), mock(InferenceService.class))
+        );
+
+        var matched = ModelRegistry.idMatchedDefault("bar", defaultConfigIds);
+        assertEquals(defaultConfigIds.get(1), matched.get());
+        matched = ModelRegistry.idMatchedDefault("baz", defaultConfigIds);
+        assertFalse(matched.isPresent());
+    }
+
+    public void testContainsDefaultConfigId() {
+        var client = mockClient();
+        var registry = new ModelRegistry(client);
+
+        registry.addDefaultIds(
+            new InferenceService.DefaultConfigId("foo", MinimalServiceSettings.sparseEmbedding(), mock(InferenceService.class))
+        );
+        registry.addDefaultIds(
+            new InferenceService.DefaultConfigId("bar", MinimalServiceSettings.sparseEmbedding(), mock(InferenceService.class))
+        );
+        assertTrue(registry.containsDefaultConfigId("foo"));
+        assertFalse(registry.containsDefaultConfigId("baz"));
+    }
+
+    public void testTaskTypeMatchedDefaults() {
+        var defaultConfigIds = new ArrayList<InferenceService.DefaultConfigId>();
+        defaultConfigIds.add(
+            new InferenceService.DefaultConfigId("s1", MinimalServiceSettings.sparseEmbedding(), mock(InferenceService.class))
+        );
+        defaultConfigIds.add(
+            new InferenceService.DefaultConfigId("s2", MinimalServiceSettings.sparseEmbedding(), mock(InferenceService.class))
+        );
+        defaultConfigIds.add(
+            new InferenceService.DefaultConfigId(
+                "d1",
+                MinimalServiceSettings.textEmbedding(384, SimilarityMeasure.COSINE, DenseVectorFieldMapper.ElementType.FLOAT),
+                mock(InferenceService.class)
+            )
+        );
+        defaultConfigIds.add(new InferenceService.DefaultConfigId("c1", MinimalServiceSettings.completion(), mock(InferenceService.class)));
+
+        var matched = ModelRegistry.taskTypeMatchedDefaults(TaskType.SPARSE_EMBEDDING, defaultConfigIds);
+        assertThat(matched, contains(defaultConfigIds.get(0), defaultConfigIds.get(1)));
+        matched = ModelRegistry.taskTypeMatchedDefaults(TaskType.TEXT_EMBEDDING, defaultConfigIds);
+        assertThat(matched, contains(defaultConfigIds.get(2)));
+        matched = ModelRegistry.taskTypeMatchedDefaults(TaskType.RERANK, defaultConfigIds);
+        assertThat(matched, empty());
     }
 
     public void testDuplicateDefaultIds() {
@@ -351,11 +389,15 @@ public class ModelRegistryTests extends ESTestCase {
         var registry = new ModelRegistry(client);
 
         var id = "my-inference";
+        var mockServiceA = mock(InferenceService.class);
+        when(mockServiceA.name()).thenReturn("service-a");
+        var mockServiceB = mock(InferenceService.class);
+        when(mockServiceB.name()).thenReturn("service-b");
 
-        registry.addDefaultConfiguration(new UnparsedModel(id, randomFrom(TaskType.values()), "service-a", Map.of(), Map.of()));
+        registry.addDefaultIds(new InferenceService.DefaultConfigId(id, randomMinimalServiceSettings(), mockServiceA));
         var ise = expectThrows(
             IllegalStateException.class,
-            () -> registry.addDefaultConfiguration(new UnparsedModel(id, randomFrom(TaskType.values()), "service-b", Map.of(), Map.of()))
+            () -> registry.addDefaultIds(new InferenceService.DefaultConfigId(id, randomMinimalServiceSettings(), mockServiceB))
         );
         assertThat(
             ise.getMessage(),
@@ -408,5 +450,17 @@ public class ModelRegistryTests extends ESTestCase {
         }
 
         return searchResponse;
+    }
+
+    public static MinimalServiceSettings randomMinimalServiceSettings() {
+        TaskType type = randomFrom(TaskType.values());
+        if (type == TaskType.TEXT_EMBEDDING) {
+            return MinimalServiceSettings.textEmbedding(
+                randomIntBetween(2, 384),
+                randomFrom(SimilarityMeasure.values()),
+                randomFrom(DenseVectorFieldMapper.ElementType.values())
+            );
+        }
+        return new MinimalServiceSettings(type, null, null, null);
     }
 }

@@ -114,7 +114,7 @@ public final class ResponseValueUtils {
             case LONG, COUNTER_LONG -> ((LongBlock) block).getLong(offset);
             case INTEGER, COUNTER_INTEGER -> ((IntBlock) block).getInt(offset);
             case DOUBLE, COUNTER_DOUBLE -> ((DoubleBlock) block).getDouble(offset);
-            case KEYWORD, TEXT -> ((BytesRefBlock) block).getBytesRef(offset, scratch).utf8ToString();
+            case KEYWORD, SEMANTIC_TEXT, TEXT -> ((BytesRefBlock) block).getBytesRef(offset, scratch).utf8ToString();
             case IP -> {
                 BytesRef val = ((BytesRefBlock) block).getBytesRef(offset, scratch);
                 yield ipToString(val);
@@ -132,7 +132,7 @@ public final class ResponseValueUtils {
             case GEO_POINT, GEO_SHAPE, CARTESIAN_POINT, CARTESIAN_SHAPE -> spatialToString(
                 ((BytesRefBlock) block).getBytesRef(offset, scratch)
             );
-            case UNSUPPORTED -> (String) null;
+            case UNSUPPORTED, AGGREGATE_METRIC_DOUBLE -> (String) null;
             case SOURCE -> {
                 BytesRef val = ((BytesRefBlock) block).getBytesRef(offset, scratch);
                 try {

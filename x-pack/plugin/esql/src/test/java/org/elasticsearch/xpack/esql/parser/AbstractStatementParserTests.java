@@ -8,20 +8,28 @@
 package org.elasticsearch.xpack.esql.parser;
 
 import org.elasticsearch.common.logging.LoggerMessageFormat;
+import org.elasticsearch.index.IndexMode;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.xpack.esql.VerificationException;
+import org.elasticsearch.xpack.esql.core.expression.Expression;
 import org.elasticsearch.xpack.esql.core.expression.Literal;
+import org.elasticsearch.xpack.esql.core.expression.MapExpression;
 import org.elasticsearch.xpack.esql.core.expression.UnresolvedAttribute;
 import org.elasticsearch.xpack.esql.core.type.DataType;
+import org.elasticsearch.xpack.esql.expression.function.UnresolvedFunction;
+import org.elasticsearch.xpack.esql.plan.IndexPattern;
 import org.elasticsearch.xpack.esql.plan.logical.LogicalPlan;
+import org.elasticsearch.xpack.esql.plan.logical.UnresolvedRelation;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static org.elasticsearch.xpack.esql.core.tree.Source.EMPTY;
 import static org.elasticsearch.xpack.esql.core.util.NumericUtils.asLongUnsigned;
+import static org.elasticsearch.xpack.esql.expression.function.FunctionResolutionStrategy.DEFAULT;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -57,6 +65,14 @@ abstract class AbstractStatementParserTests extends ESTestCase {
 
     static UnresolvedAttribute attribute(String name) {
         return new UnresolvedAttribute(EMPTY, name);
+    }
+
+    static UnresolvedFunction function(String name, List<Expression> args) {
+        return new UnresolvedFunction(EMPTY, name, DEFAULT, args);
+    }
+
+    static UnresolvedRelation relation(String name) {
+        return new UnresolvedRelation(EMPTY, new IndexPattern(EMPTY, name), false, List.of(), IndexMode.STANDARD, null, "FROM");
     }
 
     static Literal integer(int i) {
@@ -111,6 +127,18 @@ abstract class AbstractStatementParserTests extends ESTestCase {
         return new Literal(EMPTY, Arrays.asList(strings), DataType.KEYWORD);
     }
 
+    static MapExpression mapExpression(Map<String, Object> keyValuePairs) {
+        List<Expression> ees = new ArrayList<>(keyValuePairs.size());
+        for (Map.Entry<String, Object> entry : keyValuePairs.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            DataType type = (value instanceof List<?> l) ? DataType.fromJava(l.get(0)) : DataType.fromJava(value);
+            ees.add(new Literal(EMPTY, key, DataType.KEYWORD));
+            ees.add(new Literal(EMPTY, value, type));
+        }
+        return new MapExpression(EMPTY, ees);
+    }
+
     void expectError(String query, String errorMessage) {
         ParsingException e = expectThrows(ParsingException.class, "Expected syntax error for " + query, () -> statement(query));
         assertThat(e.getMessage(), containsString(errorMessage));
@@ -130,8 +158,19 @@ abstract class AbstractStatementParserTests extends ESTestCase {
         assertThat(e.getMessage(), containsString(errorMessage));
     }
 
-    void expectInvalidIndexNameErrorWithLineNumber(String query, String arg, String lineNumber, String indexString) {
-        expectError(LoggerMessageFormat.format(null, query, arg), lineNumber + "Invalid index name [" + indexString);
+    void expectInvalidIndexNameErrorWithLineNumber(String query, String indexString, String lineNumber) {
+        if ((indexString.contains("|") || indexString.contains(" ")) == false) {
+            expectInvalidIndexNameErrorWithLineNumber(query, indexString, lineNumber, indexString);
+        }
+        expectInvalidIndexNameErrorWithLineNumber(query, "\"" + indexString + "\"", lineNumber, indexString);
+    }
+
+    void expectInvalidIndexNameErrorWithLineNumber(String query, String indexString, String lineNumber, String name) {
+        expectError(LoggerMessageFormat.format(null, query, indexString), lineNumber + "Invalid index name [" + name);
+    }
+
+    void expectInvalidIndexNameErrorWithLineNumber(String query, String indexString, String lineNumber, String name, String error) {
+        expectError(LoggerMessageFormat.format(null, query, indexString), lineNumber + "Invalid index name [" + name + "], " + error);
     }
 
     void expectDateMathErrorWithLineNumber(String query, String arg, String lineNumber, String error) {

@@ -13,7 +13,6 @@ import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.common.ParsingException;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.SuggestingErrorOnUnknown;
-import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.index.query.AbstractQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryRewriteContext;
@@ -50,8 +49,6 @@ import java.util.Objects;
  */
 public abstract class RetrieverBuilder implements Rewriteable<RetrieverBuilder>, ToXContent {
 
-    public static final NodeFeature RETRIEVERS_SUPPORTED = new NodeFeature("retrievers_supported");
-
     public static final ParseField PRE_FILTER_FIELD = new ParseField("filter");
 
     public static final ParseField MIN_SCORE_FIELD = new ParseField("min_score");
@@ -62,11 +59,11 @@ public abstract class RetrieverBuilder implements Rewriteable<RetrieverBuilder>,
         String name,
         AbstractObjectParser<? extends RetrieverBuilder, RetrieverParserContext> parser
     ) {
-        parser.declareObjectArray((r, v) -> r.preFilterQueryBuilders = v, (p, c) -> {
-            QueryBuilder preFilterQueryBuilder = AbstractQueryBuilder.parseTopLevelQuery(p, c::trackQueryUsage);
-            c.trackSectionUsage(name + ":" + PRE_FILTER_FIELD.getPreferredName());
-            return preFilterQueryBuilder;
-        }, PRE_FILTER_FIELD);
+        parser.declareObjectArray(
+            (r, v) -> r.preFilterQueryBuilders = new ArrayList<>(v),
+            (p, c) -> AbstractQueryBuilder.parseTopLevelQuery(p, c::trackQueryUsage),
+            PRE_FILTER_FIELD
+        );
         parser.declareString(RetrieverBuilder::retrieverName, NAME_FIELD);
         parser.declareFloat(RetrieverBuilder::minScore, MIN_SCORE_FIELD);
     }
@@ -138,7 +135,7 @@ public abstract class RetrieverBuilder implements Rewriteable<RetrieverBuilder>,
             throw new ParsingException(new XContentLocation(nonfe.getLineNumber(), nonfe.getColumnNumber()), message, nonfe);
         }
 
-        context.trackSectionUsage(retrieverName);
+        context.trackRetrieverUsage(retrieverName);
 
         if (parser.currentToken() != XContentParser.Token.END_OBJECT) {
             throw new ParsingException(
@@ -218,6 +215,10 @@ public abstract class RetrieverBuilder implements Rewriteable<RetrieverBuilder>,
         this.rankDocs = rankDocs;
     }
 
+    public RankDoc[] getRankDocs() {
+        return rankDocs;
+    }
+
     /**
      * Gets the filters for this retriever.
      */
@@ -239,6 +240,7 @@ public abstract class RetrieverBuilder implements Rewriteable<RetrieverBuilder>,
     public ActionRequestValidationException validate(
         SearchSourceBuilder source,
         ActionRequestValidationException validationException,
+        boolean isScroll,
         boolean allowPartialSearchResults
     ) {
         return validationException;

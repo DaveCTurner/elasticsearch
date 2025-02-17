@@ -42,7 +42,7 @@ final class ConfigDatabases implements Closeable {
     private final ConcurrentMap<String, DatabaseReaderLazyLoader> configDatabases;
 
     ConfigDatabases(Environment environment, GeoIpCache cache) {
-        this(environment.configFile().resolve("ingest-geoip"), cache);
+        this(environment.configDir().resolve("ingest-geoip"), cache);
     }
 
     ConfigDatabases(Path geoipConfigDir, GeoIpCache cache) {
@@ -73,14 +73,14 @@ final class ConfigDatabases implements Closeable {
         String databaseFileName = file.getFileName().toString();
         try {
             if (update) {
-                logger.info("database file changed [{}], reload database...", file);
+                logger.info("database file changed [{}], reloading database...", file);
                 DatabaseReaderLazyLoader loader = new DatabaseReaderLazyLoader(cache, file, null);
                 DatabaseReaderLazyLoader existing = configDatabases.put(databaseFileName, loader);
                 if (existing != null) {
                     existing.shutdown();
                 }
             } else {
-                logger.info("database file removed [{}], close database...", file);
+                logger.info("database file removed [{}], closing database...", file);
                 DatabaseReaderLazyLoader existing = configDatabases.remove(databaseFileName);
                 assert existing != null;
                 existing.shutdown();

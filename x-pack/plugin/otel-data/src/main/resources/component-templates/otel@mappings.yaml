@@ -17,6 +17,9 @@ template:
         type: constant_keyword
       data_stream.namespace:
         type: constant_keyword
+      event.dataset:
+        type: alias
+        path: data_stream.dataset
       attributes:
         type: passthrough
         dynamic: true
@@ -29,6 +32,7 @@ template:
           name:
             type: keyword
             ignore_above: 1024
+            time_series_dimension: true
           version:
             type: version
           schema_url:

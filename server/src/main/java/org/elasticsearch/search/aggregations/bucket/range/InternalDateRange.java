@@ -25,28 +25,12 @@ public class InternalDateRange extends InternalRange<InternalDateRange.Bucket, I
 
     public static class Bucket extends InternalRange.Bucket {
 
-        public Bucket(
-            String key,
-            double from,
-            double to,
-            long docCount,
-            List<InternalAggregation> aggregations,
-            boolean keyed,
-            DocValueFormat formatter
-        ) {
-            super(key, from, to, docCount, InternalAggregations.from(aggregations), keyed, formatter);
+        public Bucket(String key, double from, double to, long docCount, List<InternalAggregation> aggregations, DocValueFormat formatter) {
+            super(key, from, to, docCount, InternalAggregations.from(aggregations), formatter);
         }
 
-        public Bucket(
-            String key,
-            double from,
-            double to,
-            long docCount,
-            InternalAggregations aggregations,
-            boolean keyed,
-            DocValueFormat formatter
-        ) {
-            super(key, from, to, docCount, aggregations, keyed, formatter);
+        public Bucket(String key, double from, double to, long docCount, InternalAggregations aggregations, DocValueFormat formatter) {
+            super(key, from, to, docCount, aggregations, formatter);
         }
 
         @Override
@@ -99,10 +83,9 @@ public class InternalDateRange extends InternalRange<InternalDateRange.Bucket, I
             double to,
             long docCount,
             InternalAggregations aggregations,
-            boolean keyed,
             DocValueFormat formatter
         ) {
-            return new Bucket(key, from, to, docCount, aggregations, keyed, formatter);
+            return new Bucket(key, from, to, docCount, aggregations, formatter);
         }
 
         @Override
@@ -113,7 +96,6 @@ public class InternalDateRange extends InternalRange<InternalDateRange.Bucket, I
                 prototype.internalGetTo(),
                 prototype.getDocCount(),
                 aggregations,
-                prototype.getKeyed(),
                 prototype.getFormat()
             );
         }

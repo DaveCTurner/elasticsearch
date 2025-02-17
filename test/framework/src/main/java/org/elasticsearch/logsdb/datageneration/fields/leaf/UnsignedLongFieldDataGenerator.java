@@ -9,49 +9,32 @@
 
 package org.elasticsearch.logsdb.datageneration.fields.leaf;
 
-import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.logsdb.datageneration.FieldDataGenerator;
 import org.elasticsearch.logsdb.datageneration.datasource.DataSource;
 import org.elasticsearch.logsdb.datageneration.datasource.DataSourceRequest;
-import org.elasticsearch.logsdb.datageneration.datasource.DataSourceResponse;
-import org.elasticsearch.xcontent.XContentBuilder;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.function.Supplier;
 
 public class UnsignedLongFieldDataGenerator implements FieldDataGenerator {
     private final Supplier<Object> valueGenerator;
-    private final Map<String, Object> mappingParameters;
+    private final Supplier<Object> valueGeneratorWithMalformed;
 
-    public UnsignedLongFieldDataGenerator(
-        String fieldName,
-        DataSource dataSource,
-        DataSourceResponse.LeafMappingParametersGenerator mappingParametersGenerator
-    ) {
-        var unsignedLongs = dataSource.get(new DataSourceRequest.UnsignedLongGenerator());
-        var nulls = dataSource.get(new DataSourceRequest.NullWrapper());
-        var arrays = dataSource.get(new DataSourceRequest.ArrayWrapper());
+    public UnsignedLongFieldDataGenerator(String fieldName, DataSource dataSource) {
+        var unsignedLongs = dataSource.get(new DataSourceRequest.UnsignedLongGenerator()).generator();
 
-        this.valueGenerator = arrays.wrapper().compose(nulls.wrapper()).apply(() -> unsignedLongs.generator().get());
-        this.mappingParameters = mappingParametersGenerator.mappingGenerator().get();
+        this.valueGenerator = Wrappers.defaults(unsignedLongs::get, dataSource);
+
+        var strings = dataSource.get(new DataSourceRequest.StringGenerator()).generator();
+        this.valueGeneratorWithMalformed = Wrappers.defaultsWithMalformed(unsignedLongs::get, strings::get, dataSource);
     }
 
     @Override
-    public CheckedConsumer<XContentBuilder, IOException> mappingWriter() {
-        return b -> {
-            b.startObject().field("type", "unsigned_long");
+    public Object generateValue(Map<String, Object> fieldMapping) {
+        if (fieldMapping != null && (Boolean) fieldMapping.getOrDefault("ignore_malformed", false)) {
+            return valueGeneratorWithMalformed.get();
+        }
 
-            for (var entry : mappingParameters.entrySet()) {
-                b.field(entry.getKey(), entry.getValue());
-            }
-
-            b.endObject();
-        };
-    }
-
-    @Override
-    public CheckedConsumer<XContentBuilder, IOException> fieldValueGenerator() {
-        return b -> b.value(valueGenerator.get());
+        return valueGenerator.get();
     }
 }

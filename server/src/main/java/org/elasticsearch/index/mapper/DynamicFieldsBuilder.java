@@ -14,6 +14,7 @@ import org.elasticsearch.common.CheckedBiConsumer;
 import org.elasticsearch.common.CheckedSupplier;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.time.DateFormatter;
+import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.mapper.ObjectMapper.Dynamic;
 import org.elasticsearch.script.ScriptCompiler;
 import org.elasticsearch.xcontent.XContentParser;
@@ -334,13 +335,10 @@ final class DynamicFieldsBuilder {
                 );
             } else {
                 return createDynamicField(
-                    new TextFieldMapper.Builder(
-                        name,
-                        context.indexAnalyzers(),
-                        context.indexSettings().getMode().isSyntheticSourceEnabled()
-                    ).addMultiField(
-                        new KeywordFieldMapper.Builder("keyword", context.indexSettings().getIndexVersionCreated()).ignoreAbove(256)
-                    ),
+                    new TextFieldMapper.Builder(name, context.indexAnalyzers(), SourceFieldMapper.isSynthetic(context.indexSettings()))
+                        .addMultiField(
+                            new KeywordFieldMapper.Builder("keyword", context.indexSettings().getIndexVersionCreated()).ignoreAbove(256)
+                        ),
                     context
                 );
             }
@@ -405,17 +403,17 @@ final class DynamicFieldsBuilder {
                     dateTimeFormatter,
                     ScriptCompiler.NONE,
                     ignoreMalformed,
-                    context.indexSettings().getIndexVersionCreated()
+                    context.indexSettings().getMode(),
+                    context.indexSettings().getIndexSortConfig(),
+                    context.indexSettings().getIndexVersionCreated(),
+                    IndexSettings.USE_DOC_VALUES_SKIPPER.get(context.indexSettings().getSettings())
                 ),
                 context
             );
         }
 
         boolean newDynamicBinaryField(DocumentParserContext context, String name) throws IOException {
-            return createDynamicField(
-                new BinaryFieldMapper.Builder(name, context.indexSettings().getMode().isSyntheticSourceEnabled()),
-                context
-            );
+            return createDynamicField(new BinaryFieldMapper.Builder(name, SourceFieldMapper.isSynthetic(context.indexSettings())), context);
         }
     }
 

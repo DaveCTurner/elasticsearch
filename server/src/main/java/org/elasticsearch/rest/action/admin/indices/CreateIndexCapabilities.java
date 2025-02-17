@@ -21,5 +21,16 @@ public class CreateIndexCapabilities {
      */
     private static final String LOGSDB_INDEX_MODE_CAPABILITY = "logsdb_index_mode";
 
-    public static Set<String> CAPABILITIES = Set.of(LOGSDB_INDEX_MODE_CAPABILITY);
+    /**
+     * Support lookup index mode
+     */
+    private static final String LOOKUP_INDEX_MODE_CAPABILITY = "lookup_index_mode";
+
+    private static final String NESTED_DENSE_VECTOR_SYNTHETIC_TEST = "nested_dense_vector_synthetic_test";
+
+    public static final Set<String> CAPABILITIES = Set.of(
+        LOGSDB_INDEX_MODE_CAPABILITY,
+        LOOKUP_INDEX_MODE_CAPABILITY,
+        NESTED_DENSE_VECTOR_SYNTHETIC_TEST
+    );
 }

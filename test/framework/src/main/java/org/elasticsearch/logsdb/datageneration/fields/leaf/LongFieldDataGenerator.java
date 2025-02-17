@@ -9,49 +9,32 @@
 
 package org.elasticsearch.logsdb.datageneration.fields.leaf;
 
-import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.logsdb.datageneration.FieldDataGenerator;
 import org.elasticsearch.logsdb.datageneration.datasource.DataSource;
 import org.elasticsearch.logsdb.datageneration.datasource.DataSourceRequest;
-import org.elasticsearch.logsdb.datageneration.datasource.DataSourceResponse;
-import org.elasticsearch.xcontent.XContentBuilder;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.function.Supplier;
 
 public class LongFieldDataGenerator implements FieldDataGenerator {
     private final Supplier<Object> valueGenerator;
-    private final Map<String, Object> mappingParameters;
+    private final Supplier<Object> valueGeneratorWithMalformed;
 
-    public LongFieldDataGenerator(
-        String fieldName,
-        DataSource dataSource,
-        DataSourceResponse.LeafMappingParametersGenerator mappingParametersGenerator
-    ) {
-        var longs = dataSource.get(new DataSourceRequest.LongGenerator());
-        var nulls = dataSource.get(new DataSourceRequest.NullWrapper());
-        var arrays = dataSource.get(new DataSourceRequest.ArrayWrapper());
+    public LongFieldDataGenerator(String fieldName, DataSource dataSource) {
+        var longs = dataSource.get(new DataSourceRequest.LongGenerator()).generator();
 
-        this.valueGenerator = arrays.wrapper().compose(nulls.wrapper()).apply(() -> longs.generator().get());
-        this.mappingParameters = mappingParametersGenerator.mappingGenerator().get();
+        this.valueGenerator = Wrappers.defaults(longs::get, dataSource);
+
+        var strings = dataSource.get(new DataSourceRequest.StringGenerator()).generator();
+        this.valueGeneratorWithMalformed = Wrappers.defaultsWithMalformed(longs::get, strings::get, dataSource);
     }
 
     @Override
-    public CheckedConsumer<XContentBuilder, IOException> mappingWriter() {
-        return b -> {
-            b.startObject().field("type", "long");
+    public Object generateValue(Map<String, Object> fieldMapping) {
+        if (fieldMapping != null && (Boolean) fieldMapping.getOrDefault("ignore_malformed", false)) {
+            return valueGeneratorWithMalformed.get();
+        }
 
-            for (var entry : mappingParameters.entrySet()) {
-                b.field(entry.getKey(), entry.getValue());
-            }
-
-            b.endObject();
-        };
-    }
-
-    @Override
-    public CheckedConsumer<XContentBuilder, IOException> fieldValueGenerator() {
-        return b -> b.value(valueGenerator.get());
+        return valueGenerator.get();
     }
 }

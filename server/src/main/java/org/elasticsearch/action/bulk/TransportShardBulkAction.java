@@ -48,9 +48,11 @@ import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.index.get.GetResult;
 import org.elasticsearch.index.mapper.DocumentMapper;
+import org.elasticsearch.index.mapper.InferenceMetadataFieldsMapper;
 import org.elasticsearch.index.mapper.MapperException;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.mapper.MappingLookup;
+import org.elasticsearch.index.mapper.RoutingFieldMapper;
 import org.elasticsearch.index.mapper.SourceToParse;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.index.shard.IndexShard;
@@ -141,6 +143,15 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
     @Override
     protected BulkShardResponse newResponseInstance(StreamInput in) throws IOException {
         return new BulkShardResponse(in);
+    }
+
+    @Override
+    protected void shardOperationOnPrimary(
+        BulkShardRequest request,
+        IndexShard primary,
+        ActionListener<PrimaryResult<BulkShardRequest, BulkShardResponse>> listener
+    ) {
+        primary.ensureMutable(listener.delegateFailure((l, ignored) -> super.shardOperationOnPrimary(request, primary, l)));
     }
 
     @Override
@@ -326,7 +337,8 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
         if (opType == DocWriteRequest.OpType.UPDATE) {
             final UpdateRequest updateRequest = (UpdateRequest) context.getCurrent();
             try {
-                updateResult = updateHelper.prepare(updateRequest, context.getPrimary(), nowInMillisSupplier);
+                var gFields = getStoredFieldsSpec(context.getPrimary());
+                updateResult = updateHelper.prepare(updateRequest, context.getPrimary(), nowInMillisSupplier, gFields);
             } catch (Exception failure) {
                 // we may fail translating a update to index or delete operation
                 // we use index result to communicate failure while translating update request
@@ -373,6 +385,7 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
                 request.getContentType(),
                 request.routing(),
                 request.getDynamicTemplates(),
+                request.getIncludeSourceOnError(),
                 meteringParserDecorator
             );
             result = primary.applyIndexOperationOnPrimary(
@@ -399,6 +412,16 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
         }
         onComplete(result, context, updateResult);
         return true;
+    }
+
+    private static String[] getStoredFieldsSpec(IndexShard indexShard) {
+        if (InferenceMetadataFieldsMapper.isEnabled(indexShard.mapperService().mappingLookup())) {
+            if (indexShard.mapperService().mappingLookup().inferenceFields().size() > 0) {
+                // Retrieves the inference metadata field containing the inference results for all semantic fields defined in the mapping.
+                return new String[] { RoutingFieldMapper.NAME, InferenceMetadataFieldsMapper.NAME };
+            }
+        }
+        return new String[] { RoutingFieldMapper.NAME };
     }
 
     private static boolean handleMappingUpdateRequired(

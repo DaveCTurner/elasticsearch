@@ -42,6 +42,7 @@ public class EsqlQueryRequest extends org.elasticsearch.xpack.core.esql.action.E
     private String query;
     private boolean columnar;
     private boolean profile;
+    private boolean includeCCSMetadata;
     private Locale locale;
     private QueryBuilder filter;
     private QueryPragmas pragmas = new QueryPragmas(Settings.EMPTY);
@@ -51,6 +52,7 @@ public class EsqlQueryRequest extends org.elasticsearch.xpack.core.esql.action.E
     private boolean keepOnCompletion;
     private boolean onSnapshotBuild = Build.current().isSnapshot();
     private boolean acceptedPragmaRisks = false;
+    private boolean allowPartialResults = false;
 
     /**
      * "Tables" provided in the request for use with things like {@code LOOKUP}.
@@ -126,6 +128,14 @@ public class EsqlQueryRequest extends org.elasticsearch.xpack.core.esql.action.E
      */
     public void profile(boolean profile) {
         this.profile = profile;
+    }
+
+    public void includeCCSMetadata(boolean include) {
+        this.includeCCSMetadata = include;
+    }
+
+    public boolean includeCCSMetadata() {
+        return includeCCSMetadata;
     }
 
     /**
@@ -220,6 +230,14 @@ public class EsqlQueryRequest extends org.elasticsearch.xpack.core.esql.action.E
 
     public Map<String, Map<String, Column>> tables() {
         return tables;
+    }
+
+    public boolean allowPartialResults() {
+        return allowPartialResults;
+    }
+
+    public void allowPartialResults(boolean allowPartialResults) {
+        this.allowPartialResults = allowPartialResults;
     }
 
     @Override

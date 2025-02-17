@@ -9,6 +9,7 @@
 
 package org.elasticsearch.repositories;
 
+import org.elasticsearch.TransportVersions;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.rest.RestStatus;
@@ -19,11 +20,8 @@ import java.io.IOException;
  * Repository conflict exception
  */
 public class RepositoryConflictException extends RepositoryException {
-    private final String backwardCompatibleMessage;
-
-    public RepositoryConflictException(String repository, String message, String backwardCompatibleMessage) {
+    public RepositoryConflictException(String repository, String message) {
         super(repository, message);
-        this.backwardCompatibleMessage = backwardCompatibleMessage;
     }
 
     @Override
@@ -31,18 +29,20 @@ public class RepositoryConflictException extends RepositoryException {
         return RestStatus.CONFLICT;
     }
 
-    public String getBackwardCompatibleMessage() {
-        return backwardCompatibleMessage;
-    }
-
     public RepositoryConflictException(StreamInput in) throws IOException {
         super(in);
-        this.backwardCompatibleMessage = in.readString();
+        if (in.getTransportVersion().before(TransportVersions.REMOVE_REPOSITORY_CONFLICT_MESSAGE)) {
+            // Deprecated `backwardCompatibleMessage` field
+            in.readString();
+        }
     }
 
     @Override
     protected void writeTo(StreamOutput out, Writer<Throwable> nestedExceptionsWriter) throws IOException {
         super.writeTo(out, nestedExceptionsWriter);
-        out.writeString(backwardCompatibleMessage);
+        if (out.getTransportVersion().before(TransportVersions.REMOVE_REPOSITORY_CONFLICT_MESSAGE)) {
+            // Deprecated `backwardCompatibleMessage` field
+            out.writeString("");
+        }
     }
 }

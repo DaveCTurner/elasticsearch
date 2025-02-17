@@ -18,6 +18,7 @@ import org.elasticsearch.xpack.esql.core.type.DataType;
 import org.elasticsearch.xpack.esql.expression.SurrogateExpression;
 import org.elasticsearch.xpack.esql.expression.function.Example;
 import org.elasticsearch.xpack.esql.expression.function.FunctionInfo;
+import org.elasticsearch.xpack.esql.expression.function.FunctionType;
 import org.elasticsearch.xpack.esql.expression.function.Param;
 import org.elasticsearch.xpack.esql.expression.function.scalar.convert.ToDouble;
 import org.elasticsearch.xpack.esql.expression.function.scalar.multivalue.MvMedian;
@@ -25,6 +26,7 @@ import org.elasticsearch.xpack.esql.expression.function.scalar.multivalue.MvMedi
 import java.io.IOException;
 import java.util.List;
 
+import static java.util.Collections.emptyList;
 import static org.elasticsearch.xpack.esql.core.expression.TypeResolutions.ParamOrdinal.DEFAULT;
 import static org.elasticsearch.xpack.esql.core.expression.TypeResolutions.isType;
 
@@ -43,7 +45,7 @@ public class Median extends AggregateFunction implements SurrogateExpression {
             `MEDIAN` is also {wikipedia}/Nondeterministic_algorithm[non-deterministic].
             This means you can get slightly different results using the same data.
             ====""",
-        isAggregation = true,
+        type = FunctionType.AGGREGATE,
         examples = {
             @Example(file = "stats_percentile", tag = "median"),
             @Example(
@@ -55,7 +57,11 @@ public class Median extends AggregateFunction implements SurrogateExpression {
             ), }
     )
     public Median(Source source, @Param(name = "number", type = { "double", "integer", "long" }) Expression field) {
-        super(source, field);
+        this(source, field, Literal.TRUE);
+    }
+
+    public Median(Source source, Expression field, Expression filter) {
+        super(source, field, filter, emptyList());
     }
 
     @Override
@@ -85,12 +91,17 @@ public class Median extends AggregateFunction implements SurrogateExpression {
 
     @Override
     protected NodeInfo<Median> info() {
-        return NodeInfo.create(this, Median::new, field());
+        return NodeInfo.create(this, Median::new, field(), filter());
     }
 
     @Override
     public Median replaceChildren(List<Expression> newChildren) {
-        return new Median(source(), newChildren.get(0));
+        return new Median(source(), newChildren.get(0), newChildren.get(1));
+    }
+
+    @Override
+    public AggregateFunction withFilter(Expression filter) {
+        return new Median(source(), field(), filter);
     }
 
     @Override

@@ -89,7 +89,7 @@ abstract class PositionToXContent {
                     return builder.value(unsignedLongAsNumber(l));
                 }
             };
-            case KEYWORD, TEXT -> new PositionToXContent(block) {
+            case KEYWORD, SEMANTIC_TEXT, TEXT -> new PositionToXContent(block) {
                 @Override
                 protected XContentBuilder valueToXContent(XContentBuilder builder, ToXContent.Params params, int valueIndex)
                     throws IOException {
@@ -148,7 +148,8 @@ abstract class PositionToXContent {
                     return builder.value(versionToString(val));
                 }
             };
-            case NULL -> new PositionToXContent(block) {
+            // TODO: Add implementation for aggregate_metric_double
+            case NULL, AGGREGATE_METRIC_DOUBLE -> new PositionToXContent(block) {
                 @Override
                 protected XContentBuilder valueToXContent(XContentBuilder builder, ToXContent.Params params, int valueIndex)
                     throws IOException {

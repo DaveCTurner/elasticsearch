@@ -16,6 +16,7 @@ import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.cluster.metadata.RepositoryMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.BackoffPolicy;
 import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.blobstore.BlobPath;
@@ -98,13 +99,13 @@ class S3Repository extends MeteredBlobStoreRepository {
     /**
      * Maximum size of files that can be uploaded using a single upload request.
      */
-    static final ByteSizeValue MAX_FILE_SIZE = new ByteSizeValue(5, ByteSizeUnit.GB);
+    static final ByteSizeValue MAX_FILE_SIZE = ByteSizeValue.of(5, ByteSizeUnit.GB);
 
     /**
      * Minimum size of parts that can be uploaded using the Multipart Upload API.
      * (see http://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html)
      */
-    static final ByteSizeValue MIN_PART_SIZE_USING_MULTIPART = new ByteSizeValue(5, ByteSizeUnit.MB);
+    static final ByteSizeValue MIN_PART_SIZE_USING_MULTIPART = ByteSizeValue.of(5, ByteSizeUnit.MB);
 
     /**
      * Maximum size of parts that can be uploaded using the Multipart Upload API.
@@ -115,7 +116,7 @@ class S3Repository extends MeteredBlobStoreRepository {
     /**
      * Maximum size of files that can be uploaded using the Multipart Upload API.
      */
-    static final ByteSizeValue MAX_FILE_SIZE_USING_MULTIPART = new ByteSizeValue(5, ByteSizeUnit.TB);
+    static final ByteSizeValue MAX_FILE_SIZE_USING_MULTIPART = ByteSizeValue.of(5, ByteSizeUnit.TB);
 
     /**
      * Minimum threshold below which the chunk is uploaded using a single request. Beyond this threshold,
@@ -136,7 +137,7 @@ class S3Repository extends MeteredBlobStoreRepository {
     static final Setting<ByteSizeValue> CHUNK_SIZE_SETTING = Setting.byteSizeSetting(
         "chunk_size",
         MAX_FILE_SIZE_USING_MULTIPART,
-        new ByteSizeValue(5, ByteSizeUnit.MB),
+        ByteSizeValue.of(5, ByteSizeUnit.MB),
         MAX_FILE_SIZE_USING_MULTIPART
     );
 
@@ -199,6 +200,36 @@ class S3Repository extends MeteredBlobStoreRepository {
         "max_multipart_upload_cleanup_size",
         1000,
         0,
+        Setting.Property.Dynamic
+    );
+
+    /**
+     * We will retry deletes that fail due to throttling. We use an {@link BackoffPolicy#linearBackoff(TimeValue, int, TimeValue)}
+     * with the following parameters
+     */
+    static final Setting<TimeValue> RETRY_THROTTLED_DELETE_DELAY_INCREMENT = Setting.timeSetting(
+        "throttled_delete_retry.delay_increment",
+        TimeValue.timeValueMillis(50),
+        TimeValue.ZERO
+    );
+    static final Setting<TimeValue> RETRY_THROTTLED_DELETE_MAXIMUM_DELAY = Setting.timeSetting(
+        "throttled_delete_retry.maximum_delay",
+        TimeValue.timeValueSeconds(5),
+        TimeValue.ZERO
+    );
+    static final Setting<Integer> RETRY_THROTTLED_DELETE_MAX_NUMBER_OF_RETRIES = Setting.intSetting(
+        "throttled_delete_retry.maximum_number_of_retries",
+        10,
+        0
+    );
+
+    /**
+     * Time to wait before trying again if getRegister fails.
+     */
+    static final Setting<TimeValue> GET_REGISTER_RETRY_DELAY = Setting.timeSetting(
+        "get_register_retry_delay",
+        new TimeValue(5, TimeUnit.SECONDS),
+        new TimeValue(0, TimeUnit.MILLISECONDS),
         Setting.Property.Dynamic
     );
 
@@ -287,8 +318,7 @@ class S3Repository extends MeteredBlobStoreRepository {
             deprecationLogger.critical(
                 DeprecationCategory.SECURITY,
                 "s3_repository_secret_settings",
-                "Using s3 access/secret key from repository settings. Instead "
-                    + "store these in named clients and the elasticsearch keystore for secure settings."
+                INSECURE_CREDENTIALS_DEPRECATION_WARNING
             );
         }
 
@@ -304,6 +334,11 @@ class S3Repository extends MeteredBlobStoreRepository {
             storageClass
         );
     }
+
+    static final String INSECURE_CREDENTIALS_DEPRECATION_WARNING = Strings.format("""
+        This repository's settings include a S3 access key and secret key, but repository settings are stored in plaintext and must not be \
+        used for security-sensitive information. Instead, store all secure settings in the keystore. See [%s] for more information.\
+        """, ReferenceDocs.SECURE_SETTINGS);
 
     private static Map<String, String> buildLocation(RepositoryMetadata metadata) {
         return Map.of("base_path", BASE_PATH_SETTING.get(metadata.settings()), "bucket", BUCKET_SETTING.get(metadata.settings()));
@@ -424,7 +459,12 @@ class S3Repository extends MeteredBlobStoreRepository {
             metadata,
             bigArrays,
             threadPool,
-            s3RepositoriesMetrics
+            s3RepositoriesMetrics,
+            BackoffPolicy.linearBackoff(
+                RETRY_THROTTLED_DELETE_DELAY_INCREMENT.get(metadata.settings()),
+                RETRY_THROTTLED_DELETE_MAX_NUMBER_OF_RETRIES.get(metadata.settings()),
+                RETRY_THROTTLED_DELETE_MAXIMUM_DELAY.get(metadata.settings())
+            )
         );
     }
 
