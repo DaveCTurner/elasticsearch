@@ -66,6 +66,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
+import org.elasticsearch.common.logging.ChunkedLoggingStream;
 import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
@@ -100,6 +101,8 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1788,6 +1791,27 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
      * @return updated cluster state
      */
     public static ClusterState stateWithoutSnapshot(ClusterState state, Snapshot snapshot, ShardGenerations shardGenerations) {
+        try (
+            var chunkedLoggingStream = ChunkedLoggingStream.create(
+                logger,
+                Level.INFO,
+                Strings.format("stateWithoutSnapshot[%s/%s]", state.version(), snapshot),
+                ReferenceDocs.LOGGING
+            );
+            var printWriter = new PrintWriter(chunkedLoggingStream)
+        ) {
+            return stateWithoutSnapshot(state, snapshot, shardGenerations, printWriter);
+        } catch (IOException e) {
+            throw new AssertionError("impossible", e);
+        }
+    }
+
+    private static ClusterState stateWithoutSnapshot(
+        ClusterState state,
+        Snapshot snapshot,
+        ShardGenerations shardGenerations,
+        PrintWriter logWriter
+    ) {
         final SnapshotsInProgress inProgressSnapshots = SnapshotsInProgress.get(state);
         ClusterState result = state;
         int indexOfEntry = -1;
@@ -1800,11 +1824,21 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                 break;
             }
         }
+        logWriter.println(Strings.format("finalizing entry [%s]: [%s]", indexOfEntry, snapshot));
         if (indexOfEntry >= 0) {
             final List<SnapshotsInProgress.Entry> updatedEntries = new ArrayList<>(entryList.size() - 1);
             final SnapshotsInProgress.Entry removedEntry = entryList.get(indexOfEntry);
+            logWriter.println(Strings.format("removedEntry.isClone()=[%s]", removedEntry.isClone()));
             for (int i = 0; i < indexOfEntry; i++) {
                 final SnapshotsInProgress.Entry previousEntry = entryList.get(i);
+                logWriter.println(
+                    Strings.format(
+                        "updating earlier entry [%s]: [%s]; previousEntry.isClone()=[%s]",
+                        i,
+                        previousEntry.snapshot(),
+                        previousEntry.isClone()
+                    )
+                );
                 if (removedEntry.isClone()) {
                     if (previousEntry.isClone()) {
                         ImmutableOpenMap.Builder<RepositoryShardId, ShardSnapshotStatus> updatedShardAssignments = null;
@@ -1817,7 +1851,16 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                                     updatedShardAssignments,
                                     shardState,
                                     finishedShardEntry.getKey(),
-                                    previousEntry.shardSnapshotStatusByRepoShardId()
+                                    previousEntry.shardSnapshotStatusByRepoShardId(),
+                                    logWriter
+                                );
+                            } else {
+                                logWriter.println(
+                                    Strings.format(
+                                        "clone/clone: skip shard [%s] with state [%s]",
+                                        finishedShardEntry.getKey(),
+                                        shardState.state()
+                                    )
                                 );
                             }
                         }
@@ -1829,15 +1872,32 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                             .entrySet()) {
                             final ShardSnapshotStatus shardState = finishedShardEntry.getValue();
                             final RepositoryShardId repositoryShardId = finishedShardEntry.getKey();
-                            if (shardState.state() != ShardState.SUCCESS
-                                || previousEntry.shardSnapshotStatusByRepoShardId().containsKey(repositoryShardId) == false) {
+                            if (shardState.state() != ShardState.SUCCESS) {
+                                logWriter.println(
+                                    Strings.format(
+                                        "clone/snap: skip shard [%s] with state [%s]",
+                                        finishedShardEntry.getKey(),
+                                        shardState.state()
+                                    )
+                                );
+                                continue;
+                            }
+                            if (previousEntry.shardSnapshotStatusByRepoShardId().containsKey(repositoryShardId) == false) {
+                                logWriter.println(
+                                    Strings.format(
+                                        "clone/snap: skip shard [%s] with repositoryShardId [%s]",
+                                        finishedShardEntry.getKey(),
+                                        repositoryShardId
+                                    )
+                                );
                                 continue;
                             }
                             updatedShardAssignments = maybeAddUpdatedAssignment(
                                 updatedShardAssignments,
                                 shardState,
                                 previousEntry.shardId(repositoryShardId),
-                                previousEntry.shards()
+                                previousEntry.shards(),
+                                logWriter
                             );
 
                         }
@@ -1851,16 +1911,38 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                             .entrySet()) {
                             final ShardSnapshotStatus shardState = finishedShardEntry.getValue();
                             final RepositoryShardId repositoryShardId = finishedShardEntry.getKey();
-                            if (shardState.state() != ShardState.SUCCESS
-                                || previousEntry.shardSnapshotStatusByRepoShardId().containsKey(repositoryShardId) == false
-                                || shardGenerations.hasShardGen(finishedShardEntry.getKey()) == false) {
+                            if (shardState.state() != ShardState.SUCCESS) {
+                                logWriter.println(
+                                    Strings.format(
+                                        "snap/clone: skip shard [%s] with state [%s]",
+                                        finishedShardEntry.getKey(),
+                                        shardState.state()
+                                    )
+                                );
+                                continue;
+                            }
+                            if (previousEntry.shardSnapshotStatusByRepoShardId().containsKey(repositoryShardId) == false) {
+                                logWriter.println(
+                                    Strings.format(
+                                        "snap/clone: skip shard [%s] with repositoryShardId [%s]",
+                                        finishedShardEntry.getKey(),
+                                        repositoryShardId
+                                    )
+                                );
+                                continue;
+                            }
+                            if (shardGenerations.hasShardGen(finishedShardEntry.getKey()) == false) {
+                                logWriter.println(
+                                    Strings.format("snap/clone: skip shard [%s] with missing shard gen", finishedShardEntry.getKey())
+                                );
                                 continue;
                             }
                             updatedShardAssignments = maybeAddUpdatedAssignment(
                                 updatedShardAssignments,
                                 shardState,
                                 repositoryShardId,
-                                previousEntry.shardSnapshotStatusByRepoShardId()
+                                previousEntry.shardSnapshotStatusByRepoShardId(),
+                                logWriter
                             );
                         }
                         addCloneEntry(updatedEntries, previousEntry, updatedShardAssignments);
@@ -1870,23 +1952,48 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                             .shardSnapshotStatusByRepoShardId()
                             .entrySet()) {
                             final ShardSnapshotStatus shardState = finishedShardEntry.getValue();
-                            if (shardState.state() == ShardState.SUCCESS
-                                && previousEntry.shardSnapshotStatusByRepoShardId().containsKey(finishedShardEntry.getKey())
-                                && shardGenerations.hasShardGen(finishedShardEntry.getKey())) {
-                                updatedShardAssignments = maybeAddUpdatedAssignment(
-                                    updatedShardAssignments,
-                                    shardState,
-                                    previousEntry.shardId(finishedShardEntry.getKey()),
-                                    previousEntry.shards()
+                            if (shardState.state() != ShardState.SUCCESS) {
+                                logWriter.println(
+                                    Strings.format(
+                                        "snap/snap: skip shard [%s] with state [%s]",
+                                        finishedShardEntry.getKey(),
+                                        shardState.state()
+                                    )
                                 );
+                                continue;
                             }
+                            if (previousEntry.shardSnapshotStatusByRepoShardId().containsKey(finishedShardEntry.getKey()) == false) {
+                                logWriter.println(
+                                    Strings.format(
+                                        "snap/snap: skip shard [%s] with repositoryShardId [%s]",
+                                        finishedShardEntry.getKey(),
+                                        finishedShardEntry.getKey()
+                                    )
+                                );
+                                continue;
+                            }
+                            if (shardGenerations.hasShardGen(finishedShardEntry.getKey()) == false) {
+                                logWriter.println(
+                                    Strings.format("snap/snap: skip shard [%s] with missing shard gen", finishedShardEntry.getKey())
+                                );
+                                continue;
+                            }
+                            updatedShardAssignments = maybeAddUpdatedAssignment(
+                                updatedShardAssignments,
+                                shardState,
+                                previousEntry.shardId(finishedShardEntry.getKey()),
+                                previousEntry.shards(),
+                                logWriter
+                            );
                         }
                         addSnapshotEntry(updatedEntries, previousEntry, updatedShardAssignments);
                     }
                 }
             }
             for (int i = indexOfEntry + 1; i < entryList.size(); i++) {
-                updatedEntries.add(entryList.get(i));
+                final var laterEntry = entryList.get(i);
+                logWriter.println(Strings.format("copying later entry [%s]: [%s]", i, laterEntry.snapshot()));
+                updatedEntries.add(laterEntry);
             }
             result = ClusterState.builder(state)
                 .putCustom(
@@ -1933,18 +2040,40 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
         @Nullable ImmutableOpenMap.Builder<T, ShardSnapshotStatus> updatedShardAssignments,
         ShardSnapshotStatus finishedShardState,
         T shardId,
-        Map<T, ShardSnapshotStatus> statesToUpdate
+        Map<T, ShardSnapshotStatus> statesToUpdate,
+        PrintWriter logWriter
     ) {
         final ShardGeneration newGeneration = finishedShardState.generation();
         final ShardSnapshotStatus stateToUpdate = statesToUpdate.get(shardId);
-        if (stateToUpdate != null
-            && stateToUpdate.state() == ShardState.SUCCESS
-            && Objects.equals(newGeneration, stateToUpdate.generation()) == false) {
-            if (updatedShardAssignments == null) {
-                updatedShardAssignments = ImmutableOpenMap.builder();
-            }
-            updatedShardAssignments.put(shardId, stateToUpdate.withUpdatedGeneration(newGeneration));
+        if (stateToUpdate == null) {
+            logWriter.println(Strings.format("maybeAddUpdatedAssignment[%s]: no state to update", shardId));
+            return updatedShardAssignments;
         }
+        if (stateToUpdate.state() != ShardState.SUCCESS) {
+            logWriter.println(
+                Strings.format("maybeAddUpdatedAssignment[%s]: not updating shard with state [%s]", shardId, stateToUpdate.state())
+            );
+            return updatedShardAssignments;
+        }
+        if (Objects.equals(newGeneration, stateToUpdate.generation())) {
+            logWriter.println(
+                Strings.format("maybeAddUpdatedAssignment[%s]: skipping no-op update of generation [%s]", shardId, newGeneration)
+            );
+            return updatedShardAssignments;
+        }
+
+        logWriter.println(
+            Strings.format(
+                "maybeAddUpdatedAssignment[%s]: updating generation from [%s] to [%s]",
+                shardId,
+                stateToUpdate.generation(),
+                newGeneration
+            )
+        );
+        if (updatedShardAssignments == null) {
+            updatedShardAssignments = ImmutableOpenMap.builder();
+        }
+        updatedShardAssignments.put(shardId, stateToUpdate.withUpdatedGeneration(newGeneration));
         return updatedShardAssignments;
     }
 
