@@ -1864,7 +1864,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                                 );
                             }
                         }
-                        addCloneEntry(updatedEntries, previousEntry, updatedShardAssignments);
+                        addCloneEntry(updatedEntries, previousEntry, updatedShardAssignments, logWriter);
                     } else {
                         ImmutableOpenMap.Builder<ShardId, ShardSnapshotStatus> updatedShardAssignments = null;
                         for (Map.Entry<RepositoryShardId, ShardSnapshotStatus> finishedShardEntry : removedEntry
@@ -1901,7 +1901,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                             );
 
                         }
-                        addSnapshotEntry(updatedEntries, previousEntry, updatedShardAssignments);
+                        addSnapshotEntry(updatedEntries, previousEntry, updatedShardAssignments, logWriter);
                     }
                 } else {
                     if (previousEntry.isClone()) {
@@ -1945,7 +1945,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                                 logWriter
                             );
                         }
-                        addCloneEntry(updatedEntries, previousEntry, updatedShardAssignments);
+                        addCloneEntry(updatedEntries, previousEntry, updatedShardAssignments, logWriter);
                     } else {
                         ImmutableOpenMap.Builder<ShardId, ShardSnapshotStatus> updatedShardAssignments = null;
                         for (Map.Entry<RepositoryShardId, ShardSnapshotStatus> finishedShardEntry : removedEntry
@@ -1986,7 +1986,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                                 logWriter
                             );
                         }
-                        addSnapshotEntry(updatedEntries, previousEntry, updatedShardAssignments);
+                        addSnapshotEntry(updatedEntries, previousEntry, updatedShardAssignments, logWriter);
                     }
                 }
             }
@@ -2008,13 +2008,19 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
     private static void addSnapshotEntry(
         List<SnapshotsInProgress.Entry> entries,
         SnapshotsInProgress.Entry entryToUpdate,
-        @Nullable ImmutableOpenMap.Builder<ShardId, ShardSnapshotStatus> updatedShardAssignments
+        @Nullable ImmutableOpenMap.Builder<ShardId, ShardSnapshotStatus> updatedShardAssignments,
+        PrintWriter logWriter
     ) {
         if (updatedShardAssignments == null) {
+            logWriter.println(Strings.format("addSnapshotEntry[%s]: no updates", entryToUpdate.snapshot()));
             entries.add(entryToUpdate);
         } else {
             final ImmutableOpenMap.Builder<ShardId, ShardSnapshotStatus> updatedStatus = ImmutableOpenMap.builder(entryToUpdate.shards());
-            updatedStatus.putAllFromMap(updatedShardAssignments.build());
+            final var finalUpdatedShardAssignments = updatedShardAssignments.build();
+            logWriter.println(
+                Strings.format("addSnapshotEntry[%s]: applying updates [%s]", entryToUpdate.snapshot(), finalUpdatedShardAssignments)
+            );
+            updatedStatus.putAllFromMap(finalUpdatedShardAssignments);
             entries.add(entryToUpdate.withShardStates(updatedStatus.build()));
         }
     }
@@ -2022,15 +2028,21 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
     private static void addCloneEntry(
         List<SnapshotsInProgress.Entry> entries,
         SnapshotsInProgress.Entry entryToUpdate,
-        @Nullable ImmutableOpenMap.Builder<RepositoryShardId, ShardSnapshotStatus> updatedShardAssignments
+        @Nullable ImmutableOpenMap.Builder<RepositoryShardId, ShardSnapshotStatus> updatedShardAssignments,
+        PrintWriter logWriter
     ) {
         if (updatedShardAssignments == null) {
+            logWriter.println(Strings.format("addCloneEntry[%s]: no updates", entryToUpdate.snapshot()));
             entries.add(entryToUpdate);
         } else {
             final ImmutableOpenMap.Builder<RepositoryShardId, ShardSnapshotStatus> updatedStatus = ImmutableOpenMap.builder(
                 entryToUpdate.shardSnapshotStatusByRepoShardId()
             );
-            updatedStatus.putAllFromMap(updatedShardAssignments.build());
+            final var finalUpdatedShardAssignments = updatedShardAssignments.build();
+            logWriter.println(
+                Strings.format("addCloneEntry[%s]: applying updates [%s]", entryToUpdate.snapshot(), finalUpdatedShardAssignments)
+            );
+            updatedStatus.putAllFromMap(finalUpdatedShardAssignments);
             entries.add(entryToUpdate.withClones(updatedStatus.build()));
         }
     }
