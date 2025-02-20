@@ -333,10 +333,10 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 startNodeShutdownMarker();
             }
 
-            if (completedSnapshotLatch.await(30, TimeUnit.SECONDS)) {
+            if (completedSnapshotLatch.await(120, TimeUnit.SECONDS)) {
                 logger.info("--> completed target snapshot count, finishing test");
             } else {
-                logger.info("--> did not complete target snapshot count in 30s, giving up");
+                logger.info("--> did not complete target snapshot count in 120s, giving up");
             }
 
             assertTrue(shouldStop.compareAndSet(false, true));
