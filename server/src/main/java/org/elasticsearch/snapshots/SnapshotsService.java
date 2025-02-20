@@ -1827,6 +1827,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
             }
         }
         logWriter.println(Strings.format("finalizing entry [%s]: [%s]", indexOfEntry, snapshot));
+        logWriter.println(Strings.format("shardGenerations=[{}]", shardGenerations));
         if (indexOfEntry >= 0) {
             final List<SnapshotsInProgress.Entry> updatedEntries = new ArrayList<>(entryList.size() - 1);
             final SnapshotsInProgress.Entry removedEntry = entryList.get(indexOfEntry);
