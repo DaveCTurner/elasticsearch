@@ -61,6 +61,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.cluster.service.MasterServiceTaskQueue;
 import org.elasticsearch.common.Priority;
+import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.UUIDs;
@@ -78,6 +79,7 @@ import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Predicates;
 import org.elasticsearch.core.SuppressForbidden;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexNotFoundException;
@@ -3795,7 +3797,11 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
             listener.delegateFailure((delegate, result) -> delegate.onResponse(null))
         );
         logger.trace("received updated snapshot restore state [{}]", update);
-        masterServiceTaskQueue.submitTask("update snapshot state", update, null);
+        threadPool.schedule(
+            () -> masterServiceTaskQueue.submitTask("update snapshot state", update, null),
+            TimeValue.timeValueMillis(Randomness.get().nextInt(200)),
+            threadPool.generic()
+        );
     }
 
     private void startExecutableClones(SnapshotsInProgress snapshotsInProgress, @Nullable String repoName) {
