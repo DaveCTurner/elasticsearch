@@ -643,19 +643,25 @@ public class PersistedClusterStateService {
                 }
             });
             logger.trace("found index metadata for {}", indexMetadata.getIndex());
-            try (
-                var logStream = ChunkedLoggingStream.create(
-                    logger,
-                    Level.INFO,
-                    "index metadata for [" + indexMetadata.getIndex() + "]",
-                    ReferenceDocs.INITIAL_MASTER_NODES
-                );
-                var xcontentBuilder = new XContentBuilder(XContentType.JSON.xContent(), logStream)
-            ) {
-                xcontentBuilder.startObject();
-                indexMetadata.toXContent(xcontentBuilder, ToXContent.EMPTY_PARAMS);
-                xcontentBuilder.endObject();
+            final var ilmCustom = indexMetadata.getCustomData("ilm");
+            if (ilmCustom == null) {
+                logger.info("{}: no ILM state", indexMetadata.getIndex());
+            } else {
+                logger.info("{}: ILM stepinfo length {}", indexMetadata.getIndex(), ilmCustom.getOrDefault("step_info", "").length());
             }
+            // try (
+            // var logStream = ChunkedLoggingStream.create(
+            // logger,
+            // Level.INFO,
+            // "index metadata for [" + indexMetadata.getIndex() + "]",
+            // ReferenceDocs.INITIAL_MASTER_NODES
+            // );
+            // var xcontentBuilder = new XContentBuilder(XContentType.JSON.xContent(), logStream)
+            // ) {
+            // xcontentBuilder.startObject();
+            // indexMetadata.toXContent(xcontentBuilder, ToXContent.EMPTY_PARAMS);
+            // xcontentBuilder.endObject();
+            // }
             if (indexUUIDs.add(indexMetadata.getIndexUUID()) == false) {
                 throw new CorruptStateException("duplicate metadata found for " + indexMetadata.getIndex() + " in [" + dataPath + "]");
             }
