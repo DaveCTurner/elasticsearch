@@ -41,6 +41,7 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.coordination.CoordinationMetadata;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
@@ -564,6 +565,10 @@ public class PersistedClusterStateService {
     }
 
     public OnDiskState loadOnDiskState(Path dataPath, DirectoryReader reader) throws IOException {
+        final Map<String, String> userData = reader.getIndexCommit().getUserData();
+        logger.trace("loaded metadata [{}] from [{}]", userData, reader.directory());
+        OnDiskStateMetadata onDiskStateMetadata = loadOnDiskStateMetadataFromUserData(userData);
+
         final IndexSearcher searcher = new IndexSearcher(reader);
         searcher.setQueryCache(null);
 
@@ -574,7 +579,15 @@ public class PersistedClusterStateService {
             if (builderReference.get() != null) {
                 throw new CorruptStateException("duplicate global metadata found in [" + dataPath + "]");
             }
-            builderReference.set(Metadata.builder(metadata));
+            final var builder = Metadata.builder(metadata);
+            final var votingConfig = new CoordinationMetadata.VotingConfiguration(Set.of(onDiskStateMetadata.nodeId()));
+            builder.coordinationMetadata(
+                CoordinationMetadata.builder(metadata.coordinationMetadata())
+                    .lastAcceptedConfiguration(votingConfig)
+                    .lastCommittedConfiguration(votingConfig)
+                    .build()
+            );
+            builderReference.set(builder);
         });
 
         final Metadata.Builder builder = builderReference.get();
@@ -633,9 +646,6 @@ public class PersistedClusterStateService {
             builder.put(indexMetadata, false);
         });
 
-        final Map<String, String> userData = reader.getIndexCommit().getUserData();
-        logger.trace("loaded metadata [{}] from [{}]", userData, reader.directory());
-        OnDiskStateMetadata onDiskStateMetadata = loadOnDiskStateMetadataFromUserData(userData);
         return new OnDiskState(
             onDiskStateMetadata.nodeId(),
             dataPath,
