@@ -652,7 +652,9 @@ public class PersistedClusterStateService {
                 );
                 var xcontentBuilder = new XContentBuilder(XContentType.JSON.xContent(), logStream)
             ) {
+                xcontentBuilder.startObject();
                 indexMetadata.toXContent(xcontentBuilder, ToXContent.EMPTY_PARAMS);
+                xcontentBuilder.endObject();
             }
             if (indexUUIDs.add(indexMetadata.getIndexUUID()) == false) {
                 throw new CorruptStateException("duplicate metadata found for " + indexMetadata.getIndex() + " in [" + dataPath + "]");
