@@ -344,7 +344,7 @@ public class PublicationTransportHandler {
                 () -> newState.diff(previousState)
             );
             for (DiscoveryNode node : discoveryNodes) {
-                if (node.equals(transportService.getLocalNode())) {
+                if (false && node.equals(transportService.getLocalNode())) {
                     // publication to local node bypasses any serialization
                     continue;
                 }
