@@ -7,6 +7,7 @@
  */
 package org.elasticsearch.gateway;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.core.KeywordAnalyzer;
@@ -47,12 +48,14 @@ import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.common.CheckedBiConsumer;
 import org.elasticsearch.common.Randomness;
+import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.CompositeBytesReference;
 import org.elasticsearch.common.compress.CompressedXContent;
 import org.elasticsearch.common.compress.CompressorFactory;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import org.elasticsearch.common.logging.ChunkedLoggingStream;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.lucene.Lucene;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -640,6 +643,17 @@ public class PersistedClusterStateService {
                 }
             });
             logger.trace("found index metadata for {}", indexMetadata.getIndex());
+            try (
+                var logStream = ChunkedLoggingStream.create(
+                    logger,
+                    Level.INFO,
+                    "index metadata for [" + indexMetadata.getIndex() + "]",
+                    ReferenceDocs.INITIAL_MASTER_NODES
+                );
+                var xcontentBuilder = new XContentBuilder(XContentType.JSON.xContent(), logStream)
+            ) {
+                indexMetadata.toXContent(xcontentBuilder, ToXContent.EMPTY_PARAMS);
+            }
             if (indexUUIDs.add(indexMetadata.getIndexUUID()) == false) {
                 throw new CorruptStateException("duplicate metadata found for " + indexMetadata.getIndex() + " in [" + dataPath + "]");
             }
