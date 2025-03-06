@@ -49,6 +49,7 @@ import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.common.CheckedBiConsumer;
 import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.ReferenceDocs;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.CompositeBytesReference;
@@ -643,12 +644,15 @@ public class PersistedClusterStateService {
                 }
             });
             logger.trace("found index metadata for {}", indexMetadata.getIndex());
-            final var ilmCustom = indexMetadata.getCustomData("ilm");
-            if (ilmCustom == null) {
-                logger.info("{}: no ILM state", indexMetadata.getIndex());
-            } else {
-                logger.info("{}: ILM stepinfo length {}", indexMetadata.getIndex(), ilmCustom.getOrDefault("step_info", "").length());
-            }
+            logger.info("--> SDHE-8820 {}", Strings.toString((xbuilder, params) -> {
+                xbuilder.startObject();
+                xbuilder.field("index", indexMetadata.getIndex());
+                final var ilmCustom = indexMetadata.getCustomData("ilm");
+                if (ilmCustom != null) {
+                    xbuilder.field("step_info len", ilmCustom.getOrDefault("step_info", "").length());
+                }
+                return xbuilder.endObject();
+            }));
             // try (
             // var logStream = ChunkedLoggingStream.create(
             // logger,
