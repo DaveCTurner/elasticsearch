@@ -232,6 +232,7 @@ public class PublicationTransportHandler {
     }
 
     private ReleasableBytesReference serializeFullClusterState(ClusterState clusterState, DiscoveryNode node, TransportVersion version) {
+        logger.info("serializeFullClusterState: version [{}], term [{}]", clusterState.version(), clusterState.term());
         final RecyclerBytesStreamOutput bytesStream = transportService.newNetworkBytesStream();
         boolean success = false;
         try {
@@ -250,7 +251,7 @@ public class PublicationTransportHandler {
             }
             final ReleasableBytesReference result = new ReleasableBytesReference(bytesStream.bytes(), bytesStream);
             serializationStatsTracker.serializedFullState(uncompressedBytes, result.length());
-            logger.trace(
+            logger.info(
                 "serialized full cluster state version [{}] using transport version [{}] with size [{}]",
                 clusterState.version(),
                 version,
@@ -334,7 +335,7 @@ public class PublicationTransportHandler {
             newState = clusterStatePublicationEvent.getNewState();
             previousState = clusterStatePublicationEvent.getOldState();
             task = clusterStatePublicationEvent.getTask();
-            sendFullVersion = previousState.getBlocks().disableStatePersistence();
+            sendFullVersion = true; // previousState.getBlocks().disableStatePersistence();
         }
 
         void buildDiffAndSerializeStates() {
