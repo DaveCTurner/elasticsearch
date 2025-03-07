@@ -493,9 +493,15 @@ public class PeerRecoveryTargetService implements IndexEventListener {
                 startingSeqNo = UNASSIGNED_SEQ_NO;
             }
         } catch (final org.apache.lucene.index.IndexNotFoundException e) {
-            // happens on an empty folder. no need to log
-            assert startingSeqNo == UNASSIGNED_SEQ_NO : new AssertionError("startingSeqNo=" + startingSeqNo, e);
-            logger.trace("{} shard folder empty, recovering all files", recoveryTarget);
+            if (startingSeqNo == UNASSIGNED_SEQ_NO) {
+                // happens on an empty folder. no need to log
+                logger.trace("{} shard folder empty, recovering all files", recoveryTarget);
+            } else {
+                // hmm we have a translog but no index data, that's seems kinda broken
+                logger.warn("""
+                    {} shard data folder empty but translog exists starting at seqNo {}; \
+                    will repair this with a full recovery from primary""", recoveryTarget, startingSeqNo);
+            }
             metadataSnapshot = Store.MetadataSnapshot.EMPTY;
         } catch (final IOException e) {
             if (startingSeqNo != UNASSIGNED_SEQ_NO) {
