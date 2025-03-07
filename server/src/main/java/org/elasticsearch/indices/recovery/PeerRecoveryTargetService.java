@@ -28,6 +28,7 @@ import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.ProjectMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.component.Lifecycle;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
@@ -498,9 +499,9 @@ public class PeerRecoveryTargetService implements IndexEventListener {
                 logger.trace("{} shard folder empty, recovering all files", recoveryTarget);
             } else {
                 // hmm we have a translog but no index data, that's seems kinda broken
-                logger.warn("""
-                    {} shard data folder empty but translog exists starting at seqNo {}; \
-                    will repair this with a full recovery from primary""", recoveryTarget, startingSeqNo);
+                logger.warn(Strings.format("""
+                    %s index not found but found translog starting at seqNo %d; \
+                    will repair this with a full recovery from primary""", recoveryTarget, startingSeqNo), e);
                 startingSeqNo = UNASSIGNED_SEQ_NO;
             }
             metadataSnapshot = Store.MetadataSnapshot.EMPTY;
