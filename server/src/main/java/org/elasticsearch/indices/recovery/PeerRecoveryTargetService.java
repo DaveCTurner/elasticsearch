@@ -501,6 +501,7 @@ public class PeerRecoveryTargetService implements IndexEventListener {
                 logger.warn("""
                     {} shard data folder empty but translog exists starting at seqNo {}; \
                     will repair this with a full recovery from primary""", recoveryTarget, startingSeqNo);
+                startingSeqNo = UNASSIGNED_SEQ_NO;
             }
             metadataSnapshot = Store.MetadataSnapshot.EMPTY;
         } catch (final IOException e) {
