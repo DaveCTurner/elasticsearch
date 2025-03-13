@@ -9,25 +9,17 @@
 
 package org.elasticsearch.repositories.s3;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
-import com.amazonaws.services.s3.model.AmazonS3Exception;
-import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
-import com.amazonaws.services.s3.model.GetObjectMetadataRequest;
-import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
-import com.amazonaws.services.s3.model.ListMultipartUploadsRequest;
-import com.amazonaws.services.s3.model.ListNextBatchOfObjectsRequest;
-import com.amazonaws.services.s3.model.ListObjectsRequest;
-import com.amazonaws.services.s3.model.MultipartUpload;
-import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PartETag;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.UploadPartRequest;
-import com.amazonaws.services.s3.model.UploadPartResult;
-import com.amazonaws.util.ValidationUtils;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.SdkPartType;
+import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
+import software.amazon.awssdk.services.s3.model.UploadPartRequest;
+import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -160,77 +152,89 @@ class S3BlobContainer extends AbstractBlobContainer {
     ) throws IOException {
         assert purpose != OperationPurpose.SNAPSHOT_DATA && BlobContainer.assertPurposeConsistency(purpose, blobName) : purpose;
         final String absoluteBlobKey = buildKey(blobName);
-        try (ChunkedBlobOutputStream<PartETag> out = new ChunkedBlobOutputStream<>(blobStore.bigArrays(), blobStore.bufferSizeInBytes()) {
+        try (
+            ChunkedBlobOutputStream<CompletedPart> out = new ChunkedBlobOutputStream<>(
+                blobStore.bigArrays(),
+                blobStore.bufferSizeInBytes()
+            ) {
 
-            private final SetOnce<String> uploadId = new SetOnce<>();
+                private final SetOnce<String> uploadId = new SetOnce<>();
 
-            @Override
-            protected void flushBuffer() throws IOException {
-                flushBuffer(false);
-            }
-
-            private void flushBuffer(boolean lastPart) throws IOException {
-                if (buffer.size() == 0) {
-                    return;
+                @Override
+                protected void flushBuffer() throws IOException {
+                    flushBuffer(false);
                 }
-                if (flushedBytes == 0L) {
-                    assert lastPart == false : "use single part upload if there's only a single part";
+
+                private void flushBuffer(boolean lastPart) throws IOException {
+                    if (buffer.size() == 0) {
+                        return;
+                    }
+                    if (flushedBytes == 0L) {
+                        assert lastPart == false : "use single part upload if there's only a single part";
+                        try (AmazonS3Reference clientReference = blobStore.clientReference()) {
+                            uploadId.set(
+                                SocketAccess.doPrivileged(
+                                    () -> clientReference.client()
+                                        .createMultipartUpload(initiateMultiPartUpload(purpose, absoluteBlobKey))
+                                        .uploadId()
+                                )
+                            );
+                        }
+                        if (Strings.isEmpty(uploadId.get())) {
+                            throw new IOException("Failed to initialize multipart upload " + absoluteBlobKey);
+                        }
+                    }
+                    assert lastPart == false || successful : "must only write last part if successful";
+                    final UploadPartRequest uploadRequest = createPartUploadRequest(
+                        purpose,
+                        uploadId.get(),
+                        parts.size() + 1,
+                        absoluteBlobKey,
+                        buffer.size(),
+                        lastPart
+                    );
+                    final InputStream partContentStream = buffer.bytes().streamInput();
+                    final UploadPartResponse uploadResponse;
                     try (AmazonS3Reference clientReference = blobStore.clientReference()) {
-                        uploadId.set(
-                            SocketAccess.doPrivileged(
-                                () -> clientReference.client()
-                                    .initiateMultipartUpload(initiateMultiPartUpload(purpose, absoluteBlobKey))
-                                    .getUploadId()
-                            )
+                        uploadResponse = SocketAccess.doPrivileged(
+                            () -> clientReference.client()
+                                .uploadPart(
+                                    uploadRequest,
+                                    // TODO NOMERGE check memory usage here, the SDK isn't doing anything daft is it?
+                                    RequestBody.fromInputStream(partContentStream, buffer.size())
+                                )
                         );
                     }
-                    if (Strings.isEmpty(uploadId.get())) {
-                        throw new IOException("Failed to initialize multipart upload " + absoluteBlobKey);
+                    finishPart(CompletedPart.builder().partNumber(parts.size() + 1).eTag(uploadResponse.eTag()).build());
+                }
+
+                @Override
+                protected void onCompletion() throws IOException {
+                    if (flushedBytes == 0L) {
+                        writeBlob(purpose, blobName, buffer.bytes(), failIfAlreadyExists);
+                    } else {
+                        flushBuffer(true);
+                        final CompleteMultipartUploadRequest complRequest = CompleteMultipartUploadRequest.builder()
+                            .bucket(blobStore.bucket())
+                            .key(absoluteBlobKey)
+                            .uploadId(uploadId.get())
+                            .multipartUpload(b -> b.parts(parts))
+                            .build();
+                        S3BlobStore.configureRequestForMetrics(complRequest, blobStore, Operation.PUT_MULTIPART_OBJECT, purpose);
+                        try (AmazonS3Reference clientReference = blobStore.clientReference()) {
+                            SocketAccess.doPrivilegedVoid(() -> clientReference.client().completeMultipartUpload(complRequest));
+                        }
                     }
                 }
-                assert lastPart == false || successful : "must only write last part if successful";
-                final UploadPartRequest uploadRequest = createPartUploadRequest(
-                    purpose,
-                    buffer.bytes().streamInput(),
-                    uploadId.get(),
-                    parts.size() + 1,
-                    absoluteBlobKey,
-                    buffer.size(),
-                    lastPart
-                );
-                final UploadPartResult uploadResponse;
-                try (AmazonS3Reference clientReference = blobStore.clientReference()) {
-                    uploadResponse = SocketAccess.doPrivileged(() -> clientReference.client().uploadPart(uploadRequest));
-                }
-                finishPart(uploadResponse.getPartETag());
-            }
 
-            @Override
-            protected void onCompletion() throws IOException {
-                if (flushedBytes == 0L) {
-                    writeBlob(purpose, blobName, buffer.bytes(), failIfAlreadyExists);
-                } else {
-                    flushBuffer(true);
-                    final CompleteMultipartUploadRequest complRequest = new CompleteMultipartUploadRequest(
-                        blobStore.bucket(),
-                        absoluteBlobKey,
-                        uploadId.get(),
-                        parts
-                    );
-                    S3BlobStore.configureRequestForMetrics(complRequest, blobStore, Operation.PUT_MULTIPART_OBJECT, purpose);
-                    try (AmazonS3Reference clientReference = blobStore.clientReference()) {
-                        SocketAccess.doPrivilegedVoid(() -> clientReference.client().completeMultipartUpload(complRequest));
+                @Override
+                protected void onFailure() {
+                    if (Strings.hasText(uploadId.get())) {
+                        abortMultiPartUpload(purpose, uploadId.get(), absoluteBlobKey);
                     }
                 }
             }
-
-            @Override
-            protected void onFailure() {
-                if (Strings.hasText(uploadId.get())) {
-                    abortMultiPartUpload(purpose, uploadId.get(), absoluteBlobKey);
-                }
-            }
-        }) {
+        ) {
             writer.accept(out);
             out.markSuccess();
         }
@@ -239,14 +243,12 @@ class S3BlobContainer extends AbstractBlobContainer {
     // This method is largely copied from AmazonS3Client#doesObjectExist with the ability to instrument the getObjectMetadataRequest
     private boolean doesObjectExist(OperationPurpose purpose, AmazonS3Reference clientReference, String bucketName, String objectName) {
         try {
-            ValidationUtils.assertStringNotEmpty(bucketName, "bucketName");
-            ValidationUtils.assertStringNotEmpty(objectName, "objectName");
-            final var getObjectMetadataRequest = new GetObjectMetadataRequest(bucketName, objectName);
-            S3BlobStore.configureRequestForMetrics(getObjectMetadataRequest, blobStore, Operation.HEAD_OBJECT, purpose);
-            clientReference.client().getObjectMetadata(getObjectMetadataRequest);
+            final var headObjectRequest = HeadObjectRequest.builder().bucket(bucketName).key(objectName).build();
+            S3BlobStore.configureRequestForMetrics(headObjectRequest, blobStore, Operation.HEAD_OBJECT, purpose);
+            clientReference.client().headObject(headObjectRequest);
             return true;
-        } catch (AmazonS3Exception e) {
-            if (e.getStatusCode() == 404) {
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) {
                 return false;
             }
             throw e;
@@ -255,44 +257,48 @@ class S3BlobContainer extends AbstractBlobContainer {
 
     private UploadPartRequest createPartUploadRequest(
         OperationPurpose purpose,
-        InputStream stream,
         String uploadId,
         int number,
         String blobName,
         long size,
         boolean lastPart
     ) {
-        final UploadPartRequest uploadRequest = new UploadPartRequest();
-        uploadRequest.setBucketName(blobStore.bucket());
-        uploadRequest.setKey(blobName);
-        uploadRequest.setUploadId(uploadId);
-        uploadRequest.setPartNumber(number);
-        uploadRequest.setInputStream(stream);
-        S3BlobStore.configureRequestForMetrics(uploadRequest, blobStore, Operation.PUT_MULTIPART_OBJECT, purpose);
-        uploadRequest.setPartSize(size);
-        uploadRequest.setLastPart(lastPart);
-        return uploadRequest;
+        final UploadPartRequest.Builder builder = UploadPartRequest.builder();
+        builder.bucket(blobStore.bucket());
+        builder.key(blobName);
+        builder.uploadId(uploadId);
+        builder.partNumber(number);
+        builder.contentLength(size);
+        builder.sdkPartType(lastPart ? SdkPartType.LAST : SdkPartType.DEFAULT);
+        final var request = builder.build();
+        S3BlobStore.configureRequestForMetrics(request, blobStore, Operation.PUT_MULTIPART_OBJECT, purpose);
+        return request;
     }
 
     private void abortMultiPartUpload(OperationPurpose purpose, String uploadId, String blobName) {
-        final AbortMultipartUploadRequest abortRequest = new AbortMultipartUploadRequest(blobStore.bucket(), blobName, uploadId);
+        final AbortMultipartUploadRequest abortRequest = AbortMultipartUploadRequest.builder()
+            .bucket(blobStore.bucket())
+            .key(blobName)
+            .uploadId(uploadId)
+            .build();
         S3BlobStore.configureRequestForMetrics(abortRequest, blobStore, Operation.ABORT_MULTIPART_OBJECT, purpose);
         try (AmazonS3Reference clientReference = blobStore.clientReference()) {
             SocketAccess.doPrivilegedVoid(() -> clientReference.client().abortMultipartUpload(abortRequest));
         }
     }
 
-    private InitiateMultipartUploadRequest initiateMultiPartUpload(OperationPurpose purpose, String blobName) {
-        final InitiateMultipartUploadRequest initRequest = new InitiateMultipartUploadRequest(blobStore.bucket(), blobName);
-        initRequest.setStorageClass(blobStore.getStorageClass());
-        initRequest.setCannedACL(blobStore.getCannedACL());
-        S3BlobStore.configureRequestForMetrics(initRequest, blobStore, Operation.PUT_MULTIPART_OBJECT, purpose);
+    private CreateMultipartUploadRequest initiateMultiPartUpload(OperationPurpose purpose, String blobName) {
+        final CreateMultipartUploadRequest.Builder builder = CreateMultipartUploadRequest.builder()
+            .bucket(blobStore.bucket())
+            .key(blobName)
+            .storageClass(blobStore.getStorageClass())
+            .acl(blobStore.getCannedACL());
         if (blobStore.serverSideEncryption()) {
-            final ObjectMetadata md = new ObjectMetadata();
-            md.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION);
-            initRequest.setObjectMetadata(md);
+            builder.serverSideEncryption(ServerSideEncryption.AES256);
         }
-        return initRequest;
+        final var request = builder.build();
+        S3BlobStore.configureRequestForMetrics(request, blobStore, Operation.PUT_MULTIPART_OBJECT, purpose);
+        return request;
     }
 
     // package private for testing

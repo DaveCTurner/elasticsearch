@@ -20,9 +20,17 @@ esplugin {
 
 dependencies {
   implementation "software.amazon.awssdk:s3:${versions.awsv2sdk}"
+  implementation "software.amazon.awssdk:utils:${versions.awsv2sdk}"
+  implementation "software.amazon.awssdk:aws-core:${versions.awsv2sdk}"
+  implementation "software.amazon.awssdk:sdk-core:${versions.awsv2sdk}"
+  implementation "software.amazon.awssdk:regions:${versions.awsv2sdk}"
+  implementation "software.amazon.awssdk:metrics-spi:${versions.awsv2sdk}"
+  implementation "software.amazon.awssdk:aws-xml-protocol:${versions.awsv2sdk}"
 
   implementation "org.apache.httpcomponents:httpclient:${versions.httpclient}"
 
+  runtimeOnly "software.amazon.awssdk:aws-core:${versions.awsv2sdk}"
+  runtimeOnly "software.amazon.awssdk:annotations:${versions.awsv2sdk}"
   runtimeOnly "org.apache.httpcomponents:httpcore:${versions.httpcore}"
   runtimeOnly "commons-logging:commons-logging:${versions.commonslogging}"
   runtimeOnly "org.apache.logging.log4j:log4j-1.2-api:${versions.log4j}"
