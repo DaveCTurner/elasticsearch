@@ -127,17 +127,6 @@ tasks.named("thirdPartyAudit").configure {
           'org.apache.log.Hierarchy',
           'org.apache.log.Logger',
           'javax.jms.Message',
-          // We don't use the kms dependency
-          'com.amazonaws.services.kms.AWSKMS',
-          'com.amazonaws.services.kms.AWSKMSClient',
-          'com.amazonaws.services.kms.AWSKMSClientBuilder',
-          'com.amazonaws.services.kms.model.DecryptRequest',
-          'com.amazonaws.services.kms.model.DecryptResult',
-          'com.amazonaws.services.kms.model.EncryptRequest',
-          'com.amazonaws.services.kms.model.EncryptResult',
-          'com.amazonaws.services.kms.model.GenerateDataKeyRequest',
-          'com.amazonaws.services.kms.model.GenerateDataKeyResult',
-          'javax.activation.DataHandler'
   )
 }
 
