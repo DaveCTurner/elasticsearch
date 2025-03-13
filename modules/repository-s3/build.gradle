@@ -59,10 +59,7 @@ restResources {
 }
 
 tasks.named("dependencyLicenses").configure {
-  mapping from: /aws-java-sdk-.*/, to: 'aws-java-sdk'
-  mapping from: /jmespath-java.*/, to: 'aws-java-sdk'
-  mapping from: /jackson-.*/, to: 'jackson'
-  mapping from: /jaxb-.*/, to: 'jaxb'
+  mapping from: 's3', to: 'aws-sdk-2'
 }
 
 esplugin.bundleSpec.from('config/repository-s3') {
