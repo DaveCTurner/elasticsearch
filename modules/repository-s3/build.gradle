@@ -19,24 +19,15 @@ esplugin {
 }
 
 dependencies {
-  api "com.amazonaws:aws-java-sdk-s3:${versions.awsv1sdk}"
-  api "com.amazonaws:aws-java-sdk-core:${versions.awsv1sdk}"
-  api "com.amazonaws:aws-java-sdk-sts:${versions.awsv1sdk}"
-  api "com.amazonaws:jmespath-java:${versions.awsv1sdk}"
-  api "org.apache.httpcomponents:httpclient:${versions.httpclient}"
-  api "org.apache.httpcomponents:httpcore:${versions.httpcore}"
-  api "commons-logging:commons-logging:${versions.commonslogging}"
-  api "org.apache.logging.log4j:log4j-1.2-api:${versions.log4j}"
-  api "commons-codec:commons-codec:${versions.commonscodec}"
-  api "com.fasterxml.jackson.core:jackson-core:${versions.jackson}"
-  api "com.fasterxml.jackson.core:jackson-databind:${versions.jackson}"
-  api "com.fasterxml.jackson.core:jackson-annotations:${versions.jackson}"
-  api "com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:${versions.jackson}"
-  api "joda-time:joda-time:2.10.14"
+  implementation "software.amazon.awssdk:s3:${versions.awsv2sdk}"
 
-  // HACK: javax.xml.bind was removed from default modules in java 9, so we pull the api in here,
-  // and whitelist this hack in JarHell
-  api 'javax.xml.bind:jaxb-api:2.2.2'
+  implementation "org.apache.httpcomponents:httpclient:${versions.httpclient}"
+
+  runtimeOnly "org.apache.httpcomponents:httpcore:${versions.httpcore}"
+  runtimeOnly "commons-logging:commons-logging:${versions.commonslogging}"
+  runtimeOnly "org.apache.logging.log4j:log4j-1.2-api:${versions.log4j}"
+  runtimeOnly "commons-codec:commons-codec:${versions.commonscodec}"
+  runtimeOnly "joda-time:joda-time:2.10.14"
 
   testImplementation project(':test:fixtures:s3-fixture')
 
