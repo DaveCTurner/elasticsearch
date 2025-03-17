@@ -26,6 +26,7 @@ dependencies {
   implementation "software.amazon.awssdk:regions:${versions.awsv2sdk}"
   implementation "software.amazon.awssdk:metrics-spi:${versions.awsv2sdk}"
   implementation "software.amazon.awssdk:aws-xml-protocol:${versions.awsv2sdk}"
+  implementation "software.amazon.awssdk:http-client-spi:${versions.awsv2sdk}"
 
   implementation "org.apache.httpcomponents:httpclient:${versions.httpclient}"
 
