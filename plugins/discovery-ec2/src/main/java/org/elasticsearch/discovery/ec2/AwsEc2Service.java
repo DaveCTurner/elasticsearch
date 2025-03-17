@@ -9,6 +9,8 @@
 
 package org.elasticsearch.discovery.ec2;
 
+import software.amazon.awssdk.services.ec2.Ec2Client;
+
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.core.TimeValue;
@@ -75,7 +77,7 @@ interface AwsEc2Service extends Closeable {
     );
 
     /**
-     * Builds then caches an {@code AmazonEC2} client using the current client
+     * Builds then caches an {@link Ec2Client} client using the current client
      * settings. Returns an {@link AmazonEc2Reference} wrapper which should be
      * released as soon as it is not required anymore.
      */

@@ -62,7 +62,7 @@ final class Ec2ClientSettings {
         Property.NodeScope
     );
 
-    /** The protocol to use to connect  to ec2. */
+    /** Previously, the protocol to use to connect to ec2, but now has no effect */
     @UpdateForV10(owner = UpdateForV10.Owner.DISTRIBUTED_COORDINATION) // no longer used, should be removed in v10
     static final Setting<HttpScheme> PROTOCOL_SETTING = new Setting<>(
         "discovery.ec2.protocol",
@@ -79,10 +79,12 @@ final class Ec2ClientSettings {
     /** The password of a proxy to connect to EC2 through. */
     static final Setting<SecureString> PROXY_PASSWORD_SETTING = SecureSetting.secureString("discovery.ec2.proxy.password", null);
 
+    private static final TimeValue DEFAULT_READ_TIMEOUT = TimeValue.timeValueSeconds(50);
+
     /** The socket timeout for connecting to EC2. */
     static final Setting<TimeValue> READ_TIMEOUT_SETTING = Setting.timeSetting(
         "discovery.ec2.read_timeout",
-        TimeValue.timeValueSeconds(50),
+        DEFAULT_READ_TIMEOUT,
         Property.NodeScope
     );
 
@@ -96,9 +98,6 @@ final class Ec2ClientSettings {
      * default.
      */
     final String endpoint;
-
-    /** The scheme to use to talk to ec2. Defaults to https. */
-    final HttpScheme protocol;
 
     /** An optional proxy host that requests to ec2 should be made through. */
     final String proxyHost;
@@ -124,7 +123,6 @@ final class Ec2ClientSettings {
     private Ec2ClientSettings(
         AwsCredentials credentials,
         String endpoint,
-        HttpScheme protocol,
         String proxyHost,
         int proxyPort,
         HttpScheme proxyScheme,
@@ -134,7 +132,6 @@ final class Ec2ClientSettings {
     ) {
         this.credentials = credentials;
         this.endpoint = endpoint;
-        this.protocol = protocol;
         this.proxyHost = proxyHost;
         this.proxyPort = proxyPort;
         this.proxyScheme = proxyScheme;
@@ -199,7 +196,6 @@ final class Ec2ClientSettings {
             return new Ec2ClientSettings(
                 credentials,
                 ENDPOINT_SETTING.get(settings),
-                PROTOCOL_SETTING.get(settings),
                 PROXY_HOST_SETTING.get(settings),
                 PROXY_PORT_SETTING.get(settings),
                 PROXY_SCHEME_SETTING.get(settings),
