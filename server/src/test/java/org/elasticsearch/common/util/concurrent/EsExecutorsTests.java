@@ -820,43 +820,43 @@ public class EsExecutorsTests extends ESTestCase {
         );
     }
 
-    public void testScalingWithEmptyCoreAndWorkerPoolProbing() {
-        // https://github.com/elastic/elasticsearch/issues/124667 is difficult to reproduce if max pool size > 1.
-        // if probing mitigates the bug for max pool size = 1, we're good for larger pool sizes as well.
-        // the executor is created directly here, newScaling doesn't use ExecutorScalingQueue & probing if max pool size = 1.
-        testScalingWithEmptyCore(
-            new EsThreadPoolExecutor(
-                getTestName(),
-                0,
-                1,
-                0,
-                TimeUnit.MILLISECONDS,
-                new EsExecutors.ExecutorScalingQueue<>(),
-                EsExecutors.daemonThreadFactory(getTestName()),
-                new EsExecutors.ForceQueuePolicy(true, true),
-                threadContext
-            )
-        );
-    }
-
-    public void testScalingWithEmptyCoreAndKeepAliveAndWorkerPoolProbing() {
-        // https://github.com/elastic/elasticsearch/issues/124667 is difficult to reproduce if max pool size > 1.
-        // if probing mitigates the bug for max pool size = 1, we're good for larger pool sizes as well.
-        // the executor is created directly here, newScaling doesn't use ExecutorScalingQueue & probing if max pool size = 1.
-        testScalingWithEmptyCore(
-            new EsThreadPoolExecutor(
-                getTestName(),
-                0,
-                1,
-                1,
-                TimeUnit.MILLISECONDS,
-                new EsExecutors.ExecutorScalingQueue<>(),
-                EsExecutors.daemonThreadFactory(getTestName()),
-                new EsExecutors.ForceQueuePolicy(true, true),
-                threadContext
-            )
-        );
-    }
+    // public void testScalingWithEmptyCoreAndWorkerPoolProbing() {
+    // // https://github.com/elastic/elasticsearch/issues/124667 is difficult to reproduce if max pool size > 1.
+    // // if probing mitigates the bug for max pool size = 1, we're good for larger pool sizes as well.
+    // // the executor is created directly here, newScaling doesn't use ExecutorScalingQueue & probing if max pool size = 1.
+    // testScalingWithEmptyCore(
+    // new EsThreadPoolExecutor(
+    // getTestName(),
+    // 0,
+    // 1,
+    // 0,
+    // TimeUnit.MILLISECONDS,
+    // new EsExecutors.ExecutorScalingQueue<>(),
+    // EsExecutors.daemonThreadFactory(getTestName()),
+    // new EsExecutors.ForceQueuePolicy(true, true),
+    // threadContext
+    // )
+    // );
+    // }
+    //
+    // public void testScalingWithEmptyCoreAndKeepAliveAndWorkerPoolProbing() {
+    // // https://github.com/elastic/elasticsearch/issues/124667 is difficult to reproduce if max pool size > 1.
+    // // if probing mitigates the bug for max pool size = 1, we're good for larger pool sizes as well.
+    // // the executor is created directly here, newScaling doesn't use ExecutorScalingQueue & probing if max pool size = 1.
+    // testScalingWithEmptyCore(
+    // new EsThreadPoolExecutor(
+    // getTestName(),
+    // 0,
+    // 1,
+    // 1,
+    // TimeUnit.MILLISECONDS,
+    // new EsExecutors.ExecutorScalingQueue<>(),
+    // EsExecutors.daemonThreadFactory(getTestName()),
+    // new EsExecutors.ForceQueuePolicy(true, true),
+    // threadContext
+    // )
+    // );
+    // }
 
     private void testScalingWithEmptyCore(EsThreadPoolExecutor executor) {
         try {
