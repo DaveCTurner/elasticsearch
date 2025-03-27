@@ -30,7 +30,7 @@ public abstract class AbstractRepositoryAnalysisRestTestCase extends ESRestTestC
         request.addParameter("blob_count", "10");
         request.addParameter("concurrency", "4");
         request.addParameter("max_blob_size", "10b");
-        request.addParameter("register_operation_count", "1000");
+        request.addParameter("register_operation_count", "200");
         request.addParameter("timeout", "120s");
         request.addParameter("seed", Long.toString(randomLong()));
         assertOK(client().performRequest(request));

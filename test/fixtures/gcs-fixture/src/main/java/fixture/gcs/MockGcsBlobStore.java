@@ -74,7 +74,7 @@ public class MockGcsBlobStore {
                     } else if (ifGenerationMatch != existing.generation) {
                         throw new GcsRestException(
                             RestStatus.PRECONDITION_FAILED,
-                            "Generation mismatch, expected " + ifGenerationMatch + ", got" + existing.generation
+                            "Generation mismatch, expected " + ifGenerationMatch + ", got " + existing.generation
                         );
                     }
                 }
