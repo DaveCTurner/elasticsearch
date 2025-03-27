@@ -29,7 +29,8 @@ public abstract class AbstractRepositoryAnalysisRestTestCase extends ESRestTestC
         final Request request = new Request(HttpPost.METHOD_NAME, "/_snapshot/" + repository + "/_analyze");
         request.addParameter("blob_count", "10");
         request.addParameter("concurrency", "4");
-        request.addParameter("max_blob_size", randomFrom("1mb", "10mb"));
+        request.addParameter("max_blob_size", "10b");
+        request.addParameter("register_operation_count", "1000");
         request.addParameter("timeout", "120s");
         request.addParameter("seed", Long.toString(randomLong()));
         assertOK(client().performRequest(request));
