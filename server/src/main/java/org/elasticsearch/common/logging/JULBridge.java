@@ -39,6 +39,8 @@ class JULBridge extends Handler {
         Level.DEBUG,
         java.util.logging.Level.FINEST,
         Level.TRACE,
+        java.util.logging.Level.CONFIG,
+        Level.TRACE,
         java.util.logging.Level.ALL,
         Level.ALL
     );
@@ -69,13 +71,21 @@ class JULBridge extends Handler {
         if (rawMessage == null) {
             message = "<null message>";
         } else {
-            message = new MessageFormat(rawMessage, Locale.ROOT).format(record.getParameters());
+            message = formatMessage(record, rawMessage);
         }
 
         if (thrown == null) {
             logger.log(level, message);
         } else {
             logger.log(level, () -> message, thrown);
+        }
+    }
+
+    private static String formatMessage(LogRecord record, String rawMessage) {
+        try {
+            return new MessageFormat(rawMessage, Locale.ROOT).format(record.getParameters());
+        } catch (Exception e) {
+            return rawMessage;
         }
     }
 

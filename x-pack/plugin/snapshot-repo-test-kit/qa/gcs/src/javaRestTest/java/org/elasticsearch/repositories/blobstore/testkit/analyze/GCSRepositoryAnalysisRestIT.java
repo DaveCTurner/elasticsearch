@@ -35,6 +35,7 @@ public class GCSRepositoryAnalysisRestIT extends AbstractRepositoryAnalysisRestT
         .setting("gcs.client.repository_test_kit.token_uri", () -> fixture.getAddress() + "/o/oauth2/token", s -> USE_FIXTURE)
         .setting("logger.org.elasticsearch.repositories.blobstore.testkit.analyze.ContendedRegisterAnalyzeAction", "TRACE")
         .setting("logger.org.elasticsearch.repositories.blobstore.testkit.analyze.RepositoryAnalyzeAction", "TRACE")
+        .setting("logger.com.google.api.client.http", "TRACE")
         .apply(c -> {
             if (USE_FIXTURE) {
                 c.keystore(
