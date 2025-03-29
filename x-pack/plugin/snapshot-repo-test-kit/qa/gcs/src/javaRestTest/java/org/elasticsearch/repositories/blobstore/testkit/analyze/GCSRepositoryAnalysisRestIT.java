@@ -33,6 +33,8 @@ public class GCSRepositoryAnalysisRestIT extends AbstractRepositoryAnalysisRestT
         .module("snapshot-repo-test-kit")
         .setting("gcs.client.repository_test_kit.endpoint", () -> fixture.getAddress(), s -> USE_FIXTURE)
         .setting("gcs.client.repository_test_kit.token_uri", () -> fixture.getAddress() + "/o/oauth2/token", s -> USE_FIXTURE)
+        .setting("logger.org.elasticsearch.repositories.blobstore.testkit.analyze.ContendedRegisterAnalyzeAction", "TRACE")
+        .setting("logger.org.elasticsearch.repositories.blobstore.testkit.analyze.RepositoryAnalyzeAction", "TRACE")
         .apply(c -> {
             if (USE_FIXTURE) {
                 c.keystore(

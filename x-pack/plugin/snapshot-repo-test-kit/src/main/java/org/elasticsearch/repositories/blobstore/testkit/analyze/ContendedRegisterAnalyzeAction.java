@@ -40,6 +40,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * An action which atomically increments a register using {@link BlobContainer#compareAndExchangeRegister}. There will be multiple parties
@@ -64,6 +65,8 @@ class ContendedRegisterAnalyzeAction extends HandledTransportAction<ContendedReg
         this.executor = transportService.getThreadPool().executor(ThreadPool.Names.SNAPSHOT);
     }
 
+    private static final AtomicLong EXECUTION_ID_GENERATOR = new AtomicLong();
+
     @Override
     protected void doExecute(Task task, Request request, ActionListener<ActionResponse.Empty> outerListenerOld) {
         final var outerListener = ActionListener.assertOnce(outerListenerOld);
@@ -78,7 +81,13 @@ class ContendedRegisterAnalyzeAction extends HandledTransportAction<ContendedReg
         final BlobPath path = blobStoreRepository.basePath().add(request.getContainerPath());
         final BlobContainer blobContainer = blobStoreRepository.blobStore().blobContainer(path);
 
-        logger.trace("handling [{}]", request);
+        final var requestString = Strings.format(
+            "[%s@%d/%d]",
+            request,
+            System.identityHashCode(request),
+            EXECUTION_ID_GENERATOR.getAndIncrement()
+        );
+        logger.trace("handling [{}]", requestString);
 
         assert task instanceof CancellableTask;
 
@@ -86,7 +95,14 @@ class ContendedRegisterAnalyzeAction extends HandledTransportAction<ContendedReg
         final ActionListener<OptionalBytesReference> initialValueListener = new ActionListener<>() {
             @Override
             public void onResponse(OptionalBytesReference maybeInitialBytes) {
-                final long initialValue = maybeInitialBytes.isPresent() ? longFromBytes(maybeInitialBytes.bytesReference()) : 0L;
+                final long initialValue;
+                if (maybeInitialBytes.isPresent()) {
+                    initialValue = longFromBytes(maybeInitialBytes.bytesReference());
+                    logger.trace("[{}]: got initial value [{}]", requestString, initialValue);
+                } else {
+                    initialValue = 0L;
+                    logger.trace("[{}]: no initial value", requestString);
+                }
 
                 ActionListener.run(outerListener.<Void>map(ignored -> ActionResponse.Empty.INSTANCE), l -> {
                     if (initialValue < 0 || initialValue >= request.getRequestCount()) {
@@ -107,6 +123,7 @@ class ContendedRegisterAnalyzeAction extends HandledTransportAction<ContendedReg
                         @Override
                         protected void doRun() {
                             if (((CancellableTask) task).notifyIfCancelled(listener) == false) {
+                                logger.trace("[{}]: attempting increment from [{}]", requestString, currentValue);
                                 blobContainer.compareAndExchangeRegister(
                                     OperationPurpose.REPOSITORY_ANALYSIS,
                                     registerName,
@@ -121,16 +138,19 @@ class ContendedRegisterAnalyzeAction extends HandledTransportAction<ContendedReg
                             if (witnessOrEmpty.isPresent() == false) {
                                 // Concurrent activity prevented us from updating the value, or even reading the concurrently-updated
                                 // result, so we must just try again.
+                                logger.trace("[{}]: conflict during increment from [{}], retrying", requestString, currentValue);
                                 executor.execute(Execution.this);
                                 return;
                             }
 
                             final long witness = longFromBytes(witnessOrEmpty.bytesReference());
                             if (witness == currentValue) {
+                                logger.trace("[{}]: increment from [{}] succeeded", requestString, currentValue);
                                 delegate.onResponse(null);
                             } else if (witness < currentValue || witness >= request.getRequestCount()) {
                                 delegate.onFailure(new IllegalStateException("register holds unexpected value [" + witness + "]"));
                             } else {
+                                logger.trace("[{}]: increment from [{}] failed, retrying", requestString, currentValue);
                                 currentValue = witness;
                                 executor.execute(Execution.this);
                             }
@@ -156,6 +176,7 @@ class ContendedRegisterAnalyzeAction extends HandledTransportAction<ContendedReg
         };
 
         if (request.getInitialRead() > request.getRequestCount()) {
+            logger.trace("[{}]: reading initial value", requestString);
             blobContainer.getRegister(OperationPurpose.REPOSITORY_ANALYSIS, registerName, initialValueListener.delegateFailure((l, r) -> {
                 if (r.isPresent()) {
                     l.onResponse(r);
@@ -164,6 +185,7 @@ class ContendedRegisterAnalyzeAction extends HandledTransportAction<ContendedReg
                 }
             }));
         } else {
+            logger.trace("[{}]: verifying initial value", requestString);
             blobContainer.compareAndExchangeRegister(
                 OperationPurpose.REPOSITORY_ANALYSIS,
                 registerName,
