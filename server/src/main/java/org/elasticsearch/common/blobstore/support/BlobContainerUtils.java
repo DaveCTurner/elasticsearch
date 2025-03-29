@@ -65,7 +65,7 @@ public class BlobContainerUtils {
                 var cls = ChunkedLoggingStream.create(
                     logger,
                     Level.ERROR,
-                    "getRegisterUsingConsistentRead including trailing data",
+                    "getRegisterUsingConsistentRead including trailing data on thread [" + Thread.currentThread().getName() + "]",
                     ReferenceDocs.LOGGING
                 )
             ) {
