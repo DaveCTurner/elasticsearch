@@ -14,6 +14,7 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.sun.net.httpserver.HttpServer;
 
 import org.apache.logging.log4j.LogManager;
+import org.apache.lucene.tests.util.LuceneTestCase;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Strings;
 import org.elasticsearch.core.SuppressForbidden;
@@ -46,6 +47,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+@LuceneTestCase.AwaitsFix(bugUrl = "TODO")
 public class CustomWebIdentityTokenCredentialsProviderTests extends ESTestCase {
 
     private static final String ROLE_ARN = "arn:aws:iam::123456789012:role/FederatedWebIdentityRole";

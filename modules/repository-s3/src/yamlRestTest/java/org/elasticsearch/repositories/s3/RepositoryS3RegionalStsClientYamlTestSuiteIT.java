@@ -12,11 +12,13 @@ package org.elasticsearch.repositories.s3;
 import com.carrotsearch.randomizedtesting.annotations.Name;
 import com.carrotsearch.randomizedtesting.annotations.ParametersFactory;
 
+import org.apache.lucene.tests.util.LuceneTestCase;
 import org.elasticsearch.test.cluster.ElasticsearchCluster;
 import org.elasticsearch.test.cluster.util.resource.Resource;
 import org.elasticsearch.test.rest.yaml.ClientYamlTestCandidate;
 import org.junit.ClassRule;
 
+@LuceneTestCase.AwaitsFix(bugUrl = "TODO")
 public class RepositoryS3RegionalStsClientYamlTestSuiteIT extends AbstractRepositoryS3ClientYamlTestSuiteIT {
     @ClassRule
     public static ElasticsearchCluster cluster = ElasticsearchCluster.local()

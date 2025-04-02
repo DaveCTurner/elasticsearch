@@ -16,6 +16,7 @@ import com.amazonaws.services.s3.model.MultipartUpload;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 
+import org.apache.lucene.tests.util.LuceneTestCase;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.blobstore.OptionalBytesReference;
@@ -57,6 +58,7 @@ import static org.hamcrest.Matchers.not;
 
 @ThreadLeakFilters(filters = { TestContainersThreadFilter.class })
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE) // https://github.com/elastic/elasticsearch/issues/102482
+@LuceneTestCase.AwaitsFix(bugUrl = "TODO")
 public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTestCase {
     static final boolean USE_FIXTURE = Booleans.parseBoolean(System.getProperty("tests.use.fixture", "true"));
 

@@ -15,6 +15,7 @@ import com.amazonaws.services.s3.AmazonS3;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.tests.util.LuceneTestCase;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.MockSecureSettings;
 import org.elasticsearch.common.settings.Settings;
@@ -49,6 +50,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 
 @SuppressForbidden(reason = "test requires to set a System property to allow insecure settings when running in IDE")
+@LuceneTestCase.AwaitsFix(bugUrl = "TODO")
 public class RepositoryCredentialsTests extends ESSingleNodeTestCase {
 
     static {

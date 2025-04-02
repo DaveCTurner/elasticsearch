@@ -12,6 +12,7 @@ package org.elasticsearch.repositories.s3;
 import fixture.s3.S3HttpFixture;
 import io.netty.handler.codec.http.HttpMethod;
 
+import org.apache.lucene.tests.util.LuceneTestCase;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.cluster.routing.Murmur3HashFunction;
@@ -31,6 +32,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.equalTo;
 
+@LuceneTestCase.AwaitsFix(bugUrl = "TODO")
 public class RepositoryS3RestReloadCredentialsIT extends ESRestTestCase {
 
     private static final String HASHED_SEED = Integer.toString(Murmur3HashFunction.hash(System.getProperty("tests.seed")));

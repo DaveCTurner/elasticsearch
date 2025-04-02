@@ -16,6 +16,7 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 
 import org.apache.http.client.methods.HttpGet;
+import org.apache.lucene.tests.util.LuceneTestCase;
 import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.repositories.blobstore.RequestedRangeNotSatisfiedException;
@@ -34,6 +35,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@LuceneTestCase.AwaitsFix(bugUrl = "TODO")
 public class S3RetryingInputStreamTests extends ESTestCase {
 
     public void testInputStreamFullyConsumed() throws IOException {

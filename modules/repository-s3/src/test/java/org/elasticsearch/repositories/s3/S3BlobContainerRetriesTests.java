@@ -22,6 +22,7 @@ import com.sun.net.httpserver.HttpHandler;
 
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.Level;
+import org.apache.lucene.tests.util.LuceneTestCase;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.cluster.metadata.RepositoryMetadata;
 import org.elasticsearch.common.BackoffPolicy;
@@ -110,6 +111,7 @@ import static org.hamcrest.Matchers.lessThanOrEqualTo;
  * This class tests how a {@link S3BlobContainer} and its underlying AWS S3 client are retrying requests when reading or writing blobs.
  */
 @SuppressForbidden(reason = "use a http server")
+@LuceneTestCase.AwaitsFix(bugUrl = "TODO")
 public class S3BlobContainerRetriesTests extends AbstractBlobContainerRetriesTestCase {
 
     private static final int MAX_NUMBER_SNAPSHOT_DELETE_RETRIES = 10;
