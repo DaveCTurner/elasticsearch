@@ -135,6 +135,10 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
         assertThat(putRepositoryResponse.isAcknowledged(), equalTo(true));
     }
 
+    public void testFail() {
+        fail("boom");
+    }
+
     public void testCompareAndExchangeCleanup() throws IOException {
         final var timeOffsetMillis = new AtomicLong();
         final var threadpool = new TestThreadPool(getTestName()) {
