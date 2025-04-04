@@ -10,7 +10,7 @@
 package org.elasticsearch.test.fixtures.testcontainers;
 
 import org.elasticsearch.test.fixtures.CacheableTestFixture;
-import org.junit.Assume;
+import org.junit.Assert;
 import org.junit.rules.TestRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,8 +63,8 @@ public abstract class DockerEnvironmentAwareTestContainer extends GenericContain
 
     @Override
     public void start() {
-        Assume.assumeFalse("Docker support excluded on OS", EXCLUDED_OS);
-        Assume.assumeTrue("Docker probing succesful", DOCKER_PROBING_SUCCESSFUL);
+        Assert.assertFalse("Docker support excluded on OS", EXCLUDED_OS);
+        Assert.assertTrue("Docker probing succesful", DOCKER_PROBING_SUCCESSFUL);
         withLogConsumer(new Slf4jLogConsumer(LOGGER));
         super.start();
     }
