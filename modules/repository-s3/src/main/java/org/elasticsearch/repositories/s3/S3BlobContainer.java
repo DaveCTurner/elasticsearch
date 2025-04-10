@@ -394,12 +394,11 @@ class S3BlobContainer extends AbstractBlobContainer {
                     SocketAccess.doPrivilegedVoid(() -> clientReference.client().copyObject(copyObjectRequest));
                 }
             }
-        } catch (final SdkException e) {
-            if (e instanceof SdkServiceException sdkServiceException) {
-                if (sdkServiceException.statusCode() == RestStatus.NOT_FOUND.getStatus()) {
-                    final var sourceKey = s3SourceBlobContainer.buildKey(sourceBlobName);
-                    throw new NoSuchFileException("Copy source [" + sourceKey + "] not found: " + sdkServiceException.getMessage());
-                }
+        } catch (final Exception e) {
+            if (e instanceof AmazonServiceException ase && ase.getStatusCode() == RestStatus.NOT_FOUND.getStatus()) {
+                throw new NoSuchFileException(
+                    "Copy source [" + s3SourceBlobContainer.buildKey(sourceBlobName) + "] not found: " + ase.getMessage()
+                );
             }
             throw new IOException("Unable to copy object [" + blobName + "] from [" + sourceBlobContainer + "][" + sourceBlobName + "]", e);
         }
@@ -661,13 +660,11 @@ class S3BlobContainer extends AbstractBlobContainer {
                 SocketAccess.doPrivilegedVoid(() -> clientReference.client().completeMultipartUpload(completeMultipartUploadRequest));
             }
             cleanupOnFailureActions.clear();
-        } catch (final SdkException e) {
-            if (e instanceof SdkServiceException sdkServiceException) {
-                if (sdkServiceException.statusCode() == RestStatus.NOT_FOUND.getStatus()) {
-                    throw new NoSuchFileException(blobName, null, e.getMessage());
-                }
+        } catch (final Exception e) {
+            if (e instanceof AmazonServiceException ase && ase.getStatusCode() == RestStatus.NOT_FOUND.getStatus()) {
+                throw new NoSuchFileException(blobName, null, e.getMessage());
             }
-            throw new IOException("Unable to upload object [" + blobName + "] using multipart upload", e);
+            throw new IOException("Unable to upload or copy object [" + blobName + "] using multipart upload", e);
         } finally {
             cleanupOnFailureActions.forEach(Runnable::run);
         }
