@@ -395,9 +395,9 @@ class S3BlobContainer extends AbstractBlobContainer {
                 }
             }
         } catch (final Exception e) {
-            if (e instanceof AmazonServiceException ase && ase.getStatusCode() == RestStatus.NOT_FOUND.getStatus()) {
+            if (e instanceof SdkServiceException sse && sse.statusCode() == RestStatus.NOT_FOUND.getStatus()) {
                 throw new NoSuchFileException(
-                    "Copy source [" + s3SourceBlobContainer.buildKey(sourceBlobName) + "] not found: " + ase.getMessage()
+                    "Copy source [" + s3SourceBlobContainer.buildKey(sourceBlobName) + "] not found: " + sse.getMessage()
                 );
             }
             throw new IOException("Unable to copy object [" + blobName + "] from [" + sourceBlobContainer + "][" + sourceBlobName + "]", e);
@@ -661,7 +661,7 @@ class S3BlobContainer extends AbstractBlobContainer {
             }
             cleanupOnFailureActions.clear();
         } catch (final Exception e) {
-            if (e instanceof AmazonServiceException ase && ase.getStatusCode() == RestStatus.NOT_FOUND.getStatus()) {
+            if (e instanceof SdkServiceException sse && sse.statusCode() == RestStatus.NOT_FOUND.getStatus()) {
                 throw new NoSuchFileException(blobName, null, e.getMessage());
             }
             throw new IOException("Unable to upload or copy object [" + blobName + "] using multipart upload", e);
