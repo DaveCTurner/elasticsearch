@@ -27,6 +27,8 @@ public class IndicesSegmentsRestCancellationIT extends BlockedSearcherRestCancel
         issueUrl = "https://github.com/elastic/elasticsearch/issues/88201",
         value = "org.elasticsearch.http.BlockedSearcherRestCancellationTestCase:DEBUG"
             + ",org.elasticsearch.transport.TransportService:TRACE"
+            + ",org.elasticsearch.test.TaskAssertions:TRACE"
+            + ",org.elasticsearch.tasks.TaskManager:TRACE"
     )
     public void testCatSegmentsRestCancellation() throws Exception {
         runTest(new Request(HttpGet.METHOD_NAME, "/_cat/segments"), IndicesSegmentsAction.NAME);
