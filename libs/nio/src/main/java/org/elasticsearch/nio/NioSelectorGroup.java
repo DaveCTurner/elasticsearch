@@ -70,6 +70,7 @@ public class NioSelectorGroup implements NioGroup {
      * @param eventHandlerFunction function for creating event handlers
      * @throws IOException occurs if there is a problem while opening a java.nio.Selector
      */
+    @SuppressWarnings("this-escape")
     public NioSelectorGroup(
         ThreadFactory acceptorThreadFactory,
         int dedicatedAcceptorCount,
