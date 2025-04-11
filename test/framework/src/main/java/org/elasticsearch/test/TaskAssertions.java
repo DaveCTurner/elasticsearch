@@ -47,6 +47,7 @@ public class TaskAssertions {
         logger.info("--> waiting for task with prefix [{}] to start", actionPrefix);
 
         assertBusy(() -> {
+            logger.info("--> checking for tasks with prefix [{}]", actionPrefix);
             for (TransportService transportService : transportServiceInstances) {
                 List<Task> matchingTasks = transportService.getTaskManager()
                     .getTasks()
@@ -55,7 +56,13 @@ public class TaskAssertions {
                     .filter(t -> t.getAction().startsWith(actionPrefix))
                     .collect(Collectors.toList());
                 if (matchingTasks.isEmpty() == false) {
-                    logger.trace("--> found {} tasks with prefix [{}]: {}", matchingTasks.size(), actionPrefix, matchingTasks);
+                    logger.trace(
+                        "--> found {} tasks with prefix [{}] on node [{}]: {}",
+                        matchingTasks.size(),
+                        actionPrefix,
+                        transportService.getLocalNode().descriptionWithoutAttributes(),
+                        matchingTasks
+                    );
                     return;
                 }
             }
@@ -64,9 +71,10 @@ public class TaskAssertions {
     }
 
     public static void assertAllCancellableTasksAreCancelled(String actionPrefix) throws Exception {
-        logger.info("--> checking that all tasks with prefix {} are marked as cancelled", actionPrefix);
+        logger.info("--> waiting for all tasks with prefix {} to be marked as cancelled", actionPrefix);
 
         assertBusy(() -> {
+            logger.info("--> checking for all tasks with prefix {} to be marked as cancelled", actionPrefix);
             boolean foundTask = false;
             for (TransportService transportService : internalCluster().getInstances(TransportService.class)) {
                 final String nodeDescription = transportService.getLocalNode().descriptionWithoutAttributes();

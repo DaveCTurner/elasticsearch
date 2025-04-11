@@ -127,4 +127,9 @@ public class CancellableTask extends Task {
     public interface CancellationListener {
         void onCancelled();
     }
+
+    @Override
+    public String toString() {
+        return "CancellableTask[" + getAction() + "][" + getId() + "]";
+    }
 }
