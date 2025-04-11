@@ -69,17 +69,27 @@ public class TaskAssertions {
         assertBusy(() -> {
             boolean foundTask = false;
             for (TransportService transportService : internalCluster().getInstances(TransportService.class)) {
+                final String nodeDescription = transportService.getLocalNode().descriptionWithoutAttributes();
                 final TaskManager taskManager = transportService.getTaskManager();
                 assertTrue(taskManager.assertCancellableTaskConsistency());
                 for (CancellableTask cancellableTask : taskManager.getCancellableTasks().values()) {
                     if (cancellableTask.getAction().startsWith(actionPrefix)) {
-                        logger.trace("--> found task with prefix [{}]: [{}]", actionPrefix, cancellableTask);
                         foundTask = true;
-                        assertTrue(
-                            "task " + cancellableTask.getId() + "/" + cancellableTask.getAction() + " not cancelled",
-                            cancellableTask.isCancelled()
+                        final boolean isCancelled = cancellableTask.isCancelled();
+                        logger.trace(
+                            "--> [{}] found task with prefix [{}]: [isCancelled={}] [{}]",
+                            nodeDescription,
+                            actionPrefix,
+                            isCancelled,
+                            cancellableTask
                         );
-                        logger.trace("--> Task with prefix [{}] is marked as cancelled: [{}]", actionPrefix, cancellableTask);
+                        assertTrue("task " + cancellableTask.getId() + "/" + cancellableTask.getAction() + " not cancelled", isCancelled);
+                        logger.trace(
+                            "--> [{}] Task with prefix [{}] is marked as cancelled: [{}]",
+                            nodeDescription,
+                            actionPrefix,
+                            cancellableTask
+                        );
                     }
                 }
             }
