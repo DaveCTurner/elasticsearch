@@ -422,7 +422,7 @@ public class S3BlobStoreContainerTests extends ESTestCase {
             blobContainer.executeMultipartUpload(randomPurpose(), blobStore, blobName, new ByteArrayInputStream(new byte[0]), blobSize);
         });
 
-        assertEquals("Unable to upload object [" + blobName + "] using multipart upload", e.getMessage());
+        assertEquals("Unable to upload or copy object [" + blobName + "] using multipart upload", e.getMessage());
         assertThat(e.getCause(), instanceOf(S3Exception.class));
         assertEquals(exceptions.get(stage).getMessage(), e.getCause().getMessage());
 
