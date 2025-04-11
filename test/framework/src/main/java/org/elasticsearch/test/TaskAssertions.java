@@ -55,14 +55,14 @@ public class TaskAssertions {
                     .stream()
                     .filter(t -> t.getAction().startsWith(actionPrefix))
                     .collect(Collectors.toList());
+                logger.trace(
+                    "--> found {} tasks with prefix [{}] on node [{}]: {}",
+                    matchingTasks.size(),
+                    actionPrefix,
+                    transportService.getLocalNode().descriptionWithoutAttributes(),
+                    matchingTasks
+                );
                 if (matchingTasks.isEmpty() == false) {
-                    logger.trace(
-                        "--> found {} tasks with prefix [{}] on node [{}]: {}",
-                        matchingTasks.size(),
-                        actionPrefix,
-                        transportService.getLocalNode().descriptionWithoutAttributes(),
-                        matchingTasks
-                    );
                     return;
                 }
             }
