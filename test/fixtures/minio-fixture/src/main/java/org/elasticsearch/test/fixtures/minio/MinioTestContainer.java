@@ -9,6 +9,7 @@
 
 package org.elasticsearch.test.fixtures.minio;
 
+import org.elasticsearch.cluster.routing.Murmur3HashFunction;
 import org.elasticsearch.logging.Level;
 import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
@@ -18,6 +19,7 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 
 import java.util.List;
+import java.util.Random;
 
 public final class MinioTestContainer extends DockerEnvironmentAwareTestContainer {
 
@@ -33,7 +35,8 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
         "minio/minio:RELEASE.2025-03-12T18-04-18Z", // 7
         "minio/minio:RELEASE.2025-04-03T14-56-28Z", // 8
         "minio/minio:RELEASE.2025-04-08T15-41-24Z"  // 9
-    ).get(4);
+    ).get(new Random(Murmur3HashFunction.hash(System.getProperty("tests.seed"))).nextInt(1, 10));
+
     private final boolean enabled;
 
     /**

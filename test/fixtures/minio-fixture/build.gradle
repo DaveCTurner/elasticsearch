@@ -25,6 +25,7 @@ dependencies {
     transitive = false
   }
   implementation project(':libs:logging')
+  implementation project(':server')
 
   // ensure we have proper logging during when used in tests
   runtimeOnly "org.slf4j:slf4j-simple:${versions.slf4j}"
