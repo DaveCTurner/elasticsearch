@@ -24,6 +24,7 @@ dependencies {
   api("com.carrotsearch.randomizedtesting:randomizedtesting-runner:${versions.randomizedrunner}"){
     transitive = false
   }
+  implementation project(':libs:logging')
 
   // ensure we have proper logging during when used in tests
   runtimeOnly "org.slf4j:slf4j-simple:${versions.slf4j}"

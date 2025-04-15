@@ -9,7 +9,11 @@
 
 package org.elasticsearch.test.fixtures.minio;
 
+import org.elasticsearch.logging.Level;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.test.fixtures.testcontainers.DockerEnvironmentAwareTestContainer;
+import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 
@@ -48,9 +52,17 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
         this.enabled = enabled;
     }
 
+    private static final Logger logger = LogManager.getLogger(MinioTestContainer.class);
+
     @Override
     public void start() {
         if (enabled) {
+            withLogConsumer(
+                frame -> logger.log(
+                    frame.getType() == OutputFrame.OutputType.STDOUT ? Level.INFO : Level.WARN,
+                    "MINIO LOG: " + frame.getUtf8String()
+                )
+            );
             super.start();
         }
     }
