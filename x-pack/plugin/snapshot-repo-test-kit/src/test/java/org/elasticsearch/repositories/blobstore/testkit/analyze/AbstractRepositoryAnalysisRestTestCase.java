@@ -22,7 +22,7 @@ public abstract class AbstractRepositoryAnalysisRestTestCase extends ESRestTestC
     protected Settings restClientSettings() {
         return Settings.builder()
             .put(super.restClientSettings())
-            .put(ESRestTestCase.CLIENT_SOCKET_TIMEOUT, "300s" /* longer than the API timeout parameter */)
+            // .put(ESRestTestCase.CLIENT_SOCKET_TIMEOUT, "300s" /* longer than the API timeout parameter */) TODO NOMERGE
             .build();
     }
 
