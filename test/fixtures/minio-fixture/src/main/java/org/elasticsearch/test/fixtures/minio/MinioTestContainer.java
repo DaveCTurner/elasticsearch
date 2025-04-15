@@ -35,8 +35,8 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
         super(
             new ImageFromDockerfile("es-minio-testfixture").withDockerfileFromBuilder(
                 builder -> builder.from(DOCKER_BASE_IMAGE)
-                    .env("MINIO_ACCESS_KEY", accessKey)
-                    .env("MINIO_SECRET_KEY", secretKey)
+                    .env("MINIO_ROOT_USER", accessKey)
+                    .env("MINIO_ROOT_PASSWORD", secretKey)
                     .run("mkdir -p /minio/data/" + bucketName)
                     .cmd("server", "/minio/data")
                     .build()
