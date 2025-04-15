@@ -17,11 +17,23 @@ import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 
+import java.util.List;
+
 public final class MinioTestContainer extends DockerEnvironmentAwareTestContainer {
 
     private static final int servicePort = 9000;
-    private static final String DOCKER_BASE_IMAGE = "minio/minio:RELEASE.2025-04-08T15-41-24Z";
-    // private static final String DOCKER_BASE_IMAGE = "minio/minio:RELEASE.2024-12-18T13-15-44Z";
+    public static final String DOCKER_BASE_IMAGE = List.of(
+        "minio/minio:RELEASE.2024-12-18T13-15-44Z", // 0, confirmed broken
+        "minio/minio:RELEASE.2025-01-18T00-31-37Z", // 1
+        "minio/minio:RELEASE.2025-01-20T14-49-07Z", // 2
+        "minio/minio:RELEASE.2025-02-03T21-03-04Z", // 3
+        "minio/minio:RELEASE.2025-02-07T23-21-09Z", // 4
+        "minio/minio:RELEASE.2025-02-18T16-25-55Z", // 5
+        "minio/minio:RELEASE.2025-02-28T09-55-16Z", // 6
+        "minio/minio:RELEASE.2025-03-12T18-04-18Z", // 7
+        "minio/minio:RELEASE.2025-04-03T14-56-28Z", // 8
+        "minio/minio:RELEASE.2025-04-08T15-41-24Z"  // 9
+    ).get(4);
     private final boolean enabled;
 
     /**
