@@ -18,6 +18,14 @@ public abstract class AbstractRepositoryAnalysisRestTestCase extends ESRestTestC
 
     protected abstract Settings repositorySettings();
 
+    @Override
+    protected Settings restClientSettings() {
+        return Settings.builder()
+            .put(super.restClientSettings())
+            .put(ESRestTestCase.CLIENT_SOCKET_TIMEOUT, "300s" /* longer than the API timeout parameter */)
+            .build();
+    }
+
     public void testRepositoryAnalysis() throws Exception {
         final String repositoryType = repositoryType();
         final Settings repositorySettings = repositorySettings();
