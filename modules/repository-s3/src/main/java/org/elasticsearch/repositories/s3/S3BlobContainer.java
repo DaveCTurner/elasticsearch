@@ -863,8 +863,9 @@ class S3BlobContainer extends AbstractBlobContainer {
             // there are uploads, but they are all older than the TTL, so clean them up before carrying on (should be rare)
             for (final var upload : uploads) {
                 logger.warn(
-                    "cleaning up stale compare-and-swap upload [{}] initiated at [{}]",
+                    "cleaning up stale compare-and-swap upload [{}] of [{}] initiated at [{}]",
                     upload.getUploadId(),
+                    blobKey,
                     upload.getInitiated()
                 );
                 safeAbortMultipartUpload(upload.getUploadId());
@@ -1012,11 +1013,14 @@ class S3BlobContainer extends AbstractBlobContainer {
                 final var request = new AbortMultipartUploadRequest(bucket, blobKey, uploadId);
                 S3BlobStore.configureRequestForMetrics(request, blobStore, Operation.ABORT_MULTIPART_OBJECT, purpose);
                 SocketAccess.doPrivilegedVoid(() -> client.abortMultipartUpload(request));
+                logger.info("aborted upload [{}] of [{}]", uploadId, blobKey);
             } catch (AmazonS3Exception e) {
                 if (e.getStatusCode() != 404) {
                     throw e;
+                } else {
+                    // already aborted, nothing to do
+                    logger.info("upload [{}] of [{}] not found", uploadId, blobKey);
                 }
-                // else already aborted
             }
         }
 
