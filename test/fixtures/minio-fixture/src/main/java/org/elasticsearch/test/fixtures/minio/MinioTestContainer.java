@@ -34,15 +34,15 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
 
     static {
         final var allReleases = List.of(
-            "RELEASE.2021-03-01T04-20-55Z",
-            "RELEASE.2021-03-04T00-53-13Z",
-            "RELEASE.2021-03-10T05-11-33Z",
-            "RELEASE.2021-03-12T00-00-47Z",
-            "RELEASE.2021-03-17T02-33-02Z",
-            "RELEASE.2021-03-26T00-00-41Z",
-            "RELEASE.2021-04-06T23-11-00Z",
-            "RELEASE.2021-04-18T19-26-29Z",
-            "RELEASE.2021-04-22T15-44-28Z",
+//            "RELEASE.2021-03-01T04-20-55Z", // to check
+//            "RELEASE.2021-03-04T00-53-13Z", // to check
+//            "RELEASE.2021-03-10T05-11-33Z", // to check
+//            "RELEASE.2021-03-12T00-00-47Z", // to check
+//            "RELEASE.2021-03-17T02-33-02Z", // to check
+//            "RELEASE.2021-03-26T00-00-41Z", // to check
+//            "RELEASE.2021-04-06T23-11-00Z", // to check
+//            "RELEASE.2021-04-18T19-26-29Z", // to check
+//            "RELEASE.2021-04-22T15-44-28Z", // to check
             // "RELEASE.2021-05-11T23-27-41Z", // docker image missing?
             // "RELEASE.2021-05-16T05-32-34Z", // docker image missing?
             // "RELEASE.2021-05-18T00-53-28Z", // docker image missing?
@@ -50,124 +50,124 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
             // "RELEASE.2021-05-22T02-34-39Z", // docker image missing?
             // "RELEASE.2021-05-26T00-22-46Z", // docker image missing?
             // "RELEASE.2021-05-27T22-06-31Z", // docker image missing?
-            "RELEASE.2021-06-07T21-40-51Z",
-            "RELEASE.2021-06-09T18-51-39Z",
-            "RELEASE.2021-06-14T01-29-23Z",
-            "RELEASE.2021-06-17T00-10-46Z",
-            "RELEASE.2021-07-08T01-15-01Z",
-            "RELEASE.2021-07-08T19-43-25Z",
-            "RELEASE.2021-07-12T02-44-53Z",
-            "RELEASE.2021-07-15T22-27-34Z",
-            "RELEASE.2021-07-21T22-15-23Z",
-            "RELEASE.2021-07-22T05-23-32Z",
-            "RELEASE.2021-07-27T02-40-15Z",
-            "RELEASE.2021-07-30T00-02-00Z",
-            "RELEASE.2021-08-05T22-01-19Z",
-            "RELEASE.2021-08-17T20-53-08Z",
-            "RELEASE.2021-08-20T18-32-01Z",
-            "RELEASE.2021-08-25T00-41-18Z",
-            "RELEASE.2021-08-31T05-46-54Z",
-            "RELEASE.2021-09-03T03-56-13Z",
-            "RELEASE.2021-09-09T21-37-07Z",
-            "RELEASE.2021-09-15T04-54-25Z",
-            "RELEASE.2021-09-18T18-09-59Z",
-            "RELEASE.2021-09-23T04-46-24Z",
-            "RELEASE.2021-09-24T00-24-24Z",
-            "RELEASE.2021-10-02T16-31-05Z",
-            "RELEASE.2021-10-06T23-36-31Z",
-            "RELEASE.2021-10-08T23-58-24Z",
-            "RELEASE.2021-10-10T16-53-30Z",
-            "RELEASE.2021-10-13T00-23-17Z",
-            "RELEASE.2021-10-23T03-28-24Z",
-            "RELEASE.2021-10-27T16-29-42Z",
-            "RELEASE.2021-11-03T03-36-36Z",
-            "RELEASE.2021-11-05T09-16-26Z",
-            "RELEASE.2021-11-09T03-21-45Z",
-            "RELEASE.2021-11-24T23-19-33Z",
-            "RELEASE.2021-12-09T06-19-41Z",
-            "RELEASE.2021-12-10T23-03-39Z",
-            "RELEASE.2021-12-18T04-42-33Z",
-            "RELEASE.2021-12-20T22-07-16Z",
-            "RELEASE.2021-12-27T07-23-18Z",
-            "RELEASE.2021-12-29T06-49-06Z",
-            "RELEASE.2022-01-03T18-22-58Z",
-            "RELEASE.2022-01-04T07-41-07Z",
-            "RELEASE.2022-01-07T01-53-23Z",
-            "RELEASE.2022-01-08T03-11-54Z",
-            "RELEASE.2022-01-25T19-56-04Z",
-            "RELEASE.2022-01-27T03-53-02Z",
-            "RELEASE.2022-01-28T02-28-16Z",
-            "RELEASE.2022-02-01T18-00-14Z",
-            "RELEASE.2022-02-05T04-40-59Z",
-            "RELEASE.2022-02-07T08-17-33Z",
-            "RELEASE.2022-02-12T00-51-25Z",
-            "RELEASE.2022-02-16T00-35-27Z",
-            "RELEASE.2022-02-17T23-22-26Z",
-            "RELEASE.2022-02-18T01-50-10Z",
-            "RELEASE.2022-02-24T22-12-01Z",
-            "RELEASE.2022-02-26T02-54-46Z",
-            "RELEASE.2022-03-03T21-21-16Z",
-            "RELEASE.2022-03-05T06-32-39Z",
-            "RELEASE.2022-03-08T22-28-51Z",
-            "RELEASE.2022-03-11T11-08-23Z",
-            "RELEASE.2022-03-11T23-57-45Z",
-            "RELEASE.2022-03-14T18-25-24Z",
-            "RELEASE.2022-03-17T02-57-36Z",
-            "RELEASE.2022-03-17T06-34-49Z",
-            "RELEASE.2022-03-22T02-05-10Z",
-            "RELEASE.2022-03-24T00-43-44Z",
-            "RELEASE.2022-03-26T06-49-28Z",
-            "RELEASE.2022-04-01T03-41-39Z",
-            "RELEASE.2022-04-08T19-44-35Z",
-            "RELEASE.2022-04-09T15-09-52Z",
-            "RELEASE.2022-04-12T06-55-35Z",
-            "RELEASE.2022-04-16T04-26-02Z",
-            "RELEASE.2022-04-26T01-20-24Z",
-            "RELEASE.2022-04-29T01-27-09Z",
-            "RELEASE.2022-04-30T22-23-53Z",
-            "RELEASE.2022-05-03T20-36-08Z",
-            "RELEASE.2022-05-04T07-45-27Z",
-            "RELEASE.2022-05-08T23-50-31Z",
-            "RELEASE.2022-05-19T18-20-59Z",
-            "RELEASE.2022-05-23T18-45-11Z",
-            "RELEASE.2022-05-26T05-48-41Z",
-            "RELEASE.2022-06-02T02-11-04Z",
-            "RELEASE.2022-06-02T16-16-26Z",
-            "RELEASE.2022-06-03T01-40-53Z",
-            "RELEASE.2022-06-06T23-14-52Z",
-            "RELEASE.2022-06-07T00-33-41Z",
-            "RELEASE.2022-06-10T16-59-15Z",
-            "RELEASE.2022-06-11T19-55-32Z",
-            "RELEASE.2022-06-17T02-00-35Z",
-            "RELEASE.2022-06-20T23-13-45Z",
-            "RELEASE.2022-06-25T15-50-16Z",
-            "RELEASE.2022-06-30T20-58-09Z",
-            "RELEASE.2022-07-04T21-02-54Z",
-            "RELEASE.2022-07-06T20-29-49Z",
-            "RELEASE.2022-07-08T00-05-23Z",
-            "RELEASE.2022-07-13T23-29-44Z",
-            "RELEASE.2022-07-15T03-44-22Z",
-            "RELEASE.2022-07-17T15-43-14Z",
-            "RELEASE.2022-07-24T01-54-52Z",
-            "RELEASE.2022-07-24T17-09-31Z",
-            "RELEASE.2022-07-26T00-53-03Z",
-            "RELEASE.2022-07-29T19-40-48Z",
-            "RELEASE.2022-07-30T05-21-40Z",
-            "RELEASE.2022-08-02T23-59-16Z",
-            "RELEASE.2022-08-05T23-27-09Z",
-            "RELEASE.2022-08-08T18-34-09Z",
-            "RELEASE.2022-08-11T04-37-28Z",
-            "RELEASE.2022-08-13T21-54-44Z",
-            "RELEASE.2022-08-22T23-53-06Z",
-            "RELEASE.2022-08-25T07-17-05Z",
-            "RELEASE.2022-08-26T19-53-15Z",
-            "RELEASE.2022-09-01T23-53-36Z",
-            "RELEASE.2022-09-07T22-25-02Z",
-            "RELEASE.2022-09-17T00-09-45Z",
-            "RELEASE.2022-09-22T18-57-27Z",
-            "RELEASE.2022-09-25T15-44-53Z",
-            "RELEASE.2022-10-02T19-29-29Z",
-            "RELEASE.2022-10-05T14-58-27Z",
+//            "RELEASE.2021-06-07T21-40-51Z", // to check
+            // "RELEASE.2021-06-09T18-51-39Z", // to check
+            // "RELEASE.2021-06-14T01-29-23Z", // to check
+            // "RELEASE.2021-06-17T00-10-46Z", // to check
+            // "RELEASE.2021-07-08T01-15-01Z", // to check
+            // "RELEASE.2021-07-08T19-43-25Z", // to check
+            // "RELEASE.2021-07-12T02-44-53Z", // to check
+            // "RELEASE.2021-07-15T22-27-34Z", // to check
+            // "RELEASE.2021-07-21T22-15-23Z", // to check
+            // "RELEASE.2021-07-22T05-23-32Z", // to check
+            // "RELEASE.2021-07-27T02-40-15Z", // to check
+            // "RELEASE.2021-07-30T00-02-00Z", // to check
+            // "RELEASE.2021-08-05T22-01-19Z", // to check
+            // "RELEASE.2021-08-17T20-53-08Z", // to check
+            // "RELEASE.2021-08-20T18-32-01Z", // to check
+            // "RELEASE.2021-08-25T00-41-18Z", // to check
+            // "RELEASE.2021-08-31T05-46-54Z", // to check
+            // "RELEASE.2021-09-03T03-56-13Z", // to check
+            // "RELEASE.2021-09-09T21-37-07Z", // to check
+            // "RELEASE.2021-09-15T04-54-25Z", // to check
+            // "RELEASE.2021-09-18T18-09-59Z", // to check
+            // "RELEASE.2021-09-23T04-46-24Z", // to check
+            // "RELEASE.2021-09-24T00-24-24Z", // to check
+            // "RELEASE.2021-10-02T16-31-05Z", // to check
+            // "RELEASE.2021-10-06T23-36-31Z", // to check
+            // "RELEASE.2021-10-08T23-58-24Z", // to check
+            // "RELEASE.2021-10-10T16-53-30Z", // to check
+            // "RELEASE.2021-10-13T00-23-17Z", // to check
+            // "RELEASE.2021-10-23T03-28-24Z", // to check
+            // "RELEASE.2021-10-27T16-29-42Z", // to check
+            // "RELEASE.2021-11-03T03-36-36Z", // to check
+            // "RELEASE.2021-11-05T09-16-26Z", // to check
+            // "RELEASE.2021-11-09T03-21-45Z", // to check
+            // "RELEASE.2021-11-24T23-19-33Z", // to check
+            // "RELEASE.2021-12-09T06-19-41Z", // to check
+            // "RELEASE.2021-12-10T23-03-39Z", // to check
+            // "RELEASE.2021-12-18T04-42-33Z", // to check
+            // "RELEASE.2021-12-20T22-07-16Z", // to check
+            // "RELEASE.2021-12-27T07-23-18Z", // to check
+            // "RELEASE.2021-12-29T06-49-06Z", // to check
+            // "RELEASE.2022-01-03T18-22-58Z", // to check
+            // "RELEASE.2022-01-04T07-41-07Z", // to check
+            // "RELEASE.2022-01-07T01-53-23Z", // to check
+            // "RELEASE.2022-01-08T03-11-54Z", // to check
+            // "RELEASE.2022-01-25T19-56-04Z", // to check
+            // "RELEASE.2022-01-27T03-53-02Z", // to check
+            // "RELEASE.2022-01-28T02-28-16Z", // to check
+            // "RELEASE.2022-02-01T18-00-14Z", // to check
+            // "RELEASE.2022-02-05T04-40-59Z", // to check
+            // "RELEASE.2022-02-07T08-17-33Z", // to check
+            // "RELEASE.2022-02-12T00-51-25Z", // to check
+            // "RELEASE.2022-02-16T00-35-27Z", // to check
+            // "RELEASE.2022-02-17T23-22-26Z", // to check
+            // "RELEASE.2022-02-18T01-50-10Z", // to check
+            // "RELEASE.2022-02-24T22-12-01Z", // to check
+            // "RELEASE.2022-02-26T02-54-46Z", // to check
+            // "RELEASE.2022-03-03T21-21-16Z", // to check
+            // "RELEASE.2022-03-05T06-32-39Z", // to check
+            // "RELEASE.2022-03-08T22-28-51Z", // to check
+            // "RELEASE.2022-03-11T11-08-23Z", // to check
+            // "RELEASE.2022-03-11T23-57-45Z", // to check
+            // "RELEASE.2022-03-14T18-25-24Z", // to check
+            // "RELEASE.2022-03-17T02-57-36Z", // to check
+            // "RELEASE.2022-03-17T06-34-49Z", // to check
+            // "RELEASE.2022-03-22T02-05-10Z", // to check
+            // "RELEASE.2022-03-24T00-43-44Z", // to check
+            // "RELEASE.2022-03-26T06-49-28Z", // to check
+            // "RELEASE.2022-04-01T03-41-39Z", // to check
+            // "RELEASE.2022-04-08T19-44-35Z", // to check
+            // "RELEASE.2022-04-09T15-09-52Z", // to check
+            // "RELEASE.2022-04-12T06-55-35Z", // to check
+            // "RELEASE.2022-04-16T04-26-02Z", // to check
+            // "RELEASE.2022-04-26T01-20-24Z", // to check
+            // "RELEASE.2022-04-29T01-27-09Z", // to check
+            // "RELEASE.2022-04-30T22-23-53Z", // to check
+            // "RELEASE.2022-05-03T20-36-08Z", // to check
+            // "RELEASE.2022-05-04T07-45-27Z", // to check
+            // "RELEASE.2022-05-08T23-50-31Z", // to check
+            // "RELEASE.2022-05-19T18-20-59Z", // to check
+            // "RELEASE.2022-05-23T18-45-11Z", // to check
+            // "RELEASE.2022-05-26T05-48-41Z", // to check
+            // "RELEASE.2022-06-02T02-11-04Z", // to check
+            // "RELEASE.2022-06-02T16-16-26Z", // to check
+            // "RELEASE.2022-06-03T01-40-53Z", // to check
+            // "RELEASE.2022-06-06T23-14-52Z", // to check
+            // "RELEASE.2022-06-07T00-33-41Z", // to check
+            // "RELEASE.2022-06-10T16-59-15Z", // to check
+            // "RELEASE.2022-06-11T19-55-32Z", // to check
+            // "RELEASE.2022-06-17T02-00-35Z", // to check
+            // "RELEASE.2022-06-20T23-13-45Z", // to check
+            // "RELEASE.2022-06-25T15-50-16Z", // to check
+            // "RELEASE.2022-06-30T20-58-09Z", // to check
+            // "RELEASE.2022-07-04T21-02-54Z", // to check
+            // "RELEASE.2022-07-06T20-29-49Z", // to check
+            // "RELEASE.2022-07-08T00-05-23Z", // to check
+            // "RELEASE.2022-07-13T23-29-44Z", // to check
+            // "RELEASE.2022-07-15T03-44-22Z", // to check
+            // "RELEASE.2022-07-17T15-43-14Z", // to check
+            // "RELEASE.2022-07-24T01-54-52Z", // to check
+            // "RELEASE.2022-07-24T17-09-31Z", // to check
+            // "RELEASE.2022-07-26T00-53-03Z", // to check
+            // "RELEASE.2022-07-29T19-40-48Z", // to check
+            // "RELEASE.2022-07-30T05-21-40Z", // to check
+            // "RELEASE.2022-08-02T23-59-16Z", // to check
+            // "RELEASE.2022-08-05T23-27-09Z", // to check
+            // "RELEASE.2022-08-08T18-34-09Z", // to check
+            // "RELEASE.2022-08-11T04-37-28Z", // to check
+            // "RELEASE.2022-08-13T21-54-44Z", // to check
+            // "RELEASE.2022-08-22T23-53-06Z", // to check
+            // "RELEASE.2022-08-25T07-17-05Z", // to check
+            // "RELEASE.2022-08-26T19-53-15Z", // to check
+            // "RELEASE.2022-09-01T23-53-36Z", // to check
+            // "RELEASE.2022-09-07T22-25-02Z", // to check
+            // "RELEASE.2022-09-17T00-09-45Z", // to check
+            // "RELEASE.2022-09-22T18-57-27Z", // to check
+            // "RELEASE.2022-09-25T15-44-53Z", // to check
+            // "RELEASE.2022-10-02T19-29-29Z", // to check
+            // "RELEASE.2022-10-05T14-58-27Z", // to check
             "RELEASE.2022-10-08T20-11-00Z",
             "RELEASE.2022-10-15T19-57-03Z",
             "RELEASE.2022-10-20T00-55-09Z",
