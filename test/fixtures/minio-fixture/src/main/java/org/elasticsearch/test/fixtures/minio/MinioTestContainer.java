@@ -172,8 +172,8 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
             "RELEASE.2022-10-15T19-57-03Z",
             "RELEASE.2022-10-20T00-55-09Z",
             "RELEASE.2022-10-21T22-37-48Z",
-            "RELEASE.2022-10-24T18-35-07Z",
-            "RELEASE.2022-10-29T06-21-33Z"
+            "RELEASE.2022-10-24T18-35-07Z"
+            // "RELEASE.2022-10-29T06-21-33Z", // uncontended register operation failed: expected [0] but did not observe any value
             // "RELEASE.2022-11-08T05-27-07Z", // uncontended register operation failed: expected [0] but did not observe any value
             // "RELEASE.2022-11-10T18-20-21Z",
             // "RELEASE.2022-11-11T03-44-20Z",
