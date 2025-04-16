@@ -53,7 +53,7 @@ public class MinioRepositoryAnalysisRestIT extends AbstractRepositoryAnalysisRes
 
     @Override
     protected Settings repositorySettings() {
-        final String bucket = "bucket";
+        final String bucket = "dctbucket";
         final String basePath = "repository_test_kit_tests";
         return Settings.builder().put("client", "repository_test_kit").put("bucket", bucket).put("base_path", basePath).build();
     }
