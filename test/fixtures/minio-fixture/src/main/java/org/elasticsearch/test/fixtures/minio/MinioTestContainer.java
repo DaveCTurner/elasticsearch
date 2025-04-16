@@ -43,13 +43,13 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
             "RELEASE.2021-04-06T23-11-00Z",
             "RELEASE.2021-04-18T19-26-29Z",
             "RELEASE.2021-04-22T15-44-28Z",
-            "RELEASE.2021-05-11T23-27-41Z",
-            "RELEASE.2021-05-16T05-32-34Z",
-            "RELEASE.2021-05-18T00-53-28Z",
-            "RELEASE.2021-05-20T22-31-44Z",
-            "RELEASE.2021-05-22T02-34-39Z",
-            "RELEASE.2021-05-26T00-22-46Z",
-            "RELEASE.2021-05-27T22-06-31Z",
+            // "RELEASE.2021-05-11T23-27-41Z", // docker image missing?
+            // "RELEASE.2021-05-16T05-32-34Z", // docker image missing?
+            // "RELEASE.2021-05-18T00-53-28Z", // docker image missing?
+            // "RELEASE.2021-05-20T22-31-44Z", // docker image missing?
+            // "RELEASE.2021-05-22T02-34-39Z", // docker image missing?
+            // "RELEASE.2021-05-26T00-22-46Z", // docker image missing?
+            // "RELEASE.2021-05-27T22-06-31Z", // docker image missing?
             "RELEASE.2021-06-07T21-40-51Z",
             "RELEASE.2021-06-09T18-51-39Z",
             "RELEASE.2021-06-14T01-29-23Z",
