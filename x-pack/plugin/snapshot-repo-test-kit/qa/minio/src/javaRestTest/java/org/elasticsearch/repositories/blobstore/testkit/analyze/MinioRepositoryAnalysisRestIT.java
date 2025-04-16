@@ -24,7 +24,7 @@ public class MinioRepositoryAnalysisRestIT extends AbstractRepositoryAnalysisRes
         true,
         "s3_test_access_key",
         "s3_test_secret_key",
-        "dctbucket"
+        "bucket"
     );
 
     public static ElasticsearchCluster cluster = ElasticsearchCluster.local()
@@ -53,7 +53,7 @@ public class MinioRepositoryAnalysisRestIT extends AbstractRepositoryAnalysisRes
 
     @Override
     protected Settings repositorySettings() {
-        final String bucket = "dctbucket";
+        final String bucket = "bucket";
         final String basePath = "repository_test_kit_tests";
         return Settings.builder().put("client", "repository_test_kit").put("bucket", bucket).put("base_path", basePath).build();
     }
