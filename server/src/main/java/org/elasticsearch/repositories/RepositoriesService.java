@@ -191,11 +191,7 @@ public class RepositoriesService extends AbstractLifecycleComponent implements C
                         @Override
                         public void clusterStateProcessed(ClusterState oldState, ClusterState newState) {
                             if (changed) {
-                                if (found) {
-                                    logger.info("updated repository [{}]", request.name());
-                                } else {
-                                    logger.info("put repository [{}]", request.name());
-                                }
+                                logger.info("{} repository [{}]: {}", found ? "updated" : "put", request.name(), Strings.toString(request));
                             }
                             publicationStep.onResponse(oldState != newState);
                         }
