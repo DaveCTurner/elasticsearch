@@ -21,9 +21,9 @@ restResources {
   }
 }
 
-File minioDataDir = file("$buildDir/testclusters/minio-data")
+File minioDataDir = file("$buildDir/testclusters/minio-data-" + buildParams.getTestSeed())
 
 tasks.named('javaRestTest') {
   usesDefaultDistribution("to be triaged")
-  nonInputProperties.systemProperty 'tests.path.miniodata', (minioDataDir.absolutePath + "/seed-" + buildParams.get().getTestSeed())
+  nonInputProperties.systemProperty 'tests.path.miniodata', minioDataDir.absolutePath
 }
