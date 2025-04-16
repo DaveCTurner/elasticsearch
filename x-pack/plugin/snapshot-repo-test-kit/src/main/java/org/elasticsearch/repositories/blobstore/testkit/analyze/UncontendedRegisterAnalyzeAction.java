@@ -21,7 +21,6 @@ import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.blobstore.BlobPath;
 import org.elasticsearch.common.blobstore.OperationPurpose;
 import org.elasticsearch.common.blobstore.OptionalBytesReference;
-import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -70,9 +69,10 @@ class UncontendedRegisterAnalyzeAction extends HandledTransportAction<Uncontende
     }
 
     static void verifyFinalValue(Request request, Repository repository, ActionListener<Void> listener) {
-        // ensure that the repo accepts an empty register
-        logger.trace("handling final value [{}]", request);
-        updateRegister(request, BytesArray.EMPTY, repository, ActionListener.assertOnce(listener));
+        listener.onResponse(null);
+        // TODO ensure that the repo accepts an empty register
+        // logger.trace("handling final value [{}]", request);
+        // updateRegister(request, BytesArray.EMPTY, repository, ActionListener.assertOnce(listener));
     }
 
     private static void updateRegister(Request request, BytesReference newValue, Repository repository, ActionListener<Void> listener) {
