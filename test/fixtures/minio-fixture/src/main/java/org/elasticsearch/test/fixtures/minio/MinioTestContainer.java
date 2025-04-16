@@ -19,6 +19,11 @@ import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 public final class MinioTestContainer extends DockerEnvironmentAwareTestContainer {
 
     private static final int servicePort = 9000;
@@ -37,6 +42,7 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
     // ).get(new Random(Murmur3HashFunction.hash(System.getProperty("tests.seed"))).nextInt(1, 10));
 
     private final boolean enabled;
+    private final String bucketName;
 
     /**
      * for packer caching only
@@ -57,6 +63,7 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
                     .build()
             )
         );
+        this.bucketName = bucketName;
         if (enabled) {
             addExposedPort(servicePort);
             // The following waits for a specific log message as the readiness signal. When the minio docker image
@@ -75,6 +82,11 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
             final var minioDataPath = System.getProperty("tests.path.miniodata");
             if (minioDataPath != null) {
                 logger.info("bind-mounting minio data path at [{}]", minioDataPath);
+                try {
+                    Files.createDirectories(Path.of(minioDataPath).resolve(bucketName));
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
                 addFileSystemBind(minioDataPath, "/minio/data", BindMode.READ_WRITE, SelinuxContext.NONE);
             } else {
                 logger.info("not bind-mounting minio data path");

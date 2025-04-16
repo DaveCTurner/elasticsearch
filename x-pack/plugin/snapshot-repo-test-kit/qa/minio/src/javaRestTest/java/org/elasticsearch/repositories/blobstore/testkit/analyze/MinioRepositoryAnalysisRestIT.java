@@ -24,7 +24,7 @@ public class MinioRepositoryAnalysisRestIT extends AbstractRepositoryAnalysisRes
         true,
         "s3_test_access_key",
         "s3_test_secret_key",
-        "bucket"
+        "dctbucket"
     );
 
     public static ElasticsearchCluster cluster = ElasticsearchCluster.local()
