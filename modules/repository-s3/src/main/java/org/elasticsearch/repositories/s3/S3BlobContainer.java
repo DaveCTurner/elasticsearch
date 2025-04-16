@@ -1030,7 +1030,8 @@ class S3BlobContainer extends AbstractBlobContainer {
                     throw e;
                 } else {
                     // already aborted, nothing to do
-                    logger.info("upload [{}] of [{}] not found", uploadId, blobKey);
+                    logger.info("upload [{}] of [{}] not found during abort", uploadId, blobKey);
+                    abortedUploadIds.add(uploadId);
                 }
             }
         }

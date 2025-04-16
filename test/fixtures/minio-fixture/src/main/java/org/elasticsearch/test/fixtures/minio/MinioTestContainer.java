@@ -211,7 +211,7 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
             "RELEASE.2023-06-09T07-32-12Z",
             "RELEASE.2023-06-16T02-41-06Z",
             "RELEASE.2023-06-19T19-52-50Z",
-            "RELEASE.2023-06-23T20-26-00Z",
+            "RELEASE.2023-06-23T20-26-00Z", // aborted MPUs -> not found but still in listing
             "RELEASE.2023-06-29T05-12-28Z",
             "RELEASE.2023-07-07T07-13-57Z",
             "RELEASE.2023-07-11T21-29-34Z",
