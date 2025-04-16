@@ -59,6 +59,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.TimeValue;
@@ -80,6 +81,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -889,11 +891,19 @@ class S3BlobContainer extends AbstractBlobContainer {
         }
 
         private List<MultipartUpload> listMultipartUploads() {
+            final var abortedUploads = Set.copyOf(abortedUploadIds);
             final var listRequest = new ListMultipartUploadsRequest(bucket);
             listRequest.setPrefix(blobKey);
             S3BlobStore.configureRequestForMetrics(listRequest, blobStore, Operation.LIST_OBJECTS, purpose);
             try {
-                return SocketAccess.doPrivileged(() -> client.listMultipartUploads(listRequest)).getMultipartUploads();
+                final var result = SocketAccess.doPrivileged(() -> client.listMultipartUploads(listRequest)).getMultipartUploads();
+                for (MultipartUpload multipartUpload : result) {
+                    if (abortedUploads.contains(multipartUpload.getUploadId())) {
+                        logger.error("multipart upload [{}] was already aborted, should not appear in list", multipartUpload.getUploadId());
+                        throw new AssertionError(multipartUpload.getUploadId());
+                    }
+                }
+                return result;
             } catch (AmazonS3Exception e) {
                 if (e.getStatusCode() == 404) {
                     return List.of();
@@ -1014,6 +1024,7 @@ class S3BlobContainer extends AbstractBlobContainer {
                 S3BlobStore.configureRequestForMetrics(request, blobStore, Operation.ABORT_MULTIPART_OBJECT, purpose);
                 SocketAccess.doPrivilegedVoid(() -> client.abortMultipartUpload(request));
                 logger.info("aborted upload [{}] of [{}]", uploadId, blobKey);
+                abortedUploadIds.add(uploadId);
             } catch (AmazonS3Exception e) {
                 if (e.getStatusCode() != 404) {
                     throw e;
@@ -1030,6 +1041,8 @@ class S3BlobContainer extends AbstractBlobContainer {
             SocketAccess.doPrivilegedVoid(() -> client.completeMultipartUpload(completeMultipartUploadRequest));
         }
     }
+
+    private final Set<String> abortedUploadIds = ConcurrentCollections.newConcurrentSet();
 
     @Override
     public void compareAndExchangeRegister(
