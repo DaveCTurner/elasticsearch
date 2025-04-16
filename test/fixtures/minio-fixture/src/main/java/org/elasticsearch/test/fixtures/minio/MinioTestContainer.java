@@ -204,18 +204,18 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
             "RELEASE.2023-04-13T03-08-07Z",
             "RELEASE.2023-04-20T17-56-55Z",
             "RELEASE.2023-04-28T18-11-17Z",
-            "RELEASE.2023-05-04T21-44-30Z",
-            "RELEASE.2023-05-18T00-05-36Z",
-            "RELEASE.2023-05-27T05-56-19Z",
-            "RELEASE.2023-06-02T23-17-26Z",
-            "RELEASE.2023-06-09T07-32-12Z",
-            "RELEASE.2023-06-16T02-41-06Z",
-            "RELEASE.2023-06-19T19-52-50Z",
-            "RELEASE.2023-06-23T20-26-00Z",
-            "RELEASE.2023-06-29T05-12-28Z",
-            "RELEASE.2023-07-07T07-13-57Z",
-            "RELEASE.2023-07-11T21-29-34Z",
-            "RELEASE.2023-07-18T17-49-40Z"
+            "RELEASE.2023-05-04T21-44-30Z"
+            // "RELEASE.2023-05-18T00-05-36Z", // uncontended register operation failed: expected [0] but did not observe any value
+            // "RELEASE.2023-05-27T05-56-19Z",
+            // "RELEASE.2023-06-02T23-17-26Z",
+            // "RELEASE.2023-06-09T07-32-12Z",
+            // "RELEASE.2023-06-16T02-41-06Z",
+            // "RELEASE.2023-06-19T19-52-50Z",
+            // "RELEASE.2023-06-23T20-26-00Z",
+            // "RELEASE.2023-06-29T05-12-28Z",
+            // "RELEASE.2023-07-07T07-13-57Z",
+            // "RELEASE.2023-07-11T21-29-34Z",
+            // "RELEASE.2023-07-18T17-49-40Z"
             // "RELEASE.2023-07-21T21-12-44Z", // uncontended register operation failed: expected [0] but did not observe any value
             // "RELEASE.2023-08-04T17-40-21Z",
             // "RELEASE.2023-08-09T23-30-22Z",
