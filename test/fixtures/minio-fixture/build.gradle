@@ -15,7 +15,7 @@ configurations.all {
   exclude group: 'org.hamcrest', module: 'hamcrest-core'
 }
 dependencies {
-  testImplementation (project(':test:framework'))
+  implementation project(':test:framework')
   api "junit:junit:${versions.junit}"
   api project(':test:fixtures:testcontainer-utils')
   api("org.testcontainers:testcontainers:${versions.testcontainer}") {
