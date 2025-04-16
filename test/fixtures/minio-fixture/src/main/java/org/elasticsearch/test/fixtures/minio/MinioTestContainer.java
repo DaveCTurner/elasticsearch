@@ -330,16 +330,15 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
     }
 
     public MinioTestContainer(boolean enabled, String accessKey, String secretKey, String bucketName) {
-        super(
-            new ImageFromDockerfile("es-minio-testfixture").withDockerfileFromBuilder(
-                builder -> builder.from(DOCKER_BASE_IMAGE)
-                    .env("MINIO_ROOT_USER", accessKey)
-                    .env("MINIO_ROOT_PASSWORD", secretKey)
-                    .run("mkdir -p /minio/data/" + bucketName)
-                    .cmd("server", "/minio/data")
-                    .build()
-            )
-        );
+        super(new ImageFromDockerfile("es-minio-testfixture").withDockerfileFromBuilder(builder -> {
+            final var dockerFileContent = builder.from(DOCKER_BASE_IMAGE)
+                .env("MINIO_ROOT_USER", accessKey)
+                .env("MINIO_ROOT_PASSWORD", secretKey)
+                .run("mkdir -p /minio/data/" + bucketName)
+                .cmd("server", "/minio/data")
+                .build();
+            logger.info("DockerFile: {}", dockerFileContent);
+        }));
         this.bucketName = bucketName;
         if (enabled) {
             addExposedPort(servicePort);
