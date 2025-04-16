@@ -346,7 +346,7 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
             // The following waits for a specific log message as the readiness signal. When the minio docker image
             // gets upgraded in future, we must ensure the log message still exists or update it here accordingly.
             // Otherwise the tests using the minio fixture will fail with timeout on waiting the container to be ready.
-            setWaitStrategy(Wait.forLogMessage("API: .*:9000.*", 1));
+            setWaitStrategy(Wait.forLogMessage(".*API: .*:9000.*", 1));
         }
         this.enabled = enabled;
     }
