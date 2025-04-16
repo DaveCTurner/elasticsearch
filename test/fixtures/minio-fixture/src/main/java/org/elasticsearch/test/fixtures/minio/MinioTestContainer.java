@@ -356,7 +356,7 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
     @Override
     public void start() {
         if (enabled) {
-            logger.info("using MinIO package", DOCKER_BASE_IMAGE);
+            logger.info("using MinIO package {}", DOCKER_BASE_IMAGE);
             final var minioDataPath = System.getProperty("tests.path.miniodata");
             if (minioDataPath != null) {
                 logger.info("bind-mounting minio data path at [{}]", minioDataPath);
