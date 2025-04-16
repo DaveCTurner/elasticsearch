@@ -129,6 +129,8 @@ class S3Service implements Closeable {
         /* clients are built lazily by {@link #client} */
     }
 
+    private static final org.elasticsearch.logging.Logger logger = org.elasticsearch.logging.LogManager.getLogger(S3Service.class);
+
     /**
      * Attempts to retrieve a client by its repository metadata and settings from the cache.
      * If the client does not exist it will be created.
@@ -141,6 +143,7 @@ class S3Service implements Closeable {
                 return clientReference;
             }
         }
+        logger.info("--> creating S3 repo client for repo [{}] with endpoint [{}]", repositoryMetadata.name(), clientSettings.endpoint);
         synchronized (this) {
             final AmazonS3Reference existing = clientsCache.get(clientSettings);
             if (existing != null && existing.tryIncRef()) {
