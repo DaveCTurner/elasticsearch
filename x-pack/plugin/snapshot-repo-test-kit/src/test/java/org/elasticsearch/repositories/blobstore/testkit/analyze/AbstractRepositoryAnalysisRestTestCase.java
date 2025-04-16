@@ -41,7 +41,7 @@ public abstract class AbstractRepositoryAnalysisRestTestCase extends ESRestTestC
         request.addParameter("timeout", "120s");
         request.addParameter("seed", Long.toString(randomLong()));
         assertOK(client().performRequest(request));
-        Thread.sleep(300000);
+        // Thread.sleep(300000);
         fail("boom");
     }
 
