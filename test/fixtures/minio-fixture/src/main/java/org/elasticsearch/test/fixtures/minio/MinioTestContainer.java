@@ -9,33 +9,32 @@
 
 package org.elasticsearch.test.fixtures.minio;
 
-import org.elasticsearch.cluster.routing.Murmur3HashFunction;
 import org.elasticsearch.logging.Level;
 import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
 import org.elasticsearch.test.fixtures.testcontainers.DockerEnvironmentAwareTestContainer;
+import org.testcontainers.containers.BindMode;
+import org.testcontainers.containers.SelinuxContext;
 import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 
-import java.util.List;
-import java.util.Random;
-
 public final class MinioTestContainer extends DockerEnvironmentAwareTestContainer {
 
     private static final int servicePort = 9000;
-    public static final String DOCKER_BASE_IMAGE = List.of(
-        "minio/minio:RELEASE.2024-12-18T13-15-44Z", // 0, confirmed broken
-        "minio/minio:RELEASE.2025-01-18T00-31-37Z", // 1
-        "minio/minio:RELEASE.2025-01-20T14-49-07Z", // 2
-        "minio/minio:RELEASE.2025-02-03T21-03-04Z", // 3
-        "minio/minio:RELEASE.2025-02-07T23-21-09Z", // 4
-        "minio/minio:RELEASE.2025-02-18T16-25-55Z", // 5
-        "minio/minio:RELEASE.2025-02-28T09-55-16Z", // 6
-        "minio/minio:RELEASE.2025-03-12T18-04-18Z", // 7
-        "minio/minio:RELEASE.2025-04-03T14-56-28Z", // 8
-        "minio/minio:RELEASE.2025-04-08T15-41-24Z"  // 9
-    ).get(new Random(Murmur3HashFunction.hash(System.getProperty("tests.seed"))).nextInt(1, 10));
+    public static final String DOCKER_BASE_IMAGE = "minio/minio:RELEASE.2025-04-08T15-41-24Z";
+    // List.of(
+    // "minio/minio:RELEASE.2024-12-18T13-15-44Z", // 0, confirmed broken
+    // "minio/minio:RELEASE.2025-01-18T00-31-37Z", // 1
+    // "minio/minio:RELEASE.2025-01-20T14-49-07Z", // 2
+    // "minio/minio:RELEASE.2025-02-03T21-03-04Z", // 3
+    // "minio/minio:RELEASE.2025-02-07T23-21-09Z", // 4
+    // "minio/minio:RELEASE.2025-02-18T16-25-55Z", // 5
+    // "minio/minio:RELEASE.2025-02-28T09-55-16Z", // 6
+    // "minio/minio:RELEASE.2025-03-12T18-04-18Z", // 7
+    // "minio/minio:RELEASE.2025-04-03T14-56-28Z", // 8
+    // "minio/minio:RELEASE.2025-04-08T15-41-24Z" // 9
+    // ).get(new Random(Murmur3HashFunction.hash(System.getProperty("tests.seed"))).nextInt(1, 10));
 
     private final boolean enabled;
 
@@ -73,6 +72,13 @@ public final class MinioTestContainer extends DockerEnvironmentAwareTestContaine
     @Override
     public void start() {
         if (enabled) {
+            final var minioDataPath = System.getProperty("tests.path.miniodata");
+            if (minioDataPath != null) {
+                logger.info("bind-mounting minio data path at [{}]", minioDataPath);
+                addFileSystemBind(minioDataPath, "/minio/data", BindMode.READ_WRITE, SelinuxContext.NONE);
+            } else {
+                logger.info("not bind-mounting minio data path");
+            }
             withLogConsumer(
                 frame -> logger.log(
                     frame.getType() == OutputFrame.OutputType.STDOUT ? Level.INFO : Level.WARN,
