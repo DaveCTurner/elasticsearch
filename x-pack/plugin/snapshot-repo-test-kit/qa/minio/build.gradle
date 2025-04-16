@@ -21,7 +21,7 @@ restResources {
   }
 }
 
-File minioDataDir = file("$buildDir/testclusters/minio-data-" + System.getProperty("tests.seed"))
+File minioDataDir = file("$buildDir/testclusters/minio-data-" + buildParams.get().getTestSeed())
 
 tasks.named('javaRestTest') {
   usesDefaultDistribution("to be triaged")
