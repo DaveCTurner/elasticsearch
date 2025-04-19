@@ -30,6 +30,9 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.flow.FlowControlHandler;
+import io.netty.handler.logging.ByteBufFormat;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.netty.handler.timeout.ReadTimeoutHandler;
@@ -317,6 +320,10 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             this.enabled = enabled;
         }
 
+        private record BeforeDecoder() {}
+
+        private record AfterDecompressor() {}
+
         @Override
         protected void initChannel(Channel ch) throws Exception {
             // auto-read must be disabled all the time
@@ -348,6 +355,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             if (transport.readTimeoutMillis > 0) {
                 ch.pipeline().addLast("read_timeout", new ReadTimeoutHandler(transport.readTimeoutMillis, TimeUnit.MILLISECONDS));
             }
+            ch.pipeline().addLast("log_before_decoder", new LoggingHandler(BeforeDecoder.class, LogLevel.INFO, ByteBufFormat.SIMPLE));
             final HttpRequestDecoder decoder;
             if (httpValidator != null) {
                 decoder = new HttpRequestDecoder(
@@ -401,6 +409,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             aggregator.setMaxCumulationBufferComponents(transport.maxCompositeBufferComponents);
             ch.pipeline()
                 .addLast("decoder_compress", new HttpContentDecompressor()) // this handles request body decompression
+                .addLast("log_after_decompress", new LoggingHandler(AfterDecompressor.class, LogLevel.INFO, ByteBufFormat.SIMPLE))
                 .addLast("encoder", new HttpResponseEncoder() {
                     @Override
                     protected boolean isContentAlwaysEmpty(HttpResponse msg) {
