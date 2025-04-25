@@ -14,6 +14,9 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.LastHttpContent;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.http.HttpBody;
@@ -58,8 +61,13 @@ public class Netty4HttpRequestBodyStream implements HttpBody.Stream {
         tracingHandlers.add(chunkHandler);
     }
 
+    private static final Logger logger = LogManager.getLogger(Netty4HttpRequestBodyStream.class);
+
     private void read() {
-        ctx.channel().eventLoop().execute(ctx::read);
+        ctx.channel().eventLoop().execute(() -> {
+            logger.info("--> ctx.read() from Netty4HttpRequestBodyStream", new ElasticsearchException("stack trace"));
+            ctx.read();
+        });
     }
 
     @Override
