@@ -97,6 +97,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -424,10 +425,10 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
             // need to offset starting point, since we reuse cluster and other tests already sent some data
             var totalBytesSent = clientContext.transportStatsRequestBytesSize();
 
-            final var totalRequests = between(1, 10);
+            final var totalRequests = 100;
             for (var requestIndex = 0; requestIndex < totalRequests; requestIndex++) {
                 var opaqueId = clientContext.newOpaqueId();
-                final var contentSize = randomIntBetween(0, MAX_CONTENT_LENGTH);
+                final var contentSize = randomIntBetween(0, ByteSizeUnit.KB.toIntBytes(100));
                 totalBytesSent += contentSize;
                 clientContext.channel().writeAndFlush(httpRequest(opaqueId, contentSize));
                 clientContext.channel().writeAndFlush(randomContent(contentSize, true));
@@ -621,7 +622,7 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
     }
 
     private ClientContext newClientContext(String nodeName, Consumer<Throwable> exceptionHandler) throws Exception {
-        var clientResponseQueue = new LinkedBlockingDeque<FullHttpResponse>(16);
+        var clientResponseQueue = new LinkedBlockingDeque<FullHttpResponse>(1000);
         final var httpServerTransport = internalCluster().getInstance(HttpServerTransport.class, nodeName);
         var remoteAddr = randomFrom(httpServerTransport.boundAddress().boundAddresses());
         var handlersByOpaqueId = internalCluster().getInstance(HandlersByOpaqueId.class, nodeName);
@@ -740,6 +741,7 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
         boolean receivedLastChunk = false;
         final CountDownLatch closedLatch = new CountDownLatch(1);
         volatile boolean shouldThrowInsideHandleChunk = false;
+        private final AtomicInteger chunkCount = new AtomicInteger();
 
         ServerRequestHandler(String opaqueId, Netty4HttpRequestBodyStream stream) {
             this.opaqueId = opaqueId;
@@ -757,7 +759,10 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
             Transports.assertTransportThread();
             assertFalse("should not get any chunks after close", isClosed());
             final var nextChunkListener = nextChunkListenerRef.getAndSet(null);
-            assertNotNull("next chunk was not explicitly requested, on " + Thread.currentThread().getName(), nextChunkListener);
+            assertNotNull(
+                "chunk index [" + chunkCount.get() + "] was not explicitly requested, on " + Thread.currentThread().getName(),
+                nextChunkListener
+            );
             if (shouldThrowInsideHandleChunk) {
                 // Must close the chunk. This is the contract of this method.
                 chunk.close();
@@ -778,7 +783,11 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
         public void streamClose() {
             Transports.assertTransportThread();
             closedLatch.countDown();
-            logger.info("--> stream closed in streamClose, clear nextChunkListenerRef on [{}]", Thread.currentThread().getName());
+            logger.info(
+                "--> stream closed in streamClose after [{}] chunks, clear nextChunkListenerRef on [{}]",
+                chunkCount.get(),
+                Thread.currentThread().getName()
+            );
             final var nextChunkListener = nextChunkListenerRef.getAndSet(null);
             if (nextChunkListener != null) {
                 // might get a chunk and then a close in one read event, in which case the chunk consumes the listener
@@ -791,6 +800,10 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
         }
 
         Chunk getNextChunk() throws Exception {
+            final var chunkIndex = chunkCount.getAndIncrement();
+            if (chunkIndex == 0) {
+//                safeSleep(200);
+            }
             final var exception = new AtomicReference<Exception>();
             final var future = new PlainActionFuture<Chunk>();
             assertTrue(nextChunkListenerRef.compareAndSet(null, ActionListener.assertOnce(future.delegateResponse((l, e) -> {
