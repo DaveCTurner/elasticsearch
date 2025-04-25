@@ -30,6 +30,9 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.flow.FlowControlHandler;
+import io.netty.handler.logging.ByteBufFormat;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.netty.handler.timeout.ReadTimeoutHandler;
@@ -433,6 +436,13 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             // can emit multiple chunks per read, but HttpBody.Stream requires chunks to arrive one-at-a-time so until that issue is
             // resolved we must add another flow controller here:
             ch.pipeline().addLast(new FlowControlHandler());
+            ch.pipeline().addLast(new LoggingHandler(Netty4HttpServerTransport.class, LogLevel.INFO, ByteBufFormat.SIMPLE) {
+                @Override
+                public void read(ChannelHandlerContext ctx) throws Exception {
+                    Netty4HttpServerTransport.logger.info("--> read(ctx)");
+                    super.read(ctx);
+                }
+            });
             ch.pipeline()
                 .addLast(
                     "pipelining",
