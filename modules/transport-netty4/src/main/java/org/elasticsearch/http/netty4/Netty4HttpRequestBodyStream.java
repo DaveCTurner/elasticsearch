@@ -17,6 +17,7 @@ import io.netty.handler.codec.http.LastHttpContent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.common.util.concurrent.RunOnce;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.http.HttpBody;
@@ -37,6 +38,7 @@ public class Netty4HttpRequestBodyStream implements HttpBody.Stream {
     private HttpBody.ChunkHandler handler;
     private ThreadContext.StoredContext requestContext;
     private final ChannelFutureListener closeListener = future -> doClose();
+    private final Runnable doFinalRead = new RunOnce(this::read);
 
     public Netty4HttpRequestBodyStream(ChannelHandlerContext ctx, ThreadContext threadContext) {
         this.ctx = ctx;
@@ -81,7 +83,7 @@ public class Netty4HttpRequestBodyStream implements HttpBody.Stream {
     public void handleNettyContent(HttpContent httpContent) {
         if (closing) {
             httpContent.release();
-            read();
+            doFinalRead.run();
         } else {
             try (var ignored = threadContext.restoreExistingContext(requestContext)) {
                 var isLast = httpContent instanceof LastHttpContent;
@@ -91,6 +93,7 @@ public class Netty4HttpRequestBodyStream implements HttpBody.Stream {
                 }
                 handler.onNext(buf, isLast);
                 if (isLast) {
+                    doFinalRead.run();
                     ctx.channel().closeFuture().removeListener(closeListener);
                 }
             }
@@ -121,6 +124,6 @@ public class Netty4HttpRequestBodyStream implements HttpBody.Stream {
                 handler.close();
             }
         }
-        read();
+        doFinalRead.run();
     }
 }
