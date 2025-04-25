@@ -37,6 +37,8 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.stream.ChunkedStream;
 import io.netty.handler.stream.ChunkedWriteHandler;
 
+import com.carrotsearch.randomizedtesting.annotations.Repeat;
+
 import org.apache.logging.log4j.Level;
 import org.elasticsearch.ESNetty4IntegTestCase;
 import org.elasticsearch.ExceptionsHelper;
@@ -443,6 +445,34 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
         }
     }
 
+    public void testHttpPipelining() throws Exception {
+        try (var clientContext = newClientContext()) {
+            final var channel = clientContext.channel();
+
+            final var opaqueId1 = clientContext.newOpaqueId();
+            final var contentSize1 = randomIntBetween(0, ByteSizeUnit.KB.toIntBytes(10));
+            channel.write(httpRequest(opaqueId1, contentSize1));
+            channel.write(randomContent(contentSize1, true));
+            final var opaqueId2 = clientContext.newOpaqueId();
+            final var contentSize2 = randomIntBetween(0, ByteSizeUnit.KB.toIntBytes(100));
+            channel.write(httpRequest(opaqueId2, contentSize2));
+            channel.write(randomContent(contentSize2, true));
+            channel.flush();
+
+            final var handler1 = clientContext.awaitRestChannelAccepted(opaqueId1);
+            handler1.readAllBytes();
+
+            final var handler2 = clientContext.awaitRestChannelAccepted(opaqueId2);
+            handler2.readAllBytes();
+
+            handler1.sendResponse(new RestResponse(RestStatus.OK, ""));
+            handler2.sendResponse(new RestResponse(RestStatus.OK, ""));
+
+            clientContext.getNextResponse().release();
+            clientContext.getNextResponse().release();
+        }
+    }
+
     // ensures that we log parts of http body and final line
     @TestLogging(
         reason = "testing TRACE logging",
@@ -802,7 +832,7 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
         Chunk getNextChunk() throws Exception {
             final var chunkIndex = chunkCount.getAndIncrement();
             if (chunkIndex == 0) {
-//                safeSleep(200);
+                // safeSleep(200);
             }
             final var exception = new AtomicReference<Exception>();
             final var future = new PlainActionFuture<Chunk>();
