@@ -39,7 +39,6 @@ import io.netty.handler.stream.ChunkedWriteHandler;
 
 import org.apache.logging.log4j.Level;
 import org.elasticsearch.ESNetty4IntegTestCase;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionTestUtils;
@@ -812,14 +811,14 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
         public void streamClose() {
             Transports.assertTransportThread();
             closedLatch.countDown();
-            logger.info(
-                Strings.format(
-                    "--> stream closed in streamClose after [%s] chunks, clear nextChunkListenerRef on [%s]",
-                    chunkCount.get(),
-                    Thread.currentThread().getName()
-                ),
-                new ElasticsearchException("stack trace")
-            );
+            // logger.info(
+            // Strings.format(
+            // "--> stream closed in streamClose after [%s] chunks, clear nextChunkListenerRef on [%s]",
+            // chunkCount.get(),
+            // Thread.currentThread().getName()
+            // ),
+            // new ElasticsearchException("stack trace")
+            // );
             final var nextChunkListener = nextChunkListenerRef.getAndSet(null);
             if (nextChunkListener != null) {
                 // might get a chunk and then a close in one read event, in which case the chunk consumes the listener
@@ -836,7 +835,7 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
             if (chunkIndex == 0) {
                 // safeSleep(200);
             }
-            logger.info("--> getNextChunk [{}]", chunkIndex);
+            // logger.info("--> getNextChunk [{}]", chunkIndex);
             final var exception = new AtomicReference<Exception>();
             final var future = new PlainActionFuture<Chunk>();
             assertTrue(nextChunkListenerRef.compareAndSet(null, ActionListener.assertOnce(future.delegateResponse((l, e) -> {
@@ -845,7 +844,7 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
             }))));
             if (isClosed()) {
                 // check streamClosed _after_ registering listener ref
-                logger.info("--> stream closed in getNextChunk, clear nextChunkListenerRef on [{}]", Thread.currentThread().getName());
+                // logger.info("--> stream closed in getNextChunk, clear nextChunkListenerRef on [{}]", Thread.currentThread().getName());
                 nextChunkListenerRef.set(null);
                 if (randomBoolean()) {
                     stream.next(); // shouldn't do anything after close anyway

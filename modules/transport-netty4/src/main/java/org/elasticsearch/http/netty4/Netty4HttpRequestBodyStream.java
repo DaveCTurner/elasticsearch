@@ -64,9 +64,9 @@ public class Netty4HttpRequestBodyStream implements HttpBody.Stream {
     private static final Logger logger = LogManager.getLogger(Netty4HttpRequestBodyStream.class);
 
     private void read() {
-        final var callerStackTrace = new ElasticsearchException("stack trace on " + Thread.currentThread().getName());
+//        final var callerStackTrace = new ElasticsearchException("stack trace on " + Thread.currentThread().getName());
         ctx.channel().eventLoop().execute(() -> {
-            logger.info("--> ctx.read() from Netty4HttpRequestBodyStream", callerStackTrace);
+//            logger.info("--> ctx.read() from Netty4HttpRequestBodyStream", callerStackTrace);
             ctx.read();
         });
     }
@@ -99,13 +99,13 @@ public class Netty4HttpRequestBodyStream implements HttpBody.Stream {
 
     @Override
     public void close() {
-        final var callerStackTrace = new ElasticsearchException("stack trace on " + Thread.currentThread().getName());
+//        final var callerStackTrace = new ElasticsearchException("stack trace on " + Thread.currentThread().getName());
         if (ctx.channel().eventLoop().inEventLoop()) {
-            logger.info("--> close() in Netty4HttpRequestBodyStream on event loop", callerStackTrace);
+//            logger.info("--> close() in Netty4HttpRequestBodyStream on event loop", callerStackTrace);
             doClose();
         } else {
             ctx.channel().eventLoop().submit(() -> {
-                logger.info("--> close() in Netty4HttpRequestBodyStream dispatched to event loop", callerStackTrace);
+//                logger.info("--> close() in Netty4HttpRequestBodyStream dispatched to event loop", callerStackTrace);
                 doClose();
             });
         }

@@ -437,13 +437,13 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             // can emit multiple chunks per read, but HttpBody.Stream requires chunks to arrive one-at-a-time so until that issue is
             // resolved we must add another flow controller here:
             ch.pipeline().addLast(new FlowControlHandler());
-            ch.pipeline().addLast(new LoggingHandler(Netty4HttpServerTransport.class, LogLevel.INFO, ByteBufFormat.SIMPLE) {
-                @Override
-                public void read(ChannelHandlerContext ctx) throws Exception {
-                    Netty4HttpServerTransport.logger.info("--> read(ctx) on {}", Thread.currentThread().getName());
-                    super.read(ctx);
-                }
-            });
+            // ch.pipeline().addLast(new LoggingHandler(Netty4HttpServerTransport.class, LogLevel.INFO, ByteBufFormat.SIMPLE) {
+            // @Override
+            // public void read(ChannelHandlerContext ctx) throws Exception {
+            // Netty4HttpServerTransport.logger.info("--> read(ctx) on {}", Thread.currentThread().getName());
+            // super.read(ctx);
+            // }
+            // });
             ch.pipeline()
                 .addLast(
                     "pipelining",

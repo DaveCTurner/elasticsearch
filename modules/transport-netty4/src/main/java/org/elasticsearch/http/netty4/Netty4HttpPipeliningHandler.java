@@ -157,9 +157,9 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             }
         } finally {
             if (shouldRead) {
-                final var callerStackTrace = new ElasticsearchException("stack trace on " + Thread.currentThread().getName());
+//                final var callerStackTrace = new ElasticsearchException("stack trace on " + Thread.currentThread().getName());
                 ctx.channel().eventLoop().execute(() -> {
-                    logger.info("--> ctx.read() from channelRead()", callerStackTrace);
+//                    logger.info("--> ctx.read() from channelRead()", callerStackTrace);
                     ctx.read();
                 });
             }
