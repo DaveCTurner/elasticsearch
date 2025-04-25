@@ -37,8 +37,6 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.stream.ChunkedStream;
 import io.netty.handler.stream.ChunkedWriteHandler;
 
-import com.carrotsearch.randomizedtesting.annotations.Repeat;
-
 import org.apache.logging.log4j.Level;
 import org.elasticsearch.ESNetty4IntegTestCase;
 import org.elasticsearch.ExceptionsHelper;
@@ -834,6 +832,7 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
             if (chunkIndex == 0) {
                 // safeSleep(200);
             }
+            logger.info("--> getNextChunk [{}]", chunkIndex);
             final var exception = new AtomicReference<Exception>();
             final var future = new PlainActionFuture<Chunk>();
             assertTrue(nextChunkListenerRef.compareAndSet(null, ActionListener.assertOnce(future.delegateResponse((l, e) -> {
