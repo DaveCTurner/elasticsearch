@@ -41,6 +41,7 @@ import io.netty.util.ResourceLeakDetector;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.bulk.IncrementalBulkService;
 import org.elasticsearch.common.network.CloseableChannel;
@@ -439,7 +440,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             ch.pipeline().addLast(new LoggingHandler(Netty4HttpServerTransport.class, LogLevel.INFO, ByteBufFormat.SIMPLE) {
                 @Override
                 public void read(ChannelHandlerContext ctx) throws Exception {
-                    Netty4HttpServerTransport.logger.info("--> read(ctx)");
+                    Netty4HttpServerTransport.logger.info("--> read(ctx)", new ElasticsearchException("stack trace"));
                     super.read(ctx);
                 }
             });
