@@ -64,8 +64,9 @@ public class Netty4HttpRequestBodyStream implements HttpBody.Stream {
     private static final Logger logger = LogManager.getLogger(Netty4HttpRequestBodyStream.class);
 
     private void read() {
+        final var callerStackTrace = new ElasticsearchException("stack trace");
         ctx.channel().eventLoop().execute(() -> {
-            logger.info("--> ctx.read() from Netty4HttpRequestBodyStream", new ElasticsearchException("stack trace"));
+            logger.info("--> ctx.read() from Netty4HttpRequestBodyStream", callerStackTrace);
             ctx.read();
         });
     }
