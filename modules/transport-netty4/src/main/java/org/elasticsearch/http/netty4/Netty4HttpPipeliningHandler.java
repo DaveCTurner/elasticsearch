@@ -156,7 +156,10 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             }
         } finally {
             if (shouldRead) {
-                ctx.channel().eventLoop().execute(ctx::read);
+                ctx.channel().eventLoop().execute(() -> {
+                    logger.info("--> ctx.read() from channelRead()");
+                    ctx.read();
+                });
             }
             activityTracker.stopActivity();
         }
