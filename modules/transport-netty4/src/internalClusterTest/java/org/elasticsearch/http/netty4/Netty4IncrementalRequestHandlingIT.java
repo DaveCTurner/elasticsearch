@@ -39,6 +39,7 @@ import io.netty.handler.stream.ChunkedWriteHandler;
 
 import org.apache.logging.log4j.Level;
 import org.elasticsearch.ESNetty4IntegTestCase;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionTestUtils;
@@ -812,9 +813,12 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
             Transports.assertTransportThread();
             closedLatch.countDown();
             logger.info(
-                "--> stream closed in streamClose after [{}] chunks, clear nextChunkListenerRef on [{}]",
-                chunkCount.get(),
-                Thread.currentThread().getName()
+                Strings.format(
+                    "--> stream closed in streamClose after [%s] chunks, clear nextChunkListenerRef on [%s]",
+                    chunkCount.get(),
+                    Thread.currentThread().getName()
+                ),
+                new ElasticsearchException("stack trace")
             );
             final var nextChunkListener = nextChunkListenerRef.getAndSet(null);
             if (nextChunkListener != null) {
