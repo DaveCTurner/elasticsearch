@@ -32,6 +32,7 @@ import io.netty.util.concurrent.PromiseCombiner;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ContextPreservingActionListener;
@@ -156,8 +157,9 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             }
         } finally {
             if (shouldRead) {
+                final var callerStackTrace = new ElasticsearchException("stack trace on " + Thread.currentThread().getName());
                 ctx.channel().eventLoop().execute(() -> {
-                    logger.info("--> ctx.read() from channelRead()");
+                    logger.info("--> ctx.read() from channelRead()", callerStackTrace);
                     ctx.read();
                 });
             }

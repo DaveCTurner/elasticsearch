@@ -440,7 +440,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             ch.pipeline().addLast(new LoggingHandler(Netty4HttpServerTransport.class, LogLevel.INFO, ByteBufFormat.SIMPLE) {
                 @Override
                 public void read(ChannelHandlerContext ctx) throws Exception {
-                    Netty4HttpServerTransport.logger.info("--> read(ctx)", new ElasticsearchException("stack trace"));
+                    Netty4HttpServerTransport.logger.info("--> read(ctx) on {}", Thread.currentThread().getName());
                     super.read(ctx);
                 }
             });
