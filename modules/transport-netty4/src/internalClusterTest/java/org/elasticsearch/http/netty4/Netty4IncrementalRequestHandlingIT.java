@@ -66,6 +66,8 @@ import org.elasticsearch.http.HttpBodyTracer;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.http.HttpTransportSettings;
 import org.elasticsearch.index.IndexingPressure;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -726,6 +728,8 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
         }
     }
 
+    private static final Logger logger = LogManager.getLogger(Netty4IncrementalRequestHandlingIT.class);
+
     /** A streaming request handler which allows tests to consume exactly the data (bytes or chunks) they expect.  */
     static class ServerRequestHandler implements BaseRestHandler.RequestBodyChunkConsumer {
         final SubscribableListener<Void> channelAccepted = new SubscribableListener<>();
@@ -753,7 +757,7 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
             Transports.assertTransportThread();
             assertFalse("should not get any chunks after close", isClosed());
             final var nextChunkListener = nextChunkListenerRef.getAndSet(null);
-            assertNotNull("next chunk must be explicitly requested", nextChunkListener);
+            assertNotNull("next chunk was not explicitly requested, on " + Thread.currentThread().getName(), nextChunkListener);
             if (shouldThrowInsideHandleChunk) {
                 // Must close the chunk. This is the contract of this method.
                 chunk.close();
@@ -774,6 +778,7 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
         public void streamClose() {
             Transports.assertTransportThread();
             closedLatch.countDown();
+            logger.info("--> stream closed in streamClose, clear nextChunkListenerRef on [{}]", Thread.currentThread().getName());
             final var nextChunkListener = nextChunkListenerRef.getAndSet(null);
             if (nextChunkListener != null) {
                 // might get a chunk and then a close in one read event, in which case the chunk consumes the listener
@@ -794,6 +799,7 @@ public class Netty4IncrementalRequestHandlingIT extends ESNetty4IntegTestCase {
             }))));
             if (isClosed()) {
                 // check streamClosed _after_ registering listener ref
+                logger.info("--> stream closed in getNextChunk, clear nextChunkListenerRef on [{}]", Thread.currentThread().getName());
                 nextChunkListenerRef.set(null);
                 if (randomBoolean()) {
                     stream.next(); // shouldn't do anything after close anyway
