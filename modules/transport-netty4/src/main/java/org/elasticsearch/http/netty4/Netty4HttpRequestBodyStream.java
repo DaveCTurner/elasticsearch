@@ -91,7 +91,6 @@ public class Netty4HttpRequestBodyStream implements HttpBody.Stream {
                 }
                 handler.onNext(buf, isLast);
                 if (isLast) {
-                    read();
                     ctx.channel().closeFuture().removeListener(closeListener);
                 }
             }
