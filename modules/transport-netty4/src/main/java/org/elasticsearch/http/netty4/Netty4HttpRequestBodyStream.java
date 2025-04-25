@@ -100,10 +100,15 @@ public class Netty4HttpRequestBodyStream implements HttpBody.Stream {
 
     @Override
     public void close() {
+        final var callerStackTrace = new ElasticsearchException("stack trace on " + Thread.currentThread().getName());
         if (ctx.channel().eventLoop().inEventLoop()) {
+            logger.info("--> close() in Netty4HttpRequestBodyStream on event loop", callerStackTrace);
             doClose();
         } else {
-            ctx.channel().eventLoop().submit(this::doClose);
+            ctx.channel().eventLoop().submit(() -> {
+                logger.info("--> close() in Netty4HttpRequestBodyStream dispatched to event loop", callerStackTrace);
+                doClose();
+            });
         }
     }
 
