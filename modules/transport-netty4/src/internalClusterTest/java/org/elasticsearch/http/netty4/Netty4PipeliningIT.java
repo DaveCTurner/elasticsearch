@@ -9,10 +9,26 @@
 
 package org.elasticsearch.http.netty4;
 
+import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.HttpClientCodec;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCounted;
 
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ESNetty4IntegTestCase;
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.CountDownActionListener;
 import org.elasticsearch.action.support.SubscribableListener;
@@ -29,6 +45,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.util.CollectionUtils;
+import org.elasticsearch.core.Releasable;
+import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.Strings;
 import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.http.HttpServerTransport;
@@ -43,12 +61,18 @@ import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.RestToXContentListener;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.transport.netty4.NettyAllocator;
 import org.elasticsearch.xcontent.ToXContentObject;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -142,6 +166,106 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
         }
     }
 
+    public void testConnectionCloseHeader() {
+        final var victimNode = internalCluster().startNode();
+
+        final var releasables = new ArrayList<Releasable>(3);
+        try {
+            final var connectionCloseHeadersCount = new AtomicInteger();
+            final var responsesLatch = new CountDownLatch(3);
+
+            final EventLoopGroup eventLoopGroup = new NioEventLoopGroup(1);
+            releasables.add(() -> eventLoopGroup.shutdownGracefully(0, 0, TimeUnit.SECONDS).awaitUninterruptibly());
+            final var clientBootstrap = new Bootstrap().channel(NettyAllocator.getChannelType())
+                .option(ChannelOption.ALLOCATOR, NettyAllocator.getAllocator())
+                .group(eventLoopGroup)
+                .handler(new ChannelInitializer<SocketChannel>() {
+                    @Override
+                    protected void initChannel(SocketChannel ch) {
+                        ch.pipeline().addLast(new HttpClientCodec());
+                        ch.pipeline().addLast(new SimpleChannelInboundHandler<HttpObject>() {
+                            @Override
+                            protected void channelRead0(ChannelHandlerContext ctx, HttpObject msg) {
+                                if (msg instanceof HttpResponse headers) {
+                                    assertEquals("close", headers.headers().get("connection"));
+                                    connectionCloseHeadersCount.incrementAndGet();
+                                } else if (msg instanceof LastHttpContent) {
+                                    responsesLatch.countDown();
+                                }
+                            }
+
+                            @Override
+                            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+                                ExceptionsHelper.maybeDieOnAnotherThread(new AssertionError(cause));
+                            }
+                        });
+                    }
+                });
+
+            final var httpServerTransport = internalCluster().getInstance(HttpServerTransport.class, victimNode);
+            final var httpServerAddress = randomFrom(httpServerTransport.boundAddress().boundAddresses()).address();
+
+            // Open a channel on which we will pipeline the requests to CountDown3Plugin.ROUTE
+            final var pipeliningChannel = clientBootstrap.connect(httpServerAddress).syncUninterruptibly().channel();
+            releasables.add(() -> pipeliningChannel.close().syncUninterruptibly());
+
+            // Send the first pipelined request and wait for it to be received
+            pipeliningChannel.writeAndFlush(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, CountDown3Plugin.ROUTE));
+            assertTrue(
+                waitUntil(
+                    () -> httpServerTransport.stats().clientStats().stream().anyMatch(c -> CountDown3Plugin.ROUTE.equals(c.lastUri()))
+                )
+            );
+
+            // Open another channel which will remain idle in order to detect when the HttpServerTransport shuts down
+            final var idleChannel = clientBootstrap.connect(httpServerAddress).syncUninterruptibly().channel();
+            releasables.add(() -> idleChannel.close().syncUninterruptibly());
+
+            // Start the node shutting down (on a background thread because this call blocks until the node stops)
+            final var stopNodeThread = new Thread(() -> {
+                try {
+                    internalCluster().stopNode(victimNode);
+                } catch (Exception e) {
+                    throw new AssertionError(e);
+                }
+            }, "stop-node-" + victimNode);
+            stopNodeThread.start();
+
+            // Wait for the idle channel to be closed, indicating that AbstractHttpServerTransport#doStop has acquired
+            // AbstractHttpServerTransport#shuttingDownRWLock.
+            idleChannel.closeFuture().syncUninterruptibly();
+
+            // Wait until the node actively rejects new connections, which means that AbstractHttpServerTransport#doStop has released
+            // AbstractHttpServerTransport#shuttingDownRWLock and hence we have called RequestTrackingHttpChannel#setCloseWhenIdle on the
+            // server end of pipeliningChannel.
+            assertTrue(waitUntil(() -> {
+                final var channelFuture = clientBootstrap.connect(httpServerAddress);
+                boolean connectionFailed = false;
+                try {
+                    channelFuture.syncUninterruptibly();
+                } catch (Exception e) {
+                    connectionFailed = true;
+                }
+                channelFuture.channel().close().syncUninterruptibly();
+                return connectionFailed;
+            }));
+
+            // Send the rest of the pipelined requests and wait for all the responses
+            pipeliningChannel.writeAndFlush(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, CountDown3Plugin.ROUTE));
+            pipeliningChannel.writeAndFlush(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, CountDown3Plugin.ROUTE));
+            safeAwait(responsesLatch);
+            assertEquals(3, connectionCloseHeadersCount.get());
+            stopNodeThread.join();
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError(e);
+        } finally {
+            Collections.reverse(releasables);
+            Releasables.close(releasables);
+        }
+    }
+
     private void assertOpaqueIdsInOrder(Collection<String> opaqueIds) {
         // check if opaque ids are monotonically increasing
         int i = 0;
@@ -203,7 +327,7 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
     }
 
     /**
-     * Adds an HTTP route that waits for 3 concurrent executions before returning any of them
+     * Adds an HTTP route that starts to emit a chunked response and then fails before its completion.
      */
     public static class ChunkAndFailPlugin extends Plugin implements ActionPlugin {
 
