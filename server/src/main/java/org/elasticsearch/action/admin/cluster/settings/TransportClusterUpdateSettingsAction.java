@@ -155,6 +155,7 @@ public class TransportClusterUpdateSettingsAction extends TransportMasterNodeAct
         final ClusterState state,
         final ActionListener<ClusterUpdateSettingsResponse> listener
     ) {
+        logger.info("--> update settings, response headers at start: {}", threadPool.getThreadContext().getResponseHeaders());
         submitUnbatchedTask(UPDATE_TASK_SOURCE, new ClusterUpdateSettingsTask(clusterSettings, Priority.IMMEDIATE, request, listener) {
             @Override
             protected ClusterUpdateSettingsResponse newResponse(boolean acknowledged) {
@@ -163,6 +164,10 @@ public class TransportClusterUpdateSettingsAction extends TransportMasterNodeAct
 
             @Override
             public void onAllNodesAcked() {
+                logger.info(
+                    "--> update settings, response headers in onAllNodesAcked: {}",
+                    threadPool.getThreadContext().getResponseHeaders()
+                );
                 if (reroute) {
                     reroute(true);
                 } else {
@@ -172,6 +177,10 @@ public class TransportClusterUpdateSettingsAction extends TransportMasterNodeAct
 
             @Override
             public void onAckFailure(Exception e) {
+                logger.info(
+                    "--> update settings, response headers in onAckFailure: {}",
+                    threadPool.getThreadContext().getResponseHeaders()
+                );
                 if (reroute) {
                     reroute(false);
                 } else {
@@ -181,6 +190,10 @@ public class TransportClusterUpdateSettingsAction extends TransportMasterNodeAct
 
             @Override
             public void onAckTimeout() {
+                logger.info(
+                    "--> update settings, response headers in onAckTimeout: {}",
+                    threadPool.getThreadContext().getResponseHeaders()
+                );
                 if (reroute) {
                     reroute(false);
                 } else {
@@ -193,9 +206,17 @@ public class TransportClusterUpdateSettingsAction extends TransportMasterNodeAct
                 // the components (e.g. FilterAllocationDecider), so the changes made by the first call aren't visible to the components
                 // until the ClusterStateListener instances have been invoked, but are visible after the first update task has been
                 // completed.
+                logger.info(
+                    "--> update settings, response headers in reroute: {}",
+                    threadPool.getThreadContext().getResponseHeaders()
+                );
                 rerouteService.reroute(REROUTE_TASK_SOURCE, Priority.URGENT, new ActionListener<>() {
                     @Override
                     public void onResponse(Void ignored) {
+                        logger.info(
+                            "--> update settings, response headers in reroute/onResponse: {}",
+                            threadPool.getThreadContext().getResponseHeaders()
+                        );
                         listener.onResponse(
                             new ClusterUpdateSettingsResponse(
                                 updateSettingsAcked,
@@ -207,6 +228,10 @@ public class TransportClusterUpdateSettingsAction extends TransportMasterNodeAct
 
                     @Override
                     public void onFailure(Exception e) {
+                        logger.info(
+                            "--> update settings, response headers in reroute/onFailure: {}",
+                            threadPool.getThreadContext().getResponseHeaders()
+                        );
                         logger.debug(() -> "failed to perform [" + REROUTE_TASK_SOURCE + "]", e);
                         if (MasterService.isPublishFailureException(e)) {
                             listener.onResponse(
