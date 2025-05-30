@@ -9,5 +9,6 @@
 
 module org.elasticsearch.validation {
     requires org.elasticsearch.server;
+    requires org.elasticsearch.logging;
     requires org.elasticsearch.base;
 }

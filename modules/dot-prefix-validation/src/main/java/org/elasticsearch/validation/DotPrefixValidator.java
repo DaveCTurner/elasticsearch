@@ -9,6 +9,7 @@
 
 package org.elasticsearch.validation;
 
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
@@ -21,6 +22,8 @@ import org.elasticsearch.common.logging.DeprecationLogger;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.tasks.Task;
 
 import java.util.List;
@@ -91,6 +94,7 @@ public abstract class DotPrefixValidator<RequestType> implements MappedActionFil
         Setting.Property.Dynamic
     );
 
+    private static final Logger logger = LogManager.getLogger(DotPrefixValidator.class);
     DeprecationLogger deprecationLogger = DeprecationLogger.getLogger(DotPrefixValidator.class);
 
     private final ThreadContext threadContext;
@@ -142,6 +146,14 @@ public abstract class DotPrefixValidator<RequestType> implements MappedActionFil
                         if (this.ignoredIndexPatterns.stream().anyMatch(p -> p.matcher(strippedName).matches())) {
                             return;
                         }
+                        logger.warn(
+                            "index ["
+                                + index
+                                + "] begins with a dot, warning emitted in class ["
+                                + this.getClass().getCanonicalName()
+                                + "]",
+                            new ElasticsearchException("stack trace")
+                        );
                         deprecationLogger.warn(
                             DeprecationCategory.INDICES,
                             "dot-prefix",
