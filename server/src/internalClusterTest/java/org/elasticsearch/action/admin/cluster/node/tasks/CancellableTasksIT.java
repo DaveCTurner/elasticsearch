@@ -377,10 +377,17 @@ public class CancellableTasksIT extends ESIntegTestCase {
     @TestIssueLogging(
         issueUrl = "https://github.com/elastic/elasticsearch/issues/123568",
         value = "org.elasticsearch.transport.TransportService.tracer:TRACE"
-            + ",org.elasticsearch.tasks.TaskManager:TRACE"
-            + ",org.elasticsearch.action.admin.cluster.node.tasks.CancellableTasksIT:DEBUG"
+                + ",org.elasticsearch.tasks.TaskManager:TRACE"
+                + ",org.elasticsearch.action.admin.cluster.node.tasks.CancellableTasksIT:DEBUG"
     )
     public void testChildrenTasksCancelledOnTimeout() throws Exception {
+        for (int i = 0; i < 1000; i++) {
+            logger.info("--> iteration {}", i);
+            testChildrenTasksCancelledOnTimeoutOnce();
+        }
+    }
+
+    private void testChildrenTasksCancelledOnTimeoutOnce() throws Exception {
         Set<DiscoveryNode> nodes = clusterService().state().nodes().stream().collect(Collectors.toSet());
         final TestRequest rootRequest = generateTestRequest(nodes, 0, between(1, 4), true);
         logger.info("generated request\n{}", buildTestRequestDescription(rootRequest, "", new StringBuilder()).toString());
