@@ -581,7 +581,7 @@ class S3BlobContainer extends AbstractBlobContainer {
         ThrottledIterator.run(
             Iterators.failFast(Iterators.forRange(0, 20, i -> "analyze-multipart-uploads-" + i), listeners::isFailing),
             (ref, blobName) -> ActionListener.run(
-                listeners.acquire((Void ignored) -> ref.close()),
+                 listeners.acquire((Void ignored) -> ref.close()),
                 blobListener -> SubscribableListener
 
                     .<String>newForked(uploadIdListener -> {
@@ -628,7 +628,7 @@ class S3BlobContainer extends AbstractBlobContainer {
                                 } catch (SdkServiceException e) {
                                     if (e.statusCode() == 403) {
                                         logger.info("--> upload of [" + blobName + "] with id [" + uploadId + "] failed with 403", e);
-                                        return;
+                                        throw e;
                                     }
                                     if (e.statusCode() != 404) {
                                         logger.info("--> upload of [" + blobName + "] with id [" + uploadId + "] failed", e);
