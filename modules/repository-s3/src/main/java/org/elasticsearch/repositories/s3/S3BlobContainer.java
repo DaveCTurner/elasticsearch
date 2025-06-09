@@ -603,7 +603,14 @@ class S3BlobContainer extends AbstractBlobContainer {
 
                     .<String>andThen((abortListener, uploadId) -> {
                         logger.info("--> created upload of [{}] with id [{}]", blobName, uploadId);
-                        try (var itemListeners = new RefCountingListener(abortListener.map(ignored -> uploadId))) {
+                        try (
+                            var itemListeners = new RefCountingListener(
+                                ActionListener.runBefore(
+                                    abortListener.map(ignored -> uploadId),
+                                    () -> logger.info("--> completing abortListener for upload of [{}] with id [{}]", blobName, uploadId)
+                                )
+                            )
+                        ) {
                             snapshotExecutor.execute(ActionRunnable.run(itemListeners.acquire(), () -> {
                                 logger.info("--> uploading part of [{}] to upload with id [{}]", blobName, uploadId);
                                 final UploadPartRequest uploadRequest = createPartUploadRequest(
@@ -619,6 +626,10 @@ class S3BlobContainer extends AbstractBlobContainer {
                                     clientReference.client().uploadPart(uploadRequest, RequestBody.fromBytes(new byte[Long.BYTES]));
                                     logger.info("--> uploaded part of [{}] to upload with id [{}]", blobName, uploadId);
                                 } catch (SdkServiceException e) {
+                                    if (e.statusCode() == 403) {
+                                        logger.info("--> upload of [" + blobName + "] with id [" + uploadId + "] failed with 403", e);
+                                        return;
+                                    }
                                     if (e.statusCode() != 404) {
                                         logger.info("--> upload of [" + blobName + "] with id [" + uploadId + "] failed", e);
                                         throw e;
