@@ -581,7 +581,7 @@ class S3BlobContainer extends AbstractBlobContainer {
         ThrottledIterator.run(
             Iterators.failFast(Iterators.forRange(0, 20, i -> "analyze-multipart-uploads-" + i), listeners::isFailing),
             (ref, blobName) -> ActionListener.run(
-                 listeners.acquire((Void ignored) -> ref.close()),
+                ActionListener.releaseBefore(ref, listeners.acquire()),
                 blobListener -> SubscribableListener
 
                     .<String>newForked(uploadIdListener -> {
