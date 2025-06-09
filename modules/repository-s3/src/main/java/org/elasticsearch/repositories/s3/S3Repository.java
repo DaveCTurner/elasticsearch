@@ -600,6 +600,6 @@ class S3Repository extends MeteredBlobStoreRepository {
 
     @Override
     public void analyzeMultipartUploads(ActionListener<Void> listener) {
-        ((S3BlobContainer) blobContainer()).analyzeMultipartUploads(listener);
+        snapshotExecutor.execute(ActionRunnable.wrap(listener, l -> ((S3BlobContainer) blobContainer()).analyzeMultipartUploads(l)));
     }
 }
