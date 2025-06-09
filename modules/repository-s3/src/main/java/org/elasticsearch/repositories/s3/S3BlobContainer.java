@@ -620,22 +620,19 @@ class S3BlobContainer extends AbstractBlobContainer {
                                     logger.info("--> uploaded part of [{}] to upload with id [{}]", blobName, uploadId);
                                 } catch (SdkServiceException e) {
                                     if (e.statusCode() != 404) {
+                                        logger.info("--> upload of [" + blobName + "] with id [" + uploadId + "] failed", e);
                                         throw e;
                                     }
                                     logger.info("--> upload of [{}] with id [{}] already aborted", blobName, uploadId);
                                 }
                             }));
-                            snapshotExecutor.execute(
-                                ActionRunnable.run(
-                                    itemListeners.acquire(),
-                                    () -> {
-                                        logger.info("--> aborting upload of [{}] with id [{}]", blobName, uploadId);
-                                        abortMultiPartUpload(OperationPurpose.REPOSITORY_ANALYSIS, uploadId, blobName);
-                                        logger.info("--> aborted upload of [{}] with id [{}]", blobName, uploadId);
-                                    }
-                                )
-                            );
+                            snapshotExecutor.execute(ActionRunnable.run(itemListeners.acquire(), () -> {
+                                logger.info("--> aborting upload of [{}] with id [{}]", blobName, uploadId);
+                                abortMultiPartUpload(OperationPurpose.REPOSITORY_ANALYSIS, uploadId, blobName);
+                                logger.info("--> aborted upload of [{}] with id [{}]", blobName, uploadId);
+                            }));
                         }
+                        logger.info("--> spawned tasks to abort upload of [{}] with id [{}]", blobName, uploadId);
                     })
 
                     .andThenAccept(uploadId -> {
