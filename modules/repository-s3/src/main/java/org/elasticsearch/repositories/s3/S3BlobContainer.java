@@ -628,7 +628,7 @@ class S3BlobContainer extends AbstractBlobContainer {
                                 } catch (SdkServiceException e) {
                                     if (e.statusCode() == 403) {
                                         logger.info("--> upload of [" + blobName + "] with id [" + uploadId + "] failed with 403", e);
-                                        throw e;
+                                        return;
                                     }
                                     if (e.statusCode() != 404) {
                                         logger.info("--> upload of [" + blobName + "] with id [" + uploadId + "] failed", e);
