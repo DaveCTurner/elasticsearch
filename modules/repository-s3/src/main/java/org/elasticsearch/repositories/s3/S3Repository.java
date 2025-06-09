@@ -600,6 +600,9 @@ class S3Repository extends MeteredBlobStoreRepository {
 
     @Override
     public void analyzeMultipartUploads(ActionListener<Void> listener) {
-        snapshotExecutor.execute(ActionRunnable.wrap(listener, l -> ((S3BlobContainer) blobContainer()).analyzeMultipartUploads(l)));
+        snapshotExecutor.execute(ActionRunnable.wrap(listener.delegateResponse((l, e) -> {
+            logger.error("analyzeMultipartUploads failed", e);
+            l.onFailure(e);
+        }), l -> ((S3BlobContainer) blobContainer()).analyzeMultipartUploads(l)));
     }
 }

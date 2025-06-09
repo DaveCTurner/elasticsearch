@@ -605,6 +605,7 @@ class S3BlobContainer extends AbstractBlobContainer {
                         logger.info("--> created upload of [{}] with id [{}]", blobName, uploadId);
                         try (var itemListeners = new RefCountingListener(abortListener.map(ignored -> uploadId))) {
                             snapshotExecutor.execute(ActionRunnable.run(itemListeners.acquire(), () -> {
+                                logger.info("--> uploading part of [{}] to upload with id [{}]", blobName, uploadId);
                                 final UploadPartRequest uploadRequest = createPartUploadRequest(
                                     OperationPurpose.REPOSITORY_ANALYSIS,
                                     uploadId,
@@ -627,7 +628,11 @@ class S3BlobContainer extends AbstractBlobContainer {
                             snapshotExecutor.execute(
                                 ActionRunnable.run(
                                     itemListeners.acquire(),
-                                    () -> abortMultiPartUpload(OperationPurpose.REPOSITORY_ANALYSIS, uploadId, blobName)
+                                    () -> {
+                                        logger.info("--> aborting upload of [{}] with id [{}]", blobName, uploadId);
+                                        abortMultiPartUpload(OperationPurpose.REPOSITORY_ANALYSIS, uploadId, blobName);
+                                        logger.info("--> aborted upload of [{}] with id [{}]", blobName, uploadId);
+                                    }
                                 )
                             );
                         }
