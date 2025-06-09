@@ -469,6 +469,31 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
         }
 
         public void run() {
+            repository.analyzeMultipartUploads(
+                listener.map(
+                    ignored -> new Response(
+                        transportService.getLocalNode().getId(),
+                        transportService.getLocalNode().getName(),
+                        request.getRepositoryName(),
+                        request.blobCount,
+                        request.concurrency,
+                        request.readNodeCount,
+                        request.earlyReadNodeCount,
+                        request.maxBlobSize,
+                        request.maxTotalDataSize,
+                        request.seed,
+                        request.rareActionProbability,
+                        blobPath,
+                        summary.build(),
+                        responses,
+                        0L,
+                        0L
+                    )
+                )
+            );
+        }
+
+        public void runOld() {
             assert queue.isEmpty() : "must only run action once";
             assert failure.get() == null : "must only run action once";
 

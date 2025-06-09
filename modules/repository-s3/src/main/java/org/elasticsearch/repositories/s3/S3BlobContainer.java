@@ -60,6 +60,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.common.util.concurrent.ThrottledIterator;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.TimeValue;
@@ -571,6 +572,101 @@ class S3BlobContainer extends AbstractBlobContainer {
             clientReference.client().putObject(putRequest, RequestBody.fromInputStream(input, blobSize));
         } catch (final SdkException e) {
             throw new IOException("Unable to upload object [" + blobName + "] using a single upload", e);
+        }
+    }
+
+    public void analyzeMultipartUploads(ActionListener<Void> listener) {
+        final var snapshotExecutor = blobStore.getSnapshotExecutor();
+        final var listeners = new RefCountingListener(listener);
+        ThrottledIterator.run(
+            Iterators.failFast(Iterators.forRange(0, 20, i -> "analyze-multipart-uploads-" + i), listeners::isFailing),
+            (ref, blobName) -> ActionListener.run(
+                listeners.acquire((Void ignored) -> ref.close()),
+                blobListener -> SubscribableListener
+
+                    .<String>newForked(uploadIdListener -> {
+                        try (AmazonS3Reference clientReference = blobStore.clientReference()) {
+                            logger.info("--> creating upload of [{}]", blobName);
+                            uploadIdListener.onResponse(
+                                clientReference.client()
+                                    .createMultipartUpload(
+                                        createMultipartUpload(
+                                            OperationPurpose.REPOSITORY_ANALYSIS,
+                                            Operation.PUT_MULTIPART_OBJECT,
+                                            blobName
+                                        )
+                                    )
+                                    .uploadId()
+                            );
+                        }
+                    })
+
+                    .<String>andThen((abortListener, uploadId) -> {
+                        logger.info("--> created upload of [{}] with id [{}]", blobName, uploadId);
+                        try (var itemListeners = new RefCountingListener(abortListener.map(ignored -> uploadId))) {
+                            snapshotExecutor.execute(ActionRunnable.run(itemListeners.acquire(), () -> {
+                                final UploadPartRequest uploadRequest = createPartUploadRequest(
+                                    OperationPurpose.REPOSITORY_ANALYSIS,
+                                    uploadId,
+                                    1,
+                                    blobName,
+                                    Long.BYTES,
+                                    true
+                                );
+
+                                try (var clientReference = blobStore.clientReference()) {
+                                    clientReference.client().uploadPart(uploadRequest, RequestBody.fromBytes(new byte[Long.BYTES]));
+                                    logger.info("--> uploaded part of [{}] to upload with id [{}]", blobName, uploadId);
+                                } catch (SdkServiceException e) {
+                                    if (e.statusCode() != 404) {
+                                        throw e;
+                                    }
+                                    logger.info("--> upload of [{}] with id [{}] already aborted", blobName, uploadId);
+                                }
+                            }));
+                            snapshotExecutor.execute(
+                                ActionRunnable.run(
+                                    itemListeners.acquire(),
+                                    () -> abortMultiPartUpload(OperationPurpose.REPOSITORY_ANALYSIS, uploadId, blobName)
+                                )
+                            );
+                        }
+                    })
+
+                    .andThenAccept(uploadId -> {
+                        logger.info("--> aborted upload of [{}] with id [{}]", blobName, uploadId);
+                        final var listRequestBuilder = ListMultipartUploadsRequest.builder()
+                            .bucket(blobStore.bucket())
+                            .prefix(buildKey(blobName));
+                        S3BlobStore.configureRequestForMetrics(
+                            listRequestBuilder,
+                            blobStore,
+                            Operation.LIST_OBJECTS,
+                            OperationPurpose.REPOSITORY_ANALYSIS
+                        );
+                        final List<MultipartUpload> multipartUploads = listMultipartUploads(listRequestBuilder.build());
+                        if (multipartUploads.stream().anyMatch(mpu -> mpu.uploadId().equals(uploadId))) {
+                            throw new IllegalStateException(
+                                "mpu [" + uploadId + "] aborted but still visible in list: " + multipartUploads
+                            );
+                        }
+                    })
+
+                    .addListener(blobListener)
+            ),
+            1,
+            listeners::close
+        );
+    }
+
+    private List<MultipartUpload> listMultipartUploads(ListMultipartUploadsRequest listRequest) {
+        try (var clientReference = blobStore.clientReference()) {
+            return clientReference.client().listMultipartUploads(listRequest).uploads();
+        } catch (SdkServiceException e) {
+            if (e.statusCode() != 404) {
+                throw e;
+            }
+            return List.of();
         }
     }
 

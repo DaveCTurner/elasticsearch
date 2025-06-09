@@ -4207,4 +4207,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     protected Set<String> getExtraUsageFeatures() {
         return Set.of();
     }
+
+    public void analyzeMultipartUploads(ActionListener<Void> listener) {
+        listener.onResponse(null);
+    }
 }

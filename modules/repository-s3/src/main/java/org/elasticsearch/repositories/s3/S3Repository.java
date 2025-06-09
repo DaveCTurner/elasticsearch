@@ -597,4 +597,9 @@ class S3Repository extends MeteredBlobStoreRepository {
             );
         }
     }
+
+    @Override
+    public void analyzeMultipartUploads(ActionListener<Void> listener) {
+        ((S3BlobContainer) blobContainer()).analyzeMultipartUploads(listener);
+    }
 }
