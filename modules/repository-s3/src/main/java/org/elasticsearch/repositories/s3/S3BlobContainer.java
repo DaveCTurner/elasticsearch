@@ -1050,6 +1050,12 @@ class S3BlobContainer extends AbstractBlobContainer {
                 }
                 // else already aborted
             }
+
+            final var multipartUploadsAfterAbort = listMultipartUploads();
+            if (multipartUploadsAfterAbort.stream().anyMatch(mpu -> mpu.uploadId().equals(uploadId))) {
+                logger.error("MPU [{}] still active after abort: {}", uploadId, multipartUploadsAfterAbort);
+                throw new AssertionError("MPU [" + uploadId + "] still active after abort");
+            }
         }
 
         private void completeMultipartUpload(String uploadId, String partETag) {
