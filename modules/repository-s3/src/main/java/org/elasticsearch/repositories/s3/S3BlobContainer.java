@@ -576,6 +576,39 @@ class S3BlobContainer extends AbstractBlobContainer {
     }
 
     public void analyzeMultipartUploads(ActionListener<Void> listener) {
+        SubscribableListener.newForked(this::analyzeNoSuchUpload).andThen(this::innerAnalyzeMultipartUploads).addListener(listener);
+    }
+
+    private void analyzeNoSuchUpload(ActionListener<Void> listener) {
+        final var blobName = "analyze-no-such-upload";
+        final var uploadId =
+            "NTZhOTllZGEtYzY4NS00M2U1LTgyZTYtOWQzOTE5MDVjMzUyLjcwMGI5YzNhLWE2OTQtNDNhZC1hYjY5LTEzODI2NTM3ZGNhZHgxNzQ5NDgyMjYzNDA3NDAzOTIx";
+        logger.info("--> uploading part of [{}] to upload with id [{}]", blobName, uploadId);
+        final UploadPartRequest uploadRequest = createPartUploadRequest(
+            OperationPurpose.REPOSITORY_ANALYSIS,
+            uploadId,
+            1,
+            blobName,
+            Long.BYTES,
+            true
+        );
+
+        try (var clientReference = blobStore.clientReference()) {
+            clientReference.client().uploadPart(uploadRequest, RequestBody.fromBytes(new byte[Long.BYTES]));
+            logger.info("--> uploaded part of [{}] to upload with id [{}]", blobName, uploadId);
+            throw new IllegalStateException("should have got a NoSuchUpload");
+        } catch (SdkServiceException e) {
+            if (e.statusCode() != 404) {
+                logger.info("--> upload of [" + blobName + "] with id [" + uploadId + "] failed", e);
+                throw e;
+            }
+            logger.info("--> upload of [{}] with id [{}] already aborted", blobName, uploadId);
+        }
+
+        listener.onResponse(null);
+    }
+
+    private void innerAnalyzeMultipartUploads(ActionListener<Void> listener) {
         final var snapshotExecutor = blobStore.getSnapshotExecutor();
         final var listeners = new RefCountingListener(listener);
         ThrottledIterator.run(
