@@ -26,13 +26,15 @@ public abstract class AbstractRepositoryAnalysisRestTestCase extends ESRestTestC
         logger.info("creating repository [{}] of type [{}]", repository, repositoryType);
         registerRepository(repository, repositoryType, true, repositorySettings);
 
-        final Request request = new Request(HttpPost.METHOD_NAME, "/_snapshot/" + repository + "/_analyze");
-        request.addParameter("blob_count", "10");
-        request.addParameter("concurrency", "4");
-        request.addParameter("max_blob_size", randomFrom("1mb", "10mb"));
-        request.addParameter("timeout", "120s");
-        request.addParameter("seed", Long.toString(randomLong()));
-        assertOK(client().performRequest(request));
+        for (int i = 0; i < 20; i++) {
+            final Request request = new Request(HttpPost.METHOD_NAME, "/_snapshot/" + repository + "/_analyze");
+            request.addParameter("blob_count", "10");
+            request.addParameter("concurrency", "4");
+            request.addParameter("max_blob_size", randomFrom("1mb", "10mb"));
+            request.addParameter("timeout", "120s");
+            request.addParameter("seed", Long.toString(randomLong()));
+            assertOK(client().performRequest(request));
+        }
     }
 
 }
