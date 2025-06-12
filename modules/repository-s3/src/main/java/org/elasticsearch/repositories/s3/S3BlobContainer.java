@@ -614,10 +614,11 @@ class S3BlobContainer extends AbstractBlobContainer {
         ThrottledIterator.run(
             Iterators.failFast(Iterators.forRange(0, 20, i -> "analyze-multipart-uploads-" + i), listeners::isFailing),
             (ref, blobName) -> ActionListener.run(
-                ActionListener.releaseBefore(ref, listeners.acquire()),
+                ActionListener.releaseAfter(listeners.acquire(), ref),
                 blobListener -> SubscribableListener
 
                     .<String>newForked(uploadIdListener -> {
+                        Thread.sleep(1000);
                         try (AmazonS3Reference clientReference = blobStore.clientReference()) {
                             logger.info("--> creating upload of [{}]", blobName);
                             uploadIdListener.onResponse(
@@ -636,6 +637,7 @@ class S3BlobContainer extends AbstractBlobContainer {
 
                     .<String>andThen((abortListener, uploadId) -> {
                         logger.info("--> created upload of [{}] with id [{}]", blobName, uploadId);
+                        Thread.sleep(1000);
                         try (
                             var itemListeners = new RefCountingListener(
                                 ActionListener.runBefore(
@@ -677,6 +679,7 @@ class S3BlobContainer extends AbstractBlobContainer {
 
                     .andThenAccept(uploadId -> {
                         logger.info("--> aborted upload of [{}] with id [{}]", blobName, uploadId);
+                        Thread.sleep(1000);
                         final var listRequestBuilder = ListMultipartUploadsRequest.builder()
                             .bucket(blobStore.bucket())
                             .prefix(buildKey(blobName));
