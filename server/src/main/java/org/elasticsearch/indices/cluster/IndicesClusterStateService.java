@@ -1339,6 +1339,8 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
 
     static class ShardCloseExecutor implements Executor {
 
+        private static final Logger logger = LogManager.getLogger(ShardCloseExecutor.class);
+
         private final ThrottledTaskRunner throttledTaskRunner;
 
         ShardCloseExecutor(Settings settings, Executor delegate) {
@@ -1352,11 +1354,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
             // approach here.
             final var maxRunningTasks = CONCURRENT_SHARD_CLOSE_LIMIT.get(settings);
             logger.info(Strings.format("--> ShardCloseExecutor limit %s", maxRunningTasks), new ElasticsearchException("stack trace"));
-            throttledTaskRunner = new ThrottledTaskRunner(
-                IndicesClusterStateService.class.getCanonicalName(),
-                maxRunningTasks,
-                delegate
-            );
+            throttledTaskRunner = new ThrottledTaskRunner(IndicesClusterStateService.class.getCanonicalName(), maxRunningTasks, delegate);
         }
 
         @Override
