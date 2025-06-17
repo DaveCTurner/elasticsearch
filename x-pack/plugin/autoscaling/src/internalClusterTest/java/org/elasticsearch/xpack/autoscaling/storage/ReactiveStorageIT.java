@@ -405,6 +405,7 @@ public class ReactiveStorageIT extends AutoscalingStorageIntegTestCase {
         value = "org.elasticsearch.cluster.InternalClusterInfoService:TRACE"
             + ",org.elasticsearch.xpack.autoscaling.action:TRACE"
             + ",org.elasticsearch.cluster.routing.allocation:DEBUG"
+            + ",org.elasticsearch.index.engine.Engine.IW:TRACE"
     )
     public void testScaleDuringSplitOrClone() throws Exception {
         internalCluster().startMasterOnlyNode();
