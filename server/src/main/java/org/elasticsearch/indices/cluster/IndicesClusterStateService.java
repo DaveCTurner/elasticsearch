@@ -1350,20 +1350,27 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
             // can't close the old ones down fast enough. Maybe we could block or throttle new shards starting while old shards are still
             // shutting down, given that starting new shards is already async. Since this seems unlikely in practice, we opt for the simple
             // approach here.
+            final var maxRunningTasks = CONCURRENT_SHARD_CLOSE_LIMIT.get(settings);
+            logger.info(Strings.format("--> ShardCloseExecutor limit %s", maxRunningTasks), new ElasticsearchException("stack trace"));
             throttledTaskRunner = new ThrottledTaskRunner(
                 IndicesClusterStateService.class.getCanonicalName(),
-                CONCURRENT_SHARD_CLOSE_LIMIT.get(settings),
+                maxRunningTasks,
                 delegate
             );
         }
 
         @Override
         public void execute(Runnable command) {
+            final var commandDescription = System.identityHashCode(command) + "@[" + command.toString() + "]";
+            logger.info(Strings.format("--> enqueue %s", commandDescription), new ElasticsearchException("stack trace"));
             throttledTaskRunner.enqueueTask(new ActionListener<>() {
                 @Override
                 public void onResponse(Releasable releasable) {
+                    logger.info("--> executing {}", commandDescription);
                     try (releasable) {
                         command.run();
+                    } finally {
+                        logger.info("--> completed {}", commandDescription);
                     }
                 }
 
