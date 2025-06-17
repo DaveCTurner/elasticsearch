@@ -9,6 +9,7 @@
 
 package org.elasticsearch.index.shard;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.DelegatingAnalyzerWrapper;
@@ -146,6 +147,7 @@ import org.elasticsearch.indices.recovery.RecoveryFailedException;
 import org.elasticsearch.indices.recovery.RecoverySettings;
 import org.elasticsearch.indices.recovery.RecoveryState;
 import org.elasticsearch.indices.recovery.RecoveryTarget;
+import org.elasticsearch.monitor.jvm.HotThreads;
 import org.elasticsearch.plugins.IndexStorePlugin;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.Repository;
@@ -1828,6 +1830,19 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                     checkAndCallWaitForEngineOrClosedShardListeners();
                 } finally {
                     final Engine engine = getAndSetCurrentEngine(null);
+
+                    final var closeThreadsLogger = new SubscribableListener<Void>();
+                    closeThreadsLogger.addTimeout(TimeValue.timeValueSeconds(20), threadPool, threadPool.generic());
+                    closeThreadsLogger.addListener(new ActionListener<>() {
+                        @Override
+                        public void onResponse(Void unused) {}
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            HotThreads.logLocalCurrentThreads(logger, Level.INFO, "hot threads on timeout of close of " + shardRouting);
+                        }
+                    });
+
                     closeExecutor.execute(ActionRunnable.run(closeListener, new CheckedRunnable<>() {
                         @Override
                         public void run() throws Exception {
@@ -1843,7 +1858,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                                     globalCheckpointListeners,
                                     refreshListeners,
                                     pendingReplicationActions,
-                                    indexShardOperationPermits
+                                    indexShardOperationPermits,
+                                    () -> closeThreadsLogger.onResponse(null)
                                 );
                             }
                         }
