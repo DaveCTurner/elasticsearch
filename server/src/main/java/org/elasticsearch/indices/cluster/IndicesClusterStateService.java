@@ -1366,9 +1366,11 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
                 public void onResponse(Releasable releasable) {
                     logger.info("--> executing {}", commandDescription);
                     try (releasable) {
-                        command.run();
-                    } finally {
-                        logger.info("--> completed {}", commandDescription);
+                        try {
+                            command.run();
+                        } finally {
+                            logger.info("--> completed {}", commandDescription);
+                        }
                     }
                 }
 
