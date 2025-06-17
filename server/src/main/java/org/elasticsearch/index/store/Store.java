@@ -37,6 +37,7 @@ import org.apache.lucene.store.ReadAdvice;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.Strings;
@@ -181,6 +182,7 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
         boolean hasIndexSort
     ) {
         super(shardId, indexSettings);
+        logger.info(Strings.format("--> [%s] create", shardLock.getShardId()), new ElasticsearchException("stack trace"));
         this.directory = new StoreDirectory(
             byteSizeDirectory(directory, indexSettings, logger),
             Loggers.getLogger("index.store.deletes", shardId)
@@ -396,6 +398,7 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
     @Override
     public final void incRef() {
         refCounter.incRef();
+        logger.info(Strings.format("--> [%s] incRef", shardLock.getShardId()), new ElasticsearchException("stack trace"));
     }
 
     /**
@@ -413,7 +416,11 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
      */
     @Override
     public final boolean tryIncRef() {
-        return refCounter.tryIncRef();
+        final var result = refCounter.tryIncRef();
+        if (result) {
+            logger.info(Strings.format("--> [%s] tryIncRef", shardLock.getShardId()), new ElasticsearchException("stack trace"));
+        }
+        return result;
     }
 
     /**
@@ -424,7 +431,12 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
      */
     @Override
     public final boolean decRef() {
-        return refCounter.decRef();
+        final var result = refCounter.decRef();
+        logger.info(
+            Strings.format("--> [%s] decRef returning [%s]", shardLock.getShardId(), result),
+            new ElasticsearchException("stack trace")
+        );
+        return result;
     }
 
     @Override
@@ -437,7 +449,10 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
         if (isClosed.compareAndSet(false, true)) {
             // only do this once!
             decRef();
-            logger.debug("store reference count on close: {}", refCounter.refCount());
+            logger.info(
+                Strings.format("--> [%s] store reference count on close: [%s]", shardLock.getShardId(), refCounter.refCount()),
+                new ElasticsearchException("stack trace")
+            );
         }
     }
 
@@ -451,6 +466,7 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
     }
 
     private void closeInternal() {
+        logger.info(Strings.format("--> [%s] closeInternal", shardLock.getShardId()), new ElasticsearchException("stack trace"));
         // Leverage try-with-resources to close the shard lock for us
         try (Closeable c = shardLock) {
             try {
