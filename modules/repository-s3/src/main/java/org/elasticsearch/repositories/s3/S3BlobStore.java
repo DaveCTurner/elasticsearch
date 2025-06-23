@@ -388,7 +388,7 @@ class S3BlobStore implements BlobStore {
         StringBuilder sb = null;
 
         for (final var err : errors) {
-            if ("NoSuckKey".equals(err.code()) && err.key().endsWith("/")) {
+            if ("NoSuchKey".equals(err.code()) && err.key().endsWith("/")) {
                 continue;
             }
 
