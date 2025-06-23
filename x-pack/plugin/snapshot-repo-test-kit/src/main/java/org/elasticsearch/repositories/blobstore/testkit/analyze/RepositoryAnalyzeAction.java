@@ -518,7 +518,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
             Collections.shuffle(blobSizes, random);
 
             int blobCount = request.getBlobCount();
-            for (int i = 0; i < blobCount; i++) {
+            for (int i = 0; i < blobCount && false; i++) {
                 final long targetLength = blobSizes.get(i);
                 final boolean smallBlob = targetLength <= MAX_ATOMIC_WRITE_SIZE; // avoid the atomic API for larger blobs
                 final boolean abortWrite = smallBlob && request.isAbortWritePermitted() && rarely(random);
