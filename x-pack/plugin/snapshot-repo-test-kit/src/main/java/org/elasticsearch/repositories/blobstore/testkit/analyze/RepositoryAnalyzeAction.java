@@ -33,7 +33,9 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.blobstore.OperationPurpose;
+import org.elasticsearch.common.blobstore.OptionalBytesReference;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.unit.ByteSizeValue;
@@ -41,6 +43,7 @@ import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThrottledIterator;
 import org.elasticsearch.core.Releasable;
+import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.repositories.RepositoriesService;
@@ -63,6 +66,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -80,6 +84,9 @@ import java.util.stream.IntStream;
 
 import static org.elasticsearch.core.Strings.format;
 import static org.elasticsearch.repositories.blobstore.testkit.SnapshotRepositoryTestKit.humanReadableNanos;
+import static org.elasticsearch.repositories.blobstore.testkit.analyze.BlobAnalyzeAction.MAX_ATOMIC_WRITE_SIZE;
+import static org.elasticsearch.repositories.blobstore.testkit.analyze.ContendedRegisterAnalyzeAction.bytesFromLong;
+import static org.elasticsearch.repositories.blobstore.testkit.analyze.ContendedRegisterAnalyzeAction.longFromBytes;
 
 /**
  * Action which distributes a bunch of {@link BlobAnalyzeAction}s over the nodes in the cluster, with limited concurrency, and collects
@@ -475,9 +482,81 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
             final Random random = new Random(request.getSeed());
             final List<DiscoveryNode> nodes = getSnapshotNodes(discoveryNodes);
 
-            new UncontendedRegisterAnalysis(new Random(random.nextLong()), nodes, new AtomicBoolean(true)).run();
+            if (minClusterTransportVersion.onOrAfter(TransportVersions.V_8_8_0)) {
+                final String contendedRegisterName = CONTENDED_REGISTER_NAME_PREFIX + UUIDs.randomBase64UUID(random);
+                final AtomicBoolean contendedRegisterAnalysisComplete = new AtomicBoolean();
+                try (
+                    var registerRefs = new RefCountingRunnable(
+                        finalRegisterValueVerifier(
+                            contendedRegisterName,
+                            random,
+                            Releasables.wrap(requestRefs.acquire(), () -> contendedRegisterAnalysisComplete.set(true))
+                        )
+                    )
+                ) {
+                    final int registerOperations = Math.max(nodes.size(), request.getRegisterOperationCount());
+                    for (int i = 0; i < registerOperations; i++) {
+                        final ContendedRegisterAnalyzeAction.Request registerAnalyzeRequest = new ContendedRegisterAnalyzeAction.Request(
+                            request.getRepositoryName(),
+                            blobPath,
+                            contendedRegisterName,
+                            registerOperations,
+                            random.nextInt((registerOperations + 1) * 2)
+                        );
+                        final DiscoveryNode node = nodes.get(i < nodes.size() ? i : random.nextInt(nodes.size()));
+                        final Releasable registerRef = registerRefs.acquire();
+                        queue.add(ref -> runContendedRegisterAnalysis(Releasables.wrap(registerRef, ref), registerAnalyzeRequest, node));
+                    }
+                }
+
+                if (minClusterTransportVersion.onOrAfter(TransportVersions.V_8_12_0)) {
+                    new UncontendedRegisterAnalysis(new Random(random.nextLong()), nodes, contendedRegisterAnalysisComplete).run();
+                }
+            }
+
+            final List<Long> blobSizes = getBlobSizes(request);
+            Collections.shuffle(blobSizes, random);
+
+            int blobCount = request.getBlobCount();
+            for (int i = 0; i < blobCount && false; i++) {
+                final long targetLength = blobSizes.get(i);
+                final boolean smallBlob = targetLength <= MAX_ATOMIC_WRITE_SIZE; // avoid the atomic API for larger blobs
+                final boolean abortWrite = smallBlob && request.isAbortWritePermitted() && rarely(random);
+                final boolean doCopy = minClusterTransportVersion.onOrAfter(TransportVersions.REPO_ANALYSIS_COPY_BLOB)
+                    && rarely(random)
+                    && i > 0;
+                final String blobName = "test-blob-" + i + "-" + UUIDs.randomBase64UUID(random);
+                String copyBlobName = null;
+                if (doCopy) {
+                    copyBlobName = blobName + "-copy";
+                    blobCount--;
+                    if (i >= blobCount) {
+                        break;
+                    }
+                }
+                final BlobAnalyzeAction.Request blobAnalyzeRequest = new BlobAnalyzeAction.Request(
+                    request.getRepositoryName(),
+                    blobPath,
+                    blobName,
+                    targetLength,
+                    random.nextLong(),
+                    nodes,
+                    request.getReadNodeCount(),
+                    request.getEarlyReadNodeCount(),
+                    smallBlob && rarely(random),
+                    repository.supportURLRepo() && repository.hasAtomicOverwrites() && smallBlob && rarely(random) && abortWrite == false,
+                    abortWrite,
+                    copyBlobName
+                );
+                final DiscoveryNode node = nodes.get(random.nextInt(nodes.size()));
+                queue.add(ref -> runBlobAnalysis(ref, blobAnalyzeRequest, node));
+            }
 
             ThrottledIterator.run(getQueueIterator(), (ref, task) -> task.accept(ref), request.getConcurrency(), requestRefs::close);
+        }
+
+        private boolean rarely(Random random) {
+            return random.nextDouble() < request.getRareActionProbability();
         }
 
         private Iterator<Consumer<Releasable>> getQueueIterator() {
@@ -499,8 +578,137 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
             };
         }
 
+        private void runBlobAnalysis(Releasable ref, final BlobAnalyzeAction.Request request, DiscoveryNode node) {
+            if (isRunning()) {
+                logger.trace("processing [{}] on [{}]", request, node);
+                // NB although all this is on the SAME thread, the per-blob verification runs on a SNAPSHOT thread so we don't have to worry
+                // about local requests resulting in a stack overflow here
+                transportService.sendChildRequest(
+                    node,
+                    BlobAnalyzeAction.NAME,
+                    request,
+                    task,
+                    TransportRequestOptions.EMPTY,
+                    new ActionListenerResponseHandler<>(ActionListener.releaseAfter(new ActionListener<>() {
+                        @Override
+                        public void onResponse(BlobAnalyzeAction.Response response) {
+                            logger.trace("finished [{}] on [{}]", request, node);
+                            if (request.getAbortWrite() == false) {
+                                expectedBlobs.add(request.getBlobName()); // each task cleans up its own mess on failure
+                            }
+                            if (AsyncAction.this.request.detailed) {
+                                synchronized (responses) {
+                                    responses.add(response);
+                                }
+                            }
+                            summary.add(response);
+                        }
+
+                        @Override
+                        public void onFailure(Exception exp) {
+                            logger.debug(() -> "failed [" + request + "] on [" + node + "]", exp);
+                            fail(exp);
+                        }
+                    }, ref), BlobAnalyzeAction.Response::new, TransportResponseHandler.TRANSPORT_WORKER)
+                );
+            } else {
+                ref.close();
+            }
+        }
+
         private BlobContainer getBlobContainer() {
             return repository.blobStore().blobContainer(repository.basePath().add(blobPath));
+        }
+
+        private void runContendedRegisterAnalysis(Releasable ref, ContendedRegisterAnalyzeAction.Request request, DiscoveryNode node) {
+            if (isRunning()) {
+                transportService.sendChildRequest(
+                    node,
+                    ContendedRegisterAnalyzeAction.NAME,
+                    request,
+                    task,
+                    TransportRequestOptions.EMPTY,
+                    new ActionListenerResponseHandler<>(ActionListener.releaseAfter(new ActionListener<>() {
+                        @Override
+                        public void onResponse(ActionResponse.Empty response) {
+                            expectedRegisterValue.incrementAndGet();
+                        }
+
+                        @Override
+                        public void onFailure(Exception exp) {
+                            logger.debug(() -> "failed [" + request + "] on [" + node + "]", exp);
+                            fail(exp);
+                        }
+                    }, ref), in -> ActionResponse.Empty.INSTANCE, TransportResponseHandler.TRANSPORT_WORKER)
+                );
+            } else {
+                ref.close();
+            }
+        }
+
+        private Runnable finalRegisterValueVerifier(String registerName, Random random, Releasable ref) {
+            return () -> {
+                if (isRunning()) {
+                    final var expectedFinalRegisterValue = expectedRegisterValue.get();
+                    transportService.getThreadPool()
+                        .executor(ThreadPool.Names.SNAPSHOT)
+                        .execute(ActionRunnable.wrap(ActionListener.releaseAfter(new ActionListener<OptionalBytesReference>() {
+                            @Override
+                            public void onResponse(OptionalBytesReference actualFinalRegisterValue) {
+                                if (actualFinalRegisterValue.isPresent() == false
+                                    || longFromBytes(actualFinalRegisterValue.bytesReference()) != expectedFinalRegisterValue) {
+                                    fail(
+                                        new RepositoryVerificationException(
+                                            request.getRepositoryName(),
+                                            Strings.format(
+                                                "register [%s] should have value [%d] but instead had value [%s]",
+                                                registerName,
+                                                expectedFinalRegisterValue,
+                                                actualFinalRegisterValue
+                                            )
+                                        )
+                                    );
+                                }
+                            }
+
+                            @Override
+                            public void onFailure(Exception exp) {
+                                // Registers are not supported on all repository types, and that's ok.
+                                if (exp instanceof UnsupportedOperationException == false) {
+                                    fail(exp);
+                                }
+                            }
+                        }, ref), listener -> {
+                            switch (random.nextInt(3)) {
+                                case 0 -> getBlobContainer().getRegister(OperationPurpose.REPOSITORY_ANALYSIS, registerName, listener);
+                                case 1 -> getBlobContainer().compareAndExchangeRegister(
+                                    OperationPurpose.REPOSITORY_ANALYSIS,
+                                    registerName,
+                                    bytesFromLong(expectedFinalRegisterValue),
+                                    new BytesArray(new byte[] { (byte) 0xff }),
+                                    listener
+                                );
+                                case 2 -> getBlobContainer().compareAndSetRegister(
+                                    OperationPurpose.REPOSITORY_ANALYSIS,
+                                    registerName,
+                                    bytesFromLong(expectedFinalRegisterValue),
+                                    new BytesArray(new byte[] { (byte) 0xff }),
+                                    listener.map(
+                                        b -> b
+                                            ? OptionalBytesReference.of(bytesFromLong(expectedFinalRegisterValue))
+                                            : OptionalBytesReference.MISSING
+                                    )
+                                );
+                                default -> {
+                                    assert false;
+                                    throw new IllegalStateException();
+                                }
+                            }
+                        }));
+                } else {
+                    ref.close();
+                }
+            };
         }
 
         private class UncontendedRegisterAnalysis implements Runnable {
