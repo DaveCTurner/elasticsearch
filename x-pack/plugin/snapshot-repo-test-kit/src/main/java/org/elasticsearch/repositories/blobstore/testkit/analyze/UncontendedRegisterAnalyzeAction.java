@@ -72,7 +72,7 @@ class UncontendedRegisterAnalyzeAction extends HandledTransportAction<Uncontende
     static void verifyFinalValue(Request request, Repository repository, ActionListener<Void> listener) {
         // ensure that the repo accepts an empty register
         logger.trace("handling final value [{}]", request);
-        updateRegister(request, BytesArray.EMPTY, repository, ActionListener.assertOnce(listener));
+        updateRegister(request, new BytesArray("done"), repository, ActionListener.assertOnce(listener));
     }
 
     private static void updateRegister(Request request, BytesReference newValue, Repository repository, ActionListener<Void> listener) {
