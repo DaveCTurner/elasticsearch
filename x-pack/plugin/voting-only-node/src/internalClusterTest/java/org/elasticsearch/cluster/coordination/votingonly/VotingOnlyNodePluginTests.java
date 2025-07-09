@@ -95,7 +95,9 @@ public class VotingOnlyNodePluginTests extends ESIntegTestCase {
 
     @TestLogging(
         reason = "nocommit",
-        value = "org.elasticsearch.transport.TransportService.tracer:TRACE,org.elasticsearch.tasks.TaskManager:TRACE"
+        value = "org.elasticsearch.transport.TransportService.tracer:TRACE"
+            + ",org.elasticsearch.tasks.TaskManager:TRACE"
+            + ",org.elasticsearch.cluster.service.MasterService:TRACE"
     )
     public void testPreferFullMasterOverVotingOnlyNodes() throws Exception {
         internalCluster().setBootstrapMasterNodeIndex(0);
