@@ -161,7 +161,7 @@ public class TaskManager implements ClusterStateApplier {
         Objects.requireNonNull(task);
         assert task.getParentTaskId().equals(request.getParentTask()) : "Request [ " + request + "] didn't preserve it parentTaskId";
         if (logger.isTraceEnabled()) {
-            logger.trace("register {} [{}] [{}] [{}]", task.getId(), type, action, task.getDescription());
+            logger.trace("{} register {} [{}] [{}] [{}]", nodeId, task.getId(), type, action, task.getDescription());
         }
 
         if (task instanceof CancellableTask) {
@@ -332,7 +332,7 @@ public class TaskManager implements ClusterStateApplier {
      * Unregister the task
      */
     public Task unregister(Task task) {
-        logger.trace("unregister task for id: {}", task.getId());
+        logger.trace("{} unregister task for id: {}", nodeId, task.getId());
         try {
             if (task instanceof CancellableTask) {
                 CancellableTaskHolder holder = cancellableTasks.remove(task);
