@@ -31,6 +31,7 @@ import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.snapshots.SnapshotState;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.hamcrest.Matchers;
 
@@ -92,6 +93,10 @@ public class VotingOnlyNodePluginTests extends ESIntegTestCase {
         assertThat(clusterAdmin().prepareNodesStats("master:true", "voting_only:false").get().getNodes(), hasSize(2));
     }
 
+    @TestLogging(
+        reason = "nocommit",
+        value = "org.elasticsearch.transport.TransportService.tracer:TRACE,org.elasticsearch.tasks.TaskManager:TRACE"
+    )
     public void testPreferFullMasterOverVotingOnlyNodes() throws Exception {
         internalCluster().setBootstrapMasterNodeIndex(0);
         internalCluster().startNodes(2);
