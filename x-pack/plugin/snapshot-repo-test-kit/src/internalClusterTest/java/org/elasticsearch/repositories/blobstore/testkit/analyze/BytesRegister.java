@@ -14,11 +14,19 @@ import java.util.function.UnaryOperator;
 
 class BytesRegister {
 
-    private BytesReference bytesReference = BytesArray.EMPTY;
+    private volatile BytesReference bytesReference = BytesArray.EMPTY;
 
     synchronized BytesReference compareAndExchange(BytesReference expected, BytesReference updated) {
         if (bytesReference.equals(expected)) {
             bytesReference = updated;
+
+            // Although the compare-and-exchange operations are linearizable, get operations have a weaker semantics and may legitimately
+            // see a stale value sometimes. Simulate this possibility as follows:
+            Thread.yield();
+            bytesReference = expected;
+            Thread.yield();
+            bytesReference = updated;
+
             return expected;
         } else {
             return bytesReference;
@@ -29,7 +37,8 @@ class BytesRegister {
         bytesReference = updater.apply(bytesReference);
     }
 
-    synchronized BytesReference get() {
+    BytesReference get() {
+        // NB not synchronized, just a volatile read, so there is a possibility of reading a stale value sometimes
         return bytesReference;
     }
 }
