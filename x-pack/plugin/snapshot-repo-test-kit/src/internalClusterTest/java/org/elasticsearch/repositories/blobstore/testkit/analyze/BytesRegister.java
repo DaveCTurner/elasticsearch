@@ -12,9 +12,12 @@ import org.elasticsearch.common.bytes.BytesReference;
 
 import java.util.function.UnaryOperator;
 
+import static org.elasticsearch.test.ESTestCase.randomBoolean;
+
 class BytesRegister {
 
     private volatile BytesReference bytesReference = BytesArray.EMPTY;
+    private volatile BytesReference staleBytesReference = BytesArray.EMPTY;
 
     synchronized BytesReference compareAndExchange(BytesReference expected, BytesReference updated) {
         if (bytesReference.equals(expected)) {
@@ -23,9 +26,7 @@ class BytesRegister {
             // Although the compare-and-exchange operations are linearizable, get operations have a weaker semantics and may legitimately
             // see a stale value sometimes. Simulate this possibility as follows:
             slowYield();
-            bytesReference = expected;
-            slowYield();
-            bytesReference = updated;
+            staleBytesReference = updated;
 
             return expected;
         } else {
@@ -35,7 +36,7 @@ class BytesRegister {
 
     private static void slowYield() {
         try {
-            Thread.sleep(50);
+            Thread.sleep(20);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new AssertionError(e);
@@ -48,6 +49,6 @@ class BytesRegister {
 
     BytesReference get() {
         // NB not synchronized, just a volatile read, so there is a possibility of reading a stale value sometimes
-        return bytesReference;
+        return randomBoolean() ? bytesReference : staleBytesReference;
     }
 }
