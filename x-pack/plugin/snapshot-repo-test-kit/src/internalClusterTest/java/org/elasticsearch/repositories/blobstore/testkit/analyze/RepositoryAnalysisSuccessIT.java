@@ -142,6 +142,9 @@ public class RepositoryAnalysisSuccessIT extends AbstractSnapshotIntegTestCase {
             blobStore.setExpectedRegisterOperationCount(request.getRegisterOperationCount());
         }
 
+        request.registerOperationCount(1000);
+        blobStore.setExpectedRegisterOperationCount(request.getRegisterOperationCount());
+
         if (request.getBlobCount() > 3 || randomBoolean()) {
             // only use the default blob size of 10MB if writing a small number of blobs, since this is all in-memory
             request.maxBlobSize(ByteSizeValue.ofBytes(between(1, 2048)));

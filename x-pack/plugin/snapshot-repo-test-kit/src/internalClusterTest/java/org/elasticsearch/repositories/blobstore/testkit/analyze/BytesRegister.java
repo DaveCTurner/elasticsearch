@@ -22,14 +22,23 @@ class BytesRegister {
 
             // Although the compare-and-exchange operations are linearizable, get operations have a weaker semantics and may legitimately
             // see a stale value sometimes. Simulate this possibility as follows:
-            Thread.yield();
+            slowYield();
             bytesReference = expected;
-            Thread.yield();
+            slowYield();
             bytesReference = updated;
 
             return expected;
         } else {
             return bytesReference;
+        }
+    }
+
+    private static void slowYield() {
+        try {
+            Thread.sleep(50);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError(e);
         }
     }
 
