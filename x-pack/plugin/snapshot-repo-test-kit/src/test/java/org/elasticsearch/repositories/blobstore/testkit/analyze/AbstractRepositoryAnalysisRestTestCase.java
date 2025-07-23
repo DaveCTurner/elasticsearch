@@ -42,7 +42,6 @@ public abstract class AbstractRepositoryAnalysisRestTestCase extends ESRestTestC
         );
 
         assertOK(client().performRequest(request));
-        fail("boom");
     }
 
 }
