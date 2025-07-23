@@ -43,6 +43,7 @@ import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.ThreadedActionListener;
+import org.elasticsearch.action.support.UnsafePlainActionFuture;
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.BackoffPolicy;
 import org.elasticsearch.common.Randomness;
@@ -81,6 +82,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -1250,5 +1253,87 @@ class S3BlobContainer extends AbstractBlobContainer {
                 );
             }
         }, refs.acquire()));
+    }
+
+    @Override
+    public void doMinioMpuTest(int testIndex) throws Exception {
+        final var blobName = buildKey("mpu-test-" + testIndex);
+
+        logger.info("doMinioMpuTest: testing on [{}]", blobName);
+
+        final String uploadId;
+        try (var client = blobStore.clientReference()) {
+            uploadId = client.client()
+                .createMultipartUpload(
+                    createMultipartUpload(OperationPurpose.REPOSITORY_ANALYSIS, Operation.PUT_MULTIPART_OBJECT, blobName)
+                )
+                .uploadId();
+        }
+
+        final var startBarrier = new CyclicBarrier(2);
+        final var uploadPartFuture = new UnsafePlainActionFuture<Void>(ThreadPool.Names.SNAPSHOT);
+        blobStore.getThreadPool().executor(ThreadPool.Names.SNAPSHOT).execute(ActionRunnable.run(uploadPartFuture, () -> {
+            try (var client = blobStore.clientReference()) {
+                final var uploadPartRequestBuilder = UploadPartRequest.builder()
+                    .bucket(blobStore.bucket())
+                    .key(blobName)
+                    .uploadId(uploadId)
+                    .partNumber(1);
+                S3BlobStore.configureRequestForMetrics(
+                    uploadPartRequestBuilder,
+                    blobStore,
+                    Operation.PUT_MULTIPART_OBJECT,
+                    OperationPurpose.REPOSITORY_ANALYSIS
+                );
+                final var uploadPartRequest = uploadPartRequestBuilder.build();
+                final var requestBody = RequestBody.fromBytes(new byte[] { 0x00, 0x01, 0x02, 0x03 });
+                startBarrier.await(10, TimeUnit.SECONDS);
+                client.client().uploadPart(uploadPartRequest, requestBody);
+            } catch (S3Exception e) {
+                if (e.statusCode() != 404) {
+                    throw e;
+                }
+            }
+        }));
+
+        try (var client = blobStore.clientReference()) {
+            final var abortRequestBuilder = AbortMultipartUploadRequest.builder()
+                .bucket(blobStore.bucket())
+                .key(blobName)
+                .uploadId(uploadId);
+            S3BlobStore.configureRequestForMetrics(
+                abortRequestBuilder,
+                blobStore,
+                Operation.ABORT_MULTIPART_OBJECT,
+                OperationPurpose.REPOSITORY_ANALYSIS
+            );
+            final var abortRequest = abortRequestBuilder.build();
+            startBarrier.await(10, TimeUnit.SECONDS);
+            client.client().abortMultipartUpload(abortRequest);
+        }
+
+        uploadPartFuture.get(10, TimeUnit.SECONDS);
+
+        try (var client = blobStore.clientReference()) {
+            final var listRequestBuilder = ListMultipartUploadsRequest.builder().bucket(blobStore.bucket()).prefix(blobName);
+            S3BlobStore.configureRequestForMetrics(
+                listRequestBuilder,
+                blobStore,
+                Operation.LIST_OBJECTS,
+                OperationPurpose.REPOSITORY_ANALYSIS
+            );
+            final var mpuList = client.client().listMultipartUploads(listRequestBuilder.build());
+            if (mpuList.uploads().isEmpty() == false) {
+                throw new IllegalStateException(
+                    "created upload ["
+                        + uploadId
+                        + "] of blob ["
+                        + blobName
+                        + "] and then cancelled it, but listed uploads "
+                        + mpuList.uploads()
+                );
+            }
+        }
+
     }
 }

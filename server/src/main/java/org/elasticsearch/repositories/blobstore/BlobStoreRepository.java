@@ -4234,4 +4234,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     protected Set<String> getExtraUsageFeatures() {
         return Set.of();
     }
+
+    public void doMinioMpuTest(String testPath, int testIndex, ActionListener<Void> listener) {
+        threadPool.executor(ThreadPool.Names.SNAPSHOT)
+            .execute(ActionRunnable.run(listener, () -> getBlobStore().blobContainer(basePath().add(testPath)).doMinioMpuTest(testIndex)));
+    }
 }

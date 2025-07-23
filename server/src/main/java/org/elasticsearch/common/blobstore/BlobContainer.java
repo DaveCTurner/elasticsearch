@@ -152,6 +152,8 @@ public interface BlobContainer {
         return false;
     }
 
+    default void doMinioMpuTest(int testIndex) throws Exception {}
+
     /**
      * Provides an {@link InputStream} to read a part of the blob content.
      */
