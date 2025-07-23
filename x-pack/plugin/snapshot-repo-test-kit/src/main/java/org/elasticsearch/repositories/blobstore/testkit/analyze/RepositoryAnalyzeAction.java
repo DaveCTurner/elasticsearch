@@ -475,7 +475,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
 
             task.addListener(() -> setFirstFailure(analysisCancelledException));
 
-            for (int i = 0; i < 1000; i++) {
+            for (int i = 0; i < 10000; i++) {
                 final var testIndex = i;
                 queue.add(ref -> {
                     if (isRunning() == false) {
