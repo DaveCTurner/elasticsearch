@@ -7,9 +7,12 @@
 
 package org.elasticsearch.repositories.blobstore.testkit.analyze;
 
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpPost;
 import org.elasticsearch.client.Request;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.test.rest.ESRestTestCase;
 
 public abstract class AbstractRepositoryAnalysisRestTestCase extends ESRestTestCase {
@@ -32,6 +35,17 @@ public abstract class AbstractRepositoryAnalysisRestTestCase extends ESRestTestC
         request.addParameter("max_blob_size", randomFrom("1mb", "10mb"));
         request.addParameter("timeout", "120s");
         request.addParameter("seed", Long.toString(randomLong()));
+
+        request.setOptions(
+            RequestOptions.DEFAULT.toBuilder()
+                .setRequestConfig(
+                    RequestConfig.custom()
+                        .setSocketTimeout(
+                            Math.toIntExact(TimeValue.parseTimeValue(request.getParameters().get("timeout"), "timeout").millis() + 10_000)
+                        )
+                        .build()
+                )
+        );
         assertOK(client().performRequest(request));
     }
 

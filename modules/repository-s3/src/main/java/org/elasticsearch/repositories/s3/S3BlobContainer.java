@@ -1257,8 +1257,8 @@ class S3BlobContainer extends AbstractBlobContainer {
 
     @Override
     public void doMinioMpuTest(int testIndex) throws Exception {
-        final var blobName = buildKey("mpu-test-" + testIndex);
 
+        final var blobName = buildKey(Strings.format("mpu-test-%08d", testIndex));
         logger.info("doMinioMpuTest: testing on [{}]", blobName);
 
         final String uploadId;
