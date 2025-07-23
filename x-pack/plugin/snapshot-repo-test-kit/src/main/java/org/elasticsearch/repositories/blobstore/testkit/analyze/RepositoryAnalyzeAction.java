@@ -494,7 +494,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                 });
             }
 
-            ThrottledIterator.run(getQueueIterator(), (ref, task) -> task.accept(ref), 1, requestRefs::close);
+            ThrottledIterator.run(getQueueIterator(), (ref, task) -> task.accept(ref), request.getConcurrency(), requestRefs::close);
         }
 
         private boolean rarely(Random random) {
