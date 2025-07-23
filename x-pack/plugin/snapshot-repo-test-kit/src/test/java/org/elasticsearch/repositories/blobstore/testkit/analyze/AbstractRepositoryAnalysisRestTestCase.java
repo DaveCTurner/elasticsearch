@@ -29,24 +29,20 @@ public abstract class AbstractRepositoryAnalysisRestTestCase extends ESRestTestC
         logger.info("creating repository [{}] of type [{}]", repository, repositoryType);
         registerRepository(repository, repositoryType, true, repositorySettings);
 
+        final TimeValue timeout = TimeValue.timeValueSeconds(120);
         final Request request = new Request(HttpPost.METHOD_NAME, "/_snapshot/" + repository + "/_analyze");
         request.addParameter("blob_count", "10");
         request.addParameter("concurrency", "4");
         request.addParameter("max_blob_size", randomFrom("1mb", "10mb"));
-        request.addParameter("timeout", "120s");
+        request.addParameter("timeout", timeout.getStringRep());
         request.addParameter("seed", Long.toString(randomLong()));
-
         request.setOptions(
             RequestOptions.DEFAULT.toBuilder()
-                .setRequestConfig(
-                    RequestConfig.custom()
-                        .setSocketTimeout(
-                            Math.toIntExact(TimeValue.parseTimeValue(request.getParameters().get("timeout"), "timeout").millis() + 10_000)
-                        )
-                        .build()
-                )
+                .setRequestConfig(RequestConfig.custom().setSocketTimeout(Math.toIntExact(timeout.millis() + 10_000)).build())
         );
+
         assertOK(client().performRequest(request));
+        fail("boom");
     }
 
 }
