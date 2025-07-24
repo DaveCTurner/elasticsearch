@@ -508,10 +508,6 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                         queue.add(ref -> runContendedRegisterAnalysis(Releasables.wrap(registerRef, ref), registerAnalyzeRequest, node));
                     }
                 }
-
-                if (minClusterTransportVersion.onOrAfter(TransportVersions.V_8_12_0)) {
-                    new UncontendedRegisterAnalysis(new Random(random.nextLong()), nodes, contendedRegisterAnalysisComplete).run();
-                }
             }
 
             final List<Long> blobSizes = getBlobSizes(request);
