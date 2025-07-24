@@ -863,8 +863,13 @@ class S3BlobContainer extends AbstractBlobContainer {
                 .addListener(listener.delegateResponse((l, e) -> {
                     // Best-effort attempt to clean up after ourselves.
                     logger.trace(() -> Strings.format("[%s] aborting upload [%s] on exception", blobKey, uploadId), e);
-                    safeAbortMultipartUpload(uploadId);
-                    l.onFailure(e);
+                    try {
+                        safeAbortMultipartUpload(uploadId);
+                        l.onFailure(e);
+                    } catch (Exception e2) {
+                        e2.addSuppressed(e);
+                        throw new AssertionError(e2);
+                    }
                 }));
 
             // No compare-and-exchange operations that started before ours can write to the register (in its step 5) after we have read the

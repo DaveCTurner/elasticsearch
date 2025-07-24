@@ -34,6 +34,7 @@ public class MinioRepositoryAnalysisRestIT extends AbstractRepositoryAnalysisRes
         .setting("s3.client.repository_test_kit.endpoint", minioFixture::getAddress)
         .setting("xpack.security.enabled", "false")
         .setting("xpack.ml.enabled", "false")
+        .setting("logger.org.elasticsearch.repositories.s3.S3BlobContainer", "TRACE")
         .build();
 
     @ClassRule
