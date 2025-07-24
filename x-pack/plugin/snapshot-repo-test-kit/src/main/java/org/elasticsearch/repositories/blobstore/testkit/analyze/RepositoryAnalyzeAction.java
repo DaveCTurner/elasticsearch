@@ -44,6 +44,7 @@ import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThrottledIterator;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.Releasable;
+import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.repositories.RepositoriesService;
@@ -66,6 +67,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -82,6 +84,7 @@ import java.util.stream.IntStream;
 
 import static org.elasticsearch.core.Strings.format;
 import static org.elasticsearch.repositories.blobstore.testkit.SnapshotRepositoryTestKit.humanReadableNanos;
+import static org.elasticsearch.repositories.blobstore.testkit.analyze.BlobAnalyzeAction.MAX_ATOMIC_WRITE_SIZE;
 import static org.elasticsearch.repositories.blobstore.testkit.analyze.ContendedRegisterAnalyzeAction.bytesFromLong;
 import static org.elasticsearch.repositories.blobstore.testkit.analyze.ContendedRegisterAnalyzeAction.longFromBytes;
 
@@ -475,23 +478,78 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
 
             task.addListener(() -> setFirstFailure(analysisCancelledException));
 
-            for (int i = 0; i < 10000; i++) {
-                final var testIndex = i;
-                queue.add(ref -> {
-                    if (isRunning() == false) {
-                        ref.close();
-                        return;
-                    }
-                    repository.doMinioMpuTest(blobPath, testIndex, ActionListener.releaseAfter(new ActionListener<>() {
-                        @Override
-                        public void onResponse(Void unused) {}
+            final Random random = new Random(request.getSeed());
+            final List<DiscoveryNode> nodes = getSnapshotNodes(discoveryNodes);
 
-                        @Override
-                        public void onFailure(Exception e) {
-                            fail(e);
-                        }
-                    }, ref));
-                });
+            if (minClusterTransportVersion.onOrAfter(TransportVersions.V_8_8_0)) {
+                final String contendedRegisterName = CONTENDED_REGISTER_NAME_PREFIX + UUIDs.randomBase64UUID(random);
+                final AtomicBoolean contendedRegisterAnalysisComplete = new AtomicBoolean();
+                final int registerOperations = Math.max(nodes.size(), request.getRegisterOperationCount());
+                try (
+                    var registerRefs = new RefCountingRunnable(
+                        finalRegisterValueVerifier(
+                            contendedRegisterName,
+                            registerOperations,
+                            random,
+                            Releasables.wrap(requestRefs.acquire(), () -> contendedRegisterAnalysisComplete.set(true))
+                        )
+                    )
+                ) {
+                    for (int i = 0; i < registerOperations; i++) {
+                        final ContendedRegisterAnalyzeAction.Request registerAnalyzeRequest = new ContendedRegisterAnalyzeAction.Request(
+                            request.getRepositoryName(),
+                            blobPath,
+                            contendedRegisterName,
+                            registerOperations,
+                            random.nextInt((registerOperations + 1) * 2)
+                        );
+                        final DiscoveryNode node = nodes.get(i < nodes.size() ? i : random.nextInt(nodes.size()));
+                        final Releasable registerRef = registerRefs.acquire();
+                        queue.add(ref -> runContendedRegisterAnalysis(Releasables.wrap(registerRef, ref), registerAnalyzeRequest, node));
+                    }
+                }
+
+                if (minClusterTransportVersion.onOrAfter(TransportVersions.V_8_12_0)) {
+                    new UncontendedRegisterAnalysis(new Random(random.nextLong()), nodes, contendedRegisterAnalysisComplete).run();
+                }
+            }
+
+            final List<Long> blobSizes = getBlobSizes(request);
+            Collections.shuffle(blobSizes, random);
+
+            int blobCount = request.getBlobCount();
+            for (int i = 0; i < blobCount; i++) {
+                final long targetLength = blobSizes.get(i);
+                final boolean smallBlob = targetLength <= MAX_ATOMIC_WRITE_SIZE; // avoid the atomic API for larger blobs
+                final boolean abortWrite = smallBlob && request.isAbortWritePermitted() && rarely(random);
+                final boolean doCopy = minClusterTransportVersion.onOrAfter(TransportVersions.REPO_ANALYSIS_COPY_BLOB)
+                    && rarely(random)
+                    && i > 0;
+                final String blobName = "test-blob-" + i + "-" + UUIDs.randomBase64UUID(random);
+                String copyBlobName = null;
+                if (doCopy) {
+                    copyBlobName = blobName + "-copy";
+                    blobCount--;
+                    if (i >= blobCount) {
+                        break;
+                    }
+                }
+                final BlobAnalyzeAction.Request blobAnalyzeRequest = new BlobAnalyzeAction.Request(
+                    request.getRepositoryName(),
+                    blobPath,
+                    blobName,
+                    targetLength,
+                    random.nextLong(),
+                    nodes,
+                    request.getReadNodeCount(),
+                    request.getEarlyReadNodeCount(),
+                    smallBlob && rarely(random),
+                    repository.supportURLRepo() && repository.hasAtomicOverwrites() && smallBlob && rarely(random) && abortWrite == false,
+                    abortWrite,
+                    copyBlobName
+                );
+                final DiscoveryNode node = nodes.get(random.nextInt(nodes.size()));
+                queue.add(ref -> runBlobAnalysis(ref, blobAnalyzeRequest, node));
             }
 
             ThrottledIterator.run(getQueueIterator(), (ref, task) -> task.accept(ref), request.getConcurrency(), requestRefs::close);
