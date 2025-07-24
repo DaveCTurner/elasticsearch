@@ -82,6 +82,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -1036,6 +1037,14 @@ class S3BlobContainer extends AbstractBlobContainer {
             } catch (Exception e) {
                 // cleanup is a best-effort thing, we can't do anything better than log and fall through here
                 logger.error("unexpected error cleaning up upload [" + uploadId + "] of [" + blobKey + "]", e);
+                return;
+            }
+
+            final var multipartUploads = listMultipartUploads();
+            for (MultipartUpload multipartUpload : multipartUploads) {
+                if (Objects.equals(uploadId, multipartUpload.uploadId())) {
+                    throw new IllegalStateException("successfully aborted upload [" + uploadId + "] but it remains in " + multipartUploads);
+                }
             }
         }
 
