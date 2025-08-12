@@ -399,7 +399,7 @@ public class NodeJoiningIT extends MasterElectionTestCase {
 
             @Override
             public void assertMatched() {
-                assertTrue(matched);
+                assertTrue("node-join message for [" + expectedNewNodeAsString + "]", matched);
             }
         });
     }

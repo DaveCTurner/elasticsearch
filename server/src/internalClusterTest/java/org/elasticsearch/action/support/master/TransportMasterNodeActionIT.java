@@ -51,7 +51,7 @@ import static org.hamcrest.Matchers.greaterThan;
 public class TransportMasterNodeActionIT extends MasterElectionTestCase {
 
     private static final Logger logger = LogManager.getLogger(TransportMasterNodeActionIT.class);
-    
+
     @SuppressWarnings("unchecked")
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
