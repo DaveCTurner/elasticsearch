@@ -22,6 +22,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESIntegTestCase;
@@ -175,6 +177,8 @@ public class NodeJoiningIT extends MasterElectionTestCase {
         }
     }
 
+    private static final Logger logger = LogManager.getLogger(NodeJoiningIT.class);
+
     // Tests whether a WARN log is thrown when a node attempts to join a cluster, and then the same master node is re-elected (#126192)
     @TestLogging(
         reason = "test includes assertions about logging",
@@ -290,7 +294,7 @@ public class NodeJoiningIT extends MasterElectionTestCase {
                     // Await for N to be in the cluster state of all nodes
                     for (String nodeName : namesOfAllNodesInOriginalCluster) {
                         ClusterServiceUtils.awaitClusterState(
-                            logger,
+                            null,
                             clusterState -> clusterState.nodes().nodeExistsWithName(newNodeName),
                             internalCluster().clusterService(nodeName)
                         );
