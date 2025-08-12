@@ -510,7 +510,7 @@ public class NodeJoiningIT extends MasterElectionTestCase {
     private String generateNodeDescriptionForNewDiscoveryNode(int numberOfNodesOriginallyInCluster, DiscoveryNode masterNode) {
         // Nodes are named `node_s0`, `node_s1` etc ...
         // Therefore, if there are N nodes in the cluster, named `node_s0` ... `node_sN-1`, N+1 will be named `node_sN`
-        String newNodeName = "node_s" + numberOfNodesOriginallyInCluster;
+        String newNodeName = "node_t" + numberOfNodesOriginallyInCluster;
         String regexToMatchAnyCharacterExceptClosingBrace = "([^}]+)";
 
         return "\\{"
