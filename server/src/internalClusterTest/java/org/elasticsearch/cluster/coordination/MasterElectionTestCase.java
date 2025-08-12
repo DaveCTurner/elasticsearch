@@ -14,6 +14,8 @@ import org.elasticsearch.cluster.ClusterStateApplier;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.core.Releasable;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESIntegTestCase;
 
@@ -116,9 +118,12 @@ public abstract class MasterElectionTestCase extends ESIntegTestCase {
         try {
             final var newNodeNames = internalCluster().startMasterOnlyNodes(Math.max(1, 5 - internalCluster().numMasterNodes()));
             safeAwait(votingConfigSizeListener);
+            logger.info("--> ensureSufficientMasterEligibleNodes: started new nodes [{}]", newNodeNames);
             return newNodeNames.get(0);
         } finally {
             votingConfigSizeListener.onResponse(null);
         }
     }
+
+    private static final Logger logger = LogManager.getLogger(MasterElectionTestCase.class);
 }
