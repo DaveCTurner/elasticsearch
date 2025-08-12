@@ -31,6 +31,8 @@ import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.injection.guice.Inject;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.tasks.Task;
@@ -48,6 +50,8 @@ import static org.hamcrest.Matchers.greaterThan;
 
 public class TransportMasterNodeActionIT extends MasterElectionTestCase {
 
+    private static final Logger logger = LogManager.getLogger(TransportMasterNodeActionIT.class);
+    
     @SuppressWarnings("unchecked")
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
