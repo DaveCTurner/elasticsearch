@@ -151,6 +151,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
@@ -621,9 +622,9 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
             for (final ClusterNode clusterNode : clusterNodes) {
                 final String nodeId = clusterNode.getId();
-                assertFalse(nodeId + " should not have an active publication", clusterNode.coordinator.publicationInProgress());
 
                 if (clusterNode == leader) {
+                    assertFalse(nodeId + " should not have an active publication", clusterNode.coordinator.publicationInProgress());
                     assertThat(nodeId + " is still the leader", clusterNode.coordinator.getMode(), is(LEADER));
                     assertThat(nodeId + " did not change term", clusterNode.coordinator.getCurrentTerm(), is(leaderTerm));
                     continue;
@@ -681,6 +682,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                         clusterNode.getLastAppliedClusterState().metadata().clusterUUID(),
                         equalTo(clusterUuid)
                     );
+                    assertFalse(nodeId + " should not have an active publication", clusterNode.coordinator.publicationInProgress());
 
                     for (final ClusterNode otherNode : clusterNodes) {
                         if (isConnectedPair(leader, otherNode) && isConnectedPair(otherNode, clusterNode)) {
@@ -691,17 +693,41 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                         }
                     }
                 } else {
-                    assertThat(nodeId + " is not following " + leaderId, clusterNode.coordinator.getMode(), is(CANDIDATE));
-                    assertThat(nodeId + " has no master", clusterNode.getLastAppliedClusterState().nodes().getMasterNode(), nullValue());
-                    assertThat(
-                        nodeId + " has NO_MASTER_BLOCK",
-                        clusterNode.getLastAppliedClusterState().blocks().hasGlobalBlockWithId(NO_MASTER_BLOCK_ID),
-                        equalTo(true)
-                    );
-                    assertFalse(
-                        nodeId + " is not in the applied state on " + leaderId,
-                        leader.getLastAppliedClusterState().getNodes().nodeExists(nodeId)
-                    );
+                    if (clusterNode.coordinator.getMode() == LEADER) {
+                        // a blackholed (former) leader may still be mid-publication, waiting indefinitely for the publication to complete
+                        assertThat(
+                            nodeId + " is still LEADER so must be waiting mid-publication " + leaderId,
+                            blackholedNodes,
+                            hasItem(clusterNode.localNode.getId())
+                        );
+                        assertTrue(nodeId + " must have an active publication", clusterNode.coordinator.publicationInProgress());
+                        assertTrue(
+                            nodeId + " must have an active publication which is uncommitted",
+                            clusterNode.coordinator.publicationInProgressIsUncommitted()
+                        );
+                        assertThat(
+                            nodeId + " is LEADER in an older term than " + leaderId,
+                            clusterNode.coordinator.getCurrentTerm(),
+                            lessThan(leaderTerm)
+                        );
+                    } else {
+                        assertThat(nodeId + " is not following " + leaderId, clusterNode.coordinator.getMode(), is(CANDIDATE));
+                        assertThat(
+                            nodeId + " has no master",
+                            clusterNode.getLastAppliedClusterState().nodes().getMasterNode(),
+                            nullValue()
+                        );
+                        assertThat(
+                            nodeId + " has NO_MASTER_BLOCK",
+                            clusterNode.getLastAppliedClusterState().blocks().hasGlobalBlockWithId(NO_MASTER_BLOCK_ID),
+                            equalTo(true)
+                        );
+                        assertFalse(
+                            nodeId + " is not in the applied state on " + leaderId,
+                            leader.getLastAppliedClusterState().getNodes().nodeExists(nodeId)
+                        );
+                        assertFalse(nodeId + " should not have an active publication", clusterNode.coordinator.publicationInProgress());
+                    }
 
                     for (final ClusterNode otherNode : clusterNodes) {
                         if (isConnectedPair(leader, otherNode)) {
@@ -1281,7 +1307,10 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             }
 
             boolean isLeader() {
-                return coordinator.getMode() == LEADER;
+                return coordinator.getMode() == LEADER
+                    // a blackholed former leader may be mid-publication and waiting indefinitely for the publication to commit - in that
+                    // case it is not a viable leader so must be excluded here
+                    && blackholedNodes.contains(localNode.getId()) == false;
             }
 
             boolean isCandidate() {

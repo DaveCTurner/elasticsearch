@@ -1062,6 +1062,13 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         }
     }
 
+    // package-visible for testing
+    boolean publicationInProgressIsUncommitted() {
+        synchronized (mutex) {
+            return currentPublication.orElseThrow().isCommitted() == false;
+        }
+    }
+
     @Override
     protected void doStart() {
         synchronized (mutex) {
@@ -1616,6 +1623,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                             publishRequest,
                             publicationContext,
                             new SubscribableListener<>(),
+                            new SubscribableListener<>(),
                             ackListener,
                             publishListener
                         );
@@ -1865,8 +1873,8 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         private final ActionListener<Void> publishListener;
         private final PublicationTransportHandler.PublicationContext publicationContext;
 
-        @Nullable // if using single-node discovery
-        private final Scheduler.ScheduledCancellable timeoutHandler;
+        @Nullable // if not yet committed, or using single-node discovery
+        private final SubscribableListener<Void> timeoutListener;
         private final Scheduler.Cancellable infoTimeoutHandler;
 
         // We may not have accepted our own state before receiving a join from another node, causing its join to be rejected (we cannot
@@ -1879,6 +1887,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             PublishRequest publishRequest,
             PublicationTransportHandler.PublicationContext publicationContext,
             SubscribableListener<Void> localNodeAckEvent,
+            SubscribableListener<Void> timeoutListener,
             AckListener ackListener,
             ActionListener<Void> publishListener
         ) {
@@ -1887,6 +1896,9 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                 public void onCommit(TimeValue commitTime) {
                     clusterStatePublicationEvent.setPublicationCommitElapsedMillis(commitTime.millis());
                     ackListener.onCommit(commitTime);
+                    if (singleNodeDiscovery == false) {
+                        timeoutListener.addTimeout(publishTimeout, transportService.getThreadPool(), clusterCoordinationExecutor);
+                    }
                 }
 
                 @Override
@@ -1915,19 +1927,21 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             this.ackListener = ackListener;
             this.publishListener = publishListener;
 
-            this.timeoutHandler = singleNodeDiscovery ? null : transportService.getThreadPool().schedule(new Runnable() {
+            this.timeoutListener = timeoutListener;
+            this.timeoutListener.addListener(new ActionListener<>() {
                 @Override
-                public void run() {
+                public void onResponse(Void unused) {
+                    logger.trace("timeout listener for [{}] completed normally", CoordinatorPublication.this);
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    logger.debug(() -> Strings.format("timeout listener for [%s] completed exceptionally", CoordinatorPublication.this), e);
                     synchronized (mutex) {
                         cancel("timed out after " + publishTimeout);
                     }
                 }
-
-                @Override
-                public String toString() {
-                    return "scheduled timeout for " + CoordinatorPublication.this;
-                }
-            }, publishTimeout, clusterCoordinationExecutor);
+            });
 
             this.infoTimeoutHandler = transportService.getThreadPool().schedule(new Runnable() {
                 @Override
@@ -2073,9 +2087,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         }
 
         private void cancelTimeoutHandlers() {
-            if (timeoutHandler != null) {
-                timeoutHandler.cancel();
-            }
+            timeoutListener.onResponse(null);
             infoTimeoutHandler.cancel();
         }
 

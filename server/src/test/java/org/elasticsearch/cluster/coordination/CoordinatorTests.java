@@ -639,41 +639,6 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         }
     }
 
-    public void testAckListenerReceivesNacksIfPublicationTimesOut() {
-        testAckListenerReceivesNacksIfPublicationTimesOut(false);
-    }
-
-    protected void testAckListenerReceivesNacksIfPublicationTimesOut(boolean expectLeaderAcksSuccessfullyInStateless) {
-        try (Cluster cluster = new Cluster(3)) {
-            cluster.runRandomly();
-            cluster.stabilise();
-            final ClusterNode leader = cluster.getAnyLeader();
-            final ClusterNode follower0 = cluster.getAnyNodeExcept(leader);
-            final ClusterNode follower1 = cluster.getAnyNodeExcept(leader, follower0);
-
-            follower0.blackhole();
-            follower1.blackhole();
-            AckCollector ackCollector = leader.submitValue(randomLong());
-            cluster.runFor(DEFAULT_CLUSTER_STATE_UPDATE_DELAY, "committing value");
-            assertFalse("expected no immediate ack from " + leader, ackCollector.hasAcked(leader));
-            assertFalse("expected no immediate ack from " + follower0, ackCollector.hasAcked(follower0));
-            assertFalse("expected no immediate ack from " + follower1, ackCollector.hasAcked(follower1));
-
-            follower0.heal();
-            follower1.heal();
-            cluster.stabilise();
-            assertTrue("expected eventual nack from " + follower0, ackCollector.hasAckedUnsuccessfully(follower0));
-            assertTrue("expected eventual nack from " + follower1, ackCollector.hasAckedUnsuccessfully(follower1));
-            if (expectLeaderAcksSuccessfullyInStateless) {
-                // A stateless leader directly updates the cluster state in the remote blob store: it does not require communication with
-                // the other cluster nodes to procceed with an update commit to the cluster state.
-                assertTrue("expected ack from leader, " + leader, ackCollector.hasAckedSuccessfully(leader));
-            } else {
-                assertTrue("expected eventual nack from leader, " + leader, ackCollector.hasAckedUnsuccessfully(leader));
-            }
-        }
-    }
-
     public void testAckListenerReceivesNacksIfLeaderStandsDown() {
         testAckListenerReceivesNacksIfLeaderStandsDown(Settings.EMPTY, TimeValue.ZERO);
     }
@@ -1027,7 +992,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
                 }
             });
 
-            leader.blackhole();
+            leader.disconnect();
             cluster.stabilise(DEFAULT_STABILISATION_TIME + TimeAdvancer.MAX_ADVANCE_MILLIS * 2);
 
             final ClusterStateUpdateStats stats1 = leader.coordinator.stats().getClusterStateUpdateStats();

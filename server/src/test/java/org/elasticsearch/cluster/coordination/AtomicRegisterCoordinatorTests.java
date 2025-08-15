@@ -94,12 +94,6 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
     }
 
     @Override
-    public void testAckListenerReceivesNacksIfPublicationTimesOut() {
-        // The leader still has access to the register, therefore it acknowledges the state update
-        testAckListenerReceivesNacksIfPublicationTimesOut(true);
-    }
-
-    @Override
     public void testClusterCannotFormWithFailingJoinValidation() throws Exception {
         // A single node can form a cluster if it is able to join (vote for) its own cluster, so we must disable all nodes from successfully
         // joining a cluster.

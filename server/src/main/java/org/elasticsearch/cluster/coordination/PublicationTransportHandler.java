@@ -16,6 +16,8 @@ import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.ChannelActionListener;
+import org.elasticsearch.action.support.RefCountAwareThreadedActionListener;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStatePublicationEvent;
 import org.elasticsearch.cluster.Diff;
@@ -35,9 +37,12 @@ import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.LazyInitializable;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
+import org.elasticsearch.common.util.concurrent.RunOnce;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.Releasables;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.BytesTransportRequest;
@@ -45,11 +50,14 @@ import org.elasticsearch.transport.NodeNotConnectedException;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportRequestOptions;
+import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
@@ -345,12 +353,23 @@ public class PublicationTransportHandler {
         private final Map<TransportVersion, ReleasableBytesReference> serializedStates = new ConcurrentHashMap<>();
         private final Map<TransportVersion, ReleasableBytesReference> serializedDiffs = new HashMap<>();
 
+        private final SubscribableListener<Void> localAcceptListener = new SubscribableListener<>();
+        private final Set<String> remoteAcceptedNodeIds = new HashSet<>();
+        private final Runnable onRemoteAcceptedQuorum;
+
         PublicationContext(ClusterStatePublicationEvent clusterStatePublicationEvent) {
             discoveryNodes = clusterStatePublicationEvent.getNewState().nodes();
             newState = clusterStatePublicationEvent.getNewState();
             previousState = clusterStatePublicationEvent.getOldState();
             task = clusterStatePublicationEvent.getTask();
             sendFullVersion = previousState.getBlocks().disableStatePersistence();
+            onRemoteAcceptedQuorum = new RunOnce(
+                () -> localAcceptListener.addTimeout(
+                    TimeValue.timeValueSeconds(1),
+                    transportService.getThreadPool(),
+                    EsExecutors.DIRECT_EXECUTOR_SERVICE
+                )
+            );
         }
 
         void buildDiffAndSerializeStates() {
@@ -405,32 +424,34 @@ public class PublicationTransportHandler {
 
                 final boolean isVotingOnlyNode = discoveryNodes.getLocalNode().getRoles().contains(DiscoveryNodeRole.VOTING_ONLY_NODE_ROLE);
                 logger.trace("handling cluster state version [{}] locally on [{}]", newStateVersion, destination);
-                transportService.getThreadPool()
-                    .executor(ThreadPool.Names.CLUSTER_COORDINATION)
-                    .execute(
-                        transportService.getThreadPool()
-                            .getThreadContext()
-                            .preserveContext(ActionRunnable.supply(listener, new CheckedSupplier<>() {
-                                @Override
-                                public PublishWithJoinResponse get() {
-                                    if (isVotingOnlyNode) {
-                                        // Voting-only nodes publish their cluster state to other nodes in order to freshen the state held
-                                        // on other full master nodes, but then fail the publication before committing. However there's no
-                                        // need to freshen our local state so we can fail right away.
-                                        throw new TransportException(
-                                            new ElasticsearchException("voting-only node skipping local publication to " + destination)
-                                        );
-                                    } else {
+                clusterCoordinationExecutor.execute(
+                    transportService.getThreadPool()
+                        .getThreadContext()
+                        .preserveContext(ActionRunnable.supply(listener, new CheckedSupplier<>() {
+                            @Override
+                            public PublishWithJoinResponse get() {
+                                if (isVotingOnlyNode) {
+                                    // Voting-only nodes publish their cluster state to other nodes in order to freshen the state held
+                                    // on other full master nodes, but then fail the publication before committing. However there's no
+                                    // need to freshen our local state so we can fail right away.
+                                    throw new TransportException(
+                                        new ElasticsearchException("voting-only node skipping local publication to " + destination)
+                                    );
+                                } else {
+                                    try {
                                         return handlePublishRequest.apply(publishRequest);
+                                    } finally {
+                                        localAcceptListener.onResponse(null);
                                     }
                                 }
+                            }
 
-                                @Override
-                                public String toString() {
-                                    return "handling cluster state version [" + newStateVersion + "] locally on [" + destination + "]";
-                                }
-                            }))
-                    );
+                            @Override
+                            public String toString() {
+                                return "handling cluster state version [" + newStateVersion + "] locally on [" + destination + "]";
+                            }
+                        }))
+                );
             } else if (sendFullVersion || previousState.nodes().nodeExists(destination) == false) {
                 logger.trace("sending full cluster state version [{}] to [{}]", newStateVersion, destination);
                 sendFullClusterState(destination, listener);
@@ -522,7 +543,33 @@ public class PublicationTransportHandler {
                 new BytesTransportRequest(bytes, connection.getTransportVersion()),
                 task,
                 STATE_REQUEST_OPTIONS,
-                new CleanableResponseHandler<>(listener, PublishWithJoinResponse::new, clusterCoordinationExecutor, bytes::decRef)
+                new CleanableResponseHandler<>(
+                    new RefCountAwareThreadedActionListener<>(clusterCoordinationExecutor, listener).delegateFailure(
+                        (delegate, response) -> {
+                            if (localAcceptListener.isDone() == false) {
+                                final boolean hasRemoteQuorum;
+                                synchronized (remoteAcceptedNodeIds) {
+                                    remoteAcceptedNodeIds.add(connection.getNode().getId());
+                                    hasRemoteQuorum = newState.coordinationMetadata()
+                                        .getLastAcceptedConfiguration()
+                                        .hasQuorum(remoteAcceptedNodeIds)
+                                        && newState.coordinationMetadata().getLastCommittedConfiguration().hasQuorum(remoteAcceptedNodeIds);
+                                }
+                                if (hasRemoteQuorum) {
+                                    onRemoteAcceptedQuorum.run();
+                                }
+                            }
+
+                            delegate.onResponse(response);
+                        }
+                    ),
+                    PublishWithJoinResponse::new,
+                    // Start the handling on the transport worker: local node's coordination executor is stuck, and if we get a quorum of
+                    // acks back and then are still stuck after `cluster.publish.timeout` has elapsed then we must notify the LeaderChecker
+                    // so it can report that we're unhealthy
+                    TransportResponseHandler.TRANSPORT_WORKER,
+                    bytes::decRef
+                )
             );
         }
 
