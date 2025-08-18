@@ -700,7 +700,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                     */
                     @Override
                     public void onFailure(Exception e) {
-                        if (e instanceof FailedToCommitClusterStateException) {
+                        if (false && e instanceof FailedToCommitClusterStateException) {
                             ClusterStateListener clusterStateListener = new ClusterStateListener() {
                                 @Override
                                 public void clusterChanged(ClusterChangedEvent event) {
