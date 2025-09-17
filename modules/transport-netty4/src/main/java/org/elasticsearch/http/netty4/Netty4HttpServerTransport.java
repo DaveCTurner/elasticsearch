@@ -38,12 +38,14 @@ import io.netty.util.ResourceLeakDetector;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.common.network.CloseableChannel;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.network.ThreadWatchdog;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.Assertions;
 import org.elasticsearch.core.IOUtils;
@@ -72,6 +74,7 @@ import org.elasticsearch.transport.netty4.TLSConfig;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import java.net.InetSocketAddress;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiPredicate;
 
@@ -106,6 +109,10 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
 
     private volatile ServerBootstrap serverBootstrap;
     private volatile SharedGroupFactory.SharedGroup sharedGroup;
+    volatile int maxConcurrentTlsHandshakes;
+    volatile int maxDelayedTlsHandshakes;
+
+    private final Map<Thread, TlsHandshakeThrottle> tlsHandshakeThrottles = ConcurrentCollections.newConcurrentMap();
 
     public Netty4HttpServerTransport(
         Settings settings,
@@ -143,6 +150,15 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
         this.maxCompositeBufferComponents = Netty4Plugin.SETTING_HTTP_NETTY_MAX_COMPOSITE_BUFFER_COMPONENTS.get(settings);
 
         this.readTimeoutMillis = Math.toIntExact(SETTING_HTTP_READ_TIMEOUT.get(settings).getMillis());
+
+        clusterSettings.initializeAndWatch(
+            Netty4Plugin.SETTING_HTTP_NETTY_TLS_HANDSHAKES_MAX_CONCURRENT,
+            maxConcurrentTlsHandshakes -> this.maxConcurrentTlsHandshakes = maxConcurrentTlsHandshakes
+        );
+        clusterSettings.initializeAndWatch(
+            Netty4Plugin.SETTING_HTTP_NETTY_TLS_HANDSHAKES_MAX_DELAYED,
+            maxDelayedTlsHandshakes -> this.maxDelayedTlsHandshakes = maxDelayedTlsHandshakes
+        );
 
         ByteSizeValue receivePredictor = Netty4Plugin.SETTING_HTTP_NETTY_RECEIVE_PREDICTOR_SIZE.get(settings);
         recvByteBufAllocator = new FixedRecvByteBufAllocator(receivePredictor.bytesAsInt());
@@ -250,6 +266,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
 
     @Override
     protected void stopInternal() {
+        tlsHandshakeThrottles.values().forEach(TlsHandshakeThrottle::close);
         if (sharedGroup != null) {
             sharedGroup.shutdown();
             sharedGroup = null;
@@ -263,7 +280,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
         }
 
         if (SSLExceptionHelper.isNotSslRecordException(cause)) {
-            logger.warn("received plaintext http traffic on an https channel, closing connection {}", channel);
+            logger.warn("received plaintext http traffic on an https channel, closing connection {}", channel, cause);
             CloseableChannel.closeChannel(channel);
         } else if (SSLExceptionHelper.isCloseDuringHandshakeException(cause)) {
             logger.debug("connection {} closed during ssl handshake", channel);
@@ -296,7 +313,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
         private final BiPredicate<String, InetSocketAddress> acceptChannelPredicate;
         private final HttpValidator httpValidator;
 
-        protected HttpChannelHandler(
+        public HttpChannelHandler(
             final Netty4HttpServerTransport transport,
             final HttpHandlingSettings handlingSettings,
             final TLSConfig tlsConfig,
@@ -329,7 +346,28 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
                     );
             }
             if (tlsConfig.isTLSEnabled()) {
-                ch.pipeline().addLast("ssl", new SslHandler(tlsConfig.createServerSSLEngine()));
+                TlsHandshakeThrottle tlsHandshakeThrottle;
+                synchronized (transport.lifecycle) {
+                    if (transport.lifecycle.stoppedOrClosed()) {
+                        throw new IllegalStateException("HTTP transport is already stopped");
+                    }
+                    tlsHandshakeThrottle = transport.tlsHandshakeThrottles.computeIfAbsent(
+                        Thread.currentThread(),
+                        ignored -> new TlsHandshakeThrottle(transport)
+                    );
+                }
+
+                final var handshakeCompletePromise = new SubscribableListener<Void>();
+                ch.pipeline()
+                    // accumulate data until the initial handshake
+                    .addLast("initial-tls-handshake-throttle", tlsHandshakeThrottle.newHandshakeThrottleHandler(handshakeCompletePromise))
+                    // actually do the TLS processing
+                    .addLast("ssl", new SslHandler(tlsConfig.createServerSSLEngine()))
+                    // watch for the completion of this channel's initial handshake at which point we can release one for another channel
+                    .addLast(
+                        "initial-tls-handshake-completion-watcher",
+                        tlsHandshakeThrottle.newHandshakeCompletionWatcher(handshakeCompletePromise)
+                    );
             }
             final var threadWatchdogActivityTracker = transport.threadWatchdog.getActivityTrackerForCurrentThread();
             ch.pipeline()
