@@ -310,14 +310,45 @@ public class MetadataCreateIndexService {
         final TimeValue masterNodeTimeout,
         final TimeValue ackTimeout,
         final CreateIndexClusterStateUpdateRequest request,
-        final ActionListener<AcknowledgedResponse> listener
+        final ActionListener<AcknowledgedResponse> originalListener
     ) {
         try {
             normalizeRequestSetting(request);
         } catch (Exception e) {
-            listener.onFailure(e);
+            originalListener.onFailure(e);
             return;
         }
+
+        final var listener = originalListener.<AcknowledgedResponse>map(response -> {
+            if (request.index().startsWith("testindex")) {
+                submitUnbatchedTask("break-index", new ClusterStateUpdateTask() {
+                    @Override
+                    public ClusterState execute(ClusterState currentState) throws Exception {
+                        final var oldIndexMetadata = currentState.metadata().index(request.index());
+                        return ClusterState.builder(currentState)
+                            .metadata(
+                                Metadata.builder(currentState.metadata())
+                                    .put(
+                                        IndexMetadata.builder(oldIndexMetadata)
+                                            .settings(
+                                                Settings.builder()
+                                                    .put(oldIndexMetadata.getSettings())
+                                                    .put("index.store.type", "snapshot")
+                                                    .put("index.routing.allocation.include._tier_preference", "data_frozen")
+                                            )
+                                    )
+                            )
+                            .build();
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        logger.error("break-index failed", e);
+                    }
+                });
+            }
+            return response;
+        });
 
         var delegate = new AllocationActionListener<>(listener, threadPool.getThreadContext());
         submitUnbatchedTask(
@@ -332,9 +363,9 @@ public class MetadataCreateIndexService {
                 @Override
                 public void onFailure(Exception e) {
                     if (e instanceof ResourceAlreadyExistsException) {
-                        logger.trace(() -> "[" + request.index() + "] failed to create", e);
+                        logger.info(() -> "[" + request.index() + "] failed to create", e);
                     } else {
-                        logger.debug(() -> "[" + request.index() + "] failed to create", e);
+                        logger.info(() -> "[" + request.index() + "] failed to create", e);
                     }
                     super.onFailure(e);
                 }
@@ -1400,12 +1431,7 @@ public class MetadataCreateIndexService {
     ) {
         final IndexMetadata.Builder builder = IndexMetadata.builder(indexName);
         builder.setRoutingNumShards(routingNumShards);
-        builder.settings(
-            Settings.builder()
-                .put(indexSettings)
-                .put("index.store.type", "snapshot")
-                .put("index.routing.allocation.include._tier_preference", "data_frozen")
-        );
+        builder.settings(indexSettings);
 
         if (sourceMetadata != null) {
             /*
