@@ -1404,7 +1404,7 @@ public class MetadataCreateIndexService {
             Settings.builder()
                 .put(indexSettings)
                 .put("index.store.type", "snapshot")
-                .put("routing.allocation.include._tier_preference", "data_frozen")
+                .put("index.routing.allocation.include._tier_preference", "data_frozen")
         );
 
         if (sourceMetadata != null) {
