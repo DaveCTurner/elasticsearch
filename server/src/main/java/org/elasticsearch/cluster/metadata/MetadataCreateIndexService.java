@@ -1400,7 +1400,12 @@ public class MetadataCreateIndexService {
     ) {
         final IndexMetadata.Builder builder = IndexMetadata.builder(indexName);
         builder.setRoutingNumShards(routingNumShards);
-        builder.settings(indexSettings);
+        builder.settings(
+            Settings.builder()
+                .put(indexSettings)
+                .put("index.store.type", "snapshot")
+                .put("routing.allocation.include._tier_preference", "data_frozen")
+        );
 
         if (sourceMetadata != null) {
             /*
