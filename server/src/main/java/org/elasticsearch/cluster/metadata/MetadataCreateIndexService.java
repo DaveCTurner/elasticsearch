@@ -336,6 +336,7 @@ public class MetadataCreateIndexService {
                                                     .put("index.store.type", "snapshot")
                                                     .put("index.routing.allocation.include._tier_preference", "data_frozen")
                                             )
+                                            .settingsVersion(oldIndexMetadata.getSettingsVersion() + 1)
                                     )
                             )
                             .build();
