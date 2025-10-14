@@ -9,6 +9,8 @@
 
 package org.elasticsearch.action.admin.indices.delete;
 
+import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteRequest;
+import org.elasticsearch.action.admin.cluster.reroute.TransportClusterRerouteAction;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.TestShardRoutingRoleStrategies;
@@ -26,7 +28,8 @@ import java.util.concurrent.CountDownLatch;
 public class InvalidDataTierIT extends ESIntegTestCase {
     public void testInvalidDataTier() {
 
-        final var indexName = "index-" + randomIdentifier();
+        final var badIndexName = "bad-index-" + randomIdentifier();
+        final var goodIndexName = "good-index-" + randomIdentifier();
 
         final var cdl = new CountDownLatch(1);
 
@@ -34,18 +37,25 @@ public class InvalidDataTierIT extends ESIntegTestCase {
             .submitUnbatchedStateUpdateTask("test", new ClusterStateUpdateTask() {
                 @Override
                 public ClusterState execute(ClusterState currentState) {
-                    final var indexMetadata = IndexMetadata.builder(indexName)
+                    final var badIndexMetadata = IndexMetadata.builder(badIndexName)
                         .settings(
                             indexSettings(1, 0).put(IndexMetadata.SETTING_INDEX_VERSION_CREATED.getKey(), IndexVersion.current())
                                 .put(IndexMetadata.SETTING_INDEX_UUID, UUIDs.randomBase64UUID())
                                 .put(DataTier.TIER_PREFERENCE, DataTier.DATA_FROZEN)
                         )
                         .build();
+                    final var goodIndexMetadata = IndexMetadata.builder(goodIndexName)
+                        .settings(
+                            indexSettings(1, 0).put(IndexMetadata.SETTING_INDEX_VERSION_CREATED.getKey(), IndexVersion.current())
+                                .put(IndexMetadata.SETTING_INDEX_UUID, UUIDs.randomBase64UUID())
+                        )
+                        .build();
                     return ClusterState.builder(currentState)
-                        .metadata(Metadata.builder(currentState.metadata()).put(indexMetadata, true))
+                        .metadata(Metadata.builder(currentState.metadata()).put(badIndexMetadata, true).put(goodIndexMetadata, true))
                         .routingTable(
                             RoutingTable.builder(TestShardRoutingRoleStrategies.DEFAULT_ROLE_ONLY, currentState.routingTable())
-                                .addAsNew(indexMetadata)
+                                .addAsNew(badIndexMetadata)
+                                .addAsNew(goodIndexMetadata)
                                 .build()
                         )
                         .build();
@@ -63,7 +73,11 @@ public class InvalidDataTierIT extends ESIntegTestCase {
             });
 
         safeAwait(cdl);
-        incl
+        safeGet(
+            client().execute(TransportClusterRerouteAction.TYPE, new ClusterRerouteRequest(TEST_REQUEST_TIMEOUT, TEST_REQUEST_TIMEOUT))
+        );
+
+        safeGet(client().execute(TransportDeleteIndexAction.TYPE, new DeleteIndexRequest(goodIndexName)));
 
     }
 }
