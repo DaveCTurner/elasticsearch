@@ -1088,7 +1088,7 @@ public class MasterService extends AbstractLifecycleComponent {
                 }
                 return updatedState;
             } catch (Exception e) {
-                logger.trace(
+                logger.warn(
                     () -> format(
                         "failed to execute cluster state update (on version: [%s], uuid: [%s]) for [%s]\n%s%s%s",
                         previousClusterState.version(),
