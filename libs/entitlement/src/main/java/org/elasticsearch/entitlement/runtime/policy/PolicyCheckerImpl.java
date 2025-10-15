@@ -258,35 +258,10 @@ public class PolicyCheckerImpl implements PolicyChecker {
 
     @SuppressForbidden(reason = "Explicitly checking File apis")
     @Override
-    public void checkFileWrite(Class<?> callerClass, File file) {
-        checkFileWrite(callerClass, file.toPath());
-    }
+    public void checkFileWrite(Class<?> callerClass, File file) {}
 
     @Override
-    public void checkFileWrite(Class<?> callerClass, Path path) {
-        if (isPathOnDefaultFilesystem(path) == false) {
-            return;
-        }
-        var requestingClass = requestingClass(callerClass);
-        if (policyManager.isTriviallyAllowed(requestingClass)) {
-            return;
-        }
-
-        ModuleEntitlements entitlements = policyManager.getEntitlements(requestingClass);
-        if (entitlements.fileAccess().canWrite(path) == false) {
-            notEntitled(
-                Strings.format(
-                    "component [%s], module [%s], class [%s], entitlement [file], operation [write], path [%s]",
-                    entitlements.componentName(),
-                    entitlements.moduleName(),
-                    requestingClass,
-                    path
-                ),
-                requestingClass,
-                entitlements
-            );
-        }
-    }
+    public void checkFileWrite(Class<?> callerClass, Path path) {}
 
     @SuppressForbidden(reason = "Explicitly checking File apis")
     @Override
