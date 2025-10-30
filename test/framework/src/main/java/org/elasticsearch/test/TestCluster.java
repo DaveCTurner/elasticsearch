@@ -254,6 +254,7 @@ public abstract class TestCluster {
     }
 
     private void handleWipeIndicesFailure(Exception exception, boolean wipingAllIndices, ActionListener<AcknowledgedResponse> listener) {
+        logger.atInfo().withThrowable(exception).log("--> handleWipeIndicesFailure(wipingAllIndices={})", wipingAllIndices);
         Throwable unwrapped = ExceptionsHelper.unwrap(exception, IndexNotFoundException.class, IllegalArgumentException.class);
         if (unwrapped instanceof IndexNotFoundException) {
             // ignore
