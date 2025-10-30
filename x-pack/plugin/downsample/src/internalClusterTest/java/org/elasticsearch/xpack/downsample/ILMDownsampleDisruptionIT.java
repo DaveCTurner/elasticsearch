@@ -25,6 +25,7 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramInterval;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalTestCluster;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
 import org.elasticsearch.xpack.aggregatemetric.AggregateMetricMapperPlugin;
@@ -129,6 +130,7 @@ public class ILMDownsampleDisruptionIT extends DownsamplingIntegTestCase {
         assertAcked(client().execute(ILMActions.PUT, putLifecycleRequest).actionGet());
     }
 
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE")
     public void testILMDownsampleRollingRestart() throws Exception {
         final InternalTestCluster cluster = internalCluster();
         cluster.startMasterOnlyNodes(1);

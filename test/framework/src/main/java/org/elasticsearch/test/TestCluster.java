@@ -37,6 +37,7 @@ import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
@@ -234,6 +235,7 @@ public abstract class TestCluster {
 
     private void wipeIndicesAsync(String[] indices, ActionListener<Void> listener) {
         assert indices != null && indices.length > 0;
+        logger.info("--> wipeIndicesAsync({})", Arrays.toString(indices));
         SubscribableListener.<AcknowledgedResponse>newForked(
             l -> client().admin()
                 .indices()
@@ -242,7 +244,12 @@ public abstract class TestCluster {
                     // include wiping hidden indices!
                     IndicesOptions.fromOptions(false, true, true, true, true, false, false, true, false)
                 )
-                .execute(l.delegateResponse((ll, exception) -> handleWipeIndicesFailure(exception, "_all".equals(indices[0]), ll)))
+                .execute(
+                    ActionListener.runBefore(
+                        l.delegateResponse((ll, exception) -> handleWipeIndicesFailure(exception, "_all".equals(indices[0]), ll)),
+                        () -> logger.info("--> wipeIndicesAsync({}) complete", Arrays.toString(indices))
+                    )
+                )
         ).andThenAccept(ElasticsearchAssertions::assertAcked).addListener(listener);
     }
 
