@@ -10,9 +10,12 @@ import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotR
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
+import org.elasticsearch.action.bulk.TransportBulkAction;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.RefCountingListener;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -41,8 +44,11 @@ import org.elasticsearch.search.slice.SliceBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.transport.MockTransportService;
+import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.XContentType;
 import org.hamcrest.Matchers;
 
 import java.io.IOException;
@@ -56,8 +62,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 import java.util.function.BiConsumer;
 
+import static org.elasticsearch.action.support.ActionTestUtils.assertNoFailureListener;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertResponse;
@@ -66,9 +75,10 @@ import static org.elasticsearch.xcontent.XContentFactory.jsonBuilder;
 @ESIntegTestCase.ClusterScope(numDataNodes = 0)
 public class SourceOnlySnapshotIT extends AbstractSnapshotIntegTestCase {
 
+    @SuppressWarnings("unchecked")
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
-        return CollectionUtils.appendToCopy(super.nodePlugins(), MyPlugin.class);
+        return CollectionUtils.appendToCopyNoNullElements(super.nodePlugins(), MyPlugin.class, MockTransportService.TestPlugin.class);
     }
 
     @Override
@@ -377,5 +387,75 @@ public class SourceOnlySnapshotIT extends AbstractSnapshotIntegTestCase {
         assertEquals(restoreResponse.getRestoreInfo().totalShards(), restoreResponse.getRestoreInfo().successfulShards());
         ensureYellow();
         return builders;
+    }
+
+    public void testSnapshotAndRestoreWithConcurrentIndexing() {
+        internalCluster().startMasterOnlyNode();
+        internalCluster().startDataOnlyNodes(2);
+
+        final var indexName = randomIdentifier();
+        createIndex(indexName, 1, 1);
+        ensureGreen(indexName);
+
+        final var replicaRequestSeenLatch = new CountDownLatch(1);
+        final var unblockListener = new SubscribableListener<Void>();
+
+        for (var transportService : internalCluster().getInstances(TransportService.class)) {
+            asInstanceOf(MockTransportService.class, transportService).addRequestHandlingBehavior(
+                TransportBulkAction.NAME + "[s][r]",
+                (handler, request, channel, task) -> {
+                    replicaRequestSeenLatch.countDown();
+                    unblockListener.addListener(assertNoFailureListener(ignored -> handler.messageReceived(request, channel, task)));
+                }
+            );
+        }
+
+        final String repoName = "repo-" + randomIdentifier();
+        final String snapshotName = "snap-" + randomIdentifier();
+
+        createRepository(
+            repoName,
+            "source",
+            Settings.builder().put("location", randomRepoPath()).put("delegate_type", "fs").put("compress", randomBoolean())
+        );
+
+        final var indexingCompleteLatch = new CountDownLatch(1);
+        try (var refs = new RefCountingListener(assertNoFailureListener(ignored -> indexingCompleteLatch.countDown()))) {
+            runInParallel(5, taskIndex -> {
+                if (taskIndex == 0) {
+                    safeAwait(replicaRequestSeenLatch);
+                    createSnapshot(repoName, snapshotName, List.of(indexName));
+                    unblockListener.onResponse(null);
+                } else {
+                    final var permits = new Semaphore(200);
+                    while (unblockListener.isDone() == false) {
+                        try {
+                            permits.acquire();
+                            prepareIndex(indexName).setSource("{}", XContentType.JSON)
+                                .execute(
+                                    refs.acquire(
+                                        docWriteResponse -> client().prepareDelete(indexName, docWriteResponse.getId())
+                                            .execute(refs.acquire(deleteResponse -> permits.release()))
+                                    )
+                                );
+                        } catch (InterruptedException e) {
+                            fail(e);
+                        }
+                    }
+                }
+            });
+        }
+        safeAwait(indexingCompleteLatch);
+
+        assertAcked(client().admin().indices().prepareDelete(indexName).get());
+
+        final var restoreResponse = clusterAdmin().prepareRestoreSnapshot(TEST_REQUEST_TIMEOUT, repoName, snapshotName)
+            .setWaitForCompletion(true)
+            .setIndices(indexName)
+            .get();
+        assertEquals(1, restoreResponse.getRestoreInfo().totalShards());
+        assertEquals(1, restoreResponse.getRestoreInfo().successfulShards());
+
+        ensureGreen(indexName);
     }
 }

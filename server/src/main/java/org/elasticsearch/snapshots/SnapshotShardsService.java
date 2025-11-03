@@ -610,6 +610,7 @@ public final class SnapshotShardsService extends AbstractLifecycleComponent impl
             try {
                 snapshotStatus.updateStatusDescription("acquiring commit reference from IndexShard: triggers a shard flush");
                 snapshotIndexCommit = new SnapshotIndexCommit(indexShard.acquireIndexCommitForSnapshot());
+                logger.info("--> snapshot commit user data: {}", snapshotIndexCommit.indexCommit().getUserData());
                 snapshotStatus.updateStatusDescription("commit reference acquired, proceeding with snapshot");
                 final var shardStateId = getShardStateId(indexShard, snapshotIndexCommit.indexCommit()); // not aborted so indexCommit() ok
                 snapshotStatus.addAbortListener(makeAbortListener(indexShard.shardId(), snapshot, snapshotIndexCommit));
