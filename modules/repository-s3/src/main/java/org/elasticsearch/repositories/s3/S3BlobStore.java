@@ -636,4 +636,14 @@ class S3BlobStore implements BlobStore {
         // REPOSITORY_ANALYSIS is a strict check for 100% S3 compatibility, including conditional write support
         return supportsConditionalWrites || purpose == OperationPurpose.REPOSITORY_ANALYSIS;
     }
+
+    /**
+     * Some storage claims S3-compatibility despite failing to support the {@code If-Match} and {@code If-None-Match} functionality
+     * properly. In that case we allow to fall back to the pre-conditional-writes register implementation that relies on multipart upload
+     * operations being linearizable. Note that MPU operations are <b>not</b> linearizable in AWS S3, so this yields incorrect behaviour
+     * there, but this is safe and required in some other implementations.
+     */
+    public boolean useMultipartUploadRegisterOperations() {
+        return supportsConditionalWrites == false;
+    }
 }

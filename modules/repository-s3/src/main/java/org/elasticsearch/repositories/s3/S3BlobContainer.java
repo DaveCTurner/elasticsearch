@@ -20,6 +20,7 @@ import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListMultipartUploadsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
@@ -784,6 +785,101 @@ class S3BlobContainer extends AbstractBlobContainer {
     }
 
     /**
+     * An implementation of {@link BlobContainer#compareAndExchangeRegister} based on {@code If-Match} conditional writes.
+     */
+    private class ConditionalWriteCompareAndExchangeOperation {
+        private final OperationPurpose purpose;
+        private final String rawKey;
+        private final String blobKey;
+
+        ConditionalWriteCompareAndExchangeOperation(OperationPurpose purpose, String key) {
+            this.purpose = purpose;
+            this.rawKey = key;
+            this.blobKey = buildKey(key);
+        }
+
+        OptionalBytesReference run(BytesReference expected, BytesReference updated) throws Exception {
+            final var witness = readWitness();
+            final String currentETag; // null if object does not exist and this is expected
+            if (witness == null) {
+                if (expected.length() == 0) {
+                    currentETag = null;
+                } else {
+                    return OptionalBytesReference.EMPTY;
+                }
+            } else {
+                if (witness.contents().equals(expected)) {
+                    currentETag = witness.eTag();
+                } else {
+                    return OptionalBytesReference.of(witness.contents());
+                }
+            }
+
+            final var putRequest = getPutObjectRequest(updated, currentETag);
+            try (var clientReference = blobStore.clientReference()) {
+                clientReference.client().putObject(putRequest, RequestBody.fromInputStream(updated.streamInput(), updated.length()));
+            } catch (final S3Exception e) {
+                if (e.statusCode() == RestStatus.PRECONDITION_FAILED.getStatus()) {
+                    return OptionalBytesReference.MISSING;
+                } else {
+                    throw e;
+                }
+            }
+
+            return witness == null ? OptionalBytesReference.EMPTY : OptionalBytesReference.of(expected);
+        }
+
+        private record Witness(BytesReference contents, String eTag) {}
+
+        @Nullable // if object not found
+        private Witness readWitness() throws IOException {
+            final var getObjectRequestBuilder = GetObjectRequest.builder().bucket(blobStore.bucket()).key(blobKey);
+            S3BlobStore.configureRequestForMetrics(getObjectRequestBuilder, blobStore, Operation.GET_OBJECT, purpose);
+            final var getObjectRequest = getObjectRequestBuilder.build();
+            try (var clientReference = blobStore.clientReference(); var s3Object = clientReference.client().getObject(getObjectRequest)) {
+                return new Witness(
+                    BlobContainerUtils.getRegisterUsingConsistentRead(s3Object, keyPath, rawKey),
+                    getEtag(s3Object.response())
+                );
+            } catch (S3Exception e) {
+                if (e.statusCode() == RestStatus.NOT_FOUND.getStatus()) {
+                    return null;
+                } else {
+                    throw e;
+                }
+            }
+        }
+
+        private String getEtag(GetObjectResponse s3Object) {
+            final var eTag = s3Object.eTag();
+            if (Strings.hasText(eTag)) {
+                return eTag;
+            }
+            // TODO unit test this case
+            throw new RepositoryException(blobStore.getRepositoryMetadata().name(), "GetObject on [{}] returned no ETag", blobKey);
+        }
+
+        private PutObjectRequest getPutObjectRequest(BytesReference updated, String currentETag) {
+            final var putRequestBuilder = PutObjectRequest.builder()
+                .bucket(blobStore.bucket())
+                .key(blobKey)
+                .contentLength((long) updated.length())
+                .storageClass(blobStore.getStorageClass())
+                .acl(blobStore.getCannedACL());
+            if (blobStore.serverSideEncryption()) {
+                putRequestBuilder.serverSideEncryption(ServerSideEncryption.AES256);
+            }
+            if (currentETag == null) {
+                putRequestBuilder.ifNoneMatch("*");
+            } else {
+                putRequestBuilder.ifMatch(currentETag);
+            }
+            S3BlobStore.configureRequestForMetrics(putRequestBuilder, blobStore, Operation.PUT_OBJECT, purpose);
+            return putRequestBuilder.build();
+        }
+    }
+
+    /**
      * An implementation of {@link BlobContainer#compareAndExchangeRegister} based on strongly-consistent multipart upload APIs.
      */
     private class MultipartUploadCompareAndExchangeOperation {
@@ -1119,6 +1215,20 @@ class S3BlobContainer extends AbstractBlobContainer {
         BytesReference updated,
         ActionListener<OptionalBytesReference> listener
     ) {
+        if (blobStore.useMultipartUploadRegisterOperations()) {
+            compareAndExchangeRegisterUsingMultipartUpload(purpose, key, expected, updated, listener);
+        } else {
+            compareAndExchangeRegisterUsingConditionalWrite(purpose, key, expected, updated, listener);
+        }
+    }
+
+    private void compareAndExchangeRegisterUsingMultipartUpload(
+        OperationPurpose purpose,
+        String key,
+        BytesReference expected,
+        BytesReference updated,
+        ActionListener<OptionalBytesReference> listener
+    ) {
         final var clientReference = blobStore.clientReference();
         ActionListener.run(
             ActionListener.releaseBefore(clientReference, listener),
@@ -1130,6 +1240,16 @@ class S3BlobContainer extends AbstractBlobContainer {
                 blobStore.getThreadPool()
             ).run(expected, updated, l)
         );
+    }
+
+    private void compareAndExchangeRegisterUsingConditionalWrite(
+        OperationPurpose purpose,
+        String key,
+        BytesReference expected,
+        BytesReference updated,
+        ActionListener<OptionalBytesReference> listener
+    ) {
+        ActionListener.completeWith(listener, () -> new ConditionalWriteCompareAndExchangeOperation(purpose, key).run(expected, updated));
     }
 
     @Override
