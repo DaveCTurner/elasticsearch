@@ -81,7 +81,8 @@ public class S3RepositoryAnalysisRestIT extends AbstractRepositoryAnalysisRestTe
         .setting("s3.client.repo_test_kit.endpoint", s3Fixture::getAddress, (n) -> USE_FIXTURE)
         .setting("s3.client.repo_test_kit.region", regionSupplier, (n) -> USE_FIXTURE)
         .setting("s3.client.repo-test_kit.add_purpose_custom_query_parameter", () -> randomFrom("true", "false"), n -> randomBoolean())
-        .setting("repository_s3.compare_and_exchange.anti_contention_delay", randomFrom("1ms", "1s" /* == default */))
+        // sometimes set a short anti-contention delay to cause realistic contention
+        .setting("repository_s3.compare_and_exchange.anti_contention_delay", randomFrom("1s" /* == default */, "1ms"))
         .setting("xpack.security.enabled", "false")
         .setting("thread_pool.snapshot.max", "10")
         .build();
