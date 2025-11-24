@@ -606,6 +606,10 @@ public class S3HttpHandler implements HttpHandler {
             return false;
         }
 
+        if (exchange.getRequestHeaders().get("If-Match") != null) {
+            throw new AssertionError("Handling both If-None-Match and If-Match headers is not supported");
+        }
+
         if (ifNoneMatch.size() != 1) {
             throw new AssertionError("multiple If-None-Match headers found: " + ifNoneMatch);
         }
