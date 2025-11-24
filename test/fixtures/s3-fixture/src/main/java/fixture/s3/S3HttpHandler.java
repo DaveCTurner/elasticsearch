@@ -27,6 +27,7 @@ import org.elasticsearch.core.XmlUtils;
 import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.fixture.HttpHeaderParser;
 
 import java.io.IOException;
@@ -70,8 +71,6 @@ public class S3HttpHandler implements HttpHandler {
 
     private final ConcurrentMap<String, BytesReference> blobs = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, MultipartUpload> uploads = new ConcurrentHashMap<>();
-
-    // See AWS support case 176070774900712: aborts may sometimes return early if complete is already in progress
     private final ConcurrentMap<String, AtomicInteger> completingUploads = new ConcurrentHashMap<>();
 
     public S3HttpHandler(final String bucket) {
@@ -213,6 +212,8 @@ public class S3HttpHandler implements HttpHandler {
                             }
                         } else {
                             final var blobContents = upload.complete(extractPartEtags(Streams.readFully(exchange.getRequestBody())));
+
+                            ESTestCase.safeSleep(50); // TODO remove this
 
                             if (isProtectOverwrite(exchange)) {
                                 var previousValue = blobs.putIfAbsent(request.path(), blobContents);

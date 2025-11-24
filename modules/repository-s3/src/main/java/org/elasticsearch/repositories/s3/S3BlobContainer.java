@@ -810,8 +810,8 @@ class S3BlobContainer extends AbstractBlobContainer {
             this.threadPool = threadPool;
         }
 
-        void run(BytesReference expected, BytesReference updated, ActionListener<OptionalBytesReference> listener) throws Exception {
-            innerRun(expected, updated, listener.delegateResponse((delegate, e) -> {
+        void run(BytesReference expected, BytesReference updated, ActionListener<OptionalBytesReference> listener) {
+            ActionListener.run(listener.delegateResponse((delegate, e) -> {
                 logger.trace(() -> Strings.format("[%s]: compareAndExchangeRegister failed", rawKey), e);
                 if (e instanceof AwsServiceException awsServiceException
                     && (awsServiceException.statusCode() == 404
@@ -824,7 +824,7 @@ class S3BlobContainer extends AbstractBlobContainer {
                 } else {
                     delegate.onFailure(e);
                 }
-            }));
+            }), l -> innerRun(expected, updated, l));
         }
 
         void innerRun(BytesReference expected, BytesReference updated, ActionListener<OptionalBytesReference> listener) throws Exception {
@@ -1120,16 +1120,13 @@ class S3BlobContainer extends AbstractBlobContainer {
         ActionListener<OptionalBytesReference> listener
     ) {
         final var clientReference = blobStore.clientReference();
-        ActionListener.run(
-            ActionListener.releaseBefore(clientReference, listener),
-            l -> new MultipartUploadCompareAndExchangeOperation(
-                purpose,
-                clientReference.client(),
-                blobStore.bucket(),
-                key,
-                blobStore.getThreadPool()
-            ).run(expected, updated, l)
-        );
+        new MultipartUploadCompareAndExchangeOperation(
+            purpose,
+            clientReference.client(),
+            blobStore.bucket(),
+            key,
+            blobStore.getThreadPool()
+        ).run(expected, updated, ActionListener.releaseBefore(clientReference, listener));
     }
 
     @Override
