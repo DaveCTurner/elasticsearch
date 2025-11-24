@@ -27,7 +27,6 @@ import org.elasticsearch.core.XmlUtils;
 import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.fixture.HttpHeaderParser;
 
 import java.io.IOException;
@@ -216,8 +215,6 @@ public class S3HttpHandler implements HttpHandler {
                             }
                         } else {
                             final var blobContents = upload.complete(extractPartEtags(Streams.readFully(exchange.getRequestBody())));
-
-                            ESTestCase.safeSleep(50); // TODO remove this
 
                             preconditionFailed = updateBlobContents(exchange, request.path(), blobContents) == false;
 
