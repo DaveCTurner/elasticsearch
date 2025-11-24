@@ -1203,6 +1203,10 @@ class S3BlobContainer extends AbstractBlobContainer {
         });
     }
 
+    /**
+     * @return the {@code ETag} header from a {@link GetObjectResponse}, failing with an exception if it is omitted (unless not required
+     *         for the given {@link OperationPurpose}).
+     */
     private String getRequiredEtag(OperationPurpose purpose, GetObjectResponse getObjectResponse) {
         final var etag = getObjectResponse.eTag();
         if (Strings.hasText(etag)) {
