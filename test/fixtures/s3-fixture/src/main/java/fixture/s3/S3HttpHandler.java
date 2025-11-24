@@ -341,7 +341,6 @@ public class S3HttpHandler implements HttpHandler {
                     return;
                 }
 
-                // TODO S3HttpHandlerTests unit test for this
                 exchange.getResponseHeaders().add("ETag", getEtagFromContents(blob));
 
                 final String rangeHeader = exchange.getRequestHeaders().getFirst("Range");
@@ -449,7 +448,7 @@ public class S3HttpHandler implements HttpHandler {
         return true;
     }
 
-    private static String getEtagFromContents(BytesReference blobContents) {
+    static String getEtagFromContents(BytesReference blobContents) {
         return '"' + SHA_256_ETAG_PREFIX + MessageDigests.toHexString(MessageDigests.digest(blobContents, MessageDigests.sha256())) + '"';
     }
 
@@ -621,7 +620,6 @@ public class S3HttpHandler implements HttpHandler {
         }
 
         if (exchange.getRequestHeaders().get("If-Match") != null) {
-            // TODO test this branch
             throw new AssertionError("Handling both If-None-Match and If-Match headers is not supported");
         }
 
