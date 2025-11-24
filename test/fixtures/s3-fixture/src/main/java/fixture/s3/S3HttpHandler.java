@@ -46,6 +46,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -196,7 +197,7 @@ public class S3HttpHandler implements HttpHandler {
                 final var uploadId = request.getQueryParamOnce("uploadId");
                 try (var ignoredCompletingUploadRef = setUploadCompleting(uploadId)) {
                     final byte[] responseBody;
-                    boolean preconditionFailed = false;
+                    final var preconditionFailed = new AtomicBoolean();
                     synchronized (uploads) {
                         final var upload = getUpload(uploadId);
                         if (upload == null) {
@@ -217,16 +218,26 @@ public class S3HttpHandler implements HttpHandler {
 
                             ESTestCase.safeSleep(50); // TODO remove this
 
-                            if (isProtectOverwrite(exchange)) {
-                                var previousValue = blobs.putIfAbsent(request.path(), blobContents);
-                                if (previousValue != null) {
-                                    preconditionFailed = true;
+                            final var forbidOverwrite = isProtectOverwrite(exchange);
+                            final var requireExistingETag = getRequiredExistingETag(exchange);
+                            blobs.compute(request.path(), (ignoredPath, existingContents) -> {
+                                if (forbidOverwrite) {
+                                    if (existingContents == null) {
+                                        return blobContents;
+                                    }
+                                } else if (requireExistingETag != null) {
+                                    if (existingContents != null && requireExistingETag.equals(getEtagFromContents(existingContents))) {
+                                        return blobContents;
+                                    }
+                                } else {
+                                    return blobContents;
                                 }
-                            } else {
-                                blobs.put(request.path(), blobContents);
-                            }
 
-                            if (preconditionFailed == false) {
+                                preconditionFailed.set(true);
+                                return existingContents;
+                            });
+
+                            if (preconditionFailed.get() == false) {
                                 responseBody = ("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                                     + "<CompleteMultipartUploadResult>\n"
                                     + "<Bucket>"
@@ -242,7 +253,7 @@ public class S3HttpHandler implements HttpHandler {
                             }
                         }
                     }
-                    if (preconditionFailed) {
+                    if (preconditionFailed.get()) {
                         exchange.sendResponseHeaders(RestStatus.PRECONDITION_FAILED.getStatus(), -1);
                     } else if (responseBody == null) {
                         exchange.sendResponseHeaders(RestStatus.NOT_FOUND.getStatus(), -1);
@@ -607,6 +618,7 @@ public class S3HttpHandler implements HttpHandler {
         }
 
         if (exchange.getRequestHeaders().get("If-Match") != null) {
+            // TODO test this branch
             throw new AssertionError("Handling both If-None-Match and If-Match headers is not supported");
         }
 
@@ -619,6 +631,29 @@ public class S3HttpHandler implements HttpHandler {
         }
 
         throw new AssertionError("invalid If-None-Match header: " + ifNoneMatch);
+    }
+
+    @Nullable // if no If-Match header found
+    private static String getRequiredExistingETag(final HttpExchange exchange) {
+        final var ifMatch = exchange.getRequestHeaders().get("If-Match");
+
+        if (ifMatch == null) {
+            return null;
+        }
+
+        if (exchange.getRequestHeaders().get("If-None-Match") != null) {
+            throw new AssertionError("Handling both If-None-Match and If-Match headers is not supported");
+        }
+
+        final var iterator = ifMatch.iterator();
+        if (iterator.hasNext()) {
+            final var result = iterator.next();
+            if (iterator.hasNext() == false) {
+                return result;
+            }
+        }
+
+        throw new AssertionError("multiple If-Match headers found: " + ifMatch);
     }
 
     MultipartUpload putUpload(String path) {
