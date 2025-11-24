@@ -195,12 +195,13 @@ public class S3HttpHandler implements HttpHandler {
 
             } else if (request.isCompleteMultipartUploadRequest()) {
                 final var uploadId = request.getQueryParamOnce("uploadId");
-                boolean preconditionFailed = false;
+                final boolean preconditionFailed;
                 try (var ignoredCompletingUploadRef = setUploadCompleting(uploadId)) {
                     final byte[] responseBody;
                     synchronized (uploads) {
                         final var upload = getUpload(uploadId);
                         if (upload == null) {
+                            preconditionFailed = false;
                             if (Randomness.get().nextBoolean()) {
                                 responseBody = null;
                             } else {
@@ -424,27 +425,32 @@ public class S3HttpHandler implements HttpHandler {
         }
     }
 
+    /**
+     * Update the blob contents if and only if the preconditions in the request are satisfied.
+     *
+     * @return whether the blob contents were updated: if {@code false} then a requested precondition was not satisfied.
+     */
     private boolean updateBlobContents(HttpExchange exchange, String path, BytesReference newContents) {
-        final var forbidOverwrite = isProtectOverwrite(exchange);
+        if (isProtectOverwrite(exchange)) {
+            return blobs.putIfAbsent(path, newContents) == null;
+        }
+
         final var requireExistingETag = getRequiredExistingETag(exchange);
-        final var success = new AtomicBoolean(true);
-        blobs.compute(path, (ignoredPath, existingContents) -> {
-            if (forbidOverwrite) {
-                if (existingContents == null) {
-                    return newContents;
-                }
-            } else if (requireExistingETag != null) {
+        if (requireExistingETag != null) {
+            final var success = new AtomicBoolean(true);
+            blobs.compute(path, (ignoredPath, existingContents) -> {
                 if (existingContents != null && requireExistingETag.equals(getEtagFromContents(existingContents))) {
                     return newContents;
                 }
-            } else {
-                return newContents;
-            }
 
-            success.set(false);
-            return existingContents;
-        });
-        return success.get();
+                success.set(false);
+                return existingContents;
+            });
+            return success.get();
+        }
+
+        blobs.put(path, newContents);
+        return true;
     }
 
     private static String getEtagFromContents(BytesReference blobContents) {
