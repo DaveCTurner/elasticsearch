@@ -1141,10 +1141,15 @@ class S3BlobContainer extends AbstractBlobContainer {
     }
 
     /**
-     * @param registerContents Contents of the register blob; {@link BytesArray#EMPTY} if blob is absent.
-     * @param eTag             Etag of the register blob; {@code null} if and only if blob is absent.
+     * @param registerContents Contents of the register blob; {@link BytesArray#EMPTY} if the blob is absent.
+     * @param eTag             Etag of the register blob; {@code null} if and only if the blob is absent.
      */
-    private record RegisterAndEtag(BytesReference registerContents, String eTag) {}
+    private record RegisterAndEtag(BytesReference registerContents, String eTag) {
+        /**
+         * Sentinel value to indicate that the register blob is absent.
+         */
+        static RegisterAndEtag ABSENT = new RegisterAndEtag(BytesArray.EMPTY, null);
+    }
 
     @Override
     public void getRegister(OperationPurpose purpose, String key, ActionListener<OptionalBytesReference> listener) {
@@ -1174,7 +1179,7 @@ class S3BlobContainer extends AbstractBlobContainer {
                 } catch (Exception attemptException) {
                     logger.trace(() -> Strings.format("[%s]: getRegister failed", key), attemptException);
                     if (attemptException instanceof SdkServiceException sdkException && sdkException.statusCode() == 404) {
-                        return new RegisterAndEtag(BytesArray.EMPTY, null);
+                        return RegisterAndEtag.ABSENT;
                     } else if (finalException == null) {
                         finalException = attemptException;
                     } else if (finalException != attemptException) {
