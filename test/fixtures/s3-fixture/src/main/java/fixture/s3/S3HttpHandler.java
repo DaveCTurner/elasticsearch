@@ -248,7 +248,6 @@ public class S3HttpHandler implements HttpHandler {
                 final var uploadId = request.getQueryParamOnce("uploadId");
                 if (completingUploads.containsKey(uploadId)) {
                     // See AWS support case 176070774900712: aborts may sometimes return early if complete is already in progress
-                    logger.info("completing upload [{}] early", uploadId);
                     exchange.sendResponseHeaders(RestStatus.NO_CONTENT.getStatus(), -1);
                 } else {
                     final var upload = removeUpload(request.getQueryParamOnce("uploadId"));
