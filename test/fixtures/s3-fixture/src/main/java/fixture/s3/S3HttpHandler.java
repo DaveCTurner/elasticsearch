@@ -195,9 +195,9 @@ public class S3HttpHandler implements HttpHandler {
 
             } else if (request.isCompleteMultipartUploadRequest()) {
                 final var uploadId = request.getQueryParamOnce("uploadId");
+                boolean preconditionFailed = false;
                 try (var ignoredCompletingUploadRef = setUploadCompleting(uploadId)) {
                     final byte[] responseBody;
-                    final var preconditionFailed = new AtomicBoolean();
                     synchronized (uploads) {
                         final var upload = getUpload(uploadId);
                         if (upload == null) {
@@ -218,26 +218,9 @@ public class S3HttpHandler implements HttpHandler {
 
                             ESTestCase.safeSleep(50); // TODO remove this
 
-                            final var forbidOverwrite = isProtectOverwrite(exchange);
-                            final var requireExistingETag = getRequiredExistingETag(exchange);
-                            blobs.compute(request.path(), (ignoredPath, existingContents) -> {
-                                if (forbidOverwrite) {
-                                    if (existingContents == null) {
-                                        return blobContents;
-                                    }
-                                } else if (requireExistingETag != null) {
-                                    if (existingContents != null && requireExistingETag.equals(getEtagFromContents(existingContents))) {
-                                        return blobContents;
-                                    }
-                                } else {
-                                    return blobContents;
-                                }
+                            preconditionFailed = updateBlobContents(exchange, request.path(), blobContents) == false;
 
-                                preconditionFailed.set(true);
-                                return existingContents;
-                            });
-
-                            if (preconditionFailed.get() == false) {
+                            if (preconditionFailed == false) {
                                 responseBody = ("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                                     + "<CompleteMultipartUploadResult>\n"
                                     + "<Bucket>"
@@ -253,7 +236,7 @@ public class S3HttpHandler implements HttpHandler {
                             }
                         }
                     }
-                    if (preconditionFailed.get()) {
+                    if (preconditionFailed) {
                         exchange.sendResponseHeaders(RestStatus.PRECONDITION_FAILED.getStatus(), -1);
                     } else if (responseBody == null) {
                         exchange.sendResponseHeaders(RestStatus.NOT_FOUND.getStatus(), -1);
@@ -281,6 +264,9 @@ public class S3HttpHandler implements HttpHandler {
                     if (isProtectOverwrite(exchange)) {
                         throw new AssertionError("If-None-Match: * header is not supported here");
                     }
+                    if (getRequiredExistingETag(exchange) != null) {
+                        throw new AssertionError("If-Match: * header is not supported here");
+                    }
 
                     var sourceBlob = blobs.get(copySource);
                     if (sourceBlob == null) {
@@ -297,15 +283,7 @@ public class S3HttpHandler implements HttpHandler {
                     }
                 } else {
                     final Tuple<String, BytesReference> blob = parseRequestBody(exchange);
-                    boolean preconditionFailed = false;
-                    if (isProtectOverwrite(exchange)) {
-                        var previousValue = blobs.putIfAbsent(request.path(), blob.v2());
-                        if (previousValue != null) {
-                            preconditionFailed = true;
-                        }
-                    } else {
-                        blobs.put(request.path(), blob.v2());
-                    }
+                    final var preconditionFailed = updateBlobContents(exchange, request.path(), blob.v2()) == false;
 
                     if (preconditionFailed) {
                         exchange.sendResponseHeaders(RestStatus.PRECONDITION_FAILED.getStatus(), -1);
@@ -444,6 +422,29 @@ public class S3HttpHandler implements HttpHandler {
             logger.error("exception in request " + request, e);
             throw e;
         }
+    }
+
+    private boolean updateBlobContents(HttpExchange exchange, String path, BytesReference newContents) {
+        final var forbidOverwrite = isProtectOverwrite(exchange);
+        final var requireExistingETag = getRequiredExistingETag(exchange);
+        final var success = new AtomicBoolean(true);
+        blobs.compute(path, (ignoredPath, existingContents) -> {
+            if (forbidOverwrite) {
+                if (existingContents == null) {
+                    return newContents;
+                }
+            } else if (requireExistingETag != null) {
+                if (existingContents != null && requireExistingETag.equals(getEtagFromContents(existingContents))) {
+                    return newContents;
+                }
+            } else {
+                return newContents;
+            }
+
+            success.set(false);
+            return existingContents;
+        });
+        return success.get();
     }
 
     private static String getEtagFromContents(BytesReference blobContents) {
