@@ -88,6 +88,8 @@ public class S3HttpHandler implements HttpHandler {
      */
     private static final Set<String> METHODS_HAVING_NO_REQUEST_BODY = Set.of("GET", "HEAD", "DELETE");
 
+    private static final String SHA_256_ETAG_PREFIX = "es-test-sha-256-";
+
     @Override
     public void handle(final HttpExchange exchange) throws IOException {
         // Remove custom query parameters before processing the request. This simulates how S3 ignores them.
@@ -352,6 +354,11 @@ public class S3HttpHandler implements HttpHandler {
                     exchange.sendResponseHeaders(RestStatus.NOT_FOUND.getStatus(), -1);
                     return;
                 }
+
+                // TODO S3HttpHandlerTests unit test for this
+                // exchange.getResponseHeaders()
+                // .add("ETag", SHA_256_ETAG_PREFIX + MessageDigests.toHexString(MessageDigests.digest(blob, MessageDigests.sha256())));
+
                 final String rangeHeader = exchange.getRequestHeaders().getFirst("Range");
                 if (rangeHeader == null) {
                     exchange.getResponseHeaders().add("Content-Type", "application/octet-stream");

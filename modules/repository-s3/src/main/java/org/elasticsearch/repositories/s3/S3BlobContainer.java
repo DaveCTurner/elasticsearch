@@ -1203,11 +1203,11 @@ class S3BlobContainer extends AbstractBlobContainer {
         if (Strings.hasText(etag)) {
             return etag;
         } else if (blobStore.supportsConditionalWrites(purpose)) {
+            throw new UnsupportedOperationException("GetObject response contained no ETag header, cannot perform conditional write");
+        } else {
             // blob stores which do not support conditional writes may also not return ETag headers, but we won't use it anyway so return
             // a non-null dummy value
             return "es-missing-but-ignored-etag";
-        } else {
-            throw new UnsupportedOperationException("GetObject response contained no ETag header");
         }
     }
 
