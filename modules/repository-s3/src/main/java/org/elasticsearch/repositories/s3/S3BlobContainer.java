@@ -813,9 +813,10 @@ class S3BlobContainer extends AbstractBlobContainer {
         void run(BytesReference expected, BytesReference updated, ActionListener<OptionalBytesReference> listener) {
             ActionListener.run(listener.delegateResponse((delegate, e) -> {
                 logger.trace(() -> Strings.format("[%s]: compareAndExchangeRegister failed", rawKey), e);
-                if (e instanceof AwsServiceException awsServiceException
-                    && (awsServiceException.statusCode() == 404
-                        || awsServiceException.statusCode() == 200
+                if ((e instanceof AwsServiceException awsServiceException)
+                    && (awsServiceException.statusCode() == RestStatus.NOT_FOUND.getStatus()
+                        || awsServiceException.statusCode() == RestStatus.PRECONDITION_FAILED.getStatus()
+                        || awsServiceException.statusCode() == RestStatus.OK.getStatus()
                             && "NoSuchUpload".equals(awsServiceException.awsErrorDetails().errorCode()))) {
                     // An uncaught 404 means that our multipart upload was aborted by a concurrent operation before we could complete it.
                     // Also (rarely) S3 can start processing the request during a concurrent abort and this can result in a 200 OK with an
@@ -874,20 +875,21 @@ class S3BlobContainer extends AbstractBlobContainer {
                 // cannot have observed a stale value, whereas if our operation ultimately fails then it doesn't matter what this read
                 // observes.
 
-                .<OptionalBytesReference>andThen(l -> getRegister(purpose, rawKey, l))
+                .<RegisterAndEtag>andThen(l -> getRegisterAndEtag(purpose, rawKey, l))
 
                 // Step 5: Perform the compare-and-swap by completing our upload iff the witnessed value matches the expected value.
 
-                .andThenApply(currentValue -> {
-                    if (currentValue.isPresent() && currentValue.bytesReference().equals(expected)) {
+                .andThenApply(currentValueAndEtag -> {
+                    if (currentValueAndEtag.registerContents().isPresent()
+                        && currentValueAndEtag.registerContents().bytesReference().equals(expected)) {
                         logger.trace("[{}] completing upload [{}]", blobKey, uploadId);
-                        completeMultipartUpload(uploadId, partETag);
+                        completeMultipartUpload(uploadId, partETag, currentValueAndEtag.eTag());
                     } else {
                         // Best-effort attempt to clean up after ourselves.
                         logger.trace("[{}] aborting upload [{}]", blobKey, uploadId);
                         safeAbortMultipartUpload(uploadId);
                     }
-                    return currentValue;
+                    return currentValueAndEtag.registerContents();
                 })
 
                 // Step 6: Complete the listener.
@@ -1094,7 +1096,7 @@ class S3BlobContainer extends AbstractBlobContainer {
             }
         }
 
-        private void completeMultipartUpload(String uploadId, String partETag) {
+        private void completeMultipartUpload(String uploadId, String partETag, String existingEtag) {
             final var completeMultipartUploadRequestBuilder = CompleteMultipartUploadRequest.builder()
                 .bucket(bucket)
                 .key(blobKey)
@@ -1106,6 +1108,14 @@ class S3BlobContainer extends AbstractBlobContainer {
                 Operation.PUT_MULTIPART_OBJECT,
                 purpose
             );
+            if (blobStore.supportsConditionalWrites(purpose)) {
+                if (existingEtag == null) {
+                    completeMultipartUploadRequestBuilder.ifNoneMatch("*");
+                } else {
+                    completeMultipartUploadRequestBuilder.ifMatch(existingEtag);
+                }
+            }
+
             final var completeMultipartUploadRequest = completeMultipartUploadRequestBuilder.build();
             client.completeMultipartUpload(completeMultipartUploadRequest);
         }
@@ -1129,8 +1139,14 @@ class S3BlobContainer extends AbstractBlobContainer {
         ).run(expected, updated, ActionListener.releaseBefore(clientReference, listener));
     }
 
+    private record RegisterAndEtag(OptionalBytesReference registerContents, String eTag) {}
+
     @Override
     public void getRegister(OperationPurpose purpose, String key, ActionListener<OptionalBytesReference> listener) {
+        getRegisterAndEtag(purpose, key, listener.map(RegisterAndEtag::registerContents));
+    }
+
+    void getRegisterAndEtag(OperationPurpose purpose, String key, ActionListener<RegisterAndEtag> listener) {
         ActionListener.completeWith(listener, () -> {
             final var backoffPolicy = purpose == OperationPurpose.REPOSITORY_ANALYSIS
                 ? BackoffPolicy.noBackoff()
@@ -1146,11 +1162,14 @@ class S3BlobContainer extends AbstractBlobContainer {
                     var clientReference = blobStore.clientReference();
                     var s3Object = clientReference.client().getObject(getObjectRequest);
                 ) {
-                    return OptionalBytesReference.of(getRegisterUsingConsistentRead(s3Object, keyPath, key));
+                    return new RegisterAndEtag(
+                        OptionalBytesReference.of(getRegisterUsingConsistentRead(s3Object, keyPath, key)),
+                        s3Object.response().eTag()
+                    );
                 } catch (Exception attemptException) {
                     logger.trace(() -> Strings.format("[%s]: getRegister failed", key), attemptException);
                     if (attemptException instanceof SdkServiceException sdkException && sdkException.statusCode() == 404) {
-                        return OptionalBytesReference.EMPTY;
+                        return new RegisterAndEtag(OptionalBytesReference.EMPTY, null);
                     } else if (finalException == null) {
                         finalException = attemptException;
                     } else if (finalException != attemptException) {
