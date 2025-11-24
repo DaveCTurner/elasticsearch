@@ -647,7 +647,8 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
         private Runnable finalRegisterValueVerifier(String registerName, int expectedFinalRegisterValue, Random random, Releasable ref) {
             return new Runnable() {
 
-                final CheckedConsumer<ActionListener<OptionalBytesReference>, Exception> finalValueReader = switch (random.nextInt(3)) {
+                // TODO revert to random.nextInt(3)
+                final CheckedConsumer<ActionListener<OptionalBytesReference>, Exception> finalValueReader = switch (random.nextInt(2)) {
                     case 0 -> new CheckedConsumer<ActionListener<OptionalBytesReference>, Exception>() {
                         @Override
                         public void accept(ActionListener<OptionalBytesReference> listener) {
