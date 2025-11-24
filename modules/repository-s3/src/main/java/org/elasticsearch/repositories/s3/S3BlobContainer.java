@@ -20,6 +20,7 @@ import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListMultipartUploadsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
@@ -56,6 +57,7 @@ import org.elasticsearch.common.blobstore.OptionalBytesReference;
 import org.elasticsearch.common.blobstore.support.AbstractBlobContainer;
 import org.elasticsearch.common.blobstore.support.BlobContainerUtils;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.unit.ByteSizeUnit;
@@ -880,8 +882,7 @@ class S3BlobContainer extends AbstractBlobContainer {
                 // Step 5: Perform the compare-and-swap by completing our upload iff the witnessed value matches the expected value.
 
                 .andThenApply(currentValueAndEtag -> {
-                    if (currentValueAndEtag.registerContents().isPresent()
-                        && currentValueAndEtag.registerContents().bytesReference().equals(expected)) {
+                    if (currentValueAndEtag.registerContents().equals(expected)) {
                         logger.trace("[{}] completing upload [{}]", blobKey, uploadId);
                         completeMultipartUpload(uploadId, partETag, currentValueAndEtag.eTag());
                     } else {
@@ -889,7 +890,7 @@ class S3BlobContainer extends AbstractBlobContainer {
                         logger.trace("[{}] aborting upload [{}]", blobKey, uploadId);
                         safeAbortMultipartUpload(uploadId);
                     }
-                    return currentValueAndEtag.registerContents();
+                    return OptionalBytesReference.of(currentValueAndEtag.registerContents());
                 })
 
                 // Step 6: Complete the listener.
@@ -1139,11 +1140,15 @@ class S3BlobContainer extends AbstractBlobContainer {
         ).run(expected, updated, ActionListener.releaseBefore(clientReference, listener));
     }
 
-    private record RegisterAndEtag(OptionalBytesReference registerContents, String eTag) {}
+    /**
+     * @param registerContents Contents of the register blob; {@link BytesArray#EMPTY} if blob is absent.
+     * @param eTag             Etag of the register blob; {@code null} if and only if blob is absent.
+     */
+    private record RegisterAndEtag(BytesReference registerContents, String eTag) {}
 
     @Override
     public void getRegister(OperationPurpose purpose, String key, ActionListener<OptionalBytesReference> listener) {
-        getRegisterAndEtag(purpose, key, listener.map(RegisterAndEtag::registerContents));
+        getRegisterAndEtag(purpose, key, listener.map(registerAndEtag -> OptionalBytesReference.of(registerAndEtag.registerContents())));
     }
 
     void getRegisterAndEtag(OperationPurpose purpose, String key, ActionListener<RegisterAndEtag> listener) {
@@ -1163,13 +1168,13 @@ class S3BlobContainer extends AbstractBlobContainer {
                     var s3Object = clientReference.client().getObject(getObjectRequest);
                 ) {
                     return new RegisterAndEtag(
-                        OptionalBytesReference.of(getRegisterUsingConsistentRead(s3Object, keyPath, key)),
-                        s3Object.response().eTag()
+                        getRegisterUsingConsistentRead(s3Object, keyPath, key),
+                        getRequiredEtag(purpose, s3Object.response())
                     );
                 } catch (Exception attemptException) {
                     logger.trace(() -> Strings.format("[%s]: getRegister failed", key), attemptException);
                     if (attemptException instanceof SdkServiceException sdkException && sdkException.statusCode() == 404) {
-                        return new RegisterAndEtag(OptionalBytesReference.EMPTY, null);
+                        return new RegisterAndEtag(BytesArray.EMPTY, null);
                     } else if (finalException == null) {
                         finalException = attemptException;
                     } else if (finalException != attemptException) {
@@ -1191,6 +1196,19 @@ class S3BlobContainer extends AbstractBlobContainer {
                 throw finalException;
             }
         });
+    }
+
+    private String getRequiredEtag(OperationPurpose purpose, GetObjectResponse getObjectResponse) {
+        final var etag = getObjectResponse.eTag();
+        if (Strings.hasText(etag)) {
+            return etag;
+        } else if (blobStore.supportsConditionalWrites(purpose)) {
+            // blob stores which do not support conditional writes may also not return ETag headers, but we won't use it anyway so return
+            // a non-null dummy value
+            return "es-missing-but-ignored-etag";
+        } else {
+            throw new UnsupportedOperationException("GetObject response contained no ETag header");
+        }
     }
 
     ActionListener<Void> getMultipartUploadCleanupListener(int maxUploads, RefCountingRunnable refs) {
