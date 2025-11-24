@@ -18,7 +18,6 @@ import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.core.Booleans;
 import org.elasticsearch.test.cluster.ElasticsearchCluster;
 import org.elasticsearch.test.cluster.local.distribution.DistributionType;
-import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
@@ -35,7 +34,6 @@ public class S3RepositoryAnalysisRestIT extends AbstractRepositoryAnalysisRestTe
     static final boolean USE_FIXTURE = Booleans.parseBoolean(System.getProperty("tests.use.fixture", "true"));
 
     private static final Supplier<String> regionSupplier = new DynamicRegionSupplier();
-    private static final AtomicBoolean repoAnalysisStarted = new AtomicBoolean(); // TODO revert this
     public static final S3HttpFixture s3Fixture = new S3HttpFixture(
         USE_FIXTURE,
         "bucket",
@@ -45,6 +43,7 @@ public class S3RepositoryAnalysisRestIT extends AbstractRepositoryAnalysisRestTe
         @Override
         protected HttpHandler createHandler() {
             final var delegateHandler = asInstanceOf(S3HttpHandler.class, super.createHandler());
+            final var repoAnalysisStarted = new AtomicBoolean();
             return exchange -> {
                 ensurePurposeParameterPresent(delegateHandler.parseRequest(exchange), repoAnalysisStarted);
                 delegateHandler.handle(exchange);
@@ -74,11 +73,6 @@ public class S3RepositoryAnalysisRestIT extends AbstractRepositoryAnalysisRestTe
         assertEquals(request.toString(), "RepositoryAnalysis", request.getQueryParamOnce("x-purpose"));
     }
 
-    @After // TODO revert this
-    public void clearRepoAnalysisStartedFlag() {
-        repoAnalysisStarted.set(false);
-    }
-
     public static ElasticsearchCluster cluster = ElasticsearchCluster.local()
         .distribution(DistributionType.DEFAULT)
         .keystore("s3.client.repo_test_kit.access_key", System.getProperty("s3AccessKey"))
@@ -87,7 +81,7 @@ public class S3RepositoryAnalysisRestIT extends AbstractRepositoryAnalysisRestTe
         .setting("s3.client.repo_test_kit.endpoint", s3Fixture::getAddress, (n) -> USE_FIXTURE)
         .setting("s3.client.repo_test_kit.region", regionSupplier, (n) -> USE_FIXTURE)
         .setting("s3.client.repo-test_kit.add_purpose_custom_query_parameter", () -> randomFrom("true", "false"), n -> randomBoolean())
-        .setting("repository_s3.compare_and_exchange.anti_contention_delay", randomFrom("1ms", ))
+        .setting("repository_s3.compare_and_exchange.anti_contention_delay", randomFrom("1ms", "1s" /* == default */))
         .setting("xpack.security.enabled", "false")
         .setting("thread_pool.snapshot.max", "10")
         .build();
