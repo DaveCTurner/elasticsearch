@@ -656,7 +656,7 @@ public class S3HttpHandler implements HttpHandler {
         if (iterator.hasNext()) {
             final var result = iterator.next();
             if (iterator.hasNext() == false) {
-                return null; // result; TODO
+                return result;
             }
         }
 
