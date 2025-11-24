@@ -534,7 +534,7 @@ public class S3HttpHandler implements HttpHandler {
                     );
                 }
             }
-            return Tuple.tuple(MessageDigests.toHexString(MessageDigests.digest(bytesReference, MessageDigests.md5())), bytesReference);
+            return Tuple.tuple(getEtagFromContents(bytesReference), bytesReference);
         } catch (Exception e) {
             logger.error("exception in parseRequestBody", e);
             exchange.sendResponseHeaders(500, 0);
