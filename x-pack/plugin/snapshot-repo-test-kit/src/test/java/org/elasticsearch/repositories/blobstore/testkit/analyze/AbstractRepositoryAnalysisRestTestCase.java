@@ -36,6 +36,7 @@ public abstract class AbstractRepositoryAnalysisRestTestCase extends ESRestTestC
         request.addParameter("max_blob_size", randomFrom("1mb", "10mb"));
         request.addParameter("timeout", timeout.getStringRep());
         request.addParameter("seed", Long.toString(randomLong()));
+        request.addParameter("register_operation_count", "100");
         request.setOptions(
             RequestOptions.DEFAULT.toBuilder()
                 .setRequestConfig(RequestConfig.custom().setSocketTimeout(Math.toIntExact(timeout.millis() + 10_000)).build())

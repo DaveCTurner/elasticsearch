@@ -20,6 +20,7 @@ import org.elasticsearch.common.bytes.CompositeBytesReference;
 import org.elasticsearch.common.hash.MessageDigests;
 import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.core.XmlUtils;
@@ -44,6 +45,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -68,6 +70,9 @@ public class S3HttpHandler implements HttpHandler {
 
     private final ConcurrentMap<String, BytesReference> blobs = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, MultipartUpload> uploads = new ConcurrentHashMap<>();
+
+    // See AWS support case 176070774900712: aborts may sometimes return early if complete is already in progress
+    private final ConcurrentMap<String, AtomicInteger> completingUploads = new ConcurrentHashMap<>();
 
     public S3HttpHandler(final String bucket) {
         this(bucket, null);
@@ -187,63 +192,72 @@ public class S3HttpHandler implements HttpHandler {
                 }
 
             } else if (request.isCompleteMultipartUploadRequest()) {
-                final byte[] responseBody;
-                boolean preconditionFailed = false;
-                synchronized (uploads) {
-                    final var upload = getUpload(request.getQueryParamOnce("uploadId"));
-                    if (upload == null) {
-                        if (Randomness.get().nextBoolean()) {
-                            responseBody = null;
-                        } else {
-                            responseBody = """
-                                <?xml version="1.0" encoding="UTF-8"?>
-                                <Error>
-                                <Code>NoSuchUpload</Code>
-                                <Message>No such upload</Message>
-                                <RequestId>test-request-id</RequestId>
-                                <HostId>test-host-id</HostId>
-                                </Error>""".getBytes(StandardCharsets.UTF_8);
-                        }
-                    } else {
-                        final var blobContents = upload.complete(extractPartEtags(Streams.readFully(exchange.getRequestBody())));
-
-                        if (isProtectOverwrite(exchange)) {
-                            var previousValue = blobs.putIfAbsent(request.path(), blobContents);
-                            if (previousValue != null) {
-                                preconditionFailed = true;
+                final var uploadId = request.getQueryParamOnce("uploadId");
+                try (var ignoredCompletingUploadRef = setUploadCompleting(uploadId)) {
+                    final byte[] responseBody;
+                    boolean preconditionFailed = false;
+                    synchronized (uploads) {
+                        final var upload = getUpload(uploadId);
+                        if (upload == null) {
+                            if (Randomness.get().nextBoolean()) {
+                                responseBody = null;
+                            } else {
+                                responseBody = """
+                                    <?xml version="1.0" encoding="UTF-8"?>
+                                    <Error>
+                                    <Code>NoSuchUpload</Code>
+                                    <Message>No such upload</Message>
+                                    <RequestId>test-request-id</RequestId>
+                                    <HostId>test-host-id</HostId>
+                                    </Error>""".getBytes(StandardCharsets.UTF_8);
                             }
                         } else {
-                            blobs.put(request.path(), blobContents);
-                        }
+                            final var blobContents = upload.complete(extractPartEtags(Streams.readFully(exchange.getRequestBody())));
 
-                        if (preconditionFailed == false) {
-                            responseBody = ("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                                + "<CompleteMultipartUploadResult>\n"
-                                + "<Bucket>"
-                                + bucket
-                                + "</Bucket>\n"
-                                + "<Key>"
-                                + request.path()
-                                + "</Key>\n"
-                                + "</CompleteMultipartUploadResult>").getBytes(StandardCharsets.UTF_8);
-                            removeUpload(upload.getUploadId());
-                        } else {
-                            responseBody = null;
+                            if (isProtectOverwrite(exchange)) {
+                                var previousValue = blobs.putIfAbsent(request.path(), blobContents);
+                                if (previousValue != null) {
+                                    preconditionFailed = true;
+                                }
+                            } else {
+                                blobs.put(request.path(), blobContents);
+                            }
+
+                            if (preconditionFailed == false) {
+                                responseBody = ("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                                    + "<CompleteMultipartUploadResult>\n"
+                                    + "<Bucket>"
+                                    + bucket
+                                    + "</Bucket>\n"
+                                    + "<Key>"
+                                    + request.path()
+                                    + "</Key>\n"
+                                    + "</CompleteMultipartUploadResult>").getBytes(StandardCharsets.UTF_8);
+                                removeUpload(upload.getUploadId());
+                            } else {
+                                responseBody = null;
+                            }
                         }
                     }
-                }
-                if (preconditionFailed) {
-                    exchange.sendResponseHeaders(RestStatus.PRECONDITION_FAILED.getStatus(), -1);
-                } else if (responseBody == null) {
-                    exchange.sendResponseHeaders(RestStatus.NOT_FOUND.getStatus(), -1);
-                } else {
-                    exchange.getResponseHeaders().add("Content-Type", "application/xml");
-                    exchange.sendResponseHeaders(RestStatus.OK.getStatus(), responseBody.length);
-                    exchange.getResponseBody().write(responseBody);
+                    if (preconditionFailed) {
+                        exchange.sendResponseHeaders(RestStatus.PRECONDITION_FAILED.getStatus(), -1);
+                    } else if (responseBody == null) {
+                        exchange.sendResponseHeaders(RestStatus.NOT_FOUND.getStatus(), -1);
+                    } else {
+                        exchange.getResponseHeaders().add("Content-Type", "application/xml");
+                        exchange.sendResponseHeaders(RestStatus.OK.getStatus(), responseBody.length);
+                        exchange.getResponseBody().write(responseBody);
+                    }
                 }
             } else if (request.isAbortMultipartUploadRequest()) {
-                final var upload = removeUpload(request.getQueryParamOnce("uploadId"));
-                exchange.sendResponseHeaders((upload == null ? RestStatus.NOT_FOUND : RestStatus.NO_CONTENT).getStatus(), -1);
+                final var uploadId = request.getQueryParamOnce("uploadId");
+                if (completingUploads.containsKey(uploadId)) {
+                    // See AWS support case 176070774900712: aborts may sometimes return early if complete is already in progress
+                    exchange.sendResponseHeaders(RestStatus.NO_CONTENT.getStatus(), -1);
+                } else {
+                    final var upload = removeUpload(request.getQueryParamOnce("uploadId"));
+                    exchange.sendResponseHeaders((upload == null ? RestStatus.NOT_FOUND : RestStatus.NO_CONTENT).getStatus(), -1);
+                }
 
             } else if (request.isPutObjectRequest()) {
                 // a copy request is a put request with an X-amz-copy-source header
@@ -608,6 +622,28 @@ public class S3HttpHandler implements HttpHandler {
     MultipartUpload removeUpload(String uploadId) {
         synchronized (uploads) {
             return uploads.remove(uploadId);
+        }
+    }
+
+    private Releasable setUploadCompleting(String uploadId) {
+        synchronized (completingUploads) {
+            completingUploads.computeIfAbsent(uploadId, ignored -> new AtomicInteger()).incrementAndGet();
+        }
+        return () -> clearUploadCompleting(uploadId);
+    }
+
+    private void clearUploadCompleting(String uploadId) {
+        synchronized (completingUploads) {
+            completingUploads.compute(uploadId, (ignored, uploadCount) -> {
+                if (uploadCount == null) {
+                    throw new AssertionError("upload [" + uploadId + "] not tracked");
+                }
+                if (uploadCount.decrementAndGet() == 0) {
+                    return null;
+                } else {
+                    return uploadCount;
+                }
+            });
         }
     }
 
