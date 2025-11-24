@@ -87,7 +87,7 @@ public class S3RepositoryAnalysisRestIT extends AbstractRepositoryAnalysisRestTe
         .setting("s3.client.repo_test_kit.endpoint", s3Fixture::getAddress, (n) -> USE_FIXTURE)
         .setting("s3.client.repo_test_kit.region", regionSupplier, (n) -> USE_FIXTURE)
         .setting("s3.client.repo-test_kit.add_purpose_custom_query_parameter", () -> randomFrom("true", "false"), n -> randomBoolean())
-        .setting("repository_s3.compare_and_exchange.anti_contention_delay", "1ms")
+        .setting("repository_s3.compare_and_exchange.anti_contention_delay", randomFrom("1ms", ))
         .setting("xpack.security.enabled", "false")
         .setting("thread_pool.snapshot.max", "10")
         .build();
@@ -122,8 +122,8 @@ public class S3RepositoryAnalysisRestIT extends AbstractRepositoryAnalysisRestTe
             .put("max_copy_size_before_multipart", ByteSizeValue.ofMb(5))
             // verify we always set the x-purpose header even if disabled for other repository operations
             .put(randomBooleanSetting("add_purpose_custom_query_parameter"))
-            // this parameter is ignored for repo analysis TODO NOT ANY LONGER
-            // .put(randomBooleanSetting("unsafely_incompatible_with_s3_conditional_writes"))
+            // this parameter is ignored for repo analysis
+            .put(randomBooleanSetting("unsafely_incompatible_with_s3_conditional_writes"))
             .build();
     }
 

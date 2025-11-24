@@ -195,9 +195,9 @@ public class S3HttpHandler implements HttpHandler {
 
             } else if (request.isCompleteMultipartUploadRequest()) {
                 final var uploadId = request.getQueryParamOnce("uploadId");
+                final byte[] responseBody;
                 final boolean preconditionFailed;
                 try (var ignoredCompletingUploadRef = setUploadCompleting(uploadId)) {
-                    final byte[] responseBody;
                     synchronized (uploads) {
                         final var upload = getUpload(uploadId);
                         if (upload == null) {
