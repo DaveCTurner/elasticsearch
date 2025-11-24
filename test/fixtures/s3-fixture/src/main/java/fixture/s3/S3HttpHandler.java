@@ -356,8 +356,7 @@ public class S3HttpHandler implements HttpHandler {
                 }
 
                 // TODO S3HttpHandlerTests unit test for this
-                exchange.getResponseHeaders()
-                    .add("ETag", SHA_256_ETAG_PREFIX + MessageDigests.toHexString(MessageDigests.digest(blob, MessageDigests.sha256())));
+                exchange.getResponseHeaders().add("ETag", getEtagFromContents(blob));
 
                 final String rangeHeader = exchange.getRequestHeaders().getFirst("Range");
                 if (rangeHeader == null) {
@@ -434,6 +433,10 @@ public class S3HttpHandler implements HttpHandler {
             logger.error("exception in request " + request, e);
             throw e;
         }
+    }
+
+    private static String getEtagFromContents(BytesReference blobContents) {
+        return '"' + SHA_256_ETAG_PREFIX + MessageDigests.toHexString(MessageDigests.digest(blobContents, MessageDigests.sha256())) + '"';
     }
 
     public Map<String, BytesReference> blobs() {
