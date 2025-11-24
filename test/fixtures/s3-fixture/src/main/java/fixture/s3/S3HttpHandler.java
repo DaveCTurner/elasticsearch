@@ -254,6 +254,7 @@ public class S3HttpHandler implements HttpHandler {
                 final var uploadId = request.getQueryParamOnce("uploadId");
                 if (completingUploads.containsKey(uploadId)) {
                     // See AWS support case 176070774900712: aborts may sometimes return early if complete is already in progress
+                    logger.info("completing upload [{}] early", uploadId);
                     exchange.sendResponseHeaders(RestStatus.NO_CONTENT.getStatus(), -1);
                 } else {
                     final var upload = removeUpload(request.getQueryParamOnce("uploadId"));
@@ -627,25 +628,21 @@ public class S3HttpHandler implements HttpHandler {
     }
 
     private Releasable setUploadCompleting(String uploadId) {
-        synchronized (completingUploads) {
-            completingUploads.computeIfAbsent(uploadId, ignored -> new AtomicInteger()).incrementAndGet();
-        }
+        completingUploads.computeIfAbsent(uploadId, ignored -> new AtomicInteger()).incrementAndGet();
         return () -> clearUploadCompleting(uploadId);
     }
 
     private void clearUploadCompleting(String uploadId) {
-        synchronized (completingUploads) {
-            completingUploads.compute(uploadId, (ignored, uploadCount) -> {
-                if (uploadCount == null) {
-                    throw new AssertionError("upload [" + uploadId + "] not tracked");
-                }
-                if (uploadCount.decrementAndGet() == 0) {
-                    return null;
-                } else {
-                    return uploadCount;
-                }
-            });
-        }
+        completingUploads.compute(uploadId, (ignored, uploadCount) -> {
+            if (uploadCount == null) {
+                throw new AssertionError("upload [" + uploadId + "] not tracked");
+            }
+            if (uploadCount.decrementAndGet() == 0) {
+                return null;
+            } else {
+                return uploadCount;
+            }
+        });
     }
 
     public S3Request parseRequest(HttpExchange exchange) {
