@@ -32,7 +32,6 @@ import org.elasticsearch.common.compress.CompressorFactory;
 import org.elasticsearch.common.io.stream.InputStreamStreamInput;
 import org.elasticsearch.common.io.stream.NamedWriteableAwareStreamInput;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
-import org.elasticsearch.common.io.stream.OutputStreamStreamOutput;
 import org.elasticsearch.common.io.stream.ReleasableBytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.Writeable;
@@ -325,9 +324,8 @@ public final class AsyncTaskIndexService<R extends AsyncResponse<R>> {
             // do not close the output
             os = Streams.noCloseStream(os);
             TransportVersion minNodeVersion = clusterService.state().getMinTransportVersion();
-            TransportVersion.writeVersion(minNodeVersion, new OutputStreamStreamOutput(os));
-            os = CompressorFactory.COMPRESSOR.threadLocalOutputStream(os);
-            try (OutputStreamStreamOutput out = new OutputStreamStreamOutput(os)) {
+            try (var out = CompressorFactory.COMPRESSOR.threadLocalOutputStream(os)) {
+                TransportVersion.writeVersion(minNodeVersion, out);
                 out.setTransportVersion(minNodeVersion);
                 response.writeTo(out);
             }
