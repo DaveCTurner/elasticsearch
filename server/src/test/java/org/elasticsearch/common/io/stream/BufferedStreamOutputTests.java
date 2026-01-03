@@ -19,28 +19,27 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 import static org.elasticsearch.common.bytes.BytesReferenceTestUtils.equalBytes;
+import static org.elasticsearch.common.unit.ByteSizeUnit.KB;
 import static org.elasticsearch.transport.BytesRefRecycler.NON_RECYCLING_INSTANCE;
 
 public class BufferedStreamOutputTests extends ESTestCase {
 
     public void testRandomWrites() throws IOException {
         final var permitPartialWrites = new AtomicBoolean();
-        final var callerBuffer = randomBoolean() ? null : new byte[between(1024, 2048)];
-        final var bufferLen = callerBuffer == null ? 1024 : callerBuffer.length;
+        final var callerBuffer = randomBoolean() ? null : new byte[between(KB.toIntBytes(1), KB.toIntBytes(4))];
+        final var bufferLen = callerBuffer == null ? KB.toIntBytes(1) : callerBuffer.length;
 
         try (
             var expectedStream = new RecyclerBytesStreamOutput(NON_RECYCLING_INSTANCE);
             var actualStream = new RecyclerBytesStreamOutput(NON_RECYCLING_INSTANCE) {
                 @Override
-                public void write(byte[] b) throws IOException {
+                public void write(byte[] b) {
                     fail("buffered stream should not write single bytes");
                 }
 
                 @Override
                 public void write(byte[] b, int off, int len) throws IOException {
-                    if (permitPartialWrites.get() == false) {
-                        assert len == bufferLen : "";
-                    }
+                    assertTrue(permitPartialWrites.get() || len == bufferLen);
                     super.write(b, off, len);
                 }
             };
@@ -51,11 +50,15 @@ public class BufferedStreamOutputTests extends ESTestCase {
             final var writers = List.<Supplier<CheckedConsumer<StreamOutput, IOException>>>of(() -> {
                 final var b = randomByte();
                 return s -> s.writeByte(b);
-                // }, () -> {
-                // final var bytes = randomByteArrayOfLength(between(1, 3000));
-                // final var start = between(0, bytes.length - 1);
-                // final var length = between(0, bytes.length - start - 1);
-                // return s -> s.writeBytes(bytes, start, length);
+            }, () -> {
+                final var bytes = randomByteArrayOfLength(between(1, bufferLen * 4));
+                final var start = between(0, bytes.length - 1);
+                final var length = between(0, bytes.length - start - 1);
+                return s -> {
+                    permitPartialWrites.set(true);
+                    s.writeBytes(bytes, start, length);
+                    permitPartialWrites.set(false);
+                };
             }, () -> {
                 final var value = randomShort();
                 return s -> s.writeShort(value);
