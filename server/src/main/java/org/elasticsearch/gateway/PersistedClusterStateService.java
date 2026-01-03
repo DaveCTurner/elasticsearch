@@ -1273,8 +1273,10 @@ public class PersistedClusterStateService {
         private void writePages(ToXContent metadata, PageWriter pageWriter) throws IOException {
             try (
                 PageWriterOutputStream paginatedStream = new PageWriterOutputStream(documentBuffer, pageWriter);
-                OutputStream compressedStream = CompressorFactory.COMPRESSOR.threadLocalOutputStream(paginatedStream);
-                XContentBuilder xContentBuilder = XContentFactory.contentBuilder(XContentType.SMILE, compressedStream)
+                XContentBuilder xContentBuilder = XContentFactory.contentBuilder(
+                    XContentType.SMILE,
+                    CompressorFactory.COMPRESSOR.threadLocalOutputStream(paginatedStream)
+                )
             ) {
                 xContentBuilder.startObject();
                 metadata.toXContent(xContentBuilder, FORMAT_PARAMS);
