@@ -9,11 +9,14 @@
 
 package org.elasticsearch.common.io.stream;
 
+import org.apache.lucene.util.BitUtil;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.util.ByteUtils;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Similar to {@link OutputStreamStreamOutput} except using a 1kiB buffer to coalesce writes to the underlying stream, allowing for more
@@ -21,26 +24,41 @@ import java.io.OutputStream;
  */
 public class BufferedStreamOutput extends StreamOutput {
 
-    private static final int BUFFER_SIZE = ByteSizeUnit.KB.toIntBytes(1);
+    private static final int DEFAULT_BUFFER_SIZE = ByteSizeUnit.KB.toIntBytes(1);
 
     private final OutputStream delegate;
-    private final byte[] buffer = new byte[BUFFER_SIZE];
+    private final byte[] buffer;
     private int position;
 
+    /**
+     * Wrap the given stream, using a freshly-allocated buffer with a size of {@code 1kiB}.
+     */
     public BufferedStreamOutput(OutputStream delegate) {
-        this.delegate = delegate;
+        this(delegate, new byte[DEFAULT_BUFFER_SIZE]);
+    }
+
+    /**
+     * Wrap the given stream, using the given {@code byte[]} for the buffer. It is the caller's responsibility to make sure that nothing
+     * else uses this buffer while this object is active. The buffer must be at least {@code 1kiB}.
+     */
+    public BufferedStreamOutput(OutputStream delegate, byte[] buffer) {
+        this.delegate = Objects.requireNonNull(delegate);
+        this.buffer = Objects.requireNonNull(buffer);
+        assert buffer.length >= DEFAULT_BUFFER_SIZE : buffer.length + " is too short";
     }
 
     @Override
     public void writeByte(byte b) throws IOException {
-        ensureCapacity(1);
+        if (capacity() < 1) {
+            flush();
+        }
         buffer[position++] = b;
     }
 
     @Override
     public void writeBytes(byte[] b, int offset, int length) throws IOException {
-        int initialCopyLength = Math.min(length, BUFFER_SIZE - position);
-        if (0 < initialCopyLength && (0 < position || length < BUFFER_SIZE)) {
+        int initialCopyLength = Math.min(length, capacity());
+        if (0 < initialCopyLength && (0 < position || length < buffer.length)) {
             System.arraycopy(b, offset, buffer, position, initialCopyLength);
             position += initialCopyLength;
             offset += initialCopyLength;
@@ -49,7 +67,7 @@ public class BufferedStreamOutput extends StreamOutput {
 
         if (0 < length) {
             flush();
-            if (BUFFER_SIZE < length) {
+            if (buffer.length < length) {
                 delegate.write(b, offset, length);
             } else {
                 System.arraycopy(b, offset, buffer, position, length);
@@ -58,10 +76,8 @@ public class BufferedStreamOutput extends StreamOutput {
         }
     }
 
-    private void ensureCapacity(int needed) throws IOException {
-        if (BUFFER_SIZE - position < needed) {
-            flush();
-        }
+    private int capacity() {
+        return buffer.length - position;
     }
 
     @Override
@@ -70,6 +86,14 @@ public class BufferedStreamOutput extends StreamOutput {
             delegate.write(buffer, 0, position);
             position = 0;
         }
+        delegate.flush();
+        assert assertTrashBuffer(); // ensure nobody else cares about the buffer contents by trashing its contents if assertions enabled
+    }
+
+    private boolean assertTrashBuffer() {
+        // sequence of 0xa5 == 0b10100101 is not valid as a bool/vInt/vLong/... and unlikely to arise otherwise so might aid debugging
+        Arrays.fill(buffer, (byte) 0xa5);
+        return true;
     }
 
     @Override
@@ -79,35 +103,164 @@ public class BufferedStreamOutput extends StreamOutput {
     }
 
     @Override
-    public void writeVInt(int i) throws IOException {
-        ensureCapacity(5);
-        position += putVInt(buffer, i, position);
+    public void writeShort(short i) throws IOException {
+        if (Short.BYTES <= capacity()) {
+            ByteUtils.writeShortBE(i, buffer, position);
+            position += Short.BYTES;
+        } else {
+            writeShortBigEndianWithBoundsChecks(i);
+        }
+    }
+
+    private void writeShortBigEndianWithBoundsChecks(short i) throws IOException {
+        writeByte((byte) (i >> 8));
+        writeByte((byte) i);
     }
 
     @Override
-    public void writeVLong(long i) throws IOException {
-        ensureCapacity(9);
-        while ((i & 0xFFFFFFFFFFFFFF80L) != 0) {
-            buffer[position++] = ((byte) ((i & 0x7f) | 0x80));
+    public void writeInt(int i) throws IOException {
+        if (Integer.BYTES <= capacity()) {
+            ByteUtils.writeIntBE(i, buffer, position);
+            position += Integer.BYTES;
+        } else {
+            writeIntBigEndianWithBoundsChecks(i);
+        }
+    }
+
+    private void writeIntBigEndianWithBoundsChecks(int i) throws IOException {
+        writeByte((byte) (i >> 24));
+        writeByte((byte) (i >> 16));
+        writeByte((byte) (i >> 8));
+        writeByte((byte) i);
+    }
+
+    @Override
+    public void writeIntLE(int i) throws IOException {
+        if (Integer.BYTES <= capacity()) {
+            ByteUtils.writeIntLE(i, buffer, position);
+            position += Integer.BYTES;
+        } else {
+            writeIntLittleEndianWithBoundsChecks(i);
+        }
+    }
+
+    private void writeIntLittleEndianWithBoundsChecks(int i) throws IOException {
+        writeByte((byte) i);
+        writeByte((byte) (i >> 8));
+        writeByte((byte) (i >> 16));
+        writeByte((byte) (i >> 24));
+    }
+
+    private static final int MAX_VINT_BYTES = 5;
+    private static final int MAX_VLONG_BYTES = 9;
+    private static final int MAX_ZLONG_BYTES = 10;
+    private static final int MAX_CHAR_BYTES = 3;
+
+    @Override
+    public void writeVInt(int i) throws IOException {
+        if (MAX_VINT_BYTES <= capacity()) {
+            putVInt(i);
+        } else {
+            writeVIntWithBoundsChecks(i);
+        }
+    }
+
+    private void putVInt(int i) {
+        position += putVInt(buffer, i, position);
+    }
+
+    private void writeVIntWithBoundsChecks(int i) throws IOException {
+        while ((i & 0xFFFF_FF80) != 0) {
+            writeByte((byte) ((i & 0x7F) | 0x80));
             i >>>= 7;
         }
-        buffer[position++] = ((byte) i);
+        writeByte((byte) i);
+    }
+
+    @Override
+    void writeVLongNoCheck(long i) throws IOException {
+        if (MAX_VLONG_BYTES <= capacity()) {
+            while ((i & 0xFFFF_FFFF_FFFF_FF80L) != 0) {
+                buffer[position++] = ((byte) ((i & 0x7F) | 0x80));
+                i >>>= 7;
+            }
+            buffer[position++] = ((byte) i);
+        } else {
+            writeVLongWithBoundsChecks(i);
+        }
+    }
+
+    private void writeVLongWithBoundsChecks(long i) throws IOException {
+        while ((i & 0xFFFF_FFFF_FFFF_FF80L) != 0) {
+            writeByte((byte) ((i & 0x7F) | 0x80));
+            i >>>= 7;
+        }
+        writeByte((byte) i);
+    }
+
+    @Override
+    public void writeZLong(long i) throws IOException {
+        long value = BitUtil.zigZagEncode(i);
+        if (MAX_ZLONG_BYTES <= capacity()) {
+            while ((value & 0xFFFF_FFFF_FFFF_FF80L) != 0) {
+                buffer[position++] = ((byte) ((value & 0x7F) | 0x80));
+                value >>>= 7;
+            }
+            buffer[position++] = ((byte) value);
+        } else {
+            writeVLongWithBoundsChecks(value);
+        }
     }
 
     @Override
     public void writeLong(long i) throws IOException {
-        ensureCapacity(Long.BYTES);
-        ByteUtils.writeLongBE(i, buffer, position);
-        position += Long.BYTES;
+        if (Long.BYTES <= capacity()) {
+            ByteUtils.writeLongBE(i, buffer, position);
+            position += Long.BYTES;
+        } else {
+            writeLongBigEndianWithBoundsChecks(i);
+        }
+    }
+
+    private void writeLongBigEndianWithBoundsChecks(long i) throws IOException {
+        writeByte((byte) (i >> 56));
+        writeByte((byte) (i >> 48));
+        writeByte((byte) (i >> 40));
+        writeByte((byte) (i >> 32));
+        writeByte((byte) (i >> 24));
+        writeByte((byte) (i >> 16));
+        writeByte((byte) (i >> 8));
+        writeByte((byte) i);
+    }
+
+    @Override
+    public void writeLongLE(long i) throws IOException {
+        if (Long.BYTES <= capacity()) {
+            ByteUtils.writeLongLE(i, buffer, position);
+            position += Long.BYTES;
+        } else {
+            writeLongLittleEndianWithBoundsChecks(i);
+        }
+    }
+
+    private void writeLongLittleEndianWithBoundsChecks(long i) throws IOException {
+        writeByte((byte) i);
+        writeByte((byte) (i >> 8));
+        writeByte((byte) (i >> 16));
+        writeByte((byte) (i >> 24));
+        writeByte((byte) (i >> 32));
+        writeByte((byte) (i >> 40));
+        writeByte((byte) (i >> 48));
+        writeByte((byte) (i >> 56));
     }
 
     @Override
     public void writeString(String str) throws IOException {
         final int charCount = str.length();
-        if (position + 5 + charCount * 3 <= BUFFER_SIZE) {
-            position += putVInt(buffer, charCount, position);
+        if (MAX_VINT_BYTES + charCount * MAX_CHAR_BYTES <= capacity()) {
+            putVInt(charCount);
             for (int i = 0; i < charCount; i++) {
-                writeCharUtf8(str.charAt(i));
+                putCharUtf8(str.charAt(i));
             }
         } else {
             writeStringBoundsChecks(charCount, str);
@@ -120,11 +273,11 @@ public class BufferedStreamOutput extends StreamOutput {
             writeByte((byte) 0);
         } else {
             final int charCount = str.length();
-            if (position + 6 + charCount * 3 <= BUFFER_SIZE) {
+            if (1 + MAX_VINT_BYTES + charCount * MAX_CHAR_BYTES <= capacity()) {
                 buffer[position++] = (byte) 1;
-                position += putVInt(buffer, charCount, position);
+                putVInt(charCount);
                 for (int i = 0; i < charCount; i++) {
-                    writeCharUtf8(str.charAt(i));
+                    putCharUtf8(str.charAt(i));
                 }
             } else {
                 writeByte((byte) 1);
@@ -136,11 +289,11 @@ public class BufferedStreamOutput extends StreamOutput {
     @Override
     public void writeGenericString(String str) throws IOException {
         final int charCount = str.length();
-        if (position + 6 + charCount * 3 <= BUFFER_SIZE) {
+        if (1 + MAX_VINT_BYTES + charCount * MAX_CHAR_BYTES <= capacity()) {
             buffer[position++] = (byte) 0;
-            position += putVInt(buffer, charCount, position);
+            putVInt(charCount);
             for (int i = 0; i < charCount; i++) {
-                writeCharUtf8(str.charAt(i));
+                putCharUtf8(str.charAt(i));
             }
         } else {
             writeByte((byte) 0);
@@ -150,15 +303,16 @@ public class BufferedStreamOutput extends StreamOutput {
 
     private void writeStringBoundsChecks(int charCount, String str) throws IOException {
         writeVInt(charCount);
-        for (int i = 0; i < charCount;) {
-            ensureCapacity(3);
-            while (i < charCount && position <= BUFFER_SIZE - 3) {
-                writeCharUtf8(str.charAt(i++));
+        for (int i = 0; i < charCount; i++) {
+            if (MAX_CHAR_BYTES <= capacity()) {
+                putCharUtf8(str.charAt(i));
+            } else {
+                writeCharUtf8(str.charAt(i));
             }
         }
     }
 
-    private void writeCharUtf8(int c) {
+    private void putCharUtf8(int c) {
         if (c <= 0x007F) {
             buffer[position++] = ((byte) c);
         } else if (c > 0x07FF) {
@@ -168,6 +322,19 @@ public class BufferedStreamOutput extends StreamOutput {
         } else {
             buffer[position++] = ((byte) (0xC0 | c >> 6 & 0x1F));
             buffer[position++] = ((byte) (0x80 | c >> 0 & 0x3F));
+        }
+    }
+
+    private void writeCharUtf8(int c) throws IOException {
+        if (c <= 0x007F) {
+            writeByte((byte) c);
+        } else if (c > 0x07FF) {
+            writeByte((byte) (0xE0 | c >> 12 & 0x0F));
+            writeByte((byte) (0x80 | c >> 6 & 0x3F));
+            writeByte((byte) (0x80 | c >> 0 & 0x3F));
+        } else {
+            writeByte((byte) (0xC0 | c >> 6 & 0x1F));
+            writeByte((byte) (0x80 | c >> 0 & 0x3F));
         }
     }
 }
