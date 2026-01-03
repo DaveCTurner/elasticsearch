@@ -75,21 +75,22 @@ import static java.util.Map.entry;
  *
  * <h2>Wrapped {@linkplain java.io.ByteArrayOutputStream}</h2>
  *
- * A {@link BufferedStreamOutput} wrapped around a {@link java.io.ByteArrayOutputStream} will collect the data in an underlying
- * {@code byte[]} collector which typically doubles in size each time the flushed buffer exhausts the remaining space in the collector. This
- * works well if the object is expected to be small enough to fit entirely into the buffer, because then there's only one slightly-oversized
- * {@code byte[]} allocation to create the collector, plus another right-sized {@code byte[]} allocation to extract the result. However,
- * subsequent flushes may need to allocate a larger collector, copying over the existing data to the new collector, so this can perform
- * badly for larger objects. For large enough objects this will start to perform humongous allocations which can be stressful for the
- * garbage collector.
+ * A {@link java.io.ByteArrayOutputStream} collects data in an underlying {@code byte[]} collector which typically doubles in size each time
+ * it receives a write which exhausts the remaining space in the existing collector. This works well if wrapped with a
+ * {@link BufferedStreamOutput} especially if the object is expected to be small enough to fit entirely into the buffer, because then
+ * there's only one slightly-oversized {@code byte[]} allocation to create the collector, plus another right-sized {@code byte[]} allocation
+ * to extract the result, assuming the buffer is not allocated afresh each time. However, subsequent flushes may need to allocate a larger
+ * collector, copying over the existing data to the new collector, so this can perform badly for larger objects. For large enough objects
+ * this will start to perform humongous allocations which can be stressful for the garbage collector.
  * <p>
  * This approach is also good if the in-memory serialized representation will have a long lifetime, because the resulting object is exactly
- * the correct size. All the other approaches described here keep hold of some amount of unused overhead bytes which may be undesirable.
+ * the correct size. All the other approaches described here keep hold of some amount of unused overhead bytes which may be particularly
+ * undesirable for long-lived objects.
  * <p>
- * An {@link OutputStreamStreamOutput} wrapped around a {@link java.io.ByteArrayOutputStream} is almost certainly worse than using a
- * {@link BufferedStreamOutput} wrapper, because it will make the {@link java.io.ByteArrayOutputStream} perform significantly more
- * allocations and copies until the collecting buffer gets large enough. Most writes to a {@link OutputStreamStreamOutput} use a
- * thread-local intermediate buffer (itself somewhat expensive) and then copy that intermediate buffer directly to the output.
+ * An {@link OutputStreamStreamOutput} wrapper is almost certainly worse than a {@link BufferedStreamOutput}, because it will make the
+ * {@link java.io.ByteArrayOutputStream} perform significantly more allocations and copies until the collecting buffer gets large enough.
+ * Most writes to a {@link OutputStreamStreamOutput} use a thread-local intermediate buffer (itself somewhat expensive) and then copy that
+ * intermediate buffer directly to the output.
  * <p>
  * Any memory allocated in this way is untracked by the {@link org.elasticsearch.common.breaker} subsystem.
  *
@@ -103,8 +104,8 @@ import static java.util.Map.entry;
  * <p>
  * {@link BigArrays#resize} grows smaller arrays more slowly than a {@link ByteArrayOutputStream}, with a target of 12.5% overhead rather
  * than 100%, which means that a sequence of smaller writes causes more allocations and copying overall. It may be worth adding a
- * {@link BufferedStreamOutput} wrapper around the {@link BytesStreamOutput} to reduce the frequency of the resize operations, especially if
- * a suitable buffer is already allocated and available.
+ * {@link BufferedStreamOutput} wrapper to reduce the frequency of the resize operations, especially if a suitable buffer is already
+ * allocated and available.
  * <p>
  * The resulting {@link BytesReference} is a view over the underlying {@code byte[]} pages and involves no significant extra allocation to
  * obtain. It is oversized: The worst case for overhead is when the data is one byte more than a 16kiB page and therefore the result must
@@ -120,7 +121,9 @@ import static java.util.Map.entry;
  * enough (≥8kiB) then the resize operations happen in-place, obtaining a recycled 16kiB page and appending it to the array, but for smaller
  * arrays these resize operations allocate a completely fresh {@code byte[]} into which they copy the entire contents of the old one.
  * <p>
- * As above, smaller arrays grow slowly into freshly-allocated {@code byte[]} arrays with a target of 12.5% overhead.
+ * As above, smaller arrays grow slowly into freshly-allocated {@code byte[]} arrays with a target of 12.5% overhead. It may be worth adding
+ * a {@link BufferedStreamOutput} wrapper to reduce the frequency of the resize operations, especially if a suitable buffer is already
+ * allocated and available.
  * <p>
  * The resulting {@link ReleasableBytesReference} is a view over the underlying {@code byte[]} pages and involves no significant extra
  * allocation to obtain. It is oversized: The worst case for overhead is when the data is one byte more than a 16kiB page and therefore the

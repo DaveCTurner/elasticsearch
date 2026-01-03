@@ -25,9 +25,11 @@ import java.util.ArrayList;
 import java.util.Objects;
 
 /**
- * A @link {@link StreamOutput} that uses {@link Recycler.V<BytesRef>} to acquire pages of bytes, which
- * avoids frequent reallocation &amp; copying of the internal data. When {@link #close()} is called,
- * the bytes will be released.
+ * A @link {@link StreamOutput} that uses {@link Recycler.V<BytesRef>} to acquire pages of bytes, which avoids frequent reallocation &amp;
+ * copying of the internal data. When {@link #close()} is called, the bytes will be released.
+ * <p>
+ * Best only used for outputs which are either short-lived or large, because the resulting {@link ReleasableBytesReference} retains whole
+ * pages and this overhead may be significant on small and long-lived objects.
  */
 public class RecyclerBytesStreamOutput extends BytesStream implements Releasable {
 
