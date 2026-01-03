@@ -65,6 +65,7 @@ import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.compress.DeflateCompressor;
 import org.elasticsearch.common.compress.NotXContentException;
 import org.elasticsearch.common.io.Streams;
+import org.elasticsearch.common.io.stream.BufferedStreamOutput;
 import org.elasticsearch.common.io.stream.InputStreamStreamInput;
 import org.elasticsearch.common.io.stream.OutputStreamStreamOutput;
 import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
@@ -147,7 +148,6 @@ import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentType;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.Closeable;
 import java.io.FilterInputStream;
 import java.io.IOException;
@@ -1729,16 +1729,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         ShardBlobsToDelete() {
             this.shardDeleteResults = new RecyclerBytesStreamOutput(bigArrays.bytesRefRecycler());
             this.truncatedShardDeleteResultsOutputStream = new TruncatedOutputStream(
-                new BufferedOutputStream(
-                    new DeflaterOutputStream(Streams.flushOnCloseStream(shardDeleteResults)),
-                    DeflateCompressor.BUFFER_SIZE
-                ),
+                new DeflaterOutputStream(Streams.flushOnCloseStream(shardDeleteResults)),
                 shardDeleteResults::size,
                 maxHeapSizeForSnapshotDeletion
             );
-            this.compressed = new OutputStreamStreamOutput(this.truncatedShardDeleteResultsOutputStream);
+            this.compressed = new BufferedStreamOutput(this.truncatedShardDeleteResultsOutputStream);
             resources.add(compressed);
-            resources.add(LeakTracker.wrap((Releasable) shardDeleteResults));
+            resources.add(LeakTracker.wrap(shardDeleteResults));
         }
 
         synchronized void addShardDeleteResult(
