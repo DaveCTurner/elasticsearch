@@ -65,10 +65,9 @@ import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.compress.DeflateCompressor;
 import org.elasticsearch.common.compress.NotXContentException;
 import org.elasticsearch.common.io.Streams;
-import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.InputStreamStreamInput;
 import org.elasticsearch.common.io.stream.OutputStreamStreamOutput;
-import org.elasticsearch.common.io.stream.ReleasableBytesStreamOutput;
+import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.TruncatedOutputStream;
@@ -1718,7 +1717,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          *     need no further synchronization.
          * </p>
          */
-        private final BytesStreamOutput shardDeleteResults;
+        private final RecyclerBytesStreamOutput shardDeleteResults;
         private final TruncatedOutputStream truncatedShardDeleteResultsOutputStream;
         private final StreamOutput compressed;
 
@@ -1728,7 +1727,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         private final ShardGenerations.Builder shardGenerationsBuilder = ShardGenerations.builder();
 
         ShardBlobsToDelete() {
-            this.shardDeleteResults = new ReleasableBytesStreamOutput(bigArrays);
+            this.shardDeleteResults = new RecyclerBytesStreamOutput(bigArrays.bytesRefRecycler());
             this.truncatedShardDeleteResultsOutputStream = new TruncatedOutputStream(
                 new BufferedOutputStream(
                     new DeflaterOutputStream(Streams.flushOnCloseStream(shardDeleteResults)),
