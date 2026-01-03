@@ -9,9 +9,14 @@
 
 package org.elasticsearch.common.io.stream;
 
+import org.elasticsearch.common.util.PageCacheRecycler;
+import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.test.ESTestCase;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 import static org.elasticsearch.common.bytes.BytesReferenceTestUtils.equalBytes;
 import static org.elasticsearch.transport.BytesRefRecycler.NON_RECYCLING_INSTANCE;
@@ -19,58 +24,82 @@ import static org.elasticsearch.transport.BytesRefRecycler.NON_RECYCLING_INSTANC
 public class BufferedStreamOutputTests extends ESTestCase {
 
     public void testRandomWrites() throws IOException {
+        final var permitPartialWrites = new AtomicBoolean();
+        final var callerBuffer = randomBoolean() ? null : new byte[between(1024, 2048)];
+        final var bufferLen = callerBuffer == null ? 1024 : callerBuffer.length;
+
         try (
             var expectedStream = new RecyclerBytesStreamOutput(NON_RECYCLING_INSTANCE);
-            var actualStream = new RecyclerBytesStreamOutput(NON_RECYCLING_INSTANCE);
-            var bufferedStream = new BufferedStreamOutput(actualStream)
-        ) {
-            for (int i = between(0, 100); i >= 0; i--) {
-                switch (between(1, 8)) {
-                    case 1 -> {
-                        final var b = randomByte();
-                        bufferedStream.writeByte(b);
-                        expectedStream.writeByte(b);
-                    }
-                    case 2 -> {
-                        final var bytes = randomByteArrayOfLength(between(1, 3000));
-                        final var start = between(0, bytes.length - 1);
-                        final var length = between(0, bytes.length - start - 1);
-                        bufferedStream.writeBytes(bytes, start, length);
-                        expectedStream.writeBytes(bytes, start, length);
-                    }
-                    case 3 -> {
-                        final var value = randomNonNegativeInt();
-                        bufferedStream.writeVInt(value);
-                        expectedStream.writeVInt(value);
-                    }
-                    case 4 -> {
-                        final var value = randomNonNegativeLong();
-                        bufferedStream.writeVLong(value);
-                        expectedStream.writeVLong(value);
-                    }
-                    case 5 -> {
-                        final var value = randomLong();
-                        bufferedStream.writeLong(value);
-                        expectedStream.writeLong(value);
-                    }
-                    case 6 -> {
-                        final var value = randomUnicodeOfLengthBetween(0, 2000);
-                        bufferedStream.writeString(value);
-                        expectedStream.writeString(value);
-                    }
-                    case 7 -> {
-                        final var value = randomBoolean() ? null : randomUnicodeOfLengthBetween(0, 2000);
-                        bufferedStream.writeOptionalString(value);
-                        expectedStream.writeOptionalString(value);
-                    }
-                    case 8 -> {
-                        final var value = randomUnicodeOfLengthBetween(0, 2000);
-                        bufferedStream.writeGenericString(value);
-                        expectedStream.writeGenericString(value);
-                    }
+            var actualStream = new RecyclerBytesStreamOutput(NON_RECYCLING_INSTANCE) {
+                @Override
+                public void write(byte[] b) throws IOException {
+                    fail("buffered stream should not write single bytes");
                 }
+
+                @Override
+                public void write(byte[] b, int off, int len) throws IOException {
+                    if (permitPartialWrites.get() == false) {
+                        assert len == bufferLen : "";
+                    }
+                    super.write(b, off, len);
+                }
+            };
+            var bufferedStream = callerBuffer == null
+                ? new BufferedStreamOutput(actualStream)
+                : new BufferedStreamOutput(actualStream, callerBuffer)
+        ) {
+            final var writers = List.<Supplier<CheckedConsumer<StreamOutput, IOException>>>of(() -> {
+                final var b = randomByte();
+                return s -> s.writeByte(b);
+                // }, () -> {
+                // final var bytes = randomByteArrayOfLength(between(1, 3000));
+                // final var start = between(0, bytes.length - 1);
+                // final var length = between(0, bytes.length - start - 1);
+                // return s -> s.writeBytes(bytes, start, length);
+            }, () -> {
+                final var value = randomShort();
+                return s -> s.writeShort(value);
+            }, () -> {
+                final var value = randomInt();
+                return s -> s.writeInt(value);
+            }, () -> {
+                final var value = randomInt();
+                return s -> s.writeIntLE(value);
+            }, () -> {
+                final var value = randomLong();
+                return s -> s.writeLong(value);
+            }, () -> {
+                final var value = randomLong();
+                return s -> s.writeLongLE(value);
+            }, () -> {
+                final var value = randomInt();
+                return s -> s.writeVInt(value);
+            }, () -> {
+                final var value = randomNonNegativeLong();
+                return s -> s.writeVLong(value);
+            }, () -> {
+                final var value = randomLong();
+                return s -> s.writeZLong(value);
+            }, () -> {
+                final var value = randomUnicodeOfLengthBetween(0, 2000);
+                return s -> s.writeString(value);
+            }, () -> {
+                final var value = randomBoolean() ? null : randomUnicodeOfLengthBetween(0, 2000);
+                return s -> s.writeOptionalString(value);
+            }, () -> {
+                final var value = randomUnicodeOfLengthBetween(0, 2000);
+                return s -> s.writeGenericString(value);
+            });
+
+            final var targetSize = PageCacheRecycler.PAGE_SIZE_IN_BYTES + 1;
+
+            while (actualStream.size() < targetSize) {
+                var writer = randomFrom(writers).get();
+                writer.accept(bufferedStream);
+                writer.accept(expectedStream);
             }
 
+            permitPartialWrites.set(true);
             bufferedStream.flush();
             assertThat(actualStream.bytes(), equalBytes(expectedStream.bytes()));
         }

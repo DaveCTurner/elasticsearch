@@ -197,7 +197,7 @@ public abstract class StreamOutput extends OutputStream {
 
     private static final ThreadLocal<byte[]> scratch = ThreadLocal.withInitial(() -> new byte[1024]);
 
-    public final void writeShort(short v) throws IOException {
+    public void writeShort(short v) throws IOException {
         final byte[] buffer = scratch.get();
         ByteUtils.writeShortBE(v, buffer, 0);
         writeBytes(buffer, 0, 2);
