@@ -21,6 +21,7 @@ import org.elasticsearch.common.compress.CompressorFactory;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.io.stream.Writeable.Writer;
 import org.elasticsearch.common.settings.SecureString;
+import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.ByteUtils;
 import org.elasticsearch.core.CharArrays;
 import org.elasticsearch.core.Nullable;
@@ -28,6 +29,7 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.Text;
 import org.elasticsearch.xcontent.XContentType;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigInteger;
@@ -52,8 +54,8 @@ import java.util.function.IntFunction;
 import static java.util.Map.entry;
 
 /**
- * A stream from another node to this node. Technically, it can also be streamed from a byte array but that is mostly for testing.
- *
+ * A stream into which a structured {@linkplain Writeable} may be written, e.g. for sending over a transport connection to a remote node.
+ * <p>
  * This class's methods are optimized so you can put the methods that read and write a class next to each other and you can scan them
  * visually for differences. That means that most variables should be read and written in a single line so even large objects fit both
  * reading and writing on the screen. It also means that the methods on this class are named very similarly to {@link StreamInput}. Finally
@@ -61,6 +63,72 @@ import static java.util.Map.entry;
  * everywhere. That being said, this class deals primarily with {@code List}s rather than Arrays. For the most part calls should adapt to
  * lists, either by storing {@code List}s internally or just converting to and from a {@code List} when calling. This comment is repeated
  * on {@link StreamInput}.
+ * <p>
+ * It is possible to use a {@linkplain StreamOutput} as an adapter to send a {@linkplain Writeable} to a raw-bytes {@linkplain OutputStream}
+ * such as a file or a compressing stream, for instance using {@link OutputStreamStreamOutput} or {@link BufferedStreamOutput}. Often,
+ * however, we want to capture the serialized representation of an object in memory as a {@code byte[]} or more generally a
+ * {@link BytesReference} (a sequence of slices of {@code byte[]}s). For example, this is how the {@link org.elasticsearch.transport}
+ * subsystem prepares a network message for transmission. There are several different ways to achieve this objective, with different
+ * performance characteristics.
+ * <ul>
+ *     <li>
+ *          A {@link BufferedStreamOutput} wrapped around a {@link java.io.ByteArrayOutputStream} will collect the data in an underlying
+ *          {@code byte[]} collector which typically doubles in size each time the flushed buffer exhausts the remaining space in the
+ *          collector. This works well if the object is expected to be small enough to fit entirely into the buffer, because then there's
+ *          only one slightly-oversized {@code byte[]} allocation to create the collector, plus another right-sized {@code byte[]}
+ *          allocation to extract the result. However, subsequent flushes may need to allocate a larger collector, copying over the existing
+ *          data to the new collector, so this can perform badly for larger objects. For large enough objects this will start to
+ *          perform humongous allocations which can be stressful for the garbage collector.
+ *          <p>
+ *          This approach is also good if the in-memory serialized representation will have a long lifetime, because the resulting object
+ *          is exactly the correct size. All the other approaches described here keep hold of some amount of unused overhead bytes which may
+ *          be undesirable.
+ *          <p>
+ *          An {@link OutputStreamStreamOutput} wrapped around a {@link java.io.ByteArrayOutputStream} is almost certainly worse than using
+ *          a {@link BufferedStreamOutput} wrapper, because it will make the {@link java.io.ByteArrayOutputStream} perform significantly
+ *          more allocations and copies until the collecting buffer gets large enough. Most writes to a {@link OutputStreamStreamOutput}
+ *          use a thread-local intermediate buffer (itself somewhat expensive) and then copy that intermediate buffer directly to the
+ *          output.
+ *          <p>
+ *          Any memory allocated in this way is untracked by the {@link org.elasticsearch.common.breaker} subsystem.
+ *     </li>
+ *     <li>
+ *          A {@link BytesStreamOutput} accumulates data using a non-recycling {@link BigArrays} and, as with an
+ *          {@link OutputStreamStreamOutput}, it uses a thread-locally-cached buffer for some of its writes and pushes data to the underlying
+ *          array in small chunks, causing frequent calls to {@link BigArrays#resize}. If the array is large enough (≥16kiB) then the resize
+ *          operations happen in-place, allocating a new 16kiB {@code byte[]} and appending it to the array, but for smaller arrays these
+ *          resize operations allocate a completely fresh {@code byte[]} into which they copy the entire contents of the old one.
+ *          <p>
+ *          {@link BigArrays#resize grows smaller arrays more slowly than a {@link ByteArrayOutputStream}, with a target of 12.5% overhead
+ *          rather than 100%, which means that a sequence of smaller writes causes more allocations and copying overall.
+ *          It may be worth adding a {@link BufferedStreamOutput} wrapper around the {@link BytesStreamOutput} to reduce the frequency of the
+ *          resize operations, especially if a suitable buffer is already allocated and available.
+ *          <p>
+ *          The resulting {@link BytesReference} is a view over the underlying {@code byte[]} pages and involves no significant extra
+ *          allocation to obtain. It is oversized: The worst case for overhead is when the data is one byte more than a 16kiB page and therefore the
+ *          result must retain two pages even though all but one byte of the second page is unused. For smaller objects the overhead will be
+ *          12.5%.
+ *          <p>
+ *          Any memory allocated in this way is untracked by the {@link org.elasticsearch.common.breaker} subsystem.
+ *     </li>
+ *     <li>
+ *         A {@link BytesStreamOutput} accumulates data using a non-recycling {@link BigArrays} and, as with an
+ *         {@link OutputStreamStreamOutput}, it uses a thread-locally-cached buffer for some of its writes and pushes data to the underlying
+ *         array in small chunks, causing frequent calls to {@link BigArrays#resize}. If the array is large enough (≥16kiB) then the resize
+ *         operations happen in-place, allocating a new 16kiB {@code byte[]} and appending it to the array, but for smaller arrays these
+ *         resize operations allocate a completely fresh {@code byte[]} into which they copy the entire contents of the old one.
+ *         <p>
+ *         {@link BigArrays#resize grows smaller arrays more slowly than a {@link ByteArrayOutputStream}, with a target of 12.5% overhead
+ *         rather than 100%, which means that a sequence of smaller writes causes more allocations and copying overall.
+ *         It may be worth adding a {@link BufferedStreamOutput} wrapper around the {@link BytesStreamOutput} to reduce the frequency of the
+ *         resize operations, especially if a suitable buffer is already allocated and available.
+ *         <p>
+ *         The resulting {@link BytesReference} is a view over the underlying {@code byte[]} pages and involves no significant extra
+ *         allocation to obtain. It is oversized: The worst case for overhead is when the data is one byte more than a 16kiB page and therefore the
+ *         result must retain two pages even though all but one byte of the second page is unused. For smaller objects the overhead will be
+ *         12.5%.
+ *     </li>
+ * </ul>
  */
 public abstract class StreamOutput extends OutputStream {
 

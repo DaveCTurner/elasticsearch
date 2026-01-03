@@ -198,7 +198,7 @@ public class DeflateCompressor implements Compressor {
                 }
             }
         };
-        return new BufferedStreamOutput(deflaterOutputStream);
+        return new BufferedStreamOutput(deflaterOutputStream, new byte[BUFFER_SIZE]);
     }
 
     private static final ThreadLocal<BytesStreamOutput> baos = ThreadLocal.withInitial(BytesStreamOutput::new);

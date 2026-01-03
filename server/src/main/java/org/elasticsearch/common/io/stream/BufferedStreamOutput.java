@@ -10,7 +10,11 @@
 package org.elasticsearch.common.io.stream;
 
 import org.apache.lucene.util.BitUtil;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.unit.ByteSizeUnit;
+import org.elasticsearch.common.util.AbstractBigArray;
+import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.common.util.ByteArray;
 import org.elasticsearch.common.util.ByteUtils;
 
 import java.io.IOException;
@@ -19,8 +23,12 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * Similar to {@link OutputStreamStreamOutput} except using a 1kiB buffer to coalesce writes to the underlying stream, allowing for more
- * efficient implementations of {@link StreamOutput#writeString(String)} and {@link StreamOutput#writeVInt(int)} and so on.
+ * Adapts a raw {@link OutputStream} into a rich {@link StreamOutput} for use with {@link Writeable} instances, using a buffer.
+ * <p>
+ * Similar to {@link OutputStreamStreamOutput} in function, but with different performance characteristics because it requires a buffer to
+ * be acquired or allocated up-front. Ignoring the costs of the buffer creation & release a {@link BufferedStreamOutput} is likely more
+ * performant than an {@link OutputStreamStreamOutput} because it writes all fields directly to its local buffer and only copies data to the
+ * underlying stream when the buffer fills up.
  */
 public class BufferedStreamOutput extends StreamOutput {
 
@@ -112,6 +120,7 @@ public class BufferedStreamOutput extends StreamOutput {
         }
     }
 
+    // slow & cold path extracted to its own method to allow fast & hot path to be inlined
     private void writeShortBigEndianWithBoundsChecks(short i) throws IOException {
         writeByte((byte) (i >> 8));
         writeByte((byte) i);
@@ -127,6 +136,7 @@ public class BufferedStreamOutput extends StreamOutput {
         }
     }
 
+    // slow & cold path extracted to its own method to allow fast & hot path to be inlined
     private void writeIntBigEndianWithBoundsChecks(int i) throws IOException {
         writeByte((byte) (i >> 24));
         writeByte((byte) (i >> 16));
@@ -144,6 +154,7 @@ public class BufferedStreamOutput extends StreamOutput {
         }
     }
 
+    // slow & cold path extracted to its own method to allow fast & hot path to be inlined
     private void writeIntLittleEndianWithBoundsChecks(int i) throws IOException {
         writeByte((byte) i);
         writeByte((byte) (i >> 8));
@@ -158,8 +169,10 @@ public class BufferedStreamOutput extends StreamOutput {
 
     @Override
     public void writeVInt(int i) throws IOException {
-        if (MAX_VINT_BYTES <= capacity()) {
-            putVInt(i);
+        if (25 <= Integer.numberOfLeadingZeros(i)) {
+            writeByte((byte) i);
+        } else if (MAX_VINT_BYTES <= capacity()) {
+            position += putMultiByteVInt(buffer, i, position);
         } else {
             writeVIntWithBoundsChecks(i);
         }
@@ -169,6 +182,7 @@ public class BufferedStreamOutput extends StreamOutput {
         position += putVInt(buffer, i, position);
     }
 
+    // slow & cold path extracted to its own method to allow fast & hot path to be inlined
     private void writeVIntWithBoundsChecks(int i) throws IOException {
         while ((i & 0xFFFF_FF80) != 0) {
             writeByte((byte) ((i & 0x7F) | 0x80));
@@ -190,6 +204,7 @@ public class BufferedStreamOutput extends StreamOutput {
         }
     }
 
+    // slow & cold path extracted to its own method to allow fast & hot path to be inlined
     private void writeVLongWithBoundsChecks(long i) throws IOException {
         while ((i & 0xFFFF_FFFF_FFFF_FF80L) != 0) {
             writeByte((byte) ((i & 0x7F) | 0x80));
@@ -222,6 +237,7 @@ public class BufferedStreamOutput extends StreamOutput {
         }
     }
 
+    // slow & cold path extracted to its own method to allow fast & hot path to be inlined
     private void writeLongBigEndianWithBoundsChecks(long i) throws IOException {
         writeByte((byte) (i >> 56));
         writeByte((byte) (i >> 48));
@@ -243,6 +259,7 @@ public class BufferedStreamOutput extends StreamOutput {
         }
     }
 
+    // slow & cold path extracted to its own method to allow fast & hot path to be inlined
     private void writeLongLittleEndianWithBoundsChecks(long i) throws IOException {
         writeByte((byte) i);
         writeByte((byte) (i >> 8));
@@ -301,6 +318,7 @@ public class BufferedStreamOutput extends StreamOutput {
         }
     }
 
+    // slow & cold path extracted to its own method to allow fast & hot path to be inlined
     private void writeStringBoundsChecks(int charCount, String str) throws IOException {
         writeVInt(charCount);
         for (int i = 0; i < charCount; i++) {
