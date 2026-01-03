@@ -147,7 +147,9 @@ import static java.util.Map.entry;
  * <p>
  * The resulting {@link ReleasableBytesReference} is a view over the underlying {@code byte[]} pages and involves no significant extra
  * allocation to obtain. It is oversized: The worst case for overhead is when the data is a single byte, since this takes up a whole 16kiB
- * page almost all of which is overhead.
+ * page almost all of which is overhead. Nonetheless, if recycled pages are available then it may still be preferable to use them via a
+ * {@link RecyclerBytesStreamOutput} and then decide whether the resulting {@link ReleasableBytesReference} is large enough to be worth
+ * keeping as it is, or whether it's small enough that it's better to copy it into a freshly-allocated {@code byte[]} at that point.
  * <p>
  * Any memory allocated in this way is not tracked by the {@link org.elasticsearch.common.breaker} subsystem, even if the
  * {@code Recycler<BytesRef>} was obtained from {@link BigArrays#bytesRefRecycler()}.
