@@ -33,6 +33,7 @@ public class BufferedStreamOutput extends StreamOutput {
     private final int startPosition;
     private final int endPosition;
     private int position;
+    private long flushedBytes;
 
     /**
      * Wrap the given stream, using the given {@link BytesRef} for the buffer. It is the caller's responsibility to make sure that nothing
@@ -45,6 +46,11 @@ public class BufferedStreamOutput extends StreamOutput {
         this.endPosition = buffer.offset + buffer.length;
         this.position = startPosition;
         assert buffer.length >= 1 : buffer.length + " is too short";
+    }
+
+    @Override
+    public long position() throws IOException {
+        return flushedBytes + position - startPosition;
     }
 
     @Override
@@ -69,6 +75,7 @@ public class BufferedStreamOutput extends StreamOutput {
             flush();
             if (capacity() <= length) {
                 delegate.write(b, offset, length);
+                flushedBytes += length;
             } else {
                 System.arraycopy(b, offset, buffer, position, length);
                 position += length;
@@ -84,6 +91,7 @@ public class BufferedStreamOutput extends StreamOutput {
     public void flush() throws IOException {
         if (startPosition < position) {
             delegate.write(buffer, startPosition, position - startPosition);
+            flushedBytes += position - startPosition;
             position = startPosition;
         }
         delegate.flush();

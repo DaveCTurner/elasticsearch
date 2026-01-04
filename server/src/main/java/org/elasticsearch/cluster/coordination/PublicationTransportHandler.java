@@ -29,10 +29,8 @@ import org.elasticsearch.common.compress.CompressorFactory;
 import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.common.io.stream.NamedWriteableAwareStreamInput;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
-import org.elasticsearch.common.io.stream.PositionTrackingOutputStreamStreamOutput;
 import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.LazyInitializable;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.IOUtils;
@@ -252,11 +250,7 @@ public class PublicationTransportHandler {
     private ReleasableBytesReference serializeFullClusterState(ClusterState clusterState, DiscoveryNode node, TransportVersion version) {
         try (RecyclerBytesStreamOutput bytesStream = transportService.newNetworkBytesStream()) {
             final long uncompressedBytes;
-            try (
-                StreamOutput stream = new PositionTrackingOutputStreamStreamOutput(
-                    CompressorFactory.COMPRESSOR.threadLocalOutputStream(Streams.flushOnCloseStream(bytesStream))
-                )
-            ) {
+            try (var stream = CompressorFactory.COMPRESSOR.threadLocalOutputStream(Streams.flushOnCloseStream(bytesStream))) {
                 stream.setTransportVersion(version);
                 stream.writeBoolean(true);
                 clusterState.writeTo(stream);
@@ -285,11 +279,7 @@ public class PublicationTransportHandler {
         final long clusterStateVersion = newState.version();
         try (RecyclerBytesStreamOutput bytesStream = transportService.newNetworkBytesStream()) {
             final long uncompressedBytes;
-            try (
-                StreamOutput stream = new PositionTrackingOutputStreamStreamOutput(
-                    CompressorFactory.COMPRESSOR.threadLocalOutputStream(Streams.flushOnCloseStream(bytesStream))
-                )
-            ) {
+            try (var stream = CompressorFactory.COMPRESSOR.threadLocalOutputStream(Streams.flushOnCloseStream(bytesStream))) {
                 stream.setTransportVersion(version);
                 stream.writeBoolean(false);
                 diff.writeTo(stream);

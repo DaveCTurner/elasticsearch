@@ -109,6 +109,7 @@ public class BufferedStreamOutputTests extends ESTestCase {
                 var writer = randomFrom(writers).get();
                 writer.accept(bufferedStream);
                 writer.accept(expectedStream);
+                assertEquals(expectedStream.position(), bufferedStream.position());
             }
 
             permitPartialWrites.set(true);
