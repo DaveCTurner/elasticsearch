@@ -64,7 +64,6 @@ import static java.util.Map.entry;
  * everywhere. That being said, this class deals primarily with {@code List}s rather than Arrays. For the most part calls should adapt to
  * lists, either by storing {@code List}s internally or just converting to and from a {@code List} when calling. This comment is repeated
  * on {@link StreamInput}.
- * <p>
  * <hr>
  * It is possible to use a {@linkplain StreamOutput} as an adapter to send a {@linkplain Writeable} to a raw-bytes {@linkplain OutputStream}
  * such as a file or a compressing stream, for instance using {@link OutputStreamStreamOutput} or {@link BufferedStreamOutput}. Often,
