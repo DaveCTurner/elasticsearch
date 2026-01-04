@@ -35,6 +35,7 @@ public class BufferedStreamOutputTests extends ESTestCase {
         final var bufferLen = between(1, bufferPool.length - bufferStart);
         final var buffer = new BytesRef(bufferPool, bufferStart, bufferLen);
         final var bufferPoolCopy = ArrayUtil.copyArray(bufferPool); // kept so we can check no out-of-bounds writes
+        Arrays.fill(bufferPoolCopy, bufferStart, bufferStart + bufferLen, (byte) 0xa5);
 
         try (
             var expectedStream = new RecyclerBytesStreamOutput(NON_RECYCLING_INSTANCE);
@@ -113,13 +114,10 @@ public class BufferedStreamOutputTests extends ESTestCase {
             assertThat(actualStream.bytes(), equalBytes(expectedStream.bytes()));
         }
 
-        if (Assertions.ENABLED) {
-            final var trashedArray = new byte[bufferLen];
-            Arrays.fill(trashedArray, (byte) 0xa5);
-            assertArrayEquals(trashedArray, ArrayUtil.copyOfSubArray(bufferPool, bufferStart, bufferStart + bufferLen));
+        if (Assertions.ENABLED == false) {
+            // in this case the buffer is not trashed on flush so we must trash its contents manually before the corruption check
+            Arrays.fill(bufferPool, bufferStart, bufferStart + bufferLen, (byte) 0xa5);
         }
-
-        System.arraycopy(bufferPool, bufferStart, bufferPoolCopy, bufferStart, bufferLen);
-        assertArrayEquals(bufferPool, bufferPoolCopy);
+        assertArrayEquals("wrote out of bounds", bufferPoolCopy, bufferPool);
     }
 }
