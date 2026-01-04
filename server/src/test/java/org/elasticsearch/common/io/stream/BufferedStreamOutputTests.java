@@ -56,68 +56,52 @@ public class BufferedStreamOutputTests extends ESTestCase {
             };
             var bufferedStream = new BufferedStreamOutput(actualStream, callerBuffer)
         ) {
-            final var writers = List.<Supplier<CheckedConsumer<StreamOutput, IOException>>>of(
-                // writeByte
-                () -> {
-                    final var b = randomByte();
-                    return s -> s.writeByte(b);
-                },
-                // writeBytes
-                () -> {
-                    final var bytes = randomByteArrayOfLength(between(1, bufferLen * 4));
-                    final var start = between(0, bytes.length - 1);
-                    final var length = between(0, bytes.length - start - 1);
-                    return s -> {
-                        permitPartialWrites.set(length >= bufferLen); // large writes may bypass the buffer
-                        s.writeBytes(bytes, start, length);
-                        permitPartialWrites.set(false);
-                    };
-                },
-                () -> {
-                    final var value = randomShort();
-                    return s -> s.writeShort(value);
-                },
-                () -> {
-                    final var value = randomInt();
-                    return s -> s.writeInt(value);
-                },
-                () -> {
-                    final var value = randomInt();
-                    return s -> s.writeIntLE(value);
-                },
-                () -> {
-                    final var value = randomLong();
-                    return s -> s.writeLong(value);
-                },
-                () -> {
-                    final var value = randomLong();
-                    return s -> s.writeLongLE(value);
-                },
-                () -> {
-                    final var value = randomInt();
-                    return s -> s.writeVInt(value);
-                },
-                () -> {
-                    final var value = randomNonNegativeLong();
-                    return s -> s.writeVLong(value);
-                },
-                () -> {
-                    final var value = randomLong();
-                    return s -> s.writeZLong(value);
-                },
-                () -> {
-                    final var value = randomUnicodeOfLengthBetween(0, 2000);
-                    return s -> s.writeString(value);
-                },
-                () -> {
-                    final var value = randomBoolean() ? null : randomUnicodeOfLengthBetween(0, 2000);
-                    return s -> s.writeOptionalString(value);
-                },
-                () -> {
-                    final var value = randomUnicodeOfLengthBetween(0, 2000);
-                    return s -> s.writeGenericString(value);
-                }
-            );
+            final var writers = List.<Supplier<CheckedConsumer<StreamOutput, IOException>>>of(() -> {
+                final var b = randomByte();
+                return s -> s.writeByte(b);
+            }, () -> {
+                final var bytes = randomByteArrayOfLength(between(1, bufferLen * 4));
+                final var start = between(0, bytes.length - 1);
+                final var length = between(0, bytes.length - start - 1);
+                return s -> {
+                    permitPartialWrites.set(length >= bufferLen); // large writes may bypass the buffer
+                    s.writeBytes(bytes, start, length);
+                    permitPartialWrites.set(false);
+                };
+            }, () -> {
+                final var value = randomShort();
+                return s -> s.writeShort(value);
+            }, () -> {
+                final var value = randomInt();
+                return s -> s.writeInt(value);
+            }, () -> {
+                final var value = randomInt();
+                return s -> s.writeIntLE(value);
+            }, () -> {
+                final var value = randomLong();
+                return s -> s.writeLong(value);
+            }, () -> {
+                final var value = randomLong();
+                return s -> s.writeLongLE(value);
+            }, () -> {
+                final var value = randomInt();
+                return s -> s.writeVInt(value);
+            }, () -> {
+                final var value = randomNonNegativeLong();
+                return s -> s.writeVLong(value);
+            }, () -> {
+                final var value = randomLong();
+                return s -> s.writeZLong(value);
+            }, () -> {
+                final var value = randomUnicodeOfLengthBetween(0, 2000);
+                return s -> s.writeString(value);
+            }, () -> {
+                final var value = randomBoolean() ? null : randomUnicodeOfLengthBetween(0, 2000);
+                return s -> s.writeOptionalString(value);
+            }, () -> {
+                final var value = randomUnicodeOfLengthBetween(0, 2000);
+                return s -> s.writeGenericString(value);
+            });
 
             final var targetSize = PageCacheRecycler.PAGE_SIZE_IN_BYTES + 1;
 
