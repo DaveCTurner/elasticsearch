@@ -90,7 +90,10 @@ tasks.named("run").configure {
   args << "-Dplugins.dir=${buildDir}/plugins" << "-Dtests.index=${buildDir}/index"
   jvmArgs '-XX:+UnlockDiagnosticVMOptions'
   jvmArgs '-XX:CompileCommand=print org.elasticsearch.common.io.stream.BufferedStreamOutput::*'
+  jvmArgs '-XX:CompileCommand=print org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput::*'
   jvmArgs '-XX:PrintAssemblyOptions=intel'
+  jvmArgs '-XX:+PrintCompilation'
+  jvmArgs '-XX:+PrintInlining'
   dependsOn "copyExpression", "copyPainless", configurations.nativeLib
   systemProperty 'es.nativelibs.path', TestUtil.getTestLibraryPath(file("../libs/native/libraries/build/platform/").toString())
 }
