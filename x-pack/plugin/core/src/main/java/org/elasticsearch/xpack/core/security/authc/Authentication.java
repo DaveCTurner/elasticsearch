@@ -630,7 +630,9 @@ public final class Authentication implements ToXContentObject {
     }
 
     // something of a hack, it would be better to use a properly-recycled buffer here, but there's no easy way to access the recycler
-    private static final ThreadLocal<BytesRef> threadLocalEncodingBuffer = ThreadLocal.withInitial(() -> new BytesRef(1024));
+    private static final ThreadLocal<BytesRef> threadLocalEncodingBuffer = ThreadLocal.withInitial(
+        () -> new BytesRef(new byte[1024], 0, 1024)
+    );
 
     // Package private for testing
     static String doEncode(Subject effectiveSubject, Subject authenticatingSubject, AuthenticationType type) throws IOException {

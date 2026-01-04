@@ -11,7 +11,6 @@ package org.elasticsearch.common.io.stream;
 
 import org.apache.lucene.util.BitUtil;
 import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.util.ByteUtils;
 
 import java.io.IOException;
@@ -23,13 +22,11 @@ import java.util.Objects;
  * Adapts a raw {@link OutputStream} into a rich {@link StreamOutput} for use with {@link Writeable} instances, using a buffer.
  * <p>
  * Similar to {@link OutputStreamStreamOutput} in function, but with different performance characteristics because it requires a buffer to
- * be acquired or allocated up-front. Ignoring the costs of the buffer creation &amp; release a {@link BufferedStreamOutput} is likely more
- * performant than an {@link OutputStreamStreamOutput} because it writes all fields directly to its local buffer and only copies data to the
- * underlying stream when the buffer fills up.
+ * be acquired or allocated up-front. Apart from the costs of the buffer creation &amp; release a {@link BufferedStreamOutput} is likely
+ * more performant than an {@link OutputStreamStreamOutput} because it writes all fields directly to its local buffer and only copies data
+ * to the underlying stream when the buffer fills up.
  */
 public class BufferedStreamOutput extends StreamOutput {
-
-    private static final int DEFAULT_BUFFER_SIZE = ByteSizeUnit.KB.toIntBytes(1);
 
     private final OutputStream delegate;
     private final byte[] buffer;
@@ -47,7 +44,7 @@ public class BufferedStreamOutput extends StreamOutput {
         this.startPosition = buffer.offset;
         this.endPosition = buffer.offset + buffer.length;
         this.position = startPosition;
-        assert buffer.length >= DEFAULT_BUFFER_SIZE : buffer.length + " is too short";
+        assert buffer.length >= 1 : buffer.length + " is too short";
     }
 
     @Override
@@ -61,7 +58,7 @@ public class BufferedStreamOutput extends StreamOutput {
     @Override
     public void writeBytes(byte[] b, int offset, int length) throws IOException {
         int initialCopyLength = Math.min(length, capacity());
-        if (0 < initialCopyLength && (0 < position || length < buffer.length)) {
+        if (0 < initialCopyLength && (startPosition < position || length < buffer.length)) {
             System.arraycopy(b, offset, buffer, position, initialCopyLength);
             position += initialCopyLength;
             offset += initialCopyLength;
@@ -70,7 +67,7 @@ public class BufferedStreamOutput extends StreamOutput {
 
         if (0 < length) {
             flush();
-            if (buffer.length < length) {
+            if (capacity() <= length) {
                 delegate.write(b, offset, length);
             } else {
                 System.arraycopy(b, offset, buffer, position, length);
