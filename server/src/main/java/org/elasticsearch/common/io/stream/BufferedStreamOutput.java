@@ -37,7 +37,7 @@ public class BufferedStreamOutput extends StreamOutput {
 
     /**
      * Wrap the given stream, using the given {@link BytesRef} for the buffer. It is the caller's responsibility to make sure that nothing
-     * else uses this buffer while this object is active.
+     * else modifies the buffer's contents while this object is in use.
      */
     public BufferedStreamOutput(OutputStream delegate, BytesRef buffer) {
         this.delegate = Objects.requireNonNull(delegate);
