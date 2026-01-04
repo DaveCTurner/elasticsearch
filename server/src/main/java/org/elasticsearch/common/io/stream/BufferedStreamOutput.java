@@ -192,6 +192,34 @@ public class BufferedStreamOutput extends StreamOutput {
     }
 
     @Override
+    public void writeVIntArray(int[] values) throws IOException {
+        if ((values.length + 1) * MAX_VINT_BYTES <= capacity()) {
+            putVInt(values.length);
+            for (var value : values) {
+                putVInt(value);
+            }
+        } else {
+            writeVIntArrayWithBoundsChecks(values);
+        }
+    }
+
+    // slower (cold) path extracted to its own method to allow fast & hot path to be inlined
+    private void writeVIntArrayWithBoundsChecks(int[] values) throws IOException {
+        writeVInt(values.length);
+        int i = 0;
+        int cap = capacity();
+        while (i < values.length) {
+            final var putVIntCount = Math.min(values.length, i + cap / MAX_VINT_BYTES);
+            while (i < putVIntCount) {
+                putVInt(values[i++]);
+            }
+            while ((cap = capacity()) < MAX_VINT_BYTES && i < values.length) {
+                writeVInt(values[i++]);
+            }
+        }
+    }
+
+    @Override
     void writeVLongNoCheck(long i) throws IOException {
         if (MAX_VLONG_BYTES <= capacity()) {
             while ((i & 0xFFFF_FFFF_FFFF_FF80L) != 0) {
@@ -280,7 +308,7 @@ public class BufferedStreamOutput extends StreamOutput {
                 putCharUtf8(str.charAt(i));
             }
         } else {
-            writeStringBoundsChecks(charCount, str);
+            writeStringWithBoundsChecks(charCount, str);
         }
     }
 
@@ -298,7 +326,7 @@ public class BufferedStreamOutput extends StreamOutput {
                 }
             } else {
                 writeByte((byte) 1);
-                writeStringBoundsChecks(charCount, str);
+                writeStringWithBoundsChecks(charCount, str);
             }
         }
     }
@@ -314,18 +342,22 @@ public class BufferedStreamOutput extends StreamOutput {
             }
         } else {
             writeByte((byte) 0);
-            writeStringBoundsChecks(charCount, str);
+            writeStringWithBoundsChecks(charCount, str);
         }
     }
 
-    // slow & cold path extracted to its own method to allow fast & hot path to be inlined
-    private void writeStringBoundsChecks(int charCount, String str) throws IOException {
+    // slower (cold) path extracted to its own method to allow fast & hot path to be inlined
+    private void writeStringWithBoundsChecks(int charCount, String str) throws IOException {
         writeVInt(charCount);
-        for (int i = 0; i < charCount; i++) {
-            if (MAX_CHAR_BYTES <= capacity()) {
-                putCharUtf8(str.charAt(i));
-            } else {
-                writeCharUtf8(str.charAt(i));
+        int i = 0;
+        int cap = capacity();
+        while (i < charCount) {
+            final var putCharCount = Math.min(charCount, i + cap / MAX_CHAR_BYTES);
+            while (i < putCharCount) {
+                putCharUtf8(str.charAt(i++));
+            }
+            while ((cap = capacity()) < MAX_CHAR_BYTES && i < charCount) {
+                writeCharUtf8(str.charAt(i++));
             }
         }
     }
