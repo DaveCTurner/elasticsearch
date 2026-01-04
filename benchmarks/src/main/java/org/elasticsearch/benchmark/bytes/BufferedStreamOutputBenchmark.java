@@ -28,7 +28,7 @@ import java.io.OutputStream;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-@Warmup(iterations = 3)
+@Warmup(iterations = 5)
 @Measurement(iterations = 3)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
