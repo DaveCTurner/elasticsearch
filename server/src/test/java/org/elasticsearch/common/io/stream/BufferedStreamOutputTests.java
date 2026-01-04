@@ -81,16 +81,16 @@ public class BufferedStreamOutputTests extends ESTestCase {
                 final var value = randomLong();
                 return s -> s.writeLongLE(value);
             }, () -> {
-                final var value = randomInt();
+                final var value = randomInt() >> between(0, Integer.SIZE);
                 return s -> s.writeVInt(value);
             }, () -> {
-                final var value = randomInts(between(0, 100)).toArray();
+                final var value = randomInts(between(0, 200)).map(i -> i >> between(0, Integer.SIZE)).toArray();
                 return s -> s.writeVIntArray(value);
             }, () -> {
-                final var value = randomNonNegativeLong();
+                final var value = randomNonNegativeLong() >> between(0, Long.SIZE);
                 return s -> s.writeVLong(value);
             }, () -> {
-                final var value = randomLong();
+                final var value = randomLong() >> between(0, Long.SIZE);
                 return s -> s.writeZLong(value);
             }, () -> {
                 final var value = randomUnicodeOfLengthBetween(0, 2000);

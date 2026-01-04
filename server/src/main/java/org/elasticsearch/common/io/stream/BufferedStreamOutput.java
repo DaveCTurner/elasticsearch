@@ -363,7 +363,7 @@ public class BufferedStreamOutput extends StreamOutput {
     }
 
     private void putCharUtf8(int c) {
-        if (c <= 0x007F) {
+        if (c <= 0x7F) {
             buffer[position++] = ((byte) c);
         } else if (c > 0x07FF) {
             buffer[position++] = ((byte) (0xE0 | c >> 12 & 0x0F));
@@ -376,7 +376,7 @@ public class BufferedStreamOutput extends StreamOutput {
     }
 
     private void writeCharUtf8(int c) throws IOException {
-        if (c <= 0x007F) {
+        if (c <= 0x7F) {
             writeByte((byte) c);
         } else if (c > 0x07FF) {
             writeByte((byte) (0xE0 | c >> 12 & 0x0F));
