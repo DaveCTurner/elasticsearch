@@ -88,6 +88,9 @@ tasks.register("copyPainless", Copy) {
 tasks.named("run").configure {
   executable = "${buildParams.runtimeJavaHome.get()}/bin/java" + (OS.current() == OS.WINDOWS ? '.exe' : '')
   args << "-Dplugins.dir=${buildDir}/plugins" << "-Dtests.index=${buildDir}/index"
+  jvmArgs '-XX:+UnlockDiagnosticVMOptions'
+  jvmArgs '-XX:CompileCommand=print org.elasticsearch.common.io.stream.BufferedStreamOutput::*'
+  jvmArgs '-XX:PrintAssemblyOptions=intel'
   dependsOn "copyExpression", "copyPainless", configurations.nativeLib
   systemProperty 'es.nativelibs.path', TestUtil.getTestLibraryPath(file("../libs/native/libraries/build/platform/").toString())
 }
