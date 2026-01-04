@@ -103,8 +103,7 @@ public class BufferedStreamOutputTests extends ESTestCase {
                 return s -> s.writeGenericString(value);
             });
 
-            final var targetSize = PageCacheRecycler.PAGE_SIZE_IN_BYTES + 1;
-
+            final var targetSize = between(0, PageCacheRecycler.PAGE_SIZE_IN_BYTES * 2);
             while (actualStream.size() < targetSize) {
                 var writer = randomFrom(writers).get();
                 writer.accept(bufferedStream);
