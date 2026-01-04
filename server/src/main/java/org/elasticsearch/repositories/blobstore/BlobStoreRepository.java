@@ -67,7 +67,6 @@ import org.elasticsearch.common.compress.NotXContentException;
 import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.common.io.stream.BufferedStreamOutput;
 import org.elasticsearch.common.io.stream.InputStreamStreamInput;
-import org.elasticsearch.common.io.stream.OutputStreamStreamOutput;
 import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -1733,7 +1732,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 shardDeleteResults::size,
                 maxHeapSizeForSnapshotDeletion
             );
-            this.compressed = new BufferedStreamOutput(this.truncatedShardDeleteResultsOutputStream);
+            final var buffer = bigArrays.bytesRefRecycler().obtain();
+            resources.add(buffer);
+            this.compressed = new BufferedStreamOutput(this.truncatedShardDeleteResultsOutputStream, buffer.v());
             resources.add(compressed);
             resources.add(LeakTracker.wrap(shardDeleteResults));
         }

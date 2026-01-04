@@ -8,6 +8,7 @@ package org.elasticsearch.xpack.core.security.authc;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.BufferedStreamOutput;
@@ -629,7 +630,7 @@ public final class Authentication implements ToXContentObject {
     }
 
     // something of a hack, it would be better to use a properly-recycled buffer here, but there's no easy way to access the recycler
-    private static final ThreadLocal<byte[]> threadLocalEncodingBuffer = ThreadLocal.withInitial(() -> new byte[1024]);
+    private static final ThreadLocal<BytesRef> threadLocalEncodingBuffer = ThreadLocal.withInitial(() -> new BytesRef(1024));
 
     // Package private for testing
     static String doEncode(Subject effectiveSubject, Subject authenticatingSubject, AuthenticationType type) throws IOException {

@@ -9,6 +9,7 @@
 
 package org.elasticsearch.common.compress;
 
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.BufferedStreamOutput;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
@@ -198,7 +199,7 @@ public class DeflateCompressor implements Compressor {
                 }
             }
         };
-        return new BufferedStreamOutput(deflaterOutputStream, new byte[BUFFER_SIZE]);
+        return new BufferedStreamOutput(deflaterOutputStream, new BytesRef(BUFFER_SIZE));
     }
 
     private static final ThreadLocal<BytesStreamOutput> baos = ThreadLocal.withInitial(BytesStreamOutput::new);

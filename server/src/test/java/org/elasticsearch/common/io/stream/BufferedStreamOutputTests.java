@@ -9,6 +9,8 @@
 
 package org.elasticsearch.common.io.stream;
 
+import org.apache.lucene.util.ArrayUtil;
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.test.ESTestCase;
@@ -26,8 +28,11 @@ public class BufferedStreamOutputTests extends ESTestCase {
 
     public void testRandomWrites() throws IOException {
         final var permitPartialWrites = new AtomicBoolean();
-        final var callerBuffer = randomBoolean() ? null : new byte[between(KB.toIntBytes(1), KB.toIntBytes(4))];
-        final var bufferLen = callerBuffer == null ? KB.toIntBytes(1) : callerBuffer.length;
+        final var bufferPool = randomByteArrayOfLength(between(KB.toIntBytes(1), KB.toIntBytes(4)));
+        final var bufferStart = between(0, bufferPool.length - KB.toIntBytes(1));
+        final var bufferLen = between(KB.toIntBytes(1), bufferPool.length - bufferStart);
+        final var callerBuffer = new BytesRef(bufferPool, bufferStart, bufferLen);
+        final var bufferPoolCopy = ArrayUtil.copyArray(bufferPool);
 
         try (
             var expectedStream = new RecyclerBytesStreamOutput(NON_RECYCLING_INSTANCE);
@@ -43,9 +48,7 @@ public class BufferedStreamOutputTests extends ESTestCase {
                     super.write(b, off, len);
                 }
             };
-            var bufferedStream = callerBuffer == null
-                ? new BufferedStreamOutput(actualStream)
-                : new BufferedStreamOutput(actualStream, callerBuffer)
+            var bufferedStream = new BufferedStreamOutput(actualStream, callerBuffer)
         ) {
             final var writers = List.<Supplier<CheckedConsumer<StreamOutput, IOException>>>of(() -> {
                 final var b = randomByte();
@@ -106,6 +109,8 @@ public class BufferedStreamOutputTests extends ESTestCase {
             bufferedStream.flush();
             assertThat(actualStream.bytes(), equalBytes(expectedStream.bytes()));
         }
-    }
 
+        System.arraycopy(bufferPool, bufferStart, bufferPoolCopy, bufferStart, bufferLen);
+        assertArrayEquals(bufferPool, bufferPoolCopy);
+    }
 }

@@ -10,11 +10,8 @@
 package org.elasticsearch.common.io.stream;
 
 import org.apache.lucene.util.BitUtil;
-import org.elasticsearch.common.bytes.BytesReference;
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.unit.ByteSizeUnit;
-import org.elasticsearch.common.util.AbstractBigArray;
-import org.elasticsearch.common.util.BigArrays;
-import org.elasticsearch.common.util.ByteArray;
 import org.elasticsearch.common.util.ByteUtils;
 
 import java.io.IOException;
@@ -26,7 +23,7 @@ import java.util.Objects;
  * Adapts a raw {@link OutputStream} into a rich {@link StreamOutput} for use with {@link Writeable} instances, using a buffer.
  * <p>
  * Similar to {@link OutputStreamStreamOutput} in function, but with different performance characteristics because it requires a buffer to
- * be acquired or allocated up-front. Ignoring the costs of the buffer creation & release a {@link BufferedStreamOutput} is likely more
+ * be acquired or allocated up-front. Ignoring the costs of the buffer creation &amp; release a {@link BufferedStreamOutput} is likely more
  * performant than an {@link OutputStreamStreamOutput} because it writes all fields directly to its local buffer and only copies data to the
  * underlying stream when the buffer fills up.
  */
@@ -36,22 +33,20 @@ public class BufferedStreamOutput extends StreamOutput {
 
     private final OutputStream delegate;
     private final byte[] buffer;
+    private final int startPosition;
+    private final int endPosition;
     private int position;
 
     /**
-     * Wrap the given stream, using a freshly-allocated buffer with a size of {@code 1kiB}.
+     * Wrap the given stream, using the given {@link BytesRef} for the buffer. It is the caller's responsibility to make sure that nothing
+     * else uses this buffer while this object is active. The buffer's length must be at least {@code 1kiB}.
      */
-    public BufferedStreamOutput(OutputStream delegate) {
-        this(delegate, new byte[DEFAULT_BUFFER_SIZE]);
-    }
-
-    /**
-     * Wrap the given stream, using the given {@code byte[]} for the buffer. It is the caller's responsibility to make sure that nothing
-     * else uses this buffer while this object is active. The buffer must be at least {@code 1kiB}.
-     */
-    public BufferedStreamOutput(OutputStream delegate, byte[] buffer) {
+    public BufferedStreamOutput(OutputStream delegate, BytesRef buffer) {
         this.delegate = Objects.requireNonNull(delegate);
-        this.buffer = Objects.requireNonNull(buffer);
+        this.buffer = buffer.bytes;
+        this.startPosition = buffer.offset;
+        this.endPosition = buffer.offset + buffer.length;
+        this.position = startPosition;
         assert buffer.length >= DEFAULT_BUFFER_SIZE : buffer.length + " is too short";
     }
 
