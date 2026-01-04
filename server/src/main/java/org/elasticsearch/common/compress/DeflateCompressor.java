@@ -199,7 +199,7 @@ public class DeflateCompressor implements Compressor {
                 }
             }
         };
-        return new BufferedStreamOutput(deflaterOutputStream, new BytesRef(BUFFER_SIZE));
+        return new BufferedStreamOutput(deflaterOutputStream, new BytesRef(new byte[BUFFER_SIZE], 0, BUFFER_SIZE));
     }
 
     private static final ThreadLocal<BytesStreamOutput> baos = ThreadLocal.withInitial(BytesStreamOutput::new);

@@ -80,14 +80,14 @@ public class BufferedStreamOutput extends StreamOutput {
     }
 
     private int capacity() {
-        return buffer.length - position;
+        return endPosition - position;
     }
 
     @Override
     public void flush() throws IOException {
-        if (0 < position) {
-            delegate.write(buffer, 0, position);
-            position = 0;
+        if (startPosition < position) {
+            delegate.write(buffer, startPosition, position - startPosition);
+            position = startPosition;
         }
         delegate.flush();
         assert assertTrashBuffer(); // ensure nobody else cares about the buffer contents by trashing its contents if assertions enabled
@@ -95,7 +95,7 @@ public class BufferedStreamOutput extends StreamOutput {
 
     private boolean assertTrashBuffer() {
         // sequence of 0xa5 == 0b10100101 is not valid as a bool/vInt/vLong/... and unlikely to arise otherwise so might aid debugging
-        Arrays.fill(buffer, (byte) 0xa5);
+        Arrays.fill(buffer, startPosition, endPosition, (byte) 0xa5);
         return true;
     }
 
