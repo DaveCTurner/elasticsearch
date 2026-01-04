@@ -12,10 +12,12 @@ package org.elasticsearch.common.io.stream;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.util.PageCacheRecycler;
+import org.elasticsearch.core.Assertions;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.test.ESTestCase;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
@@ -26,19 +28,13 @@ import static org.elasticsearch.transport.BytesRefRecycler.NON_RECYCLING_INSTANC
 
 public class BufferedStreamOutputTests extends ESTestCase {
 
-    public void testALot() throws IOException {
-        for (int i = 0; i < 100; i++) {
-            testRandomWrites();
-        }
-    }
-
     public void testRandomWrites() throws IOException {
         final var permitPartialWrites = new AtomicBoolean();
         final var bufferPool = randomByteArrayOfLength(between(KB.toIntBytes(1), KB.toIntBytes(4)));
         final var bufferStart = between(0, bufferPool.length - KB.toIntBytes(1));
         final var bufferLen = between(1, bufferPool.length - bufferStart);
-        final var callerBuffer = new BytesRef(bufferPool, bufferStart, bufferLen);
-        final var bufferPoolCopy = ArrayUtil.copyArray(bufferPool);
+        final var buffer = new BytesRef(bufferPool, bufferStart, bufferLen);
+        final var bufferPoolCopy = ArrayUtil.copyArray(bufferPool); // kept so we can check no out-of-bounds writes
 
         try (
             var expectedStream = new RecyclerBytesStreamOutput(NON_RECYCLING_INSTANCE);
@@ -54,7 +50,7 @@ public class BufferedStreamOutputTests extends ESTestCase {
                     super.write(b, off, len);
                 }
             };
-            var bufferedStream = new BufferedStreamOutput(actualStream, callerBuffer)
+            var bufferedStream = new BufferedStreamOutput(actualStream, buffer)
         ) {
             final var writers = List.<Supplier<CheckedConsumer<StreamOutput, IOException>>>of(() -> {
                 final var b = randomByte();
@@ -115,6 +111,12 @@ public class BufferedStreamOutputTests extends ESTestCase {
             permitPartialWrites.set(true);
             bufferedStream.flush();
             assertThat(actualStream.bytes(), equalBytes(expectedStream.bytes()));
+        }
+
+        if (Assertions.ENABLED) {
+            final var trashedArray = new byte[bufferLen];
+            Arrays.fill(trashedArray, (byte) 0xa5);
+            assertArrayEquals(trashedArray, ArrayUtil.copyOfSubArray(bufferPool, bufferStart, bufferStart + bufferLen));
         }
 
         System.arraycopy(bufferPool, bufferStart, bufferPoolCopy, bufferStart, bufferLen);
