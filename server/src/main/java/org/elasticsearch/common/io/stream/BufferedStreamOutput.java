@@ -41,7 +41,7 @@ public class BufferedStreamOutput extends StreamOutput {
      */
     public BufferedStreamOutput(OutputStream delegate, BytesRef buffer) {
         this.delegate = Objects.requireNonNull(delegate);
-        this.buffer = buffer.bytes;
+        this.buffer = Objects.requireNonNull(buffer.bytes);
         this.startPosition = buffer.offset;
         this.endPosition = buffer.offset + buffer.length;
         this.position = startPosition;
@@ -55,10 +55,13 @@ public class BufferedStreamOutput extends StreamOutput {
 
     @Override
     public void writeByte(byte b) throws IOException {
-        if (capacity() < 1) {
+        int position = this.position;
+        if (endPosition <= position) {
             flush();
+            position = startPosition;
         }
-        buffer[position++] = b;
+        buffer[position] = b;
+        this.position = position + 1;
     }
 
     @Override
