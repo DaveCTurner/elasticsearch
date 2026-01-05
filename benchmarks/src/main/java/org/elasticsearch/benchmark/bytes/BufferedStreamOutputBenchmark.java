@@ -60,6 +60,9 @@ public class BufferedStreamOutputBenchmark {
 
             @Override
             public void write(byte[] b, int off, int len) {}
+
+            @Override
+            public void flush() {}
         }, new BytesRef(new byte[1 << 20], random.nextInt(1 << 6), 1 << 14));
 
         bytes1 = new byte[327];
