@@ -92,7 +92,7 @@ public class RecyclerBytesStreamOutputBenchmark {
     }
 
     @Benchmark
-    public void writeByte() throws IOException {
+    public void writeSingleBytes() throws IOException {
         streamOutput.seek(1);
         for (byte item : bytes1) {
             streamOutput.writeByte(item);

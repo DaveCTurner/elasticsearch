@@ -100,7 +100,7 @@ public class BufferedStreamOutputBenchmark {
     }
 
     @Benchmark
-    public void writeByte() throws IOException {
+    public void writeSingleBytes() throws IOException {
         for (byte item : bytes1) {
             streamOutput.writeByte(item);
         }

@@ -89,13 +89,18 @@ public class BufferedStreamOutput extends StreamOutput {
 
     @Override
     public void flush() throws IOException {
-        if (startPosition < position) {
-            delegate.write(buffer, startPosition, position - startPosition);
-            flushedBytes += position - startPosition;
-            position = startPosition;
-        }
+        innerFlush();
         delegate.flush();
         assert assertTrashBuffer(); // ensure nobody else cares about the buffer contents by trashing its contents if assertions enabled
+    }
+
+    private void innerFlush() throws IOException {
+        int buffered = position - startPosition;
+        if (0 < buffered) {
+            delegate.write(buffer, startPosition, buffered);
+            flushedBytes += buffered;
+            position = startPosition;
+        }
     }
 
     private boolean assertTrashBuffer() {
