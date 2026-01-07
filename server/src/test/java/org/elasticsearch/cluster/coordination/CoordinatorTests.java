@@ -593,11 +593,16 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             AckCollector ackCollector = leader.submitValue(randomLong());
             cluster.runFor(DEFAULT_CLUSTER_STATE_UPDATE_DELAY, "committing value");
             assertTrue(leader.coordinator.getMode() != Coordinator.Mode.LEADER || leader.coordinator.getCurrentTerm() > startingTerm);
-            leader.setClusterStateApplyResponse(ClusterStateApplyResponse.SUCCEED);
-            cluster.stabilise();
+
             assertTrue("expected nack from " + leader, ackCollector.hasAckedUnsuccessfully(leader));
             assertTrue("expected ack from " + follower0, ackCollector.hasAckedSuccessfully(follower0));
             assertTrue("expected ack from " + follower1, ackCollector.hasAckedSuccessfully(follower1));
+
+            leader.setClusterStateApplyResponse(ClusterStateApplyResponse.SUCCEED);
+            cluster.runFor(DEFAULT_STABILISATION_TIME, "allowing new leader election");
+            cluster.getAnyLeader().submitValue(randomLong()); // old leader acks this value allowing cluster to stabilise
+            cluster.stabilise(DEFAULT_CLUSTER_STATE_UPDATE_DELAY);
+
             assertTrue(leader.coordinator.getMode() != Coordinator.Mode.LEADER || leader.coordinator.getCurrentTerm() > startingTerm);
         }
     }
