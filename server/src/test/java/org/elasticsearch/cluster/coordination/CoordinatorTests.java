@@ -575,7 +575,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             assertThat("leader should be last to ack", ackCollector.getSuccessfulAckIndex(leader), equalTo(1));
 
             follower0.setClusterStateApplyResponse(ClusterStateApplyResponse.SUCCEED);
-            leader.submitValue(randomLong()); // follower applies next value allowing cluster to stabilise
+            leader.submitValue(randomLong()); // follower0 acks next value allowing cluster to stabilise
         }
     }
 
