@@ -1801,7 +1801,18 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             + "org.elasticsearch.cluster.coordination.Coordinator.CoordinatorPublication:INFO"
     )
     public void testLogsMessagesIfPublicationDelayed() {
-        try (Cluster cluster = new Cluster(between(3, 5))) {
+        try (
+            Cluster cluster = new Cluster(
+                between(3, 5),
+                true,
+                Settings.builder()
+                    .put(
+                        LagDetector.CLUSTER_FOLLOWER_LAG_TIMEOUT_SETTING.getKey(),
+                        TimeValue.timeValueMillis(defaultMillis(LagDetector.CLUSTER_FOLLOWER_LAG_TIMEOUT_SETTING))
+                    )
+                    .build()
+            )
+        ) {
             cluster.runRandomly();
             cluster.stabilise();
             final ClusterNode brokenNode = cluster.getAnyNodeExcept(cluster.getAnyLeader());
