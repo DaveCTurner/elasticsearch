@@ -1893,12 +1893,11 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
                 );
                 cluster.getAnyLeader().submitValue(randomLong());
                 cluster.runFor(
-                    defaultMillis(PUBLISH_TIMEOUT_SETTING) + 2 * DEFAULT_DELAY_VARIABILITY + defaultMillis(
-                        LagDetector.CLUSTER_FOLLOWER_LAG_TIMEOUT_SETTING
-                    ) + DEFAULT_DELAY_VARIABILITY + 2 * DEFAULT_DELAY_VARIABILITY,
+                    DEFAULT_CLUSTER_STATE_UPDATE_DELAY + defaultMillis(PUBLISH_TIMEOUT_SETTING) + 2 * DEFAULT_DELAY_VARIABILITY
+                        + defaultMillis(LagDetector.CLUSTER_FOLLOWER_LAG_TIMEOUT_SETTING) + DEFAULT_DELAY_VARIABILITY + 2
+                            * DEFAULT_DELAY_VARIABILITY,
                     "waiting for messages to be emitted"
                 );
-
                 mockLog.assertAllExpectationsMatched();
             }
         }
