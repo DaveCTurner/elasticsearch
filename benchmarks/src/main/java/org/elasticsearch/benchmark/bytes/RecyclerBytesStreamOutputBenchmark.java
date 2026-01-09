@@ -25,9 +25,10 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Warmup(iterations = 3)
 @Measurement(iterations = 3)
@@ -37,7 +38,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Fork(value = 1)
 public class RecyclerBytesStreamOutputBenchmark {
 
-    private final AtomicReference<BytesRef> bytesRef = new AtomicReference<>(new BytesRef(new byte[16384], 0, 16384));
+    private final ArrayDeque<BytesRef> bytesRefs = new ArrayDeque<>();
 
     private RecyclerBytesStreamOutput streamOutput;
     private String shortString;
@@ -52,7 +53,10 @@ public class RecyclerBytesStreamOutputBenchmark {
 
     @Setup
     public void initResults() throws IOException {
-        streamOutput = new RecyclerBytesStreamOutput(new BenchmarkRecycler(bytesRef));
+        while (bytesRefs.size() < 5) {
+            bytesRefs.push(new BytesRef(new byte[16384], 0, 16384));
+        }
+        streamOutput = new RecyclerBytesStreamOutput(new BenchmarkRecycler(bytesRefs));
         ThreadLocalRandom random = ThreadLocalRandom.current();
 
         bytes1 = new byte[327];
@@ -145,36 +149,26 @@ public class RecyclerBytesStreamOutputBenchmark {
         }
     }
 
-    private record BenchmarkRecycler(AtomicReference<BytesRef> bytesRef) implements Recycler<BytesRef> {
+    private record BenchmarkRecycler(ArrayDeque<BytesRef> bytesRefs) implements Recycler<BytesRef> {
 
         @Override
         public V<BytesRef> obtain() {
-            BytesRef recycledBytesRef = bytesRef.getAndSet(null);
-            final BytesRef localBytesRef;
-            final boolean recycled;
-            if (recycledBytesRef != null) {
-                recycled = true;
-                localBytesRef = recycledBytesRef;
-            } else {
-                recycled = false;
-                localBytesRef = new BytesRef(new byte[16384], 0, 16384);
-            }
             return new V<>() {
+                final BytesRef bytesRef = Objects.requireNonNull(bytesRefs.pollFirst(), "ran out of buffers");
+
                 @Override
                 public BytesRef v() {
-                    return localBytesRef;
+                    return bytesRef;
                 }
 
                 @Override
                 public boolean isRecycled() {
-                    return recycled;
+                    throw new AssertionError("not called");
                 }
 
                 @Override
                 public void close() {
-                    if (recycled) {
-                        bytesRef.set(localBytesRef);
-                    }
+                    bytesRefs.push(bytesRef);
                 }
             };
         }
