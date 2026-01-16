@@ -98,7 +98,7 @@ final class SnapshotDeletionStartBatcher {
         this.deletionStarter = deletionStarter;
         this.queueName = "snapshot-deletion-start" + ProjectRepo.projectRepoString(projectId, repositoryName);
         this.snapshotDeletionBatchTaskQueue = clusterService.createTaskQueue(queueName, Priority.NORMAL, new Executor());
-        snapshotExecutor = threadPool.executor(ThreadPool.Names.SNAPSHOT);
+        this.snapshotExecutor = threadPool.executor(ThreadPool.Names.SNAPSHOT);
     }
 
     /**
