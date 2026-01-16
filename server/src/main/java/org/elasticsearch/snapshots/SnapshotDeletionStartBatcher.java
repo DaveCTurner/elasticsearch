@@ -453,6 +453,7 @@ final class SnapshotDeletionStartBatcher {
         final SnapshotDeletionsItem[] batch;
         final RepositoryMetadata repositoryMetadata;
         final RepositoryData repositoryData;
+        // TODO could we discard the repositoryData eagerly if repositoryMetadata changes to release that memory sooner?
 
         Batch(SnapshotDeletionsItem[] batch, RepositoryMetadata repositoryMetadata, RepositoryData repositoryData) {
             this.batch = batch;
