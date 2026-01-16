@@ -64,7 +64,6 @@ import static org.elasticsearch.repositories.ProjectRepo.projectRepoString;
  * Cannot just use a {@link MasterServiceTaskQueue} directly because it needs the latest {@link RepositoryData} to compute the cluster state
  * update, so this value must be included in the {@link ClusterStateTaskExecutor.BatchExecutionContext}, and the tasks must all be retried
  * if the {@link RepositoryData} changes before the batch executes.
- *
  */
 final class SnapshotDeletionStartBatcher {
 
@@ -491,6 +490,13 @@ final class SnapshotDeletionStartBatcher {
                 taskContext.success(SnapshotDeletionStartBatcher.this::runQueueProcessor);
                 return initialState;
             }
+            // NB it is ok if we're in the middle of a RepositoryData update (i.e. the pending and safe generations are unequal) because
+            // this update will either be finalizing the creation of a snapshot or the deletion of some collection of snapshots. If this
+            // batch requests to delete a snapshot whose creation that is being finalized then this snapshot will be added to the deletion
+            // queue, requiring the finalization to complete before the deletion starts. On the other hand if it requests to delete a
+            // snapshot whose deletion is already being finalized then the listener will be subscribed to that deletion and need not be
+            // added to the cluster state (see SnapshotDeletionsItem#startedDeletionUuid).
+            // TODO does this mean that here it's enough to check the safe generation?
 
             final var batchCompletionHandler = new BatchCompletionHandler(initialState, task.repositoryData, task.batch);
             taskContext.success(batchCompletionHandler);
