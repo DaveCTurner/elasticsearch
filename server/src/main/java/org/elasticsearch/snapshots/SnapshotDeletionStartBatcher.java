@@ -60,6 +60,11 @@ import static org.elasticsearch.repositories.ProjectRepo.projectRepoString;
 
 /**
  * Looks after batching-up the start of a collection of snapshot deletions in a single repository.
+ * <p>
+ * Cannot just use a {@link MasterServiceTaskQueue} directly because it needs the latest {@link RepositoryData} to compute the cluster state
+ * update, so this value must be included in the {@link ClusterStateTaskExecutor.BatchExecutionContext}, and the tasks must all be retried
+ * if the {@link RepositoryData} changes before the batch executes.
+ *
  */
 final class SnapshotDeletionStartBatcher {
 
