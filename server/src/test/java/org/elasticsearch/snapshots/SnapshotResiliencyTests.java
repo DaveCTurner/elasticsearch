@@ -11,6 +11,7 @@ package org.elasticsearch.snapshots;
 
 import org.apache.logging.log4j.Level;
 import org.apache.lucene.util.SetOnce;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
@@ -2005,7 +2006,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
     private void stabilize() {
         final long endTime = deterministicTaskQueue.getCurrentTimeMillis() + AbstractCoordinatorTestCase.DEFAULT_STABILISATION_TIME;
-        logger.info("--> stabilising: running until [{}]", endTime);
+        logger.atInfo().withThrowable(new ElasticsearchException("stack trace")).log("--> stabilising: running until [{}]", endTime);
         while (deterministicTaskQueue.getCurrentTimeMillis() < endTime) {
             deterministicTaskQueue.advanceTime();
             deterministicTaskQueue.runAllRunnableTasks();
