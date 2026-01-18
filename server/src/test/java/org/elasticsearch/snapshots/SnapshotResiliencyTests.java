@@ -270,6 +270,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
     @After
     public void verifyReposThenStopServices() throws ExecutionException {
         try {
+            logger.info("--> verifyReposThenStopServices: cleaning up after test");
+
             clearDisruptionsAndAwaitSync();
 
             final SubscribableListener<CleanupRepositoryResponse> cleanupResponse = new SubscribableListener<>();
