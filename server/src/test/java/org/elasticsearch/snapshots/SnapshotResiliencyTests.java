@@ -2043,6 +2043,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
             return false;
         }, TimeUnit.MINUTES.toMillis(1L));
+
+        logger.info("--> at [{}] stabilisation complete", deterministicTaskQueue.getCurrentTimeMillis());
     }
 
     private void runUntil(Supplier<Boolean> fulfilled, long timeout) {
