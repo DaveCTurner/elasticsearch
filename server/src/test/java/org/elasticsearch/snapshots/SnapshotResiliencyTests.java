@@ -472,6 +472,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
             return snapshotsInProgress != null && snapshotsInProgress.isEmpty();
         }).orElse(false), TimeUnit.MINUTES.toMillis(1L));
 
+        logger.info("--> ran until no running snapshots, time now [{}]", deterministicTaskQueue.getCurrentTimeMillis());
+
         clearDisruptionsAndAwaitSync();
 
         final TestClusterNodes.TestClusterNode randomMaster = testClusterNodes.randomMasterNode()
@@ -2003,10 +2005,12 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
     private void stabilize() {
         final long endTime = deterministicTaskQueue.getCurrentTimeMillis() + AbstractCoordinatorTestCase.DEFAULT_STABILISATION_TIME;
+        logger.info("--> stabilising: running until [{}]", endTime);
         while (deterministicTaskQueue.getCurrentTimeMillis() < endTime) {
             deterministicTaskQueue.advanceTime();
             deterministicTaskQueue.runAllRunnableTasks();
         }
+        logger.info("--> stabilising: waiting for cluster state stability");
         runUntil(() -> {
             final Collection<ClusterState> clusterStates = testClusterNodes.nodes.values()
                 .stream()
@@ -2017,7 +2021,24 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 .collect(Collectors.toSet());
             final Set<Long> terms = clusterStates.stream().map(ClusterState::term).collect(Collectors.toSet());
             final List<Long> versions = clusterStates.stream().map(ClusterState::version).distinct().toList();
-            return versions.size() == 1 && masterNodeIds.size() == 1 && masterNodeIds.contains(null) == false && terms.size() == 1;
+            if (versions.size() == 1 && masterNodeIds.size() == 1 && masterNodeIds.contains(null) == false && terms.size() == 1) {
+                return true;
+            }
+
+            logger.info("--> at [{}] not stabilised yet, will retry", deterministicTaskQueue.getCurrentTimeMillis());
+            for (var testClusterNode : testClusterNodes.nodes.values()) {
+                final var state = testClusterNode.clusterService.state();
+                logger.info(
+                    "--> at [{}] node [{}] has state [term={},version={}] and master node ID [{}]",
+                    deterministicTaskQueue.getCurrentTimeMillis(),
+                    testClusterNode.node,
+                    state.term(),
+                    state.version(),
+                    state.nodes().getMasterNodeId()
+                );
+            }
+
+            return false;
         }, TimeUnit.MINUTES.toMillis(1L));
     }
 
@@ -2202,6 +2223,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
             if (disconnectedNodes.contains(node.node.getName())) {
                 return;
             }
+            logger.info("--> disconnect node [{}]", node.node);
             testClusterNodes.nodes.values().forEach(n -> n.transportService.getConnectionManager().disconnectFromNode(node.node));
             disconnectedNodes.add(node.node.getName());
         }
@@ -2921,6 +2943,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
             }
 
             public void restart() {
+                logger.info("--> stopping for restart node [{}]", node);
                 testClusterNodes.disconnectNode(this);
                 final ClusterState oldState = this.clusterService.state();
                 stop();
@@ -2931,6 +2954,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                             DiscoveryNodeUtils.create(node.getName(), node.getId(), node.getAddress(), emptyMap(), node.getRoles()),
                             transportInterceptorFactory
                         );
+                        logger.info("--> restarting node [{}]", restartedNode.node);
                         nodes.put(node.getName(), restartedNode);
                         restartedNode.start(oldState);
                     } catch (IOException e) {
