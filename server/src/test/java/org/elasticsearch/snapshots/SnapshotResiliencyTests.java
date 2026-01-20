@@ -2248,13 +2248,10 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 if (testClusterNodes.nodes.containsKey(nodeName)) {
                     final DiscoveryNode node = testClusterNodes.nodes.get(nodeName).node;
                     testClusterNodes.nodes.values()
-                        .forEach(
-                            n -> n.transportService.openConnection(
-                                node,
-                                null,
-                                ActionTestUtils.assertNoFailureListener(c -> logger.debug("--> Connected [{}] to [{}]", n.node, node))
-                            )
-                        );
+                        .forEach(n -> n.transportService.openConnection(node, null, ActionTestUtils.assertNoFailureListener(c -> {
+                            logger.debug("--> Connected [{}] to [{}]", n.node, node);
+                            n.mockTransport.deliverBlackholedRequests();
+                        })));
                 }
             });
         }
