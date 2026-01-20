@@ -407,14 +407,14 @@ public class SnapshotResiliencyTests extends ESTestCase {
         return safeResult(listener);
     }
 
-    @TestLogging(
-        reason = "nocommit",
-        value = "org.elasticsearch.cluster.coordination:TRACE"
-            + ",org.elasticsearch.discovery:TRACE"
-            + ",org.elasticsearch.transport.DisruptableMockTransport:TRACE"
-            + ",org.elasticsearch.test.transport.MockTransport:TRACE"
-            + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
-    )
+    // @TestLogging(
+    // reason = "nocommit",
+    // value = "org.elasticsearch.cluster.coordination:TRACE"
+    // + ",org.elasticsearch.discovery:TRACE"
+    // + ",org.elasticsearch.transport.DisruptableMockTransport:TRACE"
+    // + ",org.elasticsearch.test.transport.MockTransport:TRACE"
+    // + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+    // )
     public void testSnapshotWithNodeDisconnects() {
         final int dataNodes = randomIntBetween(2, 10);
         final int masterNodes = randomFrom(1, 3, 5);
