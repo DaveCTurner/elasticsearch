@@ -411,6 +411,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
         reason = "nocommit",
         value = "org.elasticsearch.cluster.coordination:TRACE"
             + ",org.elasticsearch.discovery:TRACE"
+            + ",org.elasticsearch.transport.DisruptableMockTransport:TRACE"
+            + ",org.elasticsearch.test.transport.MockTransport:TRACE"
             + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
     )
     public void testSnapshotWithNodeDisconnects() {
