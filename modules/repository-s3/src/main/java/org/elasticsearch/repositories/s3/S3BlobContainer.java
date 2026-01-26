@@ -932,7 +932,7 @@ class S3BlobContainer extends AbstractBlobContainer {
                 // Step 3: Ensure all other uploads in currentUploads are complete (either successfully, aborted by us or by another upload)
 
                 .<Void>newForked(l -> abortOtherUploads(uploadId, uploadIndex, currentUploads, l))
-                .<Void>andThen(l -> ensureOtherUploadsComplete(uploadId, currentUploads, l))
+                // .<Void>andThen(l -> ensureOtherUploadsComplete(uploadId, currentUploads, l)) TODO NOCOMMIT
 
                 // Step 4: Read the current register value. Note that getRegister only has read-after-write semantics but that's ok here as:
                 // - all earlier uploads are now complete,
