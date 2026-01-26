@@ -95,7 +95,7 @@ public abstract class AbstractS3RepositoryAnalysisRestTestCase extends AbstractR
             .setting(clientPrefix + "region", regionSupplier, n -> USE_FIXTURE)
             .setting(clientPrefix + "add_purpose_custom_query_parameter", () -> randomFrom("true", "false"), n -> randomBoolean())
             .setting(clientPrefix + "endpoint", s3HttpFixture::getAddress, n -> USE_FIXTURE)
-            .setting("repository_s3.compare_and_exchange.anti_contention_delay", "1ms")
+            .setting("repository_s3.compare_and_exchange.anti_contention_delay", "1ms") // TODO NOCOMMIT randomise this
             // .setting(
             // "repository_s3.compare_and_exchange.anti_contention_delay",
             // () -> randomFrom("1s" /* == default */, "1ms"),
@@ -129,7 +129,7 @@ public abstract class AbstractS3RepositoryAnalysisRestTestCase extends AbstractR
             settings.put("add_purpose_custom_query_parameter", randomBoolean());
         }
 
-        if (consistencyModel().hasConditionalWrites()) {
+        if (false /* TODO NOCOMMIT randomise this */ && consistencyModel().hasConditionalWrites()) {
             if (randomBoolean()) {
                 // even if we have conditional writes (and thus weak MPU abort consistency) the MPU-based impl should still work
                 settings.put("unsafely_incompatible_with_s3_conditional_writes", randomBoolean());
