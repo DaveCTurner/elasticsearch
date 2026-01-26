@@ -1127,6 +1127,12 @@ class S3BlobContainer extends AbstractBlobContainer {
                 }
             }
 
+            if (otherUploadIds.isEmpty()) {
+                logger.trace("no uploads to await, proceeding with [{}]", uploadId);
+                listener.onResponse(null);
+                return;
+            }
+
             final var executor = threadPool.executor(ThreadPool.Names.SNAPSHOT);
             final var timeoutListener = new SubscribableListener<Void>();
             timeoutListener.addListener(listener);
@@ -1140,6 +1146,7 @@ class S3BlobContainer extends AbstractBlobContainer {
                 @Override
                 protected void doRun() {
                     if (timeoutListener.isDone()) {
+                        logger.trace("uploads {} still incomplete at timeout, failing [{}]", otherUploadIds, uploadId);
                         return;
                     }
 
@@ -1149,13 +1156,21 @@ class S3BlobContainer extends AbstractBlobContainer {
                         newUploadIds.add(newUpload.uploadId());
                     }
                     if (newUploadIds.contains(uploadId) == false) {
+                        logger.trace("upload [{}] not found in {}", uploadId, newUploadIds);
                         throw AwsServiceException.builder().statusCode(RestStatus.NOT_FOUND.getStatus()).build();
                     }
 
                     newUploadIds.retainAll(otherUploadIds);
                     if (newUploadIds.isEmpty()) {
+                        logger.trace("uploads {} all complete, proceeding with [{}]", otherUploadIds, uploadId);
                         timeoutListener.onResponse(null);
                     } else {
+                        logger.trace(
+                            "uploads {} from {} still in progress, retrying before completing [{}]",
+                            newUploadIds,
+                            otherUploadIds,
+                            uploadId
+                        );
                         threadPool.schedule(OtherUploadsWaiter.this, blobStore.getCompareAndExchangeAntiContentionDelay(), executor);
                     }
                 }
