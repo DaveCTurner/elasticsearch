@@ -142,10 +142,6 @@ public abstract class AbstractS3RepositoryAnalysisRestTestCase extends AbstractR
         return settings.build();
     }
 
-    private static Settings randomBooleanSetting(String settingKey) {
-        return randomFrom(Settings.EMPTY, Settings.builder().put(settingKey, randomBoolean()).build());
-    }
-
     @Override
     protected String repositoryType() {
         return "s3";
