@@ -1139,6 +1139,10 @@ class S3BlobContainer extends AbstractBlobContainer {
 
                 @Override
                 protected void doRun() {
+                    if (timeoutListener.isDone()) {
+                        return;
+                    }
+
                     final var newUploads = listMultipartUploads();
                     final var newUploadIds = Sets.<String>newHashSetWithExpectedSize(newUploads.size());
                     for (var newUpload : newUploads) {
