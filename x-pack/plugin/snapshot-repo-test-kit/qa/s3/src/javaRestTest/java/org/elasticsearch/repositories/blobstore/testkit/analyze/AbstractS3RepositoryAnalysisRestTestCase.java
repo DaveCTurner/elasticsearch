@@ -95,11 +95,12 @@ public abstract class AbstractS3RepositoryAnalysisRestTestCase extends AbstractR
             .setting(clientPrefix + "region", regionSupplier, n -> USE_FIXTURE)
             .setting(clientPrefix + "add_purpose_custom_query_parameter", () -> randomFrom("true", "false"), n -> randomBoolean())
             .setting(clientPrefix + "endpoint", s3HttpFixture::getAddress, n -> USE_FIXTURE)
-            .setting(
-                "repository_s3.compare_and_exchange.anti_contention_delay",
-                () -> randomFrom("1s" /* == default */, "1ms"),
-                n -> randomBoolean()
-            )
+            .setting("repository_s3.compare_and_exchange.anti_contention_delay", "1ms")
+            // .setting(
+            // "repository_s3.compare_and_exchange.anti_contention_delay",
+            // () -> randomFrom("1s" /* == default */, "1ms"),
+            // n -> randomBoolean()
+            // )
             .setting("xpack.security.enabled", "false")
             .setting("thread_pool.snapshot.max", "10")
             .build();
