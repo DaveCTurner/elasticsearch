@@ -77,10 +77,6 @@ public abstract class AbstractS3RepositoryAnalysisRestTestCase extends AbstractR
             assertTrue(request.toString(), request.hasQueryParamOnce("x-purpose"));
             assertEquals(request.toString(), "RepositoryAnalysis", request.getQueryParamOnce("x-purpose"));
         }
-
-        void reset() {
-            repoAnalysisStarted = false;
-        }
     }
 
     protected static final String CLIENT_NAME = "repo_test_kit";
