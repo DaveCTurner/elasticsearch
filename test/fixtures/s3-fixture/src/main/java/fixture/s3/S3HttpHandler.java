@@ -200,6 +200,7 @@ public class S3HttpHandler implements HttpHandler {
                 final byte[] responseBody;
                 final RestStatus responseCode;
                 try (var ignoredCompletingUploadRef = setUploadCompleting(uploadId)) {
+                    ESTestCase.safeSleep(10);
                     synchronized (uploads) {
                         final var upload = getUpload(request.getQueryParamOnce("uploadId"));
                         if (upload == null) {
