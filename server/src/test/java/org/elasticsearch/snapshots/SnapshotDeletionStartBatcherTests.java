@@ -23,6 +23,7 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.NotMasterException;
+import org.elasticsearch.cluster.RepositoryCleanupInProgress;
 import org.elasticsearch.cluster.RestoreInProgress;
 import org.elasticsearch.cluster.SnapshotDeletionsInProgress;
 import org.elasticsearch.cluster.SnapshotsInProgress;
@@ -1091,6 +1092,29 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
                 )
                 .build();
         });
+
+        final var deleteFuture = startDeletion("*");
+
+        deterministicTaskQueue.runAllTasksInTimeOrder();
+
+        assertTrue(deleteFuture.isSuccess());
+        assertTrue(snapshotEndNotifications.isEmpty());
+        assertTrue(snapshotAbortNotifications.isEmpty());
+        assertTrue(startedDeletions.isEmpty());
+        assertTrue(completionHandlers.isEmpty());
+    }
+
+    public void testPermitsNoOpDeleteWhileCleanupInProgress() {
+        updateClusterState(
+            currentState -> ClusterState.builder(currentState)
+                .putCustom(
+                    RepositoryCleanupInProgress.TYPE,
+                    new RepositoryCleanupInProgress(
+                        List.of(new RepositoryCleanupInProgress.Entry(ProjectId.DEFAULT, repoName, randomNonNegativeLong()))
+                    )
+                )
+                .build()
+        );
 
         final var deleteFuture = startDeletion("*");
 
