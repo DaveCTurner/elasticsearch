@@ -575,13 +575,15 @@ final class SnapshotDeletionStartBatcher {
 
             // Check for an existing STARTED deletion that's already going to delete all the target snapshots: in this case no cluster state
             // update is needed.
-            // NB copied over from the unbatched implementation, may now already be handled in resolveItemAndAddSnapshotIds?
             for (var entry : deletionsInProgress.getEntries()) {
                 if (entry.projectId().equals(projectId)
                     && entry.repository().equals(repositoryName)
                     && entry.state() == SnapshotDeletionsInProgress.State.STARTED) {
                     final var runningSnapshotIds = Set.copyOf(entry.snapshots());
                     if (runningSnapshotIds.containsAll(snapshotIds)) {
+                        // NB copied over from the unbatched implementation, may now already be handled in resolveItemAndAddSnapshotIds?
+                        assert false : "should be already handled"; // TODO remove all this if tests are reliably passing
+
                         // all target snapshots are already marked for deletion so any running ones must already be aborted
                         assert updatedSnapshots == snapshotsInProgress;
                         batchCompletionHandler.deletionUuid = entry.uuid();
@@ -604,6 +606,7 @@ final class SnapshotDeletionStartBatcher {
                     );
                     if (updatedSnapshots == snapshotsInProgress && updatedDeletionsInProgress == deletionsInProgress) {
                         // NB copied over from the unbatched implementation, may now already be handled in resolveItemAndAddSnapshotIds?
+                        assert false : "should be already handled"; // TODO remove this branch if tests are reliably passing
                         return initialState;
                     } else {
                         return SnapshotsServiceUtils.updateWithSnapshots(initialState, updatedSnapshots, updatedDeletionsInProgress);
