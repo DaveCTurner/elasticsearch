@@ -9,6 +9,7 @@
 
 package org.elasticsearch.snapshots;
 
+import org.apache.logging.log4j.Level;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.ActionListener;
@@ -46,6 +47,7 @@ import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.ProjectScopedSettings;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
@@ -76,6 +78,7 @@ import org.elasticsearch.telemetry.metric.LongWithAttributes;
 import org.elasticsearch.telemetry.metric.MeterRegistry;
 import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.test.MockLog;
 import org.elasticsearch.test.index.IndexVersionUtils;
 import org.junit.Before;
 
@@ -1338,6 +1341,45 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
 
         assertTrue(deletionFuture.isDone());
         safeAwait(deletionFuture);
+    }
+
+    public void testLogging() {
+        final var veryLongSnapshotName = "a-very-long-string-of-characters-to-ensure-that-the-log-message-is-truncated";
+        final var snapshot = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(veryLongSnapshotName, randomUUID()));
+        addCompleteSnapshot(snapshot);
+
+        final var iterations =
+            // enough tasks to get to just under the 4kiB limit
+            ByteSizeUnit.KB.toIntBytes(4) / (veryLongSnapshotName.length() + 2)
+                // the first task runs unbatched
+                + 1
+                // the log messages overflows by at most a single item
+                + 1
+                // an item to omit
+                + 1;
+
+        for (int i = 0; i < iterations; i++) {
+            startDeletion(veryLongSnapshotName);
+        }
+
+        MockLog.assertThatLogger(
+            deterministicTaskQueue::runAllTasksInTimeOrder,
+            SnapshotDeletionStartBatcher.class,
+            new MockLog.SeenEventExpectation(
+                "singleton message",
+                SnapshotDeletionStartBatcher.class.getCanonicalName(),
+                Level.INFO,
+                "deleting snapshots [a-very-long-string-of-characters-to-ensure-that-the-log-message-is-truncated] from repository [default/"
+                    + repoName
+                    + "]"
+            ),
+            new MockLog.SeenEventExpectation(
+                "truncated message",
+                SnapshotDeletionStartBatcher.class.getCanonicalName(),
+                Level.INFO,
+                "deleting snapshots [*, ... (" + (iterations - 1) + " in total, 1 omitted)] from repository [default/" + repoName + "]"
+            )
+        );
     }
 
 }

@@ -29,6 +29,7 @@ import org.elasticsearch.cluster.service.MasterServiceTaskQueue;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.regex.Regex;
+import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -715,6 +716,11 @@ final class SnapshotDeletionStartBatcher {
         // Constructs the log message
         private final StringBuilder finalLogBuilder = new StringBuilder("deleting snapshots [");
         private boolean finalLogBuilderStarted;
+        private final Strings.BoundedDelimitedStringCollector finalLogCollector = new Strings.BoundedDelimitedStringCollector(
+            finalLogBuilder,
+            ", ",
+            ByteSizeUnit.KB.toIntBytes(4)
+        );
 
         // A deletion that's ready to start processing straight away.
         @Nullable
@@ -736,6 +742,7 @@ final class SnapshotDeletionStartBatcher {
         @Override
         public void run() {
             if (finalLogBuilderStarted) {
+                finalLogCollector.finish();
                 finalLogBuilder.append("] from repository ").append(projectRepoString(projectId, repositoryName));
                 logger.info(finalLogBuilder::toString);
             }
@@ -764,12 +771,14 @@ final class SnapshotDeletionStartBatcher {
         }
 
         void appendToFinalLog(String[] snapshots) {
-            if (finalLogBuilderStarted) {
-                finalLogBuilder.append(", ");
-            } else {
-                finalLogBuilderStarted = true;
+            if (snapshots.length == 0) {
+                return;
             }
-            Strings.arrayToDelimitedString(snapshots, ", ", finalLogBuilder);
+
+            finalLogBuilderStarted = true;
+            for (var snapshot : snapshots) {
+                finalLogCollector.appendItem(snapshot);
+            }
         }
     }
 
