@@ -1369,9 +1369,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
                 "singleton message",
                 SnapshotDeletionStartBatcher.class.getCanonicalName(),
                 Level.INFO,
-                "deleting snapshots [a-very-long-string-of-characters-to-ensure-that-the-log-message-is-truncated] from repository [default/"
-                    + repoName
-                    + "]"
+                Strings.format("deleting snapshots [%s] from repository [default/%s]", veryLongSnapshotName, repoName)
             ),
             new MockLog.SeenEventExpectation(
                 "truncated message",
