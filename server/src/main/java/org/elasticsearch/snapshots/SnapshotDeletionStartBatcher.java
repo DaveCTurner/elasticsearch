@@ -754,6 +754,9 @@ final class SnapshotDeletionStartBatcher {
                 notifyAbortedByDeletion.accept(snapshot);
             }
 
+            assert abortedAndNeedingFinalization.isEmpty() || entryToStart == null
+                : "unexpectedly completed " + abortedAndNeedingFinalization + " while starting " + entryToStart;
+
             for (var entry : abortedAndNeedingFinalization) {
                 snapshotEnder.endSnapshot(entry, metadata, repositoryData);
             }
