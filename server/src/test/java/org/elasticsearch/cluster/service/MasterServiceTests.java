@@ -94,6 +94,7 @@ import java.util.stream.Collectors;
 import static java.util.Collections.emptySet;
 import static org.elasticsearch.action.support.ActionTestUtils.assertNoSuccessListener;
 import static org.elasticsearch.cluster.service.MasterService.MAX_TASK_DESCRIPTION_CHARS;
+import static org.elasticsearch.cluster.service.MasterService.isInfiniteTaskTimeout;
 import static org.elasticsearch.cluster.service.MasterService.maybeLimitMasterNodeTimeout;
 import static org.elasticsearch.cluster.service.MasterService.priorityNonemptyTimeMetricName;
 import static org.elasticsearch.telemetry.RecordingMeterRegistry.measures;
@@ -2947,5 +2948,13 @@ public class MasterServiceTests extends ESTestCase {
         // returns the smaller one when both specified
         assertSame(TimeValue.ONE_MINUTE, maybeLimitMasterNodeTimeout(TimeValue.ONE_HOUR, TimeValue.ONE_MINUTE));
         assertSame(TimeValue.THIRTY_SECONDS, maybeLimitMasterNodeTimeout(TimeValue.THIRTY_SECONDS, TimeValue.ONE_MINUTE));
+    }
+
+    public void testIsInfiniteTaskTimeout() {
+        assertTrue(isInfiniteTaskTimeout(null));
+        assertTrue(isInfiniteTaskTimeout(TimeValue.MINUS_ONE));
+        assertTrue(isInfiniteTaskTimeout(TimeValue.ZERO));
+        assertFalse(isInfiniteTaskTimeout(TimeValue.timeValueMillis(1)));
+        assertFalse(isInfiniteTaskTimeout(randomTimeValue(1, 100)));
     }
 }

@@ -24,6 +24,7 @@ import org.elasticsearch.cluster.metadata.ProjectId;
 import org.elasticsearch.cluster.metadata.RepositoriesMetadata;
 import org.elasticsearch.cluster.metadata.RepositoryMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.cluster.service.MasterServiceTaskQueue;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.Strings;
@@ -204,7 +205,7 @@ final class SnapshotDeletionStartBatcher {
         final RefCounted timeoutRefs;
         final SubscribableListener<Void> wrappedListener = new SubscribableListener<>();
         wrappedListener.addListener(listener, EsExecutors.DIRECT_EXECUTOR_SERVICE, threadPool.getThreadContext());
-        if (timeout.millis() < 0) {
+        if (MasterService.isInfiniteTaskTimeout(timeout)) {
             timeoutRefs = RefCounted.ALWAYS_REFERENCED;
         } else {
             timeoutRefs = AbstractRefCounted.of(

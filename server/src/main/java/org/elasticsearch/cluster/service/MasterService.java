@@ -1723,6 +1723,13 @@ public class MasterService extends AbstractLifecycleComponent {
     }
 
     /**
+     * @return whether the given {@link TimeValue} represents a task that should never time out.
+     */
+    public static boolean isInfiniteTaskTimeout(@Nullable TimeValue timeValue) {
+        return timeValue == null || timeValue.millis() <= 0;
+    }
+
+    /**
      * Actual implementation of {@link MasterServiceTaskQueue} exposed to clients. Conceptually, each entry in each {@link PerPriorityQueue}
      * is a {@link BatchingTaskQueue} representing a batch of tasks to be executed. Clients may add more tasks to each of these queues prior
      * to their execution.
@@ -1769,7 +1776,9 @@ public class MasterService extends AbstractLifecycleComponent {
         public void submitTask(String source, T task, @Nullable TimeValue timeout) {
             final var taskHolder = new AtomicReference<>(task);
             final Scheduler.Cancellable timeoutCancellable;
-            if (timeout != null && timeout.millis() > 0) {
+            if (isInfiniteTaskTimeout(timeout)) {
+                timeoutCancellable = null;
+            } else {
                 try {
                     timeoutCancellable = threadPool.schedule(
                         new TaskTimeoutHandler<>(timeout, source, taskHolder),
@@ -1783,8 +1792,6 @@ public class MasterService extends AbstractLifecycleComponent {
                     );
                     return;
                 }
-            } else {
-                timeoutCancellable = null;
             }
 
             queue.add(
