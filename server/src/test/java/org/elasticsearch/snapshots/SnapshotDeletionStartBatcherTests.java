@@ -1375,7 +1375,11 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
                 "truncated message",
                 SnapshotDeletionStartBatcher.class.getCanonicalName(),
                 Level.INFO,
-                "deleting snapshots [*, ... (" + (iterations - 1) + " in total, 1 omitted)] from repository [default/" + repoName + "]"
+                Strings.format(
+                    "deleting snapshots [*, ... (%d in total, 1 omitted)] from repository [default/%s]",
+                    iterations - 1,
+                    repoName
+                )
             )
         );
     }
