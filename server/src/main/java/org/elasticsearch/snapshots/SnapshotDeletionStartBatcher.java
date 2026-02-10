@@ -557,7 +557,9 @@ final class SnapshotDeletionStartBatcher {
             SnapshotsServiceUtils.ensureNotReadOnly(projectMetadata, repositoryName);
             SnapshotsServiceUtils.ensureNoCleanupInProgress(initialState, repositoryName, "<delete>", "delete snapshot");
 
-            // Snapshot ids that will have to be physically deleted from the repository
+            // Snapshot ids that will have to be physically deleted from the repository - either completed snapshots or running snapshots
+            // that have started to write to the repository and therefore need to be allowed to finalize first. Note that this will include
+            // snapshots whose deletion is already in progress (either WAITING or STARTED).
             final Set<SnapshotId> snapshotIdsRequiringCleanup = new HashSet<>(snapshotIds);
             final var updatedSnapshots = abortRunningSnapshots(
                 snapshotsInProgress,
@@ -606,8 +608,6 @@ final class SnapshotDeletionStartBatcher {
                         entry.withAddedSnapshots(snapshotIdsRequiringCleanup)
                     );
                     if (updatedSnapshots == snapshotsInProgress && updatedDeletionsInProgress == deletionsInProgress) {
-                        // NB copied over from the unbatched implementation, may now already be handled in resolveItemAndAddSnapshotIds?
-                        assert false : "should be already handled"; // TODO remove this branch if tests are reliably passing
                         return initialState;
                     } else {
                         return SnapshotsServiceUtils.updateWithSnapshots(initialState, updatedSnapshots, updatedDeletionsInProgress);

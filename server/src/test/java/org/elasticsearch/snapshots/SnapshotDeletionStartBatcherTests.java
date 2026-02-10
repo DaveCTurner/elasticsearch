@@ -1279,6 +1279,112 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
         assertTrue(snapshot1Deletion1.isSuccess());
     }
 
+    public void testSubscribesToAlreadyDeletingSnapshots() {
+        final var repoIndex = new IndexId(randomIndexName(), randomUUID());
+        final var shardId = new ShardId(new Index(repoIndex.getName(), randomUUID()), 0);
+        final var runningSnapshot = randomSnapshot("running-");
+        final var completedSnapshot = randomSnapshot("completed-");
+
+        addCompleteSnapshot(completedSnapshot);
+
+        setSnapshotsInProgress(
+            SnapshotsInProgress.startedEntry(
+                runningSnapshot,
+                randomBoolean(),
+                randomBoolean(),
+                Map.of(repoIndex.getName(), repoIndex),
+                List.of(),
+                randomNonNegativeLong(),
+                randomNonNegativeLong(),
+                Map.of(shardId, new SnapshotsInProgress.ShardSnapshotStatus(randomUUID(), ShardGeneration.newGeneration())),
+                Map.of(),
+                IndexVersionUtils.randomVersion(),
+                List.of()
+            )
+        );
+
+        updateClusterState(
+            currentState -> ClusterState.builder(currentState)
+                .putCustom(
+                    SnapshotDeletionsInProgress.TYPE,
+                    SnapshotDeletionsInProgress.of(
+                        List.of(
+                            new SnapshotDeletionsInProgress.Entry(
+                                randomUniqueProjectId(),
+                                repoName,
+                                List.of(randomSnapshot("other-project-").getSnapshotId()),
+                                randomNonNegativeLong(),
+                                randomNonNegativeLong(),
+                                WAITING
+                            ),
+                            new SnapshotDeletionsInProgress.Entry(
+                                ProjectId.DEFAULT,
+                                randomValueOtherThan(repoName, ESTestCase::randomRepoName),
+                                List.of(randomSnapshot("other-repo-").getSnapshotId()),
+                                randomNonNegativeLong(),
+                                randomNonNegativeLong(),
+                                WAITING
+                            )
+                        )
+                    )
+                )
+                .build()
+        );
+
+        final var deletion1Future = startDeletion(runningSnapshot.getSnapshotId().getName());
+        deterministicTaskQueue.runAllTasksInTimeOrder();
+        assertFalse(deletion1Future.isDone());
+
+        final var snapshotsInProgress = SnapshotsInProgress.get(clusterService.state());
+        assertEquals(1, snapshotsInProgress.count());
+        final var snapshotEntry = Objects.requireNonNull(snapshotsInProgress.snapshot(runningSnapshot));
+        assertEquals(ABORTED, snapshotEntry.state());
+
+        final var deletionsInProgress = SnapshotDeletionsInProgress.get(clusterService.state());
+        assertThat(deletionsInProgress.getEntries(), hasSize(3));
+        final var deletionEntry = deletionsInProgress.getEntries().getLast();
+        assertEquals(ProjectId.DEFAULT, deletionEntry.projectId());
+        assertEquals(repoName, deletionEntry.repoName());
+        assertEquals(WAITING, deletionEntry.state());
+
+        assertThat(completionHandlers.keySet(), equalTo(Set.of(deletionEntry.uuid())));
+        assertThat(Objects.requireNonNull(completionHandlers.get(deletionEntry.uuid())), hasSize(1));
+
+        final var deletion2Future = startDeletion(runningSnapshot.getSnapshotId().getName());
+        deterministicTaskQueue.runAllTasksInTimeOrder();
+        assertFalse(deletion2Future.isDone());
+
+        assertSame(snapshotsInProgress, SnapshotsInProgress.get(clusterService.state()));
+        assertSame(deletionsInProgress, SnapshotDeletionsInProgress.get(clusterService.state()));
+        assertThat(completionHandlers.keySet(), equalTo(Set.of(deletionEntry.uuid())));
+        assertThat(Objects.requireNonNull(completionHandlers.get(deletionEntry.uuid())), hasSize(2));
+
+        final var deletion3Future = startDeletion(completedSnapshot.getSnapshotId().getName());
+        deterministicTaskQueue.runAllTasksInTimeOrder();
+        assertFalse(deletion3Future.isDone());
+
+        assertSame(snapshotsInProgress, SnapshotsInProgress.get(clusterService.state()));
+        assertThat(completionHandlers.keySet(), equalTo(Set.of(deletionEntry.uuid())));
+        assertThat(Objects.requireNonNull(completionHandlers.get(deletionEntry.uuid())), hasSize(3));
+
+        final var deletionsInProgress2 = SnapshotDeletionsInProgress.get(clusterService.state());
+        assertThat(deletionsInProgress2.getEntries(), hasSize(3));
+        final var deletionEntry2 = deletionsInProgress2.getEntries().getLast();
+        assertEquals(ProjectId.DEFAULT, deletionEntry2.projectId());
+        assertEquals(repoName, deletionEntry2.repoName());
+        assertEquals(WAITING, deletionEntry2.state());
+        assertEquals(deletionEntry.uuid(), deletionEntry2.uuid());
+
+        assertTrue(startedDeletions.isEmpty());
+        assertTrue(snapshotEndNotifications.isEmpty());
+        assertTrue(snapshotAbortNotifications.isEmpty());
+
+        ActionListener.onResponse(completionHandlers.get(deletionEntry.uuid()), null);
+        assertTrue(deletion1Future.isSuccess());
+        assertTrue(deletion2Future.isSuccess());
+        assertTrue(deletion3Future.isSuccess());
+    }
+
     public void testRetryOnStaleRepositoryData() {
         final var snapshot = randomSnapshot();
 
