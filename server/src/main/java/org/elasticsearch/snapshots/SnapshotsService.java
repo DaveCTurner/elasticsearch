@@ -1545,6 +1545,8 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
 
     private void completeOrAddDeleteListener(@Nullable String deleteUUID, ActionListener<Void> listener) {
         if (deleteUUID == null) {
+            // if the deletion only aborted snapshots that had not started to write to the repository then no cleanup is required, these
+            // snapshots have already been removed from the cluster state, and hence we can complete the listener immediately:
             listener.onResponse(null);
         } else {
             snapshotDeletionListeners.computeIfAbsent(deleteUUID, k -> new CopyOnWriteArrayList<>())
