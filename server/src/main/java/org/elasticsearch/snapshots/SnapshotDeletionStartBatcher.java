@@ -381,8 +381,8 @@ final class SnapshotDeletionStartBatcher {
 
                     if (startedDeletionSnapshots.containsAll(itemCompletedSnapshotIds)
                         && startedDeletionSnapshots.containsAll(itemInProgressSnapshotIds)) {
-                        // item is only targeting snapshots whose deletion is already running so it need only wait for that deletion to
-                        // finish, even if the rest of the batch creates/updates a WAITING deletion
+                        // item is only targeting snapshots whose deletion is already present and STARTED so it need only wait for that
+                        // deletion to finish, even if the rest of the batch creates/updates a WAITING deletion
                         batchCompletionHandler.appendToFinalLog(item.snapshots);
                         if (item.waitForCompletion) {
                             item.startedDeletionUuid = startedDeletionUuid;
@@ -391,9 +391,10 @@ final class SnapshotDeletionStartBatcher {
                             return ItemCompletionHandler.COMPLETE_LISTENER_IMMEDIATELY;
                         }
                     }
-                    // else add all the item's snapshots to the new deletion, even though there may be duplicates, because the running
-                    // deletion may fail and then the new deletion succeeds but in that case we shouldn't report success unless the new
-                    // deletion really did delete all the snapshots requested by this item.
+                    // else add all the item's snapshots to a WAITING deletion D2 (creating D2 if it does not already exist) even though
+                    // this may duplicate entries which are already present in an ongoing STARTED deletion D1: D1 may fail but if D2 then
+                    // goes on to succeed then it's important that D2 alone really did delete all the snapshots requested by this item,
+                    // because the item's listener will report only the outcome of D2.
 
                     snapshotIds.addAll(itemCompletedSnapshotIds);
                     snapshotIds.addAll(itemInProgressSnapshotIds);
