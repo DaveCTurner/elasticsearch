@@ -400,10 +400,14 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
         return new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomIdentifier(prefix), randomUUID()));
     }
 
+    private void submitClusterStateUpdateTask(String source, ClusterStateUpdateTask clusterStateUpdateTask) {
+        // noinspection deprecation
+        clusterService.submitUnbatchedStateUpdateTask(source, clusterStateUpdateTask);
+    }
+
     private void updateClusterState(UnaryOperator<ClusterState> clusterStateOperator) {
         final var completed = new AtomicBoolean();
-        // noinspection deprecation
-        clusterService.submitUnbatchedStateUpdateTask("test", new ClusterStateUpdateTask() {
+        submitClusterStateUpdateTask("test", new ClusterStateUpdateTask() {
             @Override
             public ClusterState execute(ClusterState currentState) {
                 return clusterStateOperator.apply(currentState);
@@ -1167,7 +1171,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
         final var completedAssertions = new AtomicBoolean(false);
 
         // the first singleton batch is already enqueued with the master service, but the next batch is not; check the intermediate state:
-        clusterService.submitUnbatchedStateUpdateTask("assert-singleton-batch", new ClusterStateUpdateTask() {
+        submitClusterStateUpdateTask("assert-singleton-batch", new ClusterStateUpdateTask() {
             @Override
             public ClusterState execute(ClusterState currentState) {
                 final var deletionsInProgress = SnapshotDeletionsInProgress.get(clusterService.state());
@@ -1223,7 +1227,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
                     @Override
                     public void onFailure(Exception e) {
                         if (e == NOT_READY_EXCEPTION) {
-                            clusterService.submitUnbatchedStateUpdateTask("assert-second-batch", this);
+                            submitClusterStateUpdateTask("assert-second-batch", this);
                         } else {
                             fail(e);
                         }
@@ -1234,7 +1238,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
                         assertTrue(completedAssertions.compareAndSet(false, true));
                     }
                 };
-                clusterService.submitUnbatchedStateUpdateTask("assert-second-batch", finalCheckTask);
+                submitClusterStateUpdateTask("assert-second-batch", finalCheckTask);
             }
         });
 
@@ -1278,7 +1282,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     public void testRetryOnStaleRepositoryData() {
         final var snapshot = randomSnapshot();
 
-        clusterService.submitUnbatchedStateUpdateTask("update repository metadata", new ClusterStateUpdateTask() {
+        submitClusterStateUpdateTask("update repository metadata", new ClusterStateUpdateTask() {
             @Override
             public ClusterState execute(ClusterState currentState) {
                 final var projectMetadata = currentState.projectState(ProjectId.DEFAULT).metadata();
@@ -1308,7 +1312,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
 
         final var deletionFuture = startDeletion(snapshot.getSnapshotId().getName());
 
-        clusterService.submitUnbatchedStateUpdateTask("ensure first attempt was no-op", new ClusterStateUpdateTask() {
+        submitClusterStateUpdateTask("ensure first attempt was no-op", new ClusterStateUpdateTask() {
             @Override
             public ClusterState execute(ClusterState currentState) {
                 assertFalse(SnapshotDeletionsInProgress.get(currentState).hasDeletionsInProgress());
