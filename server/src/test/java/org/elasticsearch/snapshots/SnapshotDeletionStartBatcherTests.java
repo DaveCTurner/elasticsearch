@@ -392,6 +392,14 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
         public void doClose() {}
     }
 
+    private Snapshot randomSnapshot() {
+        return randomSnapshot("snapshot-");
+    }
+
+    private Snapshot randomSnapshot(String prefix) {
+        return new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomIdentifier(prefix), randomUUID()));
+    }
+
     private void updateClusterState(UnaryOperator<ClusterState> clusterStateOperator) {
         final var completed = new AtomicBoolean();
         // noinspection deprecation
@@ -545,7 +553,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     }
 
     public void testDeleteNotStartedSnapshot() {
-        final var snapshot = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomSnapshotName(), randomUUID()));
+        final var snapshot = randomSnapshot();
         final var repoIndex = new IndexId(randomIndexName(), randomUUID());
         final var shardId = new ShardId(new Index(repoIndex.getName(), randomUUID()), 0);
 
@@ -580,7 +588,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     }
 
     public void testDeleteInProgressSnapshot() {
-        final var snapshot = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomSnapshotName(), randomUUID()));
+        final var snapshot = randomSnapshot();
         final var repoIndex = new IndexId(randomIndexName(), randomUUID());
         final var shardId = new ShardId(new Index(repoIndex.getName(), randomUUID()), 0);
         final var shardGeneration = ShardGeneration.newGeneration();
@@ -640,7 +648,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     }
 
     public void testDeleteCompletesInProgressSnapshot() {
-        final var snapshot = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomSnapshotName(), randomUUID()));
+        final var snapshot = randomSnapshot();
         final var repoIndex = new IndexId(randomIndexName(), randomUUID());
         final var index = new Index(repoIndex.getName(), randomUUID());
 
@@ -717,7 +725,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     }
 
     public void testDeleteCompletedSnapshot() {
-        final var snapshot = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomSnapshotName(), randomUUID()));
+        final var snapshot = randomSnapshot();
         addCompleteSnapshot(snapshot);
 
         final var deletionFuture = startDeletion(snapshot.getSnapshotId().getName());
@@ -747,7 +755,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     }
 
     public void testDeleteCompletedSnapshotWithoutWaitingForCompletion() {
-        final var snapshot = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomSnapshotName(), randomUUID()));
+        final var snapshot = randomSnapshot();
         addCompleteSnapshot(snapshot);
 
         final var deletionFuture = startDeletionNoWait(snapshot.getSnapshotId().getName());
@@ -769,7 +777,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     }
 
     public void testNotifyOnPublishFailure() {
-        final var snapshot = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomSnapshotName(), randomUUID()));
+        final var snapshot = randomSnapshot();
         addCompleteSnapshot(snapshot);
 
         clusterService.getMasterService()
@@ -793,7 +801,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     public void testBatching() {
         final var snapshots = new Snapshot[3];
         for (int i = 0; i < 3; i++) {
-            snapshots[i] = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomSnapshotName(), randomUUID()));
+            snapshots[i] = randomSnapshot();
             addCompleteSnapshot(snapshots[i]);
         }
 
@@ -891,10 +899,10 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     }
 
     public void testRejectsDeletionOfCloneSource() {
-        final var snapshot = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomSnapshotName(), randomUUID()));
+        final var snapshot = randomSnapshot();
         addCompleteSnapshot(snapshot);
 
-        final var clone = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomIdentifier("clone-"), randomUUID()));
+        final var clone = randomSnapshot("clone-");
         final var indexName = randomIndexName();
 
         setSnapshotsInProgress(
@@ -923,7 +931,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     }
 
     public void testRejectsDeletionOfRestoreSource() {
-        final var snapshot = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomSnapshotName(), randomUUID()));
+        final var snapshot = randomSnapshot();
         addCompleteSnapshot(snapshot);
 
         updateClusterState(
@@ -959,7 +967,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     }
 
     public void testIgnoresRestoreSourceInOtherRepositories() {
-        final var snapshot = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomSnapshotName(), randomUUID()));
+        final var snapshot = randomSnapshot();
         addCompleteSnapshot(snapshot);
 
         updateClusterState(
@@ -1026,14 +1034,14 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     }
 
     public void testResolvesWildcards() {
-        final var finishedSnapshot = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomIdentifier("finished-"), randomUUID()));
+        final var finishedSnapshot = randomSnapshot("finished-");
         addCompleteSnapshot(finishedSnapshot);
 
         final var repoIndex = new IndexId(randomIndexName(), randomUUID());
         final var shardId = new ShardId(new Index(repoIndex.getName(), randomUUID()), 0);
         final var shardGeneration = ShardGeneration.newGeneration();
 
-        final var runningSnapshot = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomIdentifier("running-"), randomUUID()));
+        final var runningSnapshot = randomSnapshot("running-");
         setSnapshotsInProgress(
             SnapshotsInProgress.startedEntry(
                 runningSnapshot,
@@ -1146,7 +1154,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     private void doSubscriptionTest(boolean deleteBothRunningAndWaiting) {
         final Snapshot[] snapshots = new Snapshot[2];
         for (int i = 0; i < snapshots.length; i++) {
-            snapshots[i] = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomSnapshotName(), randomUUID()));
+            snapshots[i] = randomSnapshot();
             addCompleteSnapshot(snapshots[i]);
         }
 
@@ -1268,7 +1276,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     }
 
     public void testRetryOnStaleRepositoryData() {
-        final var snapshot = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(randomSnapshotName(), randomUUID()));
+        final var snapshot = randomSnapshot();
 
         clusterService.submitUnbatchedStateUpdateTask("update repository metadata", new ClusterStateUpdateTask() {
             @Override
@@ -1344,13 +1352,13 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     }
 
     public void testLogging() {
-        final var veryLongSnapshotName = "a-very-long-string-of-characters-to-ensure-that-the-log-message-is-truncated";
-        final var snapshot = new Snapshot(ProjectId.DEFAULT, repoName, new SnapshotId(veryLongSnapshotName, randomUUID()));
+        final var snapshot = randomSnapshot("a-very-long-string-of-characters-to-ensure-that-the-log-message-is-truncated-");
+        final var snapshotName = snapshot.getSnapshotId().getName();
         addCompleteSnapshot(snapshot);
 
         final var iterations =
             // enough tasks to get to just under the 4kiB limit
-            ByteSizeUnit.KB.toIntBytes(4) / (veryLongSnapshotName.length() + 2)
+            ByteSizeUnit.KB.toIntBytes(4) / (snapshotName.length() + 2)
                 // the first task runs unbatched
                 + 1
                 // the log messages overflows by at most a single item
@@ -1359,7 +1367,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
                 + 1;
 
         for (int i = 0; i < iterations; i++) {
-            startDeletion(veryLongSnapshotName);
+            startDeletion(snapshotName);
         }
 
         MockLog.assertThatLogger(
@@ -1369,7 +1377,7 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
                 "singleton message",
                 SnapshotDeletionStartBatcher.class.getCanonicalName(),
                 Level.INFO,
-                Strings.format("deleting snapshots [%s] from repository [default/%s]", veryLongSnapshotName, repoName)
+                Strings.format("deleting snapshots [%s] from repository [default/%s]", snapshotName, repoName)
             ),
             new MockLog.SeenEventExpectation(
                 "truncated message",
