@@ -22,12 +22,14 @@ import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.ClusterStatePublicationEvent;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.NotMasterException;
 import org.elasticsearch.cluster.RepositoryCleanupInProgress;
 import org.elasticsearch.cluster.RestoreInProgress;
 import org.elasticsearch.cluster.SnapshotDeletionsInProgress;
 import org.elasticsearch.cluster.SnapshotsInProgress;
+import org.elasticsearch.cluster.coordination.ClusterStatePublisher;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.metadata.ProjectId;
@@ -107,11 +109,13 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.startsWith;
 
 public class SnapshotDeletionStartBatcherTests extends ESTestCase {
 
     private DeterministicTaskQueue deterministicTaskQueue;
     private ClusterService clusterService;
+    private ClusterStatePublisher defaultClusterStatePublisher;
     private RepositoriesService repositoriesService;
     private SnapshotDeletionStartBatcher batcher;
     private String repoName;
@@ -160,8 +164,8 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
         };
         clusterApplierService.setInitialState(initialState);
         clusterApplierService.setNodeConnectionsService(ClusterServiceUtils.createNoOpNodeConnectionsService());
-        masterService.setClusterStateSupplier(clusterApplierService::state);
-        masterService.setClusterStatePublisher((clusterStatePublicationEvent, publishListener, ackListener) -> {
+
+        defaultClusterStatePublisher = (clusterStatePublicationEvent, publishListener, ackListener) -> {
             ClusterServiceUtils.setAllElapsedMillis(clusterStatePublicationEvent);
             ackListener.onCommit(TimeValue.ZERO);
             clusterApplierService.onNewClusterState(
@@ -173,7 +177,10 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
                     publishListener.onResponse(null);
                 })
             );
-        });
+        };
+
+        masterService.setClusterStateSupplier(clusterApplierService::state);
+        masterService.setClusterStatePublisher(defaultClusterStatePublisher);
 
         clusterService = new ClusterService(settings, clusterSettings, projectScopedSettings, masterService, clusterApplierService);
         clusterService.start();
@@ -861,45 +868,68 @@ public class SnapshotDeletionStartBatcherTests extends ESTestCase {
     }
 
     public void testContinuesWithNextBatchAfterFailure() {
-        final var repository = asInstanceOf(TestRepository.class, repositoriesService.repository(ProjectId.DEFAULT, repoName));
+        final var snapshots = new Snapshot[3];
+        for (int i = 0; i < 3; i++) {
+            snapshots[i] = randomSnapshot();
+            addCompleteSnapshot(snapshots[i]);
+        }
+
         final var message = randomIdentifier("failure-message-");
 
-        repository.repositoryDataListener = SubscribableListener.newFailed(new RuntimeException(message));
+        clusterService.getMasterService().setClusterStatePublisher(new ClusterStatePublisher() {
+            private boolean failedFirstBatch;
 
-        // the listener plumbing is kinda delicate here - done like this to ensure that we verify that failBatch calls runQueueProcessor
-        final var deletionMissingFuture = new SubscribableListener<Void>();
-        final var deletionFailFuture = new SubscribableListener<Void>();
-        deletionFailFuture.addListener(ActionTestUtils.assertNoSuccessListener(ignoredException -> {
-            repository.repositoryDataListener = SubscribableListener.newSucceeded(RepositoryData.EMPTY);
-            batcher.startDeletion(
-                new String[] { randomSnapshotName() },
-                true,
-                MasterNodeRequest.INFINITE_MASTER_NODE_TIMEOUT,
-                deletionMissingFuture
-            );
-        }));
-        batcher.startDeletion(
-            new String[] { randomSnapshotName() },
-            true,
-            MasterNodeRequest.INFINITE_MASTER_NODE_TIMEOUT,
-            deletionFailFuture
-        );
+            @Override
+            public void publish(
+                ClusterStatePublicationEvent clusterStatePublicationEvent,
+                ActionListener<Void> publishListener,
+                AckListener ackListener
+            ) {
+                if (failedFirstBatch) {
+                    defaultClusterStatePublisher.publish(clusterStatePublicationEvent, publishListener, ackListener);
+                } else {
+                    failedFirstBatch = true;
+                    assertThat(
+                        clusterStatePublicationEvent.getSummary().toString(),
+                        allOf(
+                            startsWith("snapshot-deletion-start[default/"),
+                            containsString(repoName),
+                            containsString("[1]"),
+                            containsString(snapshots[0].getSnapshotId().getName())
+                        )
+                    );
+                    publishListener.onFailure(new NotMasterException(message));
+                }
+            }
+        });
 
+        final var futures = new ArrayList<SubscribableListener<Void>>();
+        for (final Snapshot snapshot : snapshots) {
+            futures.add(startDeletion(snapshot.getSnapshotId().getName()));
+        }
         deterministicTaskQueue.runAllTasksInTimeOrder();
-
-        assertTrue(deletionFailFuture.isDone());
-        assertThat(safeAwaitFailure(deletionFailFuture).getMessage(), equalTo(message));
-
-        assertTrue(deletionMissingFuture.isDone());
-        assertThat(
-            asInstanceOf(SnapshotMissingException.class, safeAwaitFailure(deletionMissingFuture)).getMessage(),
-            allOf(containsString(repoName), containsString(" is missing"))
-        );
+        final var firstFuture = futures.removeFirst();
+        assertTrue(firstFuture.isDone());
+        assertThat(asInstanceOf(NotMasterException.class, safeAwaitFailure(firstFuture)).getMessage(), equalTo(message));
+        futures.forEach(l -> assertFalse(l.isDone()));
 
         assertTrue(snapshotEndNotifications.isEmpty());
         assertTrue(snapshotAbortNotifications.isEmpty());
-        assertTrue(startedDeletions.isEmpty());
-        assertTrue(completionHandlers.isEmpty());
+
+        assertThat(startedDeletions, hasSize(1));
+
+        final var deletionsInProgress = SnapshotDeletionsInProgress.get(clusterService.state());
+        assertThat(deletionsInProgress.getEntries(), hasSize(1));
+        final var deletionEntry = deletionsInProgress.getEntries().getFirst();
+        assertEquals(STARTED, deletionEntry.state());
+        assertThat(deletionEntry.snapshots(), containsInAnyOrder(snapshots[1].getSnapshotId(), snapshots[2].getSnapshotId()));
+
+        assertThat(completionHandlers.keySet(), equalTo(Set.of(deletionEntry.uuid())));
+        final var listeners = completionHandlers.get(deletionEntry.uuid());
+        assertThat(listeners, hasSize(2));
+        listeners.forEach(l -> l.onResponse(null));
+        futures.forEach(l -> assertTrue(l.isDone()));
+        futures.forEach(ESTestCase::safeAwait);
     }
 
     public void testRejectsDeletionOfCloneSource() {
