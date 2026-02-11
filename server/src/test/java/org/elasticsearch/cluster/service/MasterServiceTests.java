@@ -3017,6 +3017,10 @@ public class MasterServiceTests extends ESTestCase {
         assertTrue(isInfiniteTaskTimeout(TimeValue.MINUS_ONE));
         assertTrue(isInfiniteTaskTimeout(TimeValue.ZERO));
         assertFalse(isInfiniteTaskTimeout(TimeValue.timeValueMillis(1)));
-        assertFalse(isInfiniteTaskTimeout(randomTimeValue(1, 100)));
+        assertFalse(
+            isInfiniteTaskTimeout(
+                randomTimeValue(1, 100, TimeUnit.MILLISECONDS, TimeUnit.SECONDS, TimeUnit.MINUTES, TimeUnit.HOURS, TimeUnit.DAYS)
+            )
+        );
     }
 }
