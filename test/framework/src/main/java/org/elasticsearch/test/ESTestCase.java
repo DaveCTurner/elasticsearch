@@ -3033,7 +3033,7 @@ public abstract class ESTestCase extends LuceneTestCase {
      */
     public static void runInParallel(int numberOfTasks, IntConsumer taskFactory) {
         final ArrayList<Future<?>> futures = new ArrayList<>(numberOfTasks);
-        final Thread[] threads = new Thread[numberOfTasks - 1];
+        final Thread[] threads = new Thread[Math.max(numberOfTasks - 1, 0)];
         for (int i = 0; i < numberOfTasks; i++) {
             final int index = i;
             var future = new FutureTask<Void>(() -> taskFactory.accept(index), null);
