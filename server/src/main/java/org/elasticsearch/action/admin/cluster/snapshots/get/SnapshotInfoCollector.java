@@ -88,7 +88,6 @@ public interface SnapshotInfoCollector {
         private final int capacity;
         private final Comparator<SnapshotInfo> comparator;
         private final int offset;
-        private final int size;
         private int collectedCount;
 
         BoundedSnapshotInfoCollector(Comparator<SnapshotInfo> comparator, int offset, int size) {
@@ -96,7 +95,6 @@ public interface SnapshotInfoCollector {
             this.snapshotInfos = new PriorityQueue<>(capacity, comparator.reversed());
             this.comparator = comparator;
             this.offset = offset;
-            this.size = size;
         }
 
         @Override
