@@ -126,7 +126,7 @@ public interface SnapshotInfoCollector {
             }
             final List<SnapshotInfo> drained = new ArrayList<>(snapshotInfos);
             drained.sort(comparator); // PriorityQueue's iterator returns elements in heap order, not sorted order, so we must sort.
-            return drained.subList(offset, Math.min(offset + size, drained.size()));
+            return drained.subList(offset, Math.min(capacity, drained.size()));
         }
     }
 }
