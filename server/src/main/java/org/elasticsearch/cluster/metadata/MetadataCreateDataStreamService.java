@@ -399,7 +399,13 @@ public class MetadataCreateDataStreamService {
         }
 
         try {
-            currentState = metadataCreateIndexService.applyCreateIndexRequest(currentState, createIndexRequest, false, rerouteListener);
+            currentState = metadataCreateIndexService.applyCreateIndexRequest(
+                currentState,
+                createIndexRequest,
+                false,
+                MetadataCreateIndexService.RerouteBehavior.INVOKE_REROUTE_IF_REQUESTED,
+                rerouteListener
+            );
         } catch (ResourceAlreadyExistsException e) {
             // Rethrow as ElasticsearchStatusException, so that bulk transport action doesn't ignore it during
             // auto index/data stream creation.
@@ -447,6 +453,7 @@ public class MetadataCreateDataStreamService {
                 currentState,
                 createIndexRequest,
                 false,
+                MetadataCreateIndexService.RerouteBehavior.INVOKE_REROUTE_IF_REQUESTED,
                 metadataTransformer,
                 AllocationActionListener.rerouteCompletionIsNotRequired()
             );

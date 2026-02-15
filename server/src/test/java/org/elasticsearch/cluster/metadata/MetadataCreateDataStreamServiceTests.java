@@ -591,10 +591,25 @@ public class MetadataCreateDataStreamServiceTests extends ESTestCase {
                 );
             return ClusterState.builder(currentState).putProjectMetadata(b.build()).build();
         };
-        when(s.applyCreateIndexRequest(any(ClusterState.class), any(CreateIndexClusterStateUpdateRequest.class), anyBoolean(), any()))
-            .thenAnswer(objectAnswer);
         when(
-            s.applyCreateIndexRequest(any(ClusterState.class), any(CreateIndexClusterStateUpdateRequest.class), anyBoolean(), any(), any())
+            s.applyCreateIndexRequest(
+                any(ClusterState.class),
+                any(CreateIndexClusterStateUpdateRequest.class),
+                anyBoolean(),
+                any(MetadataCreateIndexService.RerouteBehavior.class),
+                any(),
+                any()
+            )
+        ).thenAnswer(objectAnswer);
+        when(
+            s.applyCreateIndexRequest(
+                any(ClusterState.class),
+                any(CreateIndexClusterStateUpdateRequest.class),
+                anyBoolean(),
+                any(MetadataCreateIndexService.RerouteBehavior.class),
+                any(),
+                any()
+            )
         ).thenAnswer(objectAnswer);
 
         return s;

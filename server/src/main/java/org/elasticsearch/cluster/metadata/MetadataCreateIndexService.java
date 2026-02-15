@@ -22,9 +22,10 @@ import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.ActiveShardsObserver;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.ShardsAcknowledgedResponse;
-import org.elasticsearch.cluster.AckedClusterStateUpdateTask;
 import org.elasticsearch.cluster.ClusterState;
-import org.elasticsearch.cluster.ClusterStateUpdateTask;
+import org.elasticsearch.cluster.ClusterStateAckListener;
+import org.elasticsearch.cluster.ClusterStateTaskExecutor;
+import org.elasticsearch.cluster.ClusterStateTaskListener;
 import org.elasticsearch.cluster.ProjectState;
 import org.elasticsearch.cluster.block.ClusterBlockLevel;
 import org.elasticsearch.cluster.block.ClusterBlocks;
@@ -38,9 +39,10 @@ import org.elasticsearch.cluster.routing.ShardRoutingRoleStrategy;
 import org.elasticsearch.cluster.routing.ShardRoutingState;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.routing.allocation.DataTier;
-import org.elasticsearch.cluster.routing.allocation.allocator.AllocationActionListener;
+import org.elasticsearch.cluster.routing.allocation.allocator.AllocationActionMultiListener;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.cluster.service.MasterService;
+import org.elasticsearch.cluster.service.MasterServiceTaskQueue;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.Strings;
@@ -56,7 +58,6 @@ import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.core.FixForMultiProject;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.PathUtils;
-import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.Index;
@@ -119,6 +120,7 @@ import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_INDEX_UUI
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_NUMBER_OF_REPLICAS;
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_NUMBER_OF_SHARDS;
 import static org.elasticsearch.cluster.metadata.MetadataIndexTemplateService.resolveSettings;
+import static org.elasticsearch.cluster.routing.allocation.allocator.AllocationActionListener.rerouteCompletionIsNotRequired;
 import static org.elasticsearch.index.IndexModule.INDEX_RECOVERY_TYPE_SETTING;
 import static org.elasticsearch.index.IndexModule.INDEX_STORE_TYPE_SETTING;
 
@@ -126,6 +128,7 @@ import static org.elasticsearch.index.IndexModule.INDEX_STORE_TYPE_SETTING;
  * Service responsible for submitting create index requests
  */
 public class MetadataCreateIndexService {
+
     public static TransportVersion INDEX_LIMIT_EXCEEDED_EXCEPTION_VERSION = TransportVersion.fromName("index_limit_exceeded_exception");
 
     // Deliberately not registered so it can only be set in tests/plugins.
@@ -188,7 +191,7 @@ public class MetadataCreateIndexService {
     private final Set<IndexSettingProvider> indexSettingProviders;
     private final ThreadPool threadPool;
     private final ClusterBlocksTransformer blocksTransformerUponIndexCreation;
-    private final Priority clusterStateUpdateTaskPriority;
+    private final MasterServiceTaskQueue<CreateIndexTask> createIndexTaskQueue;
 
     private volatile TimeValue maxMasterNodeTimeout;
     private volatile int maxIndicesPerProject;
@@ -221,7 +224,11 @@ public class MetadataCreateIndexService {
         this.indexSettingProviders = indexSettingProviders.getIndexSettingProviders();
         this.threadPool = threadPool;
         this.blocksTransformerUponIndexCreation = createClusterBlocksTransformerForIndexCreation(settings);
-        this.clusterStateUpdateTaskPriority = CREATE_INDEX_PRIORITY_SETTING.get(settings);
+        this.createIndexTaskQueue = clusterService.createTaskQueue(
+            "create-index",
+            CREATE_INDEX_PRIORITY_SETTING.get(settings),
+            new CreateIndexTaskExecutor()
+        );
 
         if (clusterService.getClusterSettings().isDynamicSetting(CREATE_INDEX_MAX_TIMEOUT_SETTING.getKey())) {
             // setting only registered in some tests today
@@ -421,48 +428,123 @@ public class MetadataCreateIndexService {
         final CreateIndexClusterStateUpdateRequest request,
         final ActionListener<AcknowledgedResponse> listener
     ) {
-        try {
+        ActionListener.run(listener, l -> {
             normalizeRequestSetting(request);
-        } catch (Exception e) {
-            listener.onFailure(e);
-            return;
-        }
-
-        var delegate = new AllocationActionListener<>(listener, threadPool.getThreadContext());
-        submitUnbatchedTask(
-            "create-index [" + request.index() + "], in project [" + request.projectId() + "], cause [" + request.cause() + "]",
-            new AckedClusterStateUpdateTask(clusterStateUpdateTaskPriority, masterNodeTimeout, ackTimeout, delegate.clusterStateUpdate()) {
-
-                @Override
-                public ClusterState execute(ClusterState currentState) throws Exception {
-                    return applyCreateIndexRequest(currentState, request, false, null, delegate.reroute());
-                }
-
-                @Override
-                public void onFailure(Exception e) {
-                    if (e instanceof ResourceAlreadyExistsException) {
-                        logger.trace(() -> "[" + request.index() + "] failed to create, in project [" + request.projectId() + "]", e);
-                    } else {
-                        logger.debug(() -> "[" + request.index() + "] failed to create, in project [" + request.projectId() + "]", e);
-                    }
-                    super.onFailure(e);
-                }
-            }
-        );
+            final var task = new CreateIndexTask(request, ackTimeout, l);
+            createIndexTaskQueue.submitTask(task.toString(), task, masterNodeTimeout);
+        });
     }
 
-    @SuppressForbidden(reason = "legacy usage of unbatched task") // TODO add support for batching here
-    private void submitUnbatchedTask(@SuppressWarnings("SameParameterValue") String source, ClusterStateUpdateTask task) {
-        clusterService.submitUnbatchedStateUpdateTask(source, task);
+    private static class CreateIndexTask implements ClusterStateTaskListener {
+        private final CreateIndexClusterStateUpdateRequest request;
+        private final TimeValue ackTimeout;
+        private final ActionListener<AcknowledgedResponse> listener;
+
+        CreateIndexTask(CreateIndexClusterStateUpdateRequest request, TimeValue ackTimeout, ActionListener<AcknowledgedResponse> listener) {
+            this.request = request;
+            this.ackTimeout = ackTimeout;
+            this.listener = listener;
+        }
+
+        @Override
+        public void onFailure(Exception e) {
+            logger.log(
+                e instanceof ResourceAlreadyExistsException
+                    || e instanceof ProcessClusterEventTimeoutException
+                    || MasterService.isPublishFailureException(e) ? Level.TRACE : Level.DEBUG,
+                () -> Strings.format("[%s] failed to create, in project [%s]", request.index(), request.projectId()),
+                e
+            );
+            listener.onFailure(e);
+        }
+
+        private ClusterStateAckListener getAckListener(ActionListener<AcknowledgedResponse> responseListener) {
+            return new ClusterStateAckListener() {
+                @Override
+                public boolean mustAck(DiscoveryNode discoveryNode) {
+                    return true;
+                }
+
+                @Override
+                public void onAllNodesAcked() {
+                    responseListener.onResponse(AcknowledgedResponse.TRUE);
+                }
+
+                @Override
+                public void onAckFailure(Exception e) {
+                    responseListener.onResponse(AcknowledgedResponse.FALSE);
+                }
+
+                @Override
+                public void onAckTimeout() {
+                    responseListener.onResponse(AcknowledgedResponse.FALSE);
+                }
+
+                @Override
+                public TimeValue ackTimeout() {
+                    return ackTimeout;
+                }
+            };
+        }
+
+        @Override
+        public String toString() {
+            return Strings.format("create-index [%s], in project [%s], cause [%s]", request.index(), request.projectId(), request.cause());
+        }
+    }
+
+    private class CreateIndexTaskExecutor implements ClusterStateTaskExecutor<CreateIndexTask> {
+        @Override
+        public ClusterState execute(BatchExecutionContext<CreateIndexTask> batchExecutionContext) {
+            final var allocationActionMultiListener = new AllocationActionMultiListener<AcknowledgedResponse>(
+                threadPool.getThreadContext()
+            );
+            var state = batchExecutionContext.initialState();
+            var anyTaskRequestedReroute = false;
+            for (final var taskContext : batchExecutionContext.taskContexts()) {
+                final var task = taskContext.getTask();
+                try (var ignored = taskContext.captureResponseHeaders()) {
+                    anyTaskRequestedReroute |= task.request.performReroute();
+                    state = applyCreateIndexRequest(
+                        state,
+                        task.request,
+                        false,
+                        RerouteBehavior.SKIP_REROUTE,
+                        rerouteCompletionIsNotRequired()
+                    );
+                    taskContext.success(task.getAckListener(allocationActionMultiListener.delay(task.listener)));
+                } catch (Exception e) {
+                    taskContext.onFailure(e);
+                }
+            }
+            if (state != batchExecutionContext.initialState() && anyTaskRequestedReroute) {
+                try (var ignored = batchExecutionContext.dropHeadersContext()) {
+                    state = allocationService.reroute(state, "create-index", allocationActionMultiListener.reroute());
+                }
+            } else {
+                allocationActionMultiListener.noRerouteNeeded();
+            }
+            return state;
+        }
     }
 
     private void normalizeRequestSetting(CreateIndexClusterStateUpdateRequest createIndexClusterStateRequest) {
-        Settings build = Settings.builder()
+        final var settings = Settings.builder()
             .put(createIndexClusterStateRequest.settings())
             .normalizePrefix(IndexMetadata.INDEX_SETTING_PREFIX)
             .build();
-        indexScopedSettings.validate(build, true);
-        createIndexClusterStateRequest.settings(build);
+        indexScopedSettings.validate(settings, true);
+        createIndexClusterStateRequest.settings(settings);
+    }
+
+    /**
+     * Controls whether reroute() is called when applying an individual create-index request.
+     */
+    public enum RerouteBehavior {
+        /** Invoke reroute when the request indicates a reroute is desired. */
+        INVOKE_REROUTE_IF_REQUESTED,
+        /** Do not reroute; the caller is responsible for ensuring that a follow-up reroute occurs. */
+        SKIP_REROUTE
     }
 
     /**
@@ -473,6 +555,7 @@ public class MetadataCreateIndexService {
         ClusterState currentState,
         CreateIndexClusterStateUpdateRequest request,
         boolean silent,
+        RerouteBehavior rerouteBehavior,
         BiConsumer<ProjectMetadata.Builder, IndexMetadata> metadataTransformer,
         ActionListener<Void> rerouteListener
     ) throws Exception {
@@ -501,6 +584,7 @@ public class MetadataCreateIndexService {
                 currentState,
                 request,
                 silent,
+                rerouteBehavior,
                 sourceMetadata,
                 metadataTransformer,
                 rerouteListener
@@ -511,14 +595,28 @@ public class MetadataCreateIndexService {
 
             // The index being created is for a system data stream, so the backing index will also be a system index
             if (request.systemDataStreamDescriptor() != null) {
-                return applyCreateIndexRequestForSystemDataStream(currentState, request, silent, metadataTransformer, rerouteListener);
+                return applyCreateIndexRequestForSystemDataStream(
+                    currentState,
+                    request,
+                    silent,
+                    rerouteBehavior,
+                    metadataTransformer,
+                    rerouteListener
+                );
             }
 
             SystemIndexDescriptor descriptor = systemIndices.findMatchingDescriptor(request.index());
             // ignore all templates for all system indices that do not allow templates.
             // Essentially, all but .kibana indices, see KibanaPlugin.java.
             if (Objects.nonNull(descriptor) && descriptor.allowsTemplates() == false) {
-                return applyCreateIndexRequestForSystemIndex(currentState, request, silent, descriptor.getIndexPattern(), rerouteListener);
+                return applyCreateIndexRequestForSystemIndex(
+                    currentState,
+                    request,
+                    silent,
+                    rerouteBehavior,
+                    descriptor.getIndexPattern(),
+                    rerouteListener
+                );
             }
 
             // Hidden indices apply templates slightly differently (ignoring wildcard '*'
@@ -534,6 +632,7 @@ public class MetadataCreateIndexService {
                     currentState,
                     request,
                     silent,
+                    rerouteBehavior,
                     templateFromRequest,
                     metadataTransformer,
                     rerouteListener
@@ -554,6 +653,7 @@ public class MetadataCreateIndexService {
                     currentState,
                     request,
                     silent,
+                    rerouteBehavior,
                     v2Template,
                     metadataTransformer,
                     rerouteListener
@@ -581,6 +681,7 @@ public class MetadataCreateIndexService {
                     currentState,
                     request,
                     silent,
+                    rerouteBehavior,
                     v1Templates,
                     metadataTransformer,
                     rerouteListener
@@ -593,9 +694,10 @@ public class MetadataCreateIndexService {
         ClusterState currentState,
         CreateIndexClusterStateUpdateRequest request,
         boolean silent,
+        RerouteBehavior rerouteBehavior,
         ActionListener<Void> rerouteListener
     ) throws Exception {
-        return applyCreateIndexRequest(currentState, request, silent, null, rerouteListener);
+        return applyCreateIndexRequest(currentState, request, silent, rerouteBehavior, null, rerouteListener);
     }
 
     /**
@@ -618,6 +720,7 @@ public class MetadataCreateIndexService {
         final ClusterState currentState,
         final CreateIndexClusterStateUpdateRequest request,
         final boolean silent,
+        final RerouteBehavior rerouteBehavior,
         final IndexMetadata sourceMetadata,
         final IndexMetadata temporaryIndexMeta,
         final List<CompressedXContent> mappings,
@@ -683,7 +786,9 @@ public class MetadataCreateIndexService {
                 allocationService.getShardRoutingRoleStrategy()
             );
             assert assertHasRefreshBlock(indexMetadata, updated.projectState(request.projectId()));
-            if (request.performReroute()) {
+            if (rerouteBehavior == RerouteBehavior.SKIP_REROUTE || request.performReroute() == false) {
+                rerouteListener.onResponse(null);
+            } else {
                 updated = allocationService.reroute(
                     updated,
                     "index [" + indexMetadata.getIndex().getName() + "] created in project [" + request.projectId() + "]",
@@ -729,6 +834,7 @@ public class MetadataCreateIndexService {
         final ClusterState currentState,
         final CreateIndexClusterStateUpdateRequest request,
         final boolean silent,
+        final RerouteBehavior rerouteBehavior,
         final List<IndexTemplateMetadata> templates,
         final BiConsumer<ProjectMetadata.Builder, IndexMetadata> projectMetadataTransformer,
         final ActionListener<Void> rerouteListener
@@ -777,6 +883,7 @@ public class MetadataCreateIndexService {
             currentState,
             request,
             silent,
+            rerouteBehavior,
             null,
             tmpImd,
             mappings == null ? List.of() : List.of(mappings),
@@ -802,6 +909,7 @@ public class MetadataCreateIndexService {
         final ClusterState currentState,
         final CreateIndexClusterStateUpdateRequest request,
         final boolean silent,
+        final RerouteBehavior rerouteBehavior,
         final String templateName,
         final BiConsumer<ProjectMetadata.Builder, IndexMetadata> projectMetadataTransformer,
         final ActionListener<Void> rerouteListener
@@ -823,13 +931,22 @@ public class MetadataCreateIndexService {
                     + "use create data stream api instead"
             );
         }
-        return applyCreateIndexRequestWithV2Template(currentState, request, silent, template, projectMetadataTransformer, rerouteListener);
+        return applyCreateIndexRequestWithV2Template(
+            currentState,
+            request,
+            silent,
+            rerouteBehavior,
+            template,
+            projectMetadataTransformer,
+            rerouteListener
+        );
     }
 
     private ClusterState applyCreateIndexRequestWithV2Template(
         final ClusterState currentState,
         final CreateIndexClusterStateUpdateRequest request,
         final boolean silent,
+        final RerouteBehavior rerouteBehavior,
         final ComposableIndexTemplate template,
         final BiConsumer<ProjectMetadata.Builder, IndexMetadata> projectMetadataTransformer,
         final ActionListener<Void> rerouteListener
@@ -870,6 +987,7 @@ public class MetadataCreateIndexService {
             currentState,
             request,
             silent,
+            rerouteBehavior,
             null,
             tmpImd,
             mappings,
@@ -895,6 +1013,7 @@ public class MetadataCreateIndexService {
         final ClusterState currentState,
         final CreateIndexClusterStateUpdateRequest request,
         final boolean silent,
+        final RerouteBehavior rerouteBehavior,
         final String indexPattern,
         final ActionListener<Void> rerouteListener
     ) throws Exception {
@@ -925,6 +1044,7 @@ public class MetadataCreateIndexService {
             currentState,
             request,
             silent,
+            rerouteBehavior,
             null,
             tmpImd,
             List.of(new CompressedXContent(MapperService.parseMapping(xContentRegistry, request.mappings()))),
@@ -950,6 +1070,7 @@ public class MetadataCreateIndexService {
         final ClusterState currentState,
         final CreateIndexClusterStateUpdateRequest request,
         final boolean silent,
+        final RerouteBehavior rerouteBehavior,
         final BiConsumer<ProjectMetadata.Builder, IndexMetadata> projectMetadataTransformer,
         final ActionListener<Void> rerouteListener
     ) throws Exception {
@@ -992,6 +1113,7 @@ public class MetadataCreateIndexService {
             currentState,
             request,
             silent,
+            rerouteBehavior,
             null,
             tmpImd,
             mappings,
@@ -1062,6 +1184,7 @@ public class MetadataCreateIndexService {
         final ClusterState currentState,
         final CreateIndexClusterStateUpdateRequest request,
         final boolean silent,
+        final RerouteBehavior rerouteBehavior,
         final IndexMetadata sourceMetadata,
         final BiConsumer<ProjectMetadata.Builder, IndexMetadata> projectMetadataTransformer,
         final ActionListener<Void> rerouteListener
@@ -1101,6 +1224,7 @@ public class MetadataCreateIndexService {
             currentState,
             request,
             silent,
+            rerouteBehavior,
             sourceMetadata,
             tmpImd,
             List.of(),

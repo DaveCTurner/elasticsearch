@@ -1834,7 +1834,13 @@ public class MetadataCreateIndexServiceTests extends ESTestCase {
 
             IndexCreationException exception = assertThrows(
                 IndexCreationException.class,
-                () -> service.applyCreateIndexRequest(clusterService.state(), request, false, ActionListener.wrap(r -> {}, e -> {}))
+                () -> service.applyCreateIndexRequest(
+                    clusterService.state(),
+                    request,
+                    false,
+                    MetadataCreateIndexService.RerouteBehavior.INVOKE_REROUTE_IF_REQUESTED,
+                    ActionListener.noop()
+                )
             );
             assertThat(
                 exception.getCause().getMessage(),
@@ -1867,7 +1873,13 @@ public class MetadataCreateIndexServiceTests extends ESTestCase {
             );
 
             try {
-                service.applyCreateIndexRequest(clusterService.state(), request, false, ActionListener.wrap(r -> {}, e -> {}));
+                service.applyCreateIndexRequest(
+                    clusterService.state(),
+                    request,
+                    false,
+                    MetadataCreateIndexService.RerouteBehavior.INVOKE_REROUTE_IF_REQUESTED,
+                    ActionListener.noop()
+                );
             } catch (Exception e) {
                 fail(e, "did not expect private setting to be rejected when system provided");
             }
@@ -1900,7 +1912,13 @@ public class MetadataCreateIndexServiceTests extends ESTestCase {
             );
 
             try {
-                service.applyCreateIndexRequest(clusterService.state(), request, false, ActionListener.wrap(r -> {}, e -> {}));
+                service.applyCreateIndexRequest(
+                    clusterService.state(),
+                    request,
+                    false,
+                    MetadataCreateIndexService.RerouteBehavior.INVOKE_REROUTE_IF_REQUESTED,
+                    ActionListener.noop()
+                );
             } catch (Exception e) {
                 fail(e, "did not expect private setting to be rejected when added via IndexSettingProvider");
             }

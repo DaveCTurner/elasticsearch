@@ -37,6 +37,7 @@ import org.elasticsearch.cluster.metadata.MetadataIndexTemplateService;
 import org.elasticsearch.cluster.metadata.ProjectId;
 import org.elasticsearch.cluster.metadata.ProjectMetadata;
 import org.elasticsearch.cluster.routing.allocation.WriteLoadForecaster;
+import org.elasticsearch.cluster.routing.allocation.allocator.AllocationActionListener;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
@@ -271,6 +272,7 @@ public class MetadataRolloverService {
             projectState.cluster(),
             createIndexClusterStateRequest,
             silent,
+            MetadataCreateIndexService.RerouteBehavior.INVOKE_REROUTE_IF_REQUESTED,
             rerouteCompletionIsNotRequired()
         );
 
@@ -426,6 +428,7 @@ public class MetadataRolloverService {
                 projectState.cluster(),
                 createIndexClusterStateRequest,
                 silent,
+                MetadataCreateIndexService.RerouteBehavior.INVOKE_REROUTE_IF_REQUESTED,
                 (builder, indexMetadata) -> {
                     downgradeBrokenTsdbBackingIndices(dataStream, builder);
                     builder.put(

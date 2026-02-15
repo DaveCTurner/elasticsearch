@@ -382,7 +382,16 @@ public class TransportRolloverActionTests extends ESTestCase {
             .putProjectMetadata(ProjectMetadata.builder(projectId).put(indexMetadata).put(indexMetadata2))
             .build();
 
-        when(mockCreateIndexService.applyCreateIndexRequest(any(), any(), anyBoolean(), any())).thenReturn(stateBefore);
+        when(
+            mockCreateIndexService.applyCreateIndexRequest(
+                any(),
+                any(),
+                anyBoolean(),
+                any(MetadataCreateIndexService.RerouteBehavior.class),
+                any(),
+                any()
+            )
+        ).thenReturn(stateBefore);
         when(mdIndexAliasesService.applyAliasActions(any(), any())).thenReturn(stateBefore);
 
         final TransportRolloverAction transportRolloverAction = new TransportRolloverAction(

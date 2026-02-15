@@ -378,6 +378,7 @@ public final class AutoCreateAction extends ActionType<CreateIndexResponse> {
                         currentState,
                         updateRequest,
                         false,
+                        MetadataCreateIndexService.RerouteBehavior.INVOKE_REROUTE_IF_REQUESTED,
                         rerouteCompletionIsNotRequired()
                     );
                     taskContext.success(getAckListener(indexName, allocationActionMultiListener));
