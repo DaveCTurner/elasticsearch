@@ -30,7 +30,7 @@ public class SnapshotInfoCollectorTests extends ESTestCase {
     /**
      * Naive, inefficient, but obviously correct implementation: store all items, sort and possibly limit on demand.
      */
-    private static final class NaiveSnapshotInfoCollector {
+    private static final class NaiveSnapshotInfoCollector implements SnapshotInfoCollector {
         private final List<SnapshotInfo> snapshotInfos = new ArrayList<>();
         private final Comparator<SnapshotInfo> comparator;
         private final int size;
@@ -42,11 +42,13 @@ public class SnapshotInfoCollectorTests extends ESTestCase {
             this.offset = offset;
         }
 
-        void add(SnapshotInfo snapshotInfo) {
+        @Override
+        public void add(SnapshotInfo snapshotInfo) {
             snapshotInfos.add(snapshotInfo);
         }
 
-        List<SnapshotInfo> getSnapshotInfos() {
+        @Override
+        public List<SnapshotInfo> getSnapshotInfos() {
             snapshotInfos.sort(comparator);
             if (offset >= snapshotInfos.size()) {
                 return List.of();
@@ -54,7 +56,8 @@ public class SnapshotInfoCollectorTests extends ESTestCase {
             return snapshotInfos.subList(offset, isLastPage() ? snapshotInfos.size() : offset + size);
         }
 
-        int getRemaining() {
+        @Override
+        public int getRemaining() {
             return isLastPage() ? 0 : snapshotInfos.size() - offset - size;
         }
 
