@@ -40,6 +40,7 @@ interface SnapshotInfoCollector {
      */
     static SnapshotInfoCollector create(Comparator<SnapshotInfo> comparator, int size, int offset) {
         assert size == GetSnapshotsRequest.NO_LIMIT || size > 0 : "size must be NO_LIMIT or positive";
+        assert offset >= 0 : "offset must be non-negative";
         return size == GetSnapshotsRequest.NO_LIMIT
             ? new UnboundedSnapshotInfoCollector(comparator, offset)
             : new BoundedSnapshotInfoCollector(comparator, offset, size);
