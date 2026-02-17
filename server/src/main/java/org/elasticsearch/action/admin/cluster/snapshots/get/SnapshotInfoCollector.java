@@ -104,7 +104,7 @@ interface SnapshotInfoCollector {
             if (snapshotInfos.size() < capacity) {
                 snapshotInfos.add(snapshotInfo);
             } else {
-                SnapshotInfo worst = snapshotInfos.peek();
+                final var worst = snapshotInfos.peek();
                 if (comparator.compare(snapshotInfo, worst) < 0) {
                     snapshotInfos.poll();
                     snapshotInfos.add(snapshotInfo);
@@ -114,7 +114,7 @@ interface SnapshotInfoCollector {
 
         @Override
         public int getRemaining() {
-            return snapshotInfos.size() < capacity ? 0 : collectedCount - capacity;
+            return Math.max(0, collectedCount - capacity);
         }
 
         @Override
