@@ -19,7 +19,7 @@ import java.util.PriorityQueue;
 /**
  * Strategy for collecting {@link SnapshotInfo} results, either retaining all (unbounded) or only the top N by sort order (bounded).
  */
-public interface SnapshotInfoCollector {
+interface SnapshotInfoCollector {
 
     void add(SnapshotInfo snapshotInfo);
 
