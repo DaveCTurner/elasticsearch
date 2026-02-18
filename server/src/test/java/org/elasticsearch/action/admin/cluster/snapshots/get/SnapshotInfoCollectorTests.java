@@ -62,7 +62,9 @@ public class SnapshotInfoCollectorTests extends ESTestCase {
         }
 
         private boolean isLastPage() {
-            return size == GetSnapshotsRequest.NO_LIMIT || offset + size > snapshotInfos.size();
+            return size == GetSnapshotsRequest.NO_LIMIT
+                || offset + size > snapshotInfos.size()
+                || (offset + size == snapshotInfos.size() && randomBoolean() /* shouldn't matter if we're right on the boundary */);
         }
     }
 
