@@ -200,7 +200,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private final SortOrder order;
         @Nullable
         private final String fromSortValue;
-        private final int offset;
         private final Predicate<SnapshotInfo> afterPredicate;
 
         // current state
@@ -247,7 +246,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             this.sortBy = sortBy;
             this.order = order;
             this.fromSortValue = fromSortValue;
-            this.offset = offset;
             this.snapshotsInProgress = snapshotsInProgress;
             this.verbose = verbose;
             this.indices = indices;
