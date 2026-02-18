@@ -10,7 +10,9 @@
 package org.elasticsearch.action.admin.cluster.snapshots.get;
 
 import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.snapshots.SnapshotId;
 import org.elasticsearch.snapshots.SnapshotInfo;
 
 import java.util.ArrayList;
@@ -38,14 +40,31 @@ interface SnapshotInfoCollector {
     List<SnapshotInfo> getSnapshotInfos();
 
     /**
+     * Returns whether the given snapshot can be skipped (need not be loaded) because we can already tell it will sort after the end of
+     * the requested page. When {@code true}, the caller may skip loading and call {@link #addSkipped()} instead.
+     */
+    boolean canSkipLoading(String repositoryName, SnapshotId snapshotId, RepositoryData repositoryData);
+
+    /**
+     * Records that loading the {@link SnapshotInfo} as was skipped because we can already tell it will sort after the end of the requested
+     * page.
+     */
+    void addSkipped();
+
+    /**
      * Creates a {@link SnapshotInfoCollector} suitable for collecting the specified page of results.
      */
-    static SnapshotInfoCollector create(Comparator<SnapshotInfo> comparator, int size, int offset) {
+    static SnapshotInfoCollector create(
+        Comparator<SnapshotInfo> comparator,
+        int size,
+        int offset,
+        SnapshotSortKey.SkipLoadingPredicate skipLoadingPredicate
+    ) {
         assert size == GetSnapshotsRequest.NO_LIMIT || size > 0 : "size must be NO_LIMIT or positive";
         assert offset >= 0 : "offset must be non-negative";
         return size == GetSnapshotsRequest.NO_LIMIT
             ? new UnboundedSnapshotInfoCollector(comparator, offset)
-            : new BoundedSnapshotInfoCollector(comparator, offset, size);
+            : new BoundedSnapshotInfoCollector(comparator, offset, size, skipLoadingPredicate);
     }
 
     /**
@@ -68,6 +87,11 @@ interface SnapshotInfoCollector {
         }
 
         @Override
+        public boolean canSkipLoading(String repositoryName, SnapshotId snapshotId, RepositoryData repositoryData) {
+            return false;
+        }
+
+        @Override
         public int getRemaining() {
             return 0;
         }
@@ -81,6 +105,11 @@ interface SnapshotInfoCollector {
             snapshotInfos.sort(comparator);
             return snapshotInfos.subList(offset, snapshotInfos.size());
         }
+
+        @Override
+        public void addSkipped() {
+            assert false : "never skipped";
+        }
     }
 
     /**
@@ -91,14 +120,35 @@ interface SnapshotInfoCollector {
         private final int capacity;
         private final Comparator<SnapshotInfo> comparator;
         private final int offset;
+        private final SnapshotSortKey.SkipLoadingPredicate skipLoadingPredicate;
+        /** Number of snapshots processed so far (either added via {@link #add} or skipped via {@link #addSkipped}). */
         private int collectedCount;
 
-        BoundedSnapshotInfoCollector(Comparator<SnapshotInfo> comparator, int offset, int size) {
+        BoundedSnapshotInfoCollector(
+            Comparator<SnapshotInfo> comparator,
+            int offset,
+            int size,
+            SnapshotSortKey.SkipLoadingPredicate skipLoadingPredicate
+        ) {
             assert size > 0;
             this.capacity = offset + size;
             this.snapshotInfos = new PriorityQueue<>(capacity, comparator.reversed()); // throws IAE if size+offset overflowed
             this.comparator = comparator;
             this.offset = offset;
+            this.skipLoadingPredicate = skipLoadingPredicate;
+        }
+
+        @Override
+        public boolean canSkipLoading(String repositoryName, SnapshotId snapshotId, RepositoryData repositoryData) {
+            final SnapshotInfo worst;
+            synchronized (this) {
+                if (snapshotInfos.size() < capacity) {
+                    return false;
+                }
+                worst = snapshotInfos.peek();
+                assert worst != null;
+            }
+            return skipLoadingPredicate.canSkipLoading(repositoryName, snapshotId, repositoryData, worst);
         }
 
         @Override
@@ -113,6 +163,12 @@ interface SnapshotInfoCollector {
                     snapshotInfos.add(snapshotInfo);
                 }
             }
+        }
+
+        @Override
+        public synchronized void addSkipped() {
+            assert snapshotInfos.size() == capacity : "should not skip before page is full";
+            incrementCollectedCount();
         }
 
         private void incrementCollectedCount() {

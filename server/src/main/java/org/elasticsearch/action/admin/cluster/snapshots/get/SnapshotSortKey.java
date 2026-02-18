@@ -14,7 +14,9 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Predicates;
+import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.search.sort.SortOrder;
+import org.elasticsearch.snapshots.SnapshotId;
 import org.elasticsearch.snapshots.SnapshotInfo;
 
 import java.io.IOException;
@@ -42,6 +44,21 @@ public enum SnapshotSortKey {
         protected Predicate<SnapshotInfo> innerGetAfterPredicate(After after, SortOrder sortOrder) {
             return after.longValuePredicate(SnapshotInfo::startTime, sortOrder);
         }
+
+        @Override
+        public SkipLoadingPredicate getSkipLoadingPredicate(SortOrder order) {
+            return (ignoredRepositoryName, snapshotId, repositoryData, worst) -> {
+                final RepositoryData.SnapshotDetails details = repositoryData.getSnapshotDetails(snapshotId);
+                if (details == null || details.getStartTimeMillis() == -1) {
+                    return false;
+                }
+                final long candidateStart = details.getStartTimeMillis();
+                final long worstStart = worst.startTime();
+                return order == SortOrder.ASC
+                    ? candidateStart > worstStart || (candidateStart == worstStart && snapshotId.compareTo(worst.snapshotId()) >= 0)
+                    : candidateStart < worstStart || (candidateStart == worstStart && snapshotId.compareTo(worst.snapshotId()) <= 0);
+            };
+        }
     },
 
     /**
@@ -55,12 +72,20 @@ public enum SnapshotSortKey {
 
         @Override
         protected Predicate<SnapshotInfo> innerGetAfterPredicate(After after, SortOrder sortOrder) {
-            // TODO: cover via pre-flight predicate
             final String snapshotName = after.snapshotName();
             final String repoName = after.repoName();
             return sortOrder == SortOrder.ASC
                 ? (info -> compareName(snapshotName, repoName, info) < 0)
                 : (info -> compareName(snapshotName, repoName, info) > 0);
+        }
+
+        @Override
+        public SkipLoadingPredicate getSkipLoadingPredicate(SortOrder order) {
+            return (ignoredRepositoryName, snapshotId, ignoredRepositoryData, worst) -> {
+                final int nameCmp = snapshotId.getName().compareTo(worst.snapshotId().getName());
+                final int tieCmp = snapshotId.compareTo(worst.snapshotId());
+                return order == SortOrder.ASC ? nameCmp > 0 || (nameCmp == 0 && tieCmp >= 0) : nameCmp < 0 || (nameCmp == 0 && tieCmp <= 0);
+            };
         }
     },
 
@@ -77,6 +102,23 @@ public enum SnapshotSortKey {
         protected Predicate<SnapshotInfo> innerGetAfterPredicate(After after, SortOrder sortOrder) {
             return after.longValuePredicate(info -> info.endTime() - info.startTime(), sortOrder);
         }
+
+        @Override
+        public SkipLoadingPredicate getSkipLoadingPredicate(SortOrder order) {
+            return (ignoredRepositoryName, snapshotId, repositoryData, worst) -> {
+                final RepositoryData.SnapshotDetails details = repositoryData.getSnapshotDetails(snapshotId);
+                if (details == null || details.getStartTimeMillis() == -1 || details.getEndTimeMillis() == -1) {
+                    return false;
+                }
+                final long candidateDuration = details.getEndTimeMillis() - details.getStartTimeMillis();
+                final long worstDuration = worst.endTime() - worst.startTime();
+                return order == SortOrder.ASC
+                    ? candidateDuration > worstDuration
+                        || (candidateDuration == worstDuration && snapshotId.compareTo(worst.snapshotId()) >= 0)
+                    : candidateDuration < worstDuration
+                        || (candidateDuration == worstDuration && snapshotId.compareTo(worst.snapshotId()) <= 0);
+            };
+        }
     },
 
     /**
@@ -90,8 +132,13 @@ public enum SnapshotSortKey {
 
         @Override
         protected Predicate<SnapshotInfo> innerGetAfterPredicate(After after, SortOrder sortOrder) {
-            // TODO: cover via pre-flight predicate
             return after.longValuePredicate(info -> info.indices().size(), sortOrder);
+        }
+
+        @Override
+        public SkipLoadingPredicate getSkipLoadingPredicate(SortOrder order) {
+            // Pre-flight is possible but not believed worth optimizing in this case.
+            return SkipLoadingPredicate.NEVER_SKIP;
         }
     },
 
@@ -108,6 +155,12 @@ public enum SnapshotSortKey {
         protected Predicate<SnapshotInfo> innerGetAfterPredicate(After after, SortOrder sortOrder) {
             return after.longValuePredicate(SnapshotInfo::totalShards, sortOrder);
         }
+
+        @Override
+        public SkipLoadingPredicate getSkipLoadingPredicate(SortOrder order) {
+            // Pre-flight is not possible.
+            return SkipLoadingPredicate.NEVER_SKIP;
+        }
     },
 
     /**
@@ -123,6 +176,12 @@ public enum SnapshotSortKey {
         protected Predicate<SnapshotInfo> innerGetAfterPredicate(After after, SortOrder sortOrder) {
             return after.longValuePredicate(SnapshotInfo::failedShards, sortOrder);
         }
+
+        @Override
+        public SkipLoadingPredicate getSkipLoadingPredicate(SortOrder order) {
+            // Pre-flight is not possible.
+            return SkipLoadingPredicate.NEVER_SKIP;
+        }
     },
 
     /**
@@ -136,12 +195,20 @@ public enum SnapshotSortKey {
 
         @Override
         protected Predicate<SnapshotInfo> innerGetAfterPredicate(After after, SortOrder sortOrder) {
-            // TODO: cover via pre-flight predicate
             final String snapshotName = after.snapshotName();
             final String repoName = after.repoName();
             return sortOrder == SortOrder.ASC
                 ? (info -> compareRepositoryName(snapshotName, repoName, info) < 0)
                 : (info -> compareRepositoryName(snapshotName, repoName, info) > 0);
+        }
+
+        @Override
+        public SkipLoadingPredicate getSkipLoadingPredicate(SortOrder order) {
+            return (repositoryName, snapshotId, ignoredRepositoryData, worst) -> {
+                final int repoCmp = repositoryName.compareTo(worst.repository());
+                final int tieCmp = snapshotId.compareTo(worst.snapshotId());
+                return order == SortOrder.ASC ? repoCmp > 0 || (repoCmp == 0 && tieCmp >= 0) : repoCmp < 0 || (repoCmp == 0 && tieCmp <= 0);
+            };
         }
 
         private static int compareRepositoryName(String name, String repoName, SnapshotInfo info) {
@@ -152,6 +219,24 @@ public enum SnapshotSortKey {
             return name.compareTo(info.snapshotId().getName());
         }
     };
+
+    /**
+     * A predicate that allows to determine (from the snapshot ID and the local {@link RepositoryData}) whether a candidate snapshot need
+     * not have its {@link SnapshotInfo} retrieved because, even though it matches the requested filters, it will be sorted after the
+     * end of the requested page and thus will not be returned in the response.
+     */
+    @FunctionalInterface
+    public interface SkipLoadingPredicate {
+        /**
+         * Predicate that never skips loading (always returns {@code false}). Use when pre-flight skipping is not possible.
+         */
+        SkipLoadingPredicate NEVER_SKIP = (ignoredRepositoryName, ignoredSnapshotId, ignoredRepositoryData, ignoredLastOnFullPage) -> false;
+
+        /**
+         * @return {@code true} if we can skip loading the candidate's full {@link SnapshotInfo} because it would not make the page.
+         */
+        boolean canSkipLoading(String repositoryName, SnapshotId snapshotId, RepositoryData repositoryData, SnapshotInfo lastOnFullPage);
+    }
 
     private final String name;
     private final Comparator<SnapshotInfo> ascendingSnapshotInfoComparator;
@@ -222,6 +307,11 @@ public enum SnapshotSortKey {
      * {@link After} value (i.e. they were returned on earlier pages of results). The {@code after} parameter is not {@code null}.
      */
     protected abstract Predicate<SnapshotInfo> innerGetAfterPredicate(After after, SortOrder sortOrder);
+
+    /**
+     * @see SkipLoadingPredicate
+     */
+    public abstract SkipLoadingPredicate getSkipLoadingPredicate(SortOrder order);
 
     private static int compareName(String name, String repoName, SnapshotInfo info) {
         final int res = name.compareTo(info.snapshotId().getName());

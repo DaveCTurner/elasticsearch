@@ -261,7 +261,12 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 cancellableTask::isCancelled
             );
 
-            this.snapshotInfoCollector = SnapshotInfoCollector.create(sortBy.getSnapshotInfoComparator(order), size, offset);
+            this.snapshotInfoCollector = SnapshotInfoCollector.create(
+                sortBy.getSnapshotInfoComparator(order),
+                size,
+                offset,
+                sortBy.getSkipLoadingPredicate(order)
+            );
 
             if (verbose == false) {
                 assert fromSortValuePredicates.isMatchAll() : "filtering is not supported in non-verbose mode";
@@ -327,8 +332,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     ),
                     failFastSupplier
                 );
-
-                // TODO if the request parameters allow it, modify asyncSnapshotInfoIterators to skip unnecessary GET calls here
 
                 asyncSnapshotInfoIterators.forEachRemaining(
                     asyncSnapshotInfoIteratorSupplier -> asyncSnapshotInfoIteratorSupplier.getAsyncSnapshotInfoIterator(
@@ -516,19 +519,36 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     // Also return matching completed snapshots (except any ones that were also found to be in-progress).
                     // NB this will fork tasks to SNAPSHOT_META (if verbose=true) which will be used for subsequent items so we mustn't
                     // follow it with any more non-forking iteration. See [NOTE ON THREADING].
-                    : Iterators.map(
-                        Iterators.filter(
-                            repositoryData.getSnapshotIds().iterator(),
-                            snapshotId -> matchingInProgressSnapshots.contains(snapshotId) == false
-                                && snapshotNamePredicate.test(snapshotId.getName(), false)
-                                && matchesPredicates(snapshotId, repositoryData)
-                        ),
-                        snapshotId -> forCompletedSnapshot(repository, snapshotId, repositoryData, indicesLookup)
-                    )
+                    : Iterators.map(Iterators.filter(repositoryData.getSnapshotIds().iterator(), snapshotId -> {
+                        if (matchingInProgressSnapshots.contains(snapshotId)
+                            || snapshotNamePredicate.test(snapshotId.getName(), false) == false
+                            || matchesPredicates(snapshotId, repositoryData) == false) {
+                            return false;
+                        }
+
+                        // Consider whether we can already tell that the candidate snapshot won't be on the specified page of results (i.e.
+                        // we've already collected at least offset + size items, and this snapshot won't displace any of them. Note that
+                        // this compares the candidate snapshot's details to the actually-collected snapshots, we don't track the candidates
+                        // whose SnapshotInfo blobs we're currently retrieving, because it's possible that a retrieval will fail. There's a
+                        // limited number of such retrievals in flight, which means that we only fail to skip a small number of snapshots
+                        // here that those in-flight ones might have let us skip.
+                        if (snapshotInfoCollector.canSkipLoading(repository.getMetadata().name(), snapshotId, repositoryData)) {
+                            // We only skip loading if we already have enough details to be certain that this snapshot isn't in the first
+                            // offset + size, and in all such cases we also know that it would pass matchesPredicates(SnapshotInfo) and thus
+                            // we can safely count it in totalCount already:
+                            totalCount.incrementAndGet();
+
+                            // We also know that if this snapshot is to be skipped then it sorts after some snapshot that has already been
+                            // collected, which must therefore have passed afterPredicate(), and this predicate is monotonic so the skipped
+                            // snapshot would also have passed afterPredicate() and therefore can safely be counted in remaining already:
+                            snapshotInfoCollector.addSkipped();
+                            return false;
+                        }
+                        return true;
+                    }), snapshotId -> forCompletedSnapshot(repository, snapshotId, repositoryData, indicesLookup))
             );
         }
 
-        @Nullable
         private Map<SnapshotId, List<String>> getIndicesLookup(RepositoryData repositoryData) {
             if (repositoryData == null || verbose || indices == false) {
                 return Map.of();
