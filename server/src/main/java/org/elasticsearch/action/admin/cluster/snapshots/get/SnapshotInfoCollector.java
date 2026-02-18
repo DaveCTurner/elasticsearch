@@ -9,6 +9,8 @@
 
 package org.elasticsearch.action.admin.cluster.snapshots.get;
 
+import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.snapshots.SnapshotInfo;
 
 import java.util.ArrayList;
@@ -100,7 +102,7 @@ interface SnapshotInfoCollector {
 
         @Override
         public synchronized void add(SnapshotInfo snapshotInfo) {
-            collectedCount += 1;
+            incrementCollectedCount();
             if (snapshotInfos.size() < capacity) {
                 snapshotInfos.add(snapshotInfo);
             } else {
@@ -110,6 +112,17 @@ interface SnapshotInfoCollector {
                     snapshotInfos.add(snapshotInfo);
                 }
             }
+        }
+
+        private void incrementCollectedCount() {
+            if (collectedCount == Integer.MAX_VALUE) {
+                throw new ElasticsearchStatusException(
+                    "cannot process more than [{}] snapshots",
+                    RestStatus.TOO_MANY_REQUESTS,
+                    Integer.MAX_VALUE
+                );
+            }
+            collectedCount += 1;
         }
 
         @Override
