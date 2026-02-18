@@ -230,6 +230,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.emptyCollectionOf;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.startsWith;
 
@@ -3032,8 +3033,13 @@ public abstract class ESTestCase extends LuceneTestCase {
      * @param taskFactory task factory
      */
     public static void runInParallel(int numberOfTasks, IntConsumer taskFactory) {
+        assertThat("runInParallel: negative numberOfTasks", numberOfTasks, greaterThanOrEqualTo(0));
+        if (numberOfTasks == 0) {
+            return;
+        }
+
         final ArrayList<Future<?>> futures = new ArrayList<>(numberOfTasks);
-        final Thread[] threads = new Thread[Math.max(numberOfTasks - 1, 0)];
+        final Thread[] threads = new Thread[numberOfTasks - 1];
         for (int i = 0; i < numberOfTasks; i++) {
             final int index = i;
             var future = new FutureTask<Void>(() -> taskFactory.accept(index), null);
