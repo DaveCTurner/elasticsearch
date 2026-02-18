@@ -111,8 +111,8 @@ public class SnapshotInfoCollectorTests extends ESTestCase {
     }
 
     public void testOverflow() {
-        final var offset = randomNonNegativeInt();
-        final var size = Integer.MAX_VALUE - offset + between(1, 10);
+        final var offset = between(1, Integer.MAX_VALUE - 1);
+        final var size = Integer.MAX_VALUE - between(0, offset - 1);
         expectThrows(IllegalArgumentException.class, () -> SnapshotInfoCollector.create(randomSnapshotInfoComparator(), size, offset));
     }
 
