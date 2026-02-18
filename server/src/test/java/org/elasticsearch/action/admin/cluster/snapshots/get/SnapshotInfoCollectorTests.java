@@ -88,7 +88,7 @@ public class SnapshotInfoCollectorTests extends ESTestCase {
     }
 
     public void testMatchesNaiveImplementation() {
-        final var comparator = randomFrom(SnapshotSortKey.values()).getSnapshotInfoComparator(randomFrom(SortOrder.values()));
+        final var comparator = randomSnapshotInfoComparator();
         final var size = randomBoolean() ? GetSnapshotsRequest.NO_LIMIT : between(1, 20);
         final var offset = between(0, 20);
         final var oracle = new NaiveSnapshotInfoCollector(comparator, size, offset);
@@ -108,5 +108,15 @@ public class SnapshotInfoCollectorTests extends ESTestCase {
         for (int i = 0; i < expected.size(); i++) {
             assertThat("value at " + i, actual.get(i), sameInstance(expected.get(i)));
         }
+    }
+
+    public void testOverflow() {
+        final var offset = randomNonNegativeInt();
+        final var size = Integer.MAX_VALUE - offset + between(1, 10);
+        expectThrows(IllegalArgumentException.class, () -> SnapshotInfoCollector.create(randomSnapshotInfoComparator(), size, offset));
+    }
+
+    private static Comparator<SnapshotInfo> randomSnapshotInfoComparator() {
+        return randomFrom(SnapshotSortKey.values()).getSnapshotInfoComparator(randomFrom(SortOrder.values()));
     }
 }
