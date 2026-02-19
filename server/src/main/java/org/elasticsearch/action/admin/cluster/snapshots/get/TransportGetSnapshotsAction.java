@@ -213,6 +213,13 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private boolean nameOptimizedPathUsed;
 
         /**
+         * Number of snapshots matching the filters after the current page on the optimized path; zero on the normal path.
+         * On the optimized path {@link #snapshotInfoCollector}{@code .getRemaining()} is always 0, so remaining is computed as
+         * {@code getRemaining() + optimizedRemaining}.
+         */
+        private int optimizedRemaining;
+
+        /**
          * Identity on non-optimized paths; when sorting by NAME with bounded size and zero offset, performs the collection process and
          * returns an iterator that only yields the snapshots that will appear in the results.
          */
@@ -393,6 +400,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 resultListener.delegateFailure((l, result) -> {
                         totalCount.set(result.totalCount());
                         nameOptimizedPathUsed = true;
+                        optimizedRemaining = Math.max(0, result.totalCount() - size);
                         final List<Tuple<String, String>> orderedKeys = result.orderedKeys();
                         final Set<String> repoNames = new HashSet<>();
                         for (Tuple<String, String> key : orderedKeys) {
@@ -730,9 +738,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             cancellableTask.ensureNotCancelled();
             final var snapshotInfos = snapshotInfoCollector.getSnapshotInfos();
             assert assertSatisfiesAllPredicates(snapshotInfos);
-            final int remaining = nameOptimizedPathUsed
-                ? Math.max(0, totalCount.get() - snapshotInfos.size())
-                : snapshotInfoCollector.getRemaining();
+            final int remaining = snapshotInfoCollector.getRemaining() + optimizedRemaining;
             return new GetSnapshotsResponse(
                 snapshotInfos,
                 remaining > 0 ? sortBy.encodeAfterQueryParam(snapshotInfos.getLast()) : null,
