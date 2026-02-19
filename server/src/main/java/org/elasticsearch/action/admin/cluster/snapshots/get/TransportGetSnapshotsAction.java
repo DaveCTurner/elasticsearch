@@ -405,7 +405,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 final Map<String, RepositoryData> repoDataByRepo = new HashMap<>();
                 try (
                     var refs = new RefCountingListener(
-                        l.map(v -> asyncSnapshotInfoIteratorFromOrderedKeys(orderedKeys, repoDataByRepo))
+                        l.map(ignored -> asyncSnapshotInfoIteratorFromOrderedKeys(orderedKeys, repoDataByRepo))
                     )
                 ) {
                     for (String repositoryName : repoNames) {
