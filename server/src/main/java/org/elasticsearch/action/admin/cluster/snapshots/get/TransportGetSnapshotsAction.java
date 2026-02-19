@@ -671,31 +671,28 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
         /**
          * @return an iterator of {@link AsyncSnapshotInfo} instances in the given repository which match {@link #snapshotNamePredicate}.
-         * @param snapshotsToLoad when non-null, only snapshots whose key {@code repositoryName:snapshotName} is in this set are included
          */
-        private Iterator<AsyncSnapshotInfo> getAsyncSnapshotInfoIterator(
-            Repository repository,
-            @Nullable RepositoryData repositoryData,
-            @Nullable Set<String> snapshotsToLoad
-        ) {
-            final String repositoryName = repository.getMetadata().name();
-            final Predicate<SnapshotId> inRange = snapshotsToLoad == null
-                ? snapshotId -> true
-                : snapshotId -> snapshotsToLoad.contains(repositoryName + ":" + snapshotId.getName());
+        private Iterator<AsyncSnapshotInfo> getAsyncSnapshotInfoIterator(Repository repository, @Nullable RepositoryData repositoryData) {
             // now iterate through the snapshots again, returning SnapshotInfo suppliers for ones with matching IDs
             final Set<SnapshotId> matchingInProgressSnapshots = new HashSet<>();
             final var indicesLookup = getIndicesLookup(repositoryData);
             return Iterators.concat(
                 // matching in-progress snapshots first
-                Iterators.map(Iterators.filter(snapshotsInProgress.forRepo(repository.getProjectRepo()).iterator(), snapshotInProgress -> {
-                    final var snapshotId = snapshotInProgress.snapshot().getSnapshotId();
-                    if (snapshotNamePredicate.test(snapshotId.getName(), true) && inRange.test(snapshotId)) {
-                        matchingInProgressSnapshots.add(snapshotId);
-                        return true;
-                    } else {
-                        return false;
-                    }
-                }), this::forSnapshotInProgress),
+                Iterators.map(
+                    Iterators.filter(
+                        snapshotsInProgress.forRepo(repository.getProjectRepo()).iterator(),
+                        snapshotInProgress -> {
+                            final var snapshotId = snapshotInProgress.snapshot().getSnapshotId();
+                            if (snapshotNamePredicate.test(snapshotId.getName(), true)) {
+                                matchingInProgressSnapshots.add(snapshotId);
+                                return true;
+                            } else {
+                                return false;
+                            }
+                        }
+                    ),
+                    this::forSnapshotInProgress
+                ),
                 repositoryData == null
                     ? Collections.emptyIterator()
                     : Iterators.map(
@@ -704,18 +701,10 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                             snapshotId -> matchingInProgressSnapshots.contains(snapshotId) == false
                                 && snapshotNamePredicate.test(snapshotId.getName(), false)
                                 && matchesPredicates(snapshotId, repositoryData)
-                                && inRange.test(snapshotId)
                         ),
                         snapshotId -> forCompletedSnapshot(repository, snapshotId, repositoryData, indicesLookup)
                     )
             );
-        }
-
-        /**
-         * @return an iterator of {@link AsyncSnapshotInfo} instances in the given repository which match {@link #snapshotNamePredicate}.
-         */
-        private Iterator<AsyncSnapshotInfo> getAsyncSnapshotInfoIterator(Repository repository, @Nullable RepositoryData repositoryData) {
-            return getAsyncSnapshotInfoIterator(repository, repositoryData, null);
         }
 
         @Nullable
