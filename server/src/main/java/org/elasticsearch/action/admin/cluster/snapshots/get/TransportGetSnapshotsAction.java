@@ -408,26 +408,32 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             return Iterators.single(new AsyncSnapshotInfoIterator() {
                 private int gatherTotalCount = 0;
 
+                private void mergeIteratorIntoTopN(Iterator<AsyncSnapshotInfo> iterator) {
+                    while (iterator.hasNext()) {
+                        topN.add(iterator.next());
+                        while (topN.size() > size) {
+                            topN.poll();
+                        }
+                        gatherTotalCount++;
+                    }
+                }
+
+                private Iterator<AsyncSnapshotInfo> buildOrderedSnapshotIterator() {
+                    final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
+                    orderedSnapshots.sort(order == SortOrder.ASC ? nameComparator : nameComparator.reversed());
+                    totalCount.set(gatherTotalCount - orderedSnapshots.size());
+                    setOptimizedRemaining.accept(Math.max(0, gatherTotalCount - size));
+                    return orderedSnapshots.iterator();
+                }
+
                 @Override
                 public void getAsyncSnapshotInfoIterator(ActionListener<Iterator<AsyncSnapshotInfo>> resultListener) {
-                    final var refs = new RefCountingListener(resultListener.map(v -> {
-                        final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
-                        orderedSnapshots.sort(order == SortOrder.ASC ? nameComparator : nameComparator.reversed());
-                        totalCount.set(gatherTotalCount - orderedSnapshots.size());
-                        setOptimizedRemaining.accept(Math.max(0, gatherTotalCount - size));
-                        return orderedSnapshots.iterator();
-                    }));
+                    final var refs = new RefCountingListener(resultListener.map(ignored -> buildOrderedSnapshotIterator()));
                     ThrottledIterator.run(
                         Iterators.failFast(input, refs::isFailing),
-                        (ref, supplier) -> supplier.getAsyncSnapshotInfoIterator(ActionListener.releaseAfter(refs.acquire(iterator -> {
-                            while (iterator.hasNext()) {
-                                topN.add(iterator.next());
-                                while (topN.size() > size) {
-                                    topN.poll();
-                                }
-                                gatherTotalCount++;
-                            }
-                        }), ref)),
+                        (ref, supplier) -> supplier.getAsyncSnapshotInfoIterator(
+                            ActionListener.releaseAfter(refs.acquire(this::mergeIteratorIntoTopN), ref)
+                        ),
                         1,
                         refs::close
                     );
