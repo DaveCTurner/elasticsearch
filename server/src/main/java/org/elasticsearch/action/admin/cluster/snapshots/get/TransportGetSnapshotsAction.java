@@ -227,8 +227,11 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private int optimizedTotalCount;
 
         /**
-         * Identity on non-optimized paths; when sorting by NAME with bounded size, performs the collection process and
-         * returns an iterator that only yields the snapshots that will appear in the results (the top {@code offset + size} by name).
+         * Identity on non-optimized paths; when sorting by NAME with bounded size and no SLM policy filtering,
+         * performs the collection process and returns an iterator that only yields the snapshots that will appear
+         * in the results (the top {@code offset + size} by name). Disabled when SLM policy filtering is requested
+         * because some {@link org.elasticsearch.repositories.RepositoryData.SnapshotDetails} may lack the policy,
+         * so we must load every candidate to compute total and remaining correctly.
          */
         private final UnaryOperator<Iterator<AsyncSnapshotInfoIterator>> iteratorOperator;
 
@@ -298,12 +301,14 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 assert slmPolicyPredicate == SlmPolicyPredicate.MATCH_ALL_POLICIES : "filtering is not supported in non-verbose mode";
             }
 
-            this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME && size != GetSnapshotsRequest.NO_LIMIT
-                ? input -> applyNameSortOptimization(input, offset + size, order, (optimizedTotalCount, optimizedRemainingValue) -> {
-                    this.optimizedTotalCount = optimizedTotalCount;
-                    this.optimizedRemaining = optimizedRemainingValue;
-                })
-                : UnaryOperator.identity();
+            this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME
+                && size != GetSnapshotsRequest.NO_LIMIT
+                && slmPolicyPredicate == SlmPolicyPredicate.MATCH_ALL_POLICIES
+                    ? input -> applyNameSortOptimization(input, offset + size, order, (optimizedTotalCount, optimizedRemainingValue) -> {
+                        this.optimizedTotalCount = optimizedTotalCount;
+                        this.optimizedRemaining = optimizedRemainingValue;
+                    })
+                    : UnaryOperator.identity();
         }
 
         /**
