@@ -423,11 +423,11 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 private void drainIterator(Iterator<AsyncSnapshotInfo> iterator) {
                     while (iterator.hasNext()) {
                         final var item = iterator.next();
-                        if (topN.size() < size || queueComparator.compare(item, topN.peek()) < 0) {
+                        if (topN.size() < size) {
                             topN.add(item);
-                            if (topN.size() > size) {
-                                topN.poll();
-                            }
+                        } else if (queueComparator.compare(item, topN.peek()) < 0) {
+                            topN.poll();
+                            topN.add(item);
                         }
                         gatherTotalCount++;
                     }
