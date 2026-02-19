@@ -207,12 +207,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private final Predicate<SnapshotInfo> afterPredicate;
 
         /**
-         * When true we used the NAME-sort optimization (bounded size, zero offset) and only loaded the top snapshots; totalCount and
-         * remaining are set from the gather phase.
-         */
-        private boolean nameOptimizedPathUsed;
-
-        /**
          * Number of snapshots matching the filters after the current page on the optimized path; zero on the normal path.
          * On the optimized path {@link #snapshotInfoCollector}{@code .getRemaining()} is always 0, so remaining is computed as
          * {@code getRemaining() + optimizedRemaining}.
@@ -403,7 +397,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             return Iterators.single(resultListener -> gatherSnapshotNamesForNameSort(resultListener.delegateFailure((l, result) -> {
                 final List<Tuple<String, String>> orderedKeys = result.orderedKeys();
                 totalCount.set(result.totalCount() - orderedKeys.size());
-                nameOptimizedPathUsed = true;
                 optimizedRemaining = Math.max(0, result.totalCount() - size);
                 final Set<String> repoNames = new HashSet<>();
                 for (Tuple<String, String> key : orderedKeys) {
