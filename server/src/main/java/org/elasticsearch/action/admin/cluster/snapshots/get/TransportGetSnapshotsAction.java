@@ -689,12 +689,13 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                             } else {
                                 return false;
                             }
-                        }
-                    ),
-                    this::forSnapshotInProgress
-                ),
+                }), this::forSnapshotInProgress),
                 repositoryData == null
+                    // Only returning in-progress snapshots:
                     ? Collections.emptyIterator()
+                    // Also return matching completed snapshots (except any ones that were also found to be in-progress).
+                    // NB this will fork tasks to SNAPSHOT_META (if verbose=true) which will be used for subsequent items so we mustn't
+                    // follow it with any more non-forking iteration. See [NOTE ON THREADING].
                     : Iterators.map(
                         Iterators.filter(
                             repositoryData.getSnapshotIds().iterator(),
