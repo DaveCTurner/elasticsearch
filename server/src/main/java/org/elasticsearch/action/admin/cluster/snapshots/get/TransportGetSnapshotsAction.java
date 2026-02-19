@@ -400,13 +400,12 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(size + 1, queueOrder);
                 final AtomicInteger gatherTotalCount = new AtomicInteger(0);
                 final Object queueLock = new Object();
-                final ActionListener<NameSortGatherResult> listener = resultListener.map(result -> {
+
+                try (var refs = new RefCountingListener(resultListener.map(result -> {
                     totalCount.set(result.totalCount() - result.orderedSnapshots().size());
                     optimizedRemaining = Math.max(0, result.totalCount() - size);
                     return result.orderedSnapshots().iterator();
-                });
-
-                try (var refs = new RefCountingListener(listener.map(v -> {
+                }).map(v -> {
                     final List<AsyncSnapshotInfo> orderedSnapshots;
                     final int total;
                     synchronized (queueLock) {
