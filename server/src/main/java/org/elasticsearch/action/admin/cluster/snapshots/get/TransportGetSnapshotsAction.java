@@ -371,9 +371,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                                         @Override
                                         public void onResponse(SnapshotInfo snapshotInfo) {
                                             if (matchesPredicates(snapshotInfo)) {
-                                                if (nameOptimizedPathUsed == false) {
-                                                    totalCount.incrementAndGet();
-                                                }
+                                                totalCount.incrementAndGet();
                                                 if (afterPredicate.test(snapshotInfo)) {
                                                     snapshotInfoCollector.add(snapshotInfo.maybeWithoutIndices(indices));
                                                 }
@@ -403,10 +401,10 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
         private Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(Iterator<AsyncSnapshotInfoIterator> input) {
             return Iterators.single(resultListener -> gatherSnapshotNamesForNameSort(resultListener.delegateFailure((l, result) -> {
-                totalCount.set(result.totalCount());
+                final List<Tuple<String, String>> orderedKeys = result.orderedKeys();
+                totalCount.set(result.totalCount() - orderedKeys.size());
                 nameOptimizedPathUsed = true;
                 optimizedRemaining = Math.max(0, result.totalCount() - size);
-                final List<Tuple<String, String>> orderedKeys = result.orderedKeys();
                 final Set<String> repoNames = new HashSet<>();
                 for (Tuple<String, String> key : orderedKeys) {
                     repoNames.add(key.v2());
