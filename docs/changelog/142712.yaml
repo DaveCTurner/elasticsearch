@@ -1,0 +1,5 @@
+area: Snapshot/Restore
+issues: []
+pr: 142712
+summary: "Get-snapshots: preflight skip"
+type: enhancement
