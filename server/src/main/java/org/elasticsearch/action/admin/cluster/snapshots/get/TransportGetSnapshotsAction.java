@@ -412,16 +412,14 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     (ref, supplier) -> supplier.getAsyncSnapshotInfoIterator(
                         ActionListener.releaseAfter(
                             refs.acquire(iterator -> {
-                                int count = 0;
                                 while (iterator.hasNext()) {
                                     final AsyncSnapshotInfo a = iterator.next();
                                     topN.add(a);
                                     while (topN.size() > size) {
                                         topN.poll();
                                     }
-                                    count++;
+                                    gatherTotalCount.incrementAndGet();
                                 }
-                                gatherTotalCount.addAndGet(count);
                             }),
                             ref
                         )
