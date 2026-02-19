@@ -392,13 +392,15 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         }
 
         private Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(Iterator<AsyncSnapshotInfoIterator> input) {
+            final Comparator<AsyncSnapshotInfo> nameThenRepo = Comparator.<AsyncSnapshotInfo, String>comparing(
+                a -> a.getSnapshotId().getName()
+            ).thenComparing(AsyncSnapshotInfo::getRepositoryName);
+            final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(
+                size + 1,
+                order == SortOrder.ASC ? nameThenRepo.reversed() : nameThenRepo
+            );
+
             return Iterators.single(new AsyncSnapshotInfoIterator() {
-                private final Comparator<AsyncSnapshotInfo> nameThenRepo = Comparator.comparing(
-                    (AsyncSnapshotInfo a) -> a.getSnapshotId().getName()
-                ).thenComparing(AsyncSnapshotInfo::getRepositoryName);
-                private final Comparator<AsyncSnapshotInfo> queueOrder =
-                    order == SortOrder.ASC ? nameThenRepo.reversed() : nameThenRepo;
-                private final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(size + 1, queueOrder);
                 private int gatherTotalCount = 0;
 
                 @Override
@@ -412,21 +414,16 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     }));
                     ThrottledIterator.run(
                         Iterators.failFast(input, refs::isFailing),
-                        (ref, supplier) -> supplier.getAsyncSnapshotInfoIterator(
-                            ActionListener.releaseAfter(
-                                refs.acquire(iterator -> {
-                                    while (iterator.hasNext()) {
-                                        final AsyncSnapshotInfo a = iterator.next();
-                                        topN.add(a);
-                                        while (topN.size() > size) {
-                                            topN.poll();
-                                        }
-                                        gatherTotalCount++;
-                                    }
-                                }),
-                                ref
-                            )
-                        ),
+                        (ref, supplier) -> supplier.getAsyncSnapshotInfoIterator(ActionListener.releaseAfter(refs.acquire(iterator -> {
+                            while (iterator.hasNext()) {
+                                final AsyncSnapshotInfo a = iterator.next();
+                                topN.add(a);
+                                while (topN.size() > size) {
+                                    topN.poll();
+                                }
+                                gatherTotalCount++;
+                            }
+                        }), ref)),
                         1,
                         refs::close
                     );
