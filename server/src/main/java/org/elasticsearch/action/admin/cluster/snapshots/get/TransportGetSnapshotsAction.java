@@ -70,7 +70,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
 import java.util.function.BooleanSupplier;
-import java.util.function.IntConsumer;
 import java.util.function.Predicate;
 import java.util.function.ToLongFunction;
 import java.util.function.UnaryOperator;
@@ -177,6 +176,14 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             request.includeIndexNames(),
             request.states()
         ).runOperation(listener);
+    }
+
+    /**
+     * Callback invoked once when the name-sort optimization has gathered and merged snapshot counts, supplying both the total count and
+     * the optimized remaining value in a single call.
+     */
+    private interface NameSortOptimizationResultCallback {
+        void accept(int totalCount, int optimizedRemaining);
     }
 
     /**
@@ -288,7 +295,10 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             }
 
             this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME && this.size != GetSnapshotsRequest.NO_LIMIT && offset == 0
-                ? input -> applyNameSortOptimization(input, size, order, totalCount, value -> this.optimizedRemaining = value)
+                ? input -> applyNameSortOptimization(input, size, order, (totalCountValue, optimizedRemainingValue) -> {
+                    totalCount.set(totalCountValue);
+                    this.optimizedRemaining = optimizedRemainingValue;
+                })
                 : UnaryOperator.identity();
         }
 
@@ -396,8 +406,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             Iterator<AsyncSnapshotInfoIterator> input,
             int size,
             SortOrder order,
-            AtomicInteger totalCount,
-            IntConsumer setOptimizedRemaining
+            NameSortOptimizationResultCallback resultCallback
         ) {
             final Comparator<AsyncSnapshotInfo> nameComparator = Comparator.comparing(AsyncSnapshotInfo::getSnapshotId);
             final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(
@@ -421,8 +430,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 private Iterator<AsyncSnapshotInfo> buildOrderedSnapshotIterator() {
                     final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
                     orderedSnapshots.sort(order == SortOrder.ASC ? nameComparator : nameComparator.reversed());
-                    totalCount.set(gatherTotalCount - orderedSnapshots.size());
-                    setOptimizedRemaining.accept(Math.max(0, gatherTotalCount - size));
+                    resultCallback.accept(gatherTotalCount - orderedSnapshots.size(), Math.max(0, gatherTotalCount - size));
                     return orderedSnapshots.iterator();
                 }
 
