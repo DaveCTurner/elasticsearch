@@ -392,12 +392,11 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         }
 
         private Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(Iterator<AsyncSnapshotInfoIterator> input) {
-            final Comparator<AsyncSnapshotInfo> nameThenRepo = Comparator.<AsyncSnapshotInfo, String>comparing(
-                a -> a.getSnapshotId().getName()
-            ).thenComparing(AsyncSnapshotInfo::getRepositoryName);
+            final Comparator<AsyncSnapshotInfo> nameComparator =
+                Comparator.comparing((AsyncSnapshotInfo a) -> a.getSnapshotId().getName());
             final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(
                 size + 1,
-                order == SortOrder.ASC ? nameThenRepo.reversed() : nameThenRepo
+                order == SortOrder.ASC ? nameComparator.reversed() : nameComparator
             );
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
@@ -407,7 +406,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 public void getAsyncSnapshotInfoIterator(ActionListener<Iterator<AsyncSnapshotInfo>> resultListener) {
                     final var refs = new RefCountingListener(resultListener.map(v -> {
                         final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
-                        orderedSnapshots.sort(order == SortOrder.ASC ? nameThenRepo : nameThenRepo.reversed());
+                        orderedSnapshots.sort(order == SortOrder.ASC ? nameComparator : nameComparator.reversed());
                         totalCount.set(gatherTotalCount - orderedSnapshots.size());
                         optimizedRemaining = Math.max(0, gatherTotalCount - size);
                         return orderedSnapshots.iterator();
