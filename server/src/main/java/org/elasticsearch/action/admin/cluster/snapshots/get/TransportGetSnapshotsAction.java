@@ -392,8 +392,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         }
 
         private Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(Iterator<AsyncSnapshotInfoIterator> input) {
-            final Comparator<AsyncSnapshotInfo> nameComparator =
-                Comparator.comparing((AsyncSnapshotInfo a) -> a.getSnapshotId().getName());
+            final Comparator<AsyncSnapshotInfo> nameComparator = Comparator.comparing(AsyncSnapshotInfo::getSnapshotId);
             final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(
                 size + 1,
                 order == SortOrder.ASC ? nameComparator.reversed() : nameComparator
