@@ -415,7 +415,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 }))) {
                     while (input.hasNext()) {
                         final AsyncSnapshotInfoIterator supplier = input.next();
-                        refs.acquire(refListener -> supplier.getAsyncSnapshotInfoIterator(refListener.map(iterator -> {
+                        supplier.getAsyncSnapshotInfoIterator(refs.acquire(iterator -> {
                             int count = 0;
                             synchronized (queueLock) {
                                 while (iterator.hasNext()) {
@@ -428,8 +428,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                                 }
                             }
                             gatherTotalCount.addAndGet(count);
-                            return null;
-                        })));
+                        }));
                     }
                 }
             });
