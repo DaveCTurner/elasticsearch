@@ -356,6 +356,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     failFastSupplier
                 );
 
+                // TODO if the request parameters allow it, modify asyncSnapshotInfoIterators to skip unnecessary GET calls here
+
                 final Iterator<AsyncSnapshotInfoIterator> it = iteratorOperator.apply(asyncSnapshotInfoIterators);
 
                 it.forEachRemaining(
@@ -382,10 +384,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                                         @Override
                                         public void onFailure(Exception e) {
                                             if (ignoreUnavailable) {
-                                                logger.warn(
-                                                    Strings.format("failed to fetch snapshot info for [%s]", asyncSnapshotInfo),
-                                                    e
-                                                );
+                                                logger.warn(Strings.format("failed to fetch snapshot info for [%s]", asyncSnapshotInfo), e);
                                                 refListener.onResponse(null);
                                             } else {
                                                 refListener.onFailure(e);
