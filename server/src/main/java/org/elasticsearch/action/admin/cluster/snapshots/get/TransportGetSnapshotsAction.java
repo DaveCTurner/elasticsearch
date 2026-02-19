@@ -321,7 +321,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                             Iterators.map(repositories.iterator(), RepositoryMetadata::name),
                             repositoryName -> skipRepository(repositoryName) == false
                         ),
-                        repositoryName -> (AsyncSnapshotInfoIterator) asyncRepositoryContentsListener -> SubscribableListener
+                        repositoryName -> asyncRepositoryContentsListener -> SubscribableListener
+
                             .<RepositoryData>newForked(
                                 l -> maybeGetRepositoryData(
                                     repositoryName,
@@ -353,87 +354,77 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 final Iterator<AsyncSnapshotInfoIterator> it = iteratorOperator.apply(asyncSnapshotInfoIterators);
 
                 it.forEachRemaining(
-                    supplier -> supplier.getAsyncSnapshotInfoIterator(
-                            listeners.acquire(
-                                asyncSnapshotInfoIterator -> ThrottledIterator.run(
-                                    Iterators.failFast(asyncSnapshotInfoIterator, failFastSupplier),
-                                    (ref, asyncSnapshotInfo) -> ActionListener.run(
-                                        ActionListener.runBefore(listeners.acquire(), ref::close),
-                                        refListener -> asyncSnapshotInfo.getSnapshotInfo(new ActionListener<>() {
-                                            @Override
-                                            public void onResponse(SnapshotInfo snapshotInfo) {
-                                                if (matchesPredicates(snapshotInfo)) {
-                                                    totalCount.incrementAndGet();
-                                                    if (afterPredicate.test(snapshotInfo)) {
-                                                        snapshotInfoCollector.add(snapshotInfo.maybeWithoutIndices(indices));
-                                                    }
+                    asyncSnapshotInfoIteratorSupplier -> asyncSnapshotInfoIteratorSupplier.getAsyncSnapshotInfoIterator(
+                        listeners.acquire(
+                            asyncSnapshotInfoIterator -> ThrottledIterator.run(
+                                Iterators.failFast(asyncSnapshotInfoIterator, failFastSupplier),
+                                (ref, asyncSnapshotInfo) -> ActionListener.run(
+                                    ActionListener.runBefore(listeners.acquire(), ref::close),
+                                    refListener -> asyncSnapshotInfo.getSnapshotInfo(new ActionListener<>() {
+                                        @Override
+                                        public void onResponse(SnapshotInfo snapshotInfo) {
+                                            if (matchesPredicates(snapshotInfo)) {
+                                                totalCount.incrementAndGet();
+                                                if (afterPredicate.test(snapshotInfo)) {
+                                                    snapshotInfoCollector.add(snapshotInfo.maybeWithoutIndices(indices));
                                                 }
-                                                refListener.onResponse(null);
                                             }
+                                            refListener.onResponse(null);
+                                        }
 
-                                            @Override
-                                            public void onFailure(Exception e) {
-                                                if (ignoreUnavailable) {
-                                                    logger.warn(
-                                                        Strings.format("failed to fetch snapshot info for [%s]", asyncSnapshotInfo),
-                                                        e
-                                                    );
-                                                    refListener.onResponse(null);
-                                                } else {
-                                                    refListener.onFailure(e);
-                                                }
+                                        @Override
+                                        public void onFailure(Exception e) {
+                                            if (ignoreUnavailable) {
+                                                logger.warn(Strings.format("failed to fetch snapshot info for [%s]", asyncSnapshotInfo), e);
+                                                refListener.onResponse(null);
+                                            } else {
+                                                refListener.onFailure(e);
                                             }
-                                        })
-                                    ),
-                                    getSnapshotInfoExecutor.getMaxRunningTasks(),
-                                    () -> {}
-                                )
+                                        }
+                                    })
+                                ),
+                                getSnapshotInfoExecutor.getMaxRunningTasks(),
+                                () -> {}
                             )
                         )
+                    )
                 );
             }
         }
 
         private Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(Iterator<AsyncSnapshotInfoIterator> input) {
             return Iterators.single(
-                resultListener -> gatherSnapshotNamesByIteratingInput(
-                    input,
-                    resultListener.delegateFailure((l, result) -> {
-                        final List<Tuple<String, String>> orderedKeys = result.orderedKeys();
-                        totalCount.set(result.totalCount() - orderedKeys.size());
-                        optimizedRemaining = Math.max(0, result.totalCount() - size);
-                        final Set<String> repoNamesFromResult = new HashSet<>();
-                        for (Tuple<String, String> key : orderedKeys) {
-                            repoNamesFromResult.add(key.v2());
-                        }
-                        final Map<String, RepositoryData> repoDataByRepo = new HashMap<>();
-                        try (
-                            var refs = new RefCountingListener(
-                                l.map(ignored -> asyncSnapshotInfoIteratorFromOrderedKeys(orderedKeys, repoDataByRepo))
-                            )
-                        ) {
-                            for (String repositoryName : repoNamesFromResult) {
-                                final ActionListener<RepositoryData> repoDataListener = refs.acquire(repositoryData -> {
-                                    assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.MANAGEMENT);
-                                    cancellableTask.ensureNotCancelled();
-                                    repoDataByRepo.put(repositoryName, repositoryData);
-                                });
-                                maybeGetRepositoryData(
-                                    repositoryName,
-                                    repoDataListener.delegateResponse(
-                                        (l2, e) -> l2.onFailure(
-                                            new RepositoryException(
-                                                repositoryName,
-                                                "cannot retrieve snapshots list from this repository",
-                                                e
-                                            )
-                                        )
+                resultListener -> gatherSnapshotNamesByIteratingInput(input, resultListener.delegateFailure((l, result) -> {
+                    final List<Tuple<String, String>> orderedKeys = result.orderedKeys();
+                    totalCount.set(result.totalCount() - orderedKeys.size());
+                    optimizedRemaining = Math.max(0, result.totalCount() - size);
+                    final Set<String> repoNamesFromResult = new HashSet<>();
+                    for (Tuple<String, String> key : orderedKeys) {
+                        repoNamesFromResult.add(key.v2());
+                    }
+                    final Map<String, RepositoryData> repoDataByRepo = new HashMap<>();
+                    try (
+                        var refs = new RefCountingListener(
+                            l.map(ignored -> asyncSnapshotInfoIteratorFromOrderedKeys(orderedKeys, repoDataByRepo))
+                        )
+                    ) {
+                        for (String repositoryName : repoNamesFromResult) {
+                            final ActionListener<RepositoryData> repoDataListener = refs.acquire(repositoryData -> {
+                                assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.MANAGEMENT);
+                                cancellableTask.ensureNotCancelled();
+                                repoDataByRepo.put(repositoryName, repositoryData);
+                            });
+                            maybeGetRepositoryData(
+                                repositoryName,
+                                repoDataListener.delegateResponse(
+                                    (l2, e) -> l2.onFailure(
+                                        new RepositoryException(repositoryName, "cannot retrieve snapshots list from this repository", e)
                                     )
-                                );
-                            }
+                                )
+                            );
                         }
-                    })
-                )
+                    }
+                }))
             );
         }
 
@@ -447,10 +438,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             Iterator<AsyncSnapshotInfoIterator> input,
             ActionListener<NameSortGatherResult> listener
         ) {
-            final Comparator<Tuple<String, String>> nameThenRepo =
-                Comparator.comparing(Tuple<String, String>::v1).thenComparing(Tuple::v2);
-            final Comparator<Tuple<String, String>> queueOrder =
-                order == SortOrder.ASC ? nameThenRepo.reversed() : nameThenRepo;
+            final Comparator<Tuple<String, String>> nameThenRepo = Comparator.comparing(Tuple<String, String>::v1).thenComparing(Tuple::v2);
+            final Comparator<Tuple<String, String>> queueOrder = order == SortOrder.ASC ? nameThenRepo.reversed() : nameThenRepo;
             final PriorityQueue<Tuple<String, String>> topN = new PriorityQueue<>(size + 1, queueOrder);
             final AtomicInteger gatherTotalCount = new AtomicInteger(0);
             final Object queueLock = new Object();
@@ -471,25 +460,21 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             }))) {
                 while (input.hasNext()) {
                     final AsyncSnapshotInfoIterator supplier = input.next();
-                    refs.acquire(
-                        refListener -> supplier.getAsyncSnapshotInfoIterator(
-                            refListener.map(iterator -> {
-                                int count = 0;
-                                synchronized (queueLock) {
-                                    while (iterator.hasNext()) {
-                                        final AsyncSnapshotInfo a = iterator.next();
-                                        topN.add(Tuple.tuple(a.getSnapshotId().getName(), a.getRepositoryName()));
-                                        while (topN.size() > size) {
-                                            topN.poll();
-                                        }
-                                        count++;
-                                    }
+                    refs.acquire(refListener -> supplier.getAsyncSnapshotInfoIterator(refListener.map(iterator -> {
+                        int count = 0;
+                        synchronized (queueLock) {
+                            while (iterator.hasNext()) {
+                                final AsyncSnapshotInfo a = iterator.next();
+                                topN.add(Tuple.tuple(a.getSnapshotId().getName(), a.getRepositoryName()));
+                                while (topN.size() > size) {
+                                    topN.poll();
                                 }
-                                gatherTotalCount.addAndGet(count);
-                                return null;
-                            })
-                        )
-                    );
+                                count++;
+                            }
+                        }
+                        gatherTotalCount.addAndGet(count);
+                        return null;
+                    })));
                 }
             }
         }
