@@ -392,8 +392,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
         private Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(Iterator<AsyncSnapshotInfoIterator> input) {
             return Iterators.single(resultListener -> gatherSnapshotNamesForNameSort(
-                ActionListener.wrap(
-                    result -> {
+                resultListener.delegateFailure((l, result) -> {
                         totalCount.set(result.totalCount());
                         nameOptimizedPathUsed = true;
                         final List<Tuple<String, String>> orderedKeys = result.orderedKeys();
@@ -403,11 +402,10 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                         }
                         final Map<String, RepositoryData> repoDataByRepo = new HashMap<>();
                         try (var refs = new RefCountingListener(
-                            ActionListener.wrap(
-                                v -> resultListener.onResponse(
+                            l.delegateFailure(
+                                (l2, v) -> l2.onResponse(
                                     asyncSnapshotInfoIteratorFromOrderedKeys(orderedKeys, repoDataByRepo)
-                                ),
-                                resultListener::onFailure
+                                )
                             )
                         )) {
                             for (String repositoryName : repoNames) {
@@ -430,9 +428,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                                 );
                             }
                         }
-                    },
-                    resultListener::onFailure
-                )
+                })
             ));
         }
 
@@ -672,7 +668,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
          */
         private void gatherSnapshotNamesForNameSort(ActionListener<NameSortGatherResult> listener) {
             final List<Tuple<String, String>> allKeys = Collections.synchronizedList(new ArrayList<>());
-            try (var refs = new RefCountingListener(ActionListener.wrap(v -> {
+            try (var refs = new RefCountingListener(listener.delegateFailure((l, v) -> {
                 allKeys.sort(
                     order == SortOrder.ASC
                         ? Comparator.comparing(Tuple<String, String>::v1).thenComparing(Tuple::v2)
@@ -686,8 +682,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     toLoad.add(key.v2() + ":" + key.v1());
                     orderedKeys.add(key);
                 }
-                listener.onResponse(new NameSortGatherResult(toLoad, total, orderedKeys));
-            }, listener::onFailure))) {
+                l.onResponse(new NameSortGatherResult(toLoad, total, orderedKeys));
+            }))) {
                 for (RepositoryMetadata repoMetadata : repositories) {
                     final String repositoryName = repoMetadata.name();
                     if (skipRepository(repositoryName)) {
