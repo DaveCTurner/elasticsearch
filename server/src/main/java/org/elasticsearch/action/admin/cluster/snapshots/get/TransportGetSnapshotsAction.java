@@ -401,11 +401,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 final AtomicInteger gatherTotalCount = new AtomicInteger(0);
                 final Object queueLock = new Object();
 
-                try (var refs = new RefCountingListener(resultListener.map(result -> {
-                    totalCount.set(result.totalCount() - result.orderedSnapshots().size());
-                    optimizedRemaining = Math.max(0, result.totalCount() - size);
-                    return result.orderedSnapshots().iterator();
-                }).map(v -> {
+                try (var refs = new RefCountingListener(resultListener.map(v -> {
                     final List<AsyncSnapshotInfo> orderedSnapshots;
                     final int total;
                     synchronized (queueLock) {
@@ -413,11 +409,9 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                         total = gatherTotalCount.get();
                     }
                     orderedSnapshots.sort(order == SortOrder.ASC ? nameThenRepo : nameThenRepo.reversed());
-                    final Set<String> toLoad = new HashSet<>();
-                    for (AsyncSnapshotInfo a : orderedSnapshots) {
-                        toLoad.add(a.getRepositoryName() + ":" + a.getSnapshotId().getName());
-                    }
-                    return new NameSortGatherResult(toLoad, total, orderedSnapshots);
+                    totalCount.set(total - orderedSnapshots.size());
+                    optimizedRemaining = Math.max(0, total - size);
+                    return orderedSnapshots.iterator();
                 }))) {
                     while (input.hasNext()) {
                         final AsyncSnapshotInfoIterator supplier = input.next();
