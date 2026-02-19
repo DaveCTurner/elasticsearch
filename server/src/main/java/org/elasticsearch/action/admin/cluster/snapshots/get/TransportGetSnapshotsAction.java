@@ -33,7 +33,6 @@ import org.elasticsearch.common.util.concurrent.ThrottledIterator;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Predicates;
 import org.elasticsearch.core.Releasable;
-import org.elasticsearch.core.Tuple;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
@@ -393,66 +392,55 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         }
 
         private Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(Iterator<AsyncSnapshotInfoIterator> input) {
-            return Iterators.single(
-                resultListener -> gatherSnapshotNamesByIteratingInput(input, resultListener.delegateFailure((l, result) -> {
+            return Iterators.single(resultListener -> {
+                final Comparator<AsyncSnapshotInfo> nameThenRepo =
+                    Comparator.comparing((AsyncSnapshotInfo a) -> a.getSnapshotId().getName())
+                        .thenComparing(AsyncSnapshotInfo::getRepositoryName);
+                final Comparator<AsyncSnapshotInfo> queueOrder =
+                    order == SortOrder.ASC ? nameThenRepo.reversed() : nameThenRepo;
+                final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(size + 1, queueOrder);
+                final AtomicInteger gatherTotalCount = new AtomicInteger(0);
+                final Object queueLock = new Object();
+                final ActionListener<NameSortGatherResult> listener = resultListener.delegateFailure((l, result) -> {
                     totalCount.set(result.totalCount() - result.orderedSnapshots().size());
                     optimizedRemaining = Math.max(0, result.totalCount() - size);
                     l.onResponse(result.orderedSnapshots().iterator());
-                }))
-            );
-        }
+                });
 
-        /**
-         * Gather (snapshotName, repoName) for the top {@code size} by iterating {@code input}. Each {@link AsyncSnapshotInfoIterator}
-         * loads its repository's data and yields {@link AsyncSnapshotInfo} instances; we use {@link AsyncSnapshotInfo#getSnapshotId()} and
-         * {@link AsyncSnapshotInfo#getRepositoryName()} to collect keys without loading full {@link SnapshotInfo}. RepositoryData is only
-         * loaded later for repos that appear in the result when building the final iterator.
-         */
-        private void gatherSnapshotNamesByIteratingInput(
-            Iterator<AsyncSnapshotInfoIterator> input,
-            ActionListener<NameSortGatherResult> listener
-        ) {
-            final Comparator<AsyncSnapshotInfo> nameThenRepo = Comparator.comparing((AsyncSnapshotInfo a) -> a.getSnapshotId().getName())
-                .thenComparing(AsyncSnapshotInfo::getRepositoryName);
-            final Comparator<AsyncSnapshotInfo> queueOrder =
-                order == SortOrder.ASC ? nameThenRepo.reversed() : nameThenRepo;
-            final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(size + 1, queueOrder);
-            final AtomicInteger gatherTotalCount = new AtomicInteger(0);
-            final Object queueLock = new Object();
-
-            try (var refs = new RefCountingListener(listener.delegateFailure((l, v) -> {
-                final List<AsyncSnapshotInfo> orderedSnapshots;
-                final int total;
-                synchronized (queueLock) {
-                    orderedSnapshots = new ArrayList<>(topN);
-                    total = gatherTotalCount.get();
-                }
-                orderedSnapshots.sort(order == SortOrder.ASC ? nameThenRepo : nameThenRepo.reversed());
-                final Set<String> toLoad = new HashSet<>();
-                for (AsyncSnapshotInfo a : orderedSnapshots) {
-                    toLoad.add(a.getRepositoryName() + ":" + a.getSnapshotId().getName());
-                }
-                l.onResponse(new NameSortGatherResult(toLoad, total, orderedSnapshots));
-            }))) {
-                while (input.hasNext()) {
-                    final AsyncSnapshotInfoIterator supplier = input.next();
-                    refs.acquire(refListener -> supplier.getAsyncSnapshotInfoIterator(refListener.map(iterator -> {
-                        int count = 0;
-                        synchronized (queueLock) {
-                            while (iterator.hasNext()) {
-                                final AsyncSnapshotInfo a = iterator.next();
-                                topN.add(a);
-                                while (topN.size() > size) {
-                                    topN.poll();
+                try (var refs = new RefCountingListener(listener.delegateFailure((l, v) -> {
+                    final List<AsyncSnapshotInfo> orderedSnapshots;
+                    final int total;
+                    synchronized (queueLock) {
+                        orderedSnapshots = new ArrayList<>(topN);
+                        total = gatherTotalCount.get();
+                    }
+                    orderedSnapshots.sort(order == SortOrder.ASC ? nameThenRepo : nameThenRepo.reversed());
+                    final Set<String> toLoad = new HashSet<>();
+                    for (AsyncSnapshotInfo a : orderedSnapshots) {
+                        toLoad.add(a.getRepositoryName() + ":" + a.getSnapshotId().getName());
+                    }
+                    l.onResponse(new NameSortGatherResult(toLoad, total, orderedSnapshots));
+                }))) {
+                    while (input.hasNext()) {
+                        final AsyncSnapshotInfoIterator supplier = input.next();
+                        refs.acquire(refListener -> supplier.getAsyncSnapshotInfoIterator(refListener.map(iterator -> {
+                            int count = 0;
+                            synchronized (queueLock) {
+                                while (iterator.hasNext()) {
+                                    final AsyncSnapshotInfo a = iterator.next();
+                                    topN.add(a);
+                                    while (topN.size() > size) {
+                                        topN.poll();
+                                    }
+                                    count++;
                                 }
-                                count++;
                             }
-                        }
-                        gatherTotalCount.addAndGet(count);
-                        return null;
-                    })));
+                            gatherTotalCount.addAndGet(count);
+                            return null;
+                        })));
+                    }
                 }
-            }
+            });
         }
 
         private void maybeGetRepositoryData(String repositoryName, ActionListener<RepositoryData> listener) {
