@@ -414,8 +414,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     return orderedSnapshots.iterator();
                 }))) {
                     while (input.hasNext()) {
-                        final AsyncSnapshotInfoIterator supplier = input.next();
-                        supplier.getAsyncSnapshotInfoIterator(refs.acquire(iterator -> {
+                        input.next().getAsyncSnapshotInfoIterator(refs.acquire(iterator -> {
                             int count = 0;
                             synchronized (queueLock) {
                                 while (iterator.hasNext()) {
