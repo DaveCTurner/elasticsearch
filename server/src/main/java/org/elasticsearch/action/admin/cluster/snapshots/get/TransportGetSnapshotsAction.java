@@ -227,11 +227,11 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private int optimizedTotalCount;
 
         /**
-         * Identity on non-optimized paths; when sorting by NAME with bounded size and no SLM policy filtering,
-         * performs the collection process and returns an iterator that only yields the snapshots that will appear
-         * in the results (the top {@code offset + size} by name). Disabled when SLM policy filtering is requested
-         * because some {@link org.elasticsearch.repositories.RepositoryData.SnapshotDetails} may lack the policy,
-         * so we must load every candidate to compute total and remaining correctly.
+         * Identity on non-optimized paths; when sorting by NAME or REPOSITORY with bounded size and no SLM policy
+         * filtering, performs the collection process and returns an iterator that only yields the snapshots that
+         * will appear in the results (the top {@code offset + size} by the sort key). Disabled when SLM policy
+         * filtering is requested because some {@link org.elasticsearch.repositories.RepositoryData.SnapshotDetails}
+         * may lack the policy, so we must load every candidate to compute total and remaining correctly.
          */
         private final UnaryOperator<Iterator<AsyncSnapshotInfoIterator>> iteratorOperator;
 
@@ -301,14 +301,21 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 assert slmPolicyPredicate == SlmPolicyPredicate.MATCH_ALL_POLICIES : "filtering is not supported in non-verbose mode";
             }
 
-            this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME
-                && size != GetSnapshotsRequest.NO_LIMIT
-                && slmPolicyPredicate == SlmPolicyPredicate.MATCH_ALL_POLICIES
-                    ? input -> applyNameSortOptimization(input, offset + size, order, (optimizedTotalCount, optimizedRemainingValue) -> {
+            this.iteratorOperator =
+                (this.sortBy == SnapshotSortKey.NAME || this.sortBy == SnapshotSortKey.REPOSITORY)
+                    && size != GetSnapshotsRequest.NO_LIMIT
+                    && slmPolicyPredicate == SlmPolicyPredicate.MATCH_ALL_POLICIES
+                ? input -> applySortOptimization(
+                    input,
+                    offset + size,
+                    sortBy,
+                    order,
+                    (optimizedTotalCount, optimizedRemainingValue) -> {
                         this.optimizedTotalCount = optimizedTotalCount;
                         this.optimizedRemaining = optimizedRemainingValue;
-                    })
-                    : UnaryOperator.identity();
+                    }
+                )
+                : UnaryOperator.identity();
         }
 
         /**
@@ -412,14 +419,24 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             }
         }
 
-        private static Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(
+        /**
+         * Merges per-repo iterators and keeps only the top {@code capacity} by the given sort key, so that only
+         * those need their {@link SnapshotInfo} loaded. Works when sorting by NAME or REPOSITORY.
+         */
+        private static Iterator<AsyncSnapshotInfoIterator> applySortOptimization(
             Iterator<AsyncSnapshotInfoIterator> input,
             int capacity,
+            SnapshotSortKey sortBy,
             SortOrder order,
             NameSortOptimizationResultCallback resultCallback
         ) {
-            final var nameComparator = Comparator.comparing(AsyncSnapshotInfo::getSnapshotId);
-            final var queueComparator = order == SortOrder.ASC ? nameComparator.reversed() : nameComparator;
+            final Comparator<AsyncSnapshotInfo> ascendingComparator = switch (sortBy) {
+                case NAME -> Comparator.comparing(AsyncSnapshotInfo::getSnapshotId);
+                case REPOSITORY -> Comparator.comparing(AsyncSnapshotInfo::getRepositoryName)
+                    .thenComparing(AsyncSnapshotInfo::getSnapshotId);
+                default -> throw new IllegalArgumentException("sort key not supported for optimization: " + sortBy);
+            };
+            final var queueComparator = order == SortOrder.ASC ? ascendingComparator.reversed() : ascendingComparator;
             final var topN = new PriorityQueue<>(capacity, queueComparator);
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
