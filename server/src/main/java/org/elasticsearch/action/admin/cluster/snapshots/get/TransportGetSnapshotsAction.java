@@ -414,16 +414,20 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             NameSortOptimizationResultCallback resultCallback
         ) {
             final var nameComparator = Comparator.comparing(AsyncSnapshotInfo::getSnapshotId);
-            final var topN = new PriorityQueue<>(size + 1, order == SortOrder.ASC ? nameComparator.reversed() : nameComparator);
+            final var queueComparator = order == SortOrder.ASC ? nameComparator.reversed() : nameComparator;
+            final var topN = new PriorityQueue<>(size + 1, queueComparator);
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
                 private int gatherTotalCount = 0;
 
                 private void drainIterator(Iterator<AsyncSnapshotInfo> iterator) {
                     while (iterator.hasNext()) {
-                        topN.add(iterator.next());
-                        while (topN.size() > size) {
-                            topN.poll();
+                        final var item = iterator.next();
+                        if (topN.size() < size || queueComparator.compare(item, topN.peek()) < 0) {
+                            topN.add(item);
+                            if (topN.size() > size) {
+                                topN.poll();
+                            }
                         }
                         gatherTotalCount++;
                     }
