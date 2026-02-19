@@ -203,7 +203,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private final SortOrder order;
         @Nullable
         private final String fromSortValue;
-        private final int offset;
         private final int size;
         private final Predicate<SnapshotInfo> afterPredicate;
 
@@ -268,7 +267,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             this.indices = indices;
             this.states = states;
 
-            this.offset = offset;
             this.size = size;
             this.snapshotNamePredicate = SnapshotNamePredicate.forSnapshots(ignoreUnavailable, snapshots);
             this.fromSortValuePredicates = SnapshotPredicates.forFromSortValue(fromSortValue, sortBy, order);
@@ -287,7 +285,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 assert slmPolicyPredicate == SlmPolicyPredicate.MATCH_ALL_POLICIES : "filtering is not supported in non-verbose mode";
             }
 
-            this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME && this.size != GetSnapshotsRequest.NO_LIMIT && this.offset == 0
+            this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME && this.size != GetSnapshotsRequest.NO_LIMIT && offset == 0
                 ? this::applyNameSortOptimization
                 : UnaryOperator.identity();
         }
@@ -469,42 +467,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 final var indicesLookup = getIndicesLookup(repositoryData);
                 return forCompletedSnapshot(repository, snapshotId, repositoryData, indicesLookup);
             });
-        }
-
-        /**
-         * Build a lazy iterator over repositories that yields {@link AsyncSnapshotInfoIterator} for each. When {@code snapshotsToLoad}
-         * is non-null, each repository's iterator only yields those snapshots (NAME-sort optimization).
-         */
-        private Iterator<AsyncSnapshotInfoIterator> buildAsyncSnapshotInfoIterators(@Nullable Set<String> snapshotsToLoad) {
-            final BooleanSupplier failFastSupplier = () -> cancellableTask.isCancelled();
-            return Iterators.failFast(
-                Iterators.map(
-                    Iterators.filter(
-                        Iterators.map(repositories.iterator(), RepositoryMetadata::name),
-                        repositoryName -> skipRepository(repositoryName) == false
-                    ),
-                    repositoryName -> asyncRepositoryContentsListener -> SubscribableListener.<RepositoryData>newForked(
-                        l -> maybeGetRepositoryData(
-                            repositoryName,
-                            l.delegateResponse(
-                                (ll, e) -> ll.onFailure(
-                                    new RepositoryException(repositoryName, "cannot retrieve snapshots list from this repository", e)
-                                )
-                            )
-                        )
-                    ).andThenApply(repositoryData -> {
-                        assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.MANAGEMENT);
-                        cancellableTask.ensureNotCancelled();
-                        ensureRequiredNamesPresent(repositoryName, repositoryData);
-                        return getAsyncSnapshotInfoIterator(
-                            repositoriesService.repository(projectId, repositoryName),
-                            repositoryData,
-                            snapshotsToLoad
-                        );
-                    }).addListener(asyncRepositoryContentsListener)
-                ),
-                failFastSupplier
-            );
         }
 
         private void maybeGetRepositoryData(String repositoryName, ActionListener<RepositoryData> listener) {
