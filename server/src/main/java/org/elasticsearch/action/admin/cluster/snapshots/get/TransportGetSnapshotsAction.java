@@ -66,6 +66,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
@@ -624,24 +625,29 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private record NameSortGatherResult(Set<String> toLoad, int totalCount, List<Tuple<String, String>> orderedKeys) {}
 
         /**
-         * When sorting by NAME with a bounded size and zero offset, gather (snapshotName, repoName) from all repos, sort by name (then repo),
-         * and return the set of keys to load, total count, and the ordered list of (name, repo) for the first {@code size}.
+         * When sorting by NAME with a bounded size and zero offset, process each repository separately and merge (snapshotName, repoName)
+         * keys into a {@link PriorityQueue} that keeps the top {@code size} by name (then repo). Returns the set of keys to load, total
+         * count, and the ordered list of (name, repo) for the first {@code size}.
          */
         private void gatherSnapshotNamesForNameSort(ActionListener<NameSortGatherResult> listener) {
-            final List<Tuple<String, String>> allKeys = Collections.synchronizedList(new ArrayList<>());
+            final Comparator<Tuple<String, String>> nameThenRepo = Comparator.comparing(Tuple<String, String>::v1).thenComparing(Tuple::v2);
+            // For ASC we keep the N smallest (evict largest); for DESC we keep the N largest (evict smallest).
+            final Comparator<Tuple<String, String>> queueOrder = order == SortOrder.ASC ? nameThenRepo.reversed() : nameThenRepo;
+            final PriorityQueue<Tuple<String, String>> topN = new PriorityQueue<>(size + 1, queueOrder);
+            final AtomicInteger gatherTotalCount = new AtomicInteger(0);
+            final Object queueLock = new Object();
+
             try (var refs = new RefCountingListener(listener.delegateFailure((l, v) -> {
-                allKeys.sort(
-                    order == SortOrder.ASC
-                        ? Comparator.comparing(Tuple<String, String>::v1).thenComparing(Tuple::v2)
-                        : Comparator.comparing(Tuple<String, String>::v1).thenComparing(Tuple::v2).reversed()
-                );
-                final int total = allKeys.size();
+                final List<Tuple<String, String>> orderedKeys;
+                final int total;
+                synchronized (queueLock) {
+                    orderedKeys = new ArrayList<>(topN);
+                    total = gatherTotalCount.get();
+                }
+                orderedKeys.sort(order == SortOrder.ASC ? nameThenRepo : nameThenRepo.reversed());
                 final Set<String> toLoad = new HashSet<>();
-                final List<Tuple<String, String>> orderedKeys = new ArrayList<>(Math.min(size, total));
-                for (int i = 0; i < Math.min(size, total); i++) {
-                    Tuple<String, String> key = allKeys.get(i);
+                for (Tuple<String, String> key : orderedKeys) {
                     toLoad.add(key.v2() + ":" + key.v1());
-                    orderedKeys.add(key);
                 }
                 l.onResponse(new NameSortGatherResult(toLoad, total, orderedKeys));
             }))) {
@@ -654,7 +660,16 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                         assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.MANAGEMENT);
                         cancellableTask.ensureNotCancelled();
                         ensureRequiredNamesPresent(repositoryName, repositoryData);
-                        allKeys.addAll(collectMatchingSnapshotKeys(repositoryName, repositoryData));
+                        final List<Tuple<String, String>> keys = collectMatchingSnapshotKeys(repositoryName, repositoryData);
+                        gatherTotalCount.addAndGet(keys.size());
+                        synchronized (queueLock) {
+                            for (Tuple<String, String> key : keys) {
+                                topN.add(key);
+                                while (topN.size() > size) {
+                                    topN.poll();
+                                }
+                            }
+                        }
                     });
                     maybeGetRepositoryData(
                         repositoryName,
