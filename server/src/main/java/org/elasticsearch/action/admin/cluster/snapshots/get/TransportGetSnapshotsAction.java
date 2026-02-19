@@ -216,9 +216,9 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
         /**
          * Identity on non-optimized paths; when sorting by NAME with bounded size and zero offset, performs the collection process and
-         * returns an iterator that only yields the snapshots that will appear in the results.
+         * returns an iterator that only yields the snapshots that will appear in the results. Each element is (repository name, supplier).
          */
-        private final UnaryOperator<Iterator<AsyncSnapshotInfoIterator>> iteratorOperator;
+        private final UnaryOperator<Iterator<Tuple<String, AsyncSnapshotInfoIterator>>> iteratorOperator;
 
         // current state
         private final SnapshotsInProgress snapshotsInProgress;
@@ -289,7 +289,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
             this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME && this.size != GetSnapshotsRequest.NO_LIMIT && offset == 0
                 ? this::applyNameSortOptimization
-                : UnaryOperator.identity();
+                : UnaryOperator.<Iterator<Tuple<String, AsyncSnapshotInfoIterator>>>identity();
         }
 
         /**
@@ -315,48 +315,48 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
                 final BooleanSupplier failFastSupplier = () -> cancellableTask.isCancelled() || listeners.isFailing();
 
-                final Iterator<AsyncSnapshotInfoIterator> asyncSnapshotInfoIterators = Iterators.failFast(
+                final Iterator<Tuple<String, AsyncSnapshotInfoIterator>> asyncSnapshotInfoIterators = Iterators.failFast(
                     Iterators.map(
                         Iterators.filter(
                             Iterators.map(repositories.iterator(), RepositoryMetadata::name),
                             repositoryName -> skipRepository(repositoryName) == false
                         ),
-                        repositoryName -> asyncRepositoryContentsListener -> SubscribableListener
-
-                            .<RepositoryData>newForked(
-                                l -> maybeGetRepositoryData(
-                                    repositoryName,
-                                    l.delegateResponse(
-                                        (ll, e) -> ll.onFailure(
-                                            new RepositoryException(
-                                                repositoryName,
-                                                "cannot retrieve snapshots list from this repository",
-                                                e
+                        repositoryName -> Tuple.tuple(
+                            repositoryName,
+                            (AsyncSnapshotInfoIterator) asyncRepositoryContentsListener -> SubscribableListener
+                                .<RepositoryData>newForked(
+                                    l -> maybeGetRepositoryData(
+                                        repositoryName,
+                                        l.delegateResponse(
+                                            (ll, e) -> ll.onFailure(
+                                                new RepositoryException(
+                                                    repositoryName,
+                                                    "cannot retrieve snapshots list from this repository",
+                                                    e
+                                                )
                                             )
                                         )
                                     )
                                 )
-                            )
-                            .andThenApply(repositoryData -> {
-                                assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.MANAGEMENT);
-                                cancellableTask.ensureNotCancelled();
-                                ensureRequiredNamesPresent(repositoryName, repositoryData);
-                                return getAsyncSnapshotInfoIterator(
-                                    repositoriesService.repository(projectId, repositoryName),
-                                    repositoryData
-                                );
-                            })
-                            .addListener(asyncRepositoryContentsListener)
+                                .andThenApply(repositoryData -> {
+                                    assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.MANAGEMENT);
+                                    cancellableTask.ensureNotCancelled();
+                                    ensureRequiredNamesPresent(repositoryName, repositoryData);
+                                    return getAsyncSnapshotInfoIterator(
+                                        repositoriesService.repository(projectId, repositoryName),
+                                        repositoryData
+                                    );
+                                })
+                                .addListener(asyncRepositoryContentsListener)
+                        )
                     ),
                     failFastSupplier
                 );
 
-                // TODO if the request parameters allow it, modify asyncSnapshotInfoIterators to skip unnecessary GET calls here
-
-                final Iterator<AsyncSnapshotInfoIterator> it = iteratorOperator.apply(asyncSnapshotInfoIterators);
+                final Iterator<Tuple<String, AsyncSnapshotInfoIterator>> it = iteratorOperator.apply(asyncSnapshotInfoIterators);
 
                 it.forEachRemaining(
-                    asyncSnapshotInfoIteratorSupplier -> asyncSnapshotInfoIteratorSupplier.getAsyncSnapshotInfoIterator(
+                    pair -> pair.v2().getAsyncSnapshotInfoIterator(
                         listeners.acquire(
                             asyncSnapshotInfoIterator -> ThrottledIterator.run(
                                 Iterators.failFast(asyncSnapshotInfoIterator, failFastSupplier),
@@ -394,38 +394,51 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             }
         }
 
-        private Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(Iterator<AsyncSnapshotInfoIterator> input) {
-            return Iterators.single(resultListener -> gatherSnapshotNamesForNameSort(resultListener.delegateFailure((l, result) -> {
-                final List<Tuple<String, String>> orderedKeys = result.orderedKeys();
-                totalCount.set(result.totalCount() - orderedKeys.size());
-                optimizedRemaining = Math.max(0, result.totalCount() - size);
-                final Set<String> repoNames = new HashSet<>();
-                for (Tuple<String, String> key : orderedKeys) {
-                    repoNames.add(key.v2());
-                }
-                final Map<String, RepositoryData> repoDataByRepo = new HashMap<>();
-                try (
-                    var refs = new RefCountingListener(
-                        l.map(ignored -> asyncSnapshotInfoIteratorFromOrderedKeys(orderedKeys, repoDataByRepo))
-                    )
-                ) {
-                    for (String repositoryName : repoNames) {
-                        final ActionListener<RepositoryData> repoDataListener = refs.acquire(repositoryData -> {
-                            assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.MANAGEMENT);
-                            cancellableTask.ensureNotCancelled();
-                            repoDataByRepo.put(repositoryName, repositoryData);
-                        });
-                        maybeGetRepositoryData(
-                            repositoryName,
-                            repoDataListener.delegateResponse(
-                                (l, e) -> l.onFailure(
-                                    new RepositoryException(repositoryName, "cannot retrieve snapshots list from this repository", e)
-                                )
-                            )
-                        );
+        private Iterator<Tuple<String, AsyncSnapshotInfoIterator>> applyNameSortOptimization(
+            Iterator<Tuple<String, AsyncSnapshotInfoIterator>> input
+        ) {
+            final List<String> repoNames = new ArrayList<>();
+            input.forEachRemaining(pair -> repoNames.add(pair.v1()));
+
+            final AsyncSnapshotInfoIterator singleSupplier = resultListener -> gatherSnapshotNamesForNameSort(
+                repoNames,
+                resultListener.delegateFailure((l, result) -> {
+                    final List<Tuple<String, String>> orderedKeys = result.orderedKeys();
+                    totalCount.set(result.totalCount() - orderedKeys.size());
+                    optimizedRemaining = Math.max(0, result.totalCount() - size);
+                    final Set<String> repoNamesFromResult = new HashSet<>();
+                    for (Tuple<String, String> key : orderedKeys) {
+                        repoNamesFromResult.add(key.v2());
                     }
-                }
-            })));
+                    final Map<String, RepositoryData> repoDataByRepo = new HashMap<>();
+                    try (
+                        var refs = new RefCountingListener(
+                            l.map(ignored -> asyncSnapshotInfoIteratorFromOrderedKeys(orderedKeys, repoDataByRepo))
+                        )
+                    ) {
+                        for (String repositoryName : repoNamesFromResult) {
+                            final ActionListener<RepositoryData> repoDataListener = refs.acquire(repositoryData -> {
+                                assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.MANAGEMENT);
+                                cancellableTask.ensureNotCancelled();
+                                repoDataByRepo.put(repositoryName, repositoryData);
+                            });
+                            maybeGetRepositoryData(
+                                repositoryName,
+                                repoDataListener.delegateResponse(
+                                    (l2, e) -> l2.onFailure(
+                                        new RepositoryException(
+                                            repositoryName,
+                                            "cannot retrieve snapshots list from this repository",
+                                            e
+                                        )
+                                    )
+                                )
+                            );
+                        }
+                    }
+                })
+            );
+            return Iterators.single(Tuple.tuple(null, singleSupplier));
         }
 
         /**
@@ -625,11 +638,11 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private record NameSortGatherResult(Set<String> toLoad, int totalCount, List<Tuple<String, String>> orderedKeys) {}
 
         /**
-         * When sorting by NAME with a bounded size and zero offset, process each repository separately and merge (snapshotName, repoName)
-         * keys into a {@link PriorityQueue} that keeps the top {@code size} by name (then repo). Returns the set of keys to load, total
-         * count, and the ordered list of (name, repo) for the first {@code size}.
+         * When sorting by NAME with a bounded size and zero offset, process each repository in {@code repoNames} separately and merge
+         * (snapshotName, repoName) keys into a {@link PriorityQueue} that keeps the top {@code size} by name (then repo). Returns the set
+         * of keys to load, total count, and the ordered list of (name, repo) for the first {@code size}.
          */
-        private void gatherSnapshotNamesForNameSort(ActionListener<NameSortGatherResult> listener) {
+        private void gatherSnapshotNamesForNameSort(List<String> repoNames, ActionListener<NameSortGatherResult> listener) {
             final Comparator<Tuple<String, String>> nameThenRepo = Comparator.comparing(Tuple<String, String>::v1).thenComparing(Tuple::v2);
             // For ASC we keep the N smallest (evict largest); for DESC we keep the N largest (evict smallest).
             final Comparator<Tuple<String, String>> queueOrder = order == SortOrder.ASC ? nameThenRepo.reversed() : nameThenRepo;
@@ -651,11 +664,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 }
                 l.onResponse(new NameSortGatherResult(toLoad, total, orderedKeys));
             }))) {
-                for (RepositoryMetadata repoMetadata : repositories) {
-                    final String repositoryName = repoMetadata.name();
-                    if (skipRepository(repositoryName)) {
-                        continue;
-                    }
+                for (String repositoryName : repoNames) {
                     final ActionListener<RepositoryData> repoDataListener = refs.acquire(repositoryData -> {
                         assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.MANAGEMENT);
                         cancellableTask.ensureNotCancelled();
