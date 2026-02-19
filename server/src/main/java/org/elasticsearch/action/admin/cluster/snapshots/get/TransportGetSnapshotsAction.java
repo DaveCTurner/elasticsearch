@@ -227,8 +227,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private int optimizedTotalCount;
 
         /**
-         * Identity on non-optimized paths; when sorting by NAME with bounded size and zero offset, performs the collection process and
-         * returns an iterator that only yields the snapshots that will appear in the results.
+         * Identity on non-optimized paths; when sorting by NAME with bounded size, performs the collection process and
+         * returns an iterator that only yields the snapshots that will appear in the results (the top {@code offset + size} by name).
          */
         private final UnaryOperator<Iterator<AsyncSnapshotInfoIterator>> iteratorOperator;
 
@@ -298,8 +298,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 assert slmPolicyPredicate == SlmPolicyPredicate.MATCH_ALL_POLICIES : "filtering is not supported in non-verbose mode";
             }
 
-            this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME && size != GetSnapshotsRequest.NO_LIMIT && offset == 0
-                ? input -> applyNameSortOptimization(input, size, order, (optimizedTotalCount, optimizedRemainingValue) -> {
+            this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME && size != GetSnapshotsRequest.NO_LIMIT
+                ? input -> applyNameSortOptimization(input, offset, size, order, (optimizedTotalCount, optimizedRemainingValue) -> {
                     this.optimizedTotalCount = optimizedTotalCount;
                     this.optimizedRemaining = optimizedRemainingValue;
                 })
@@ -409,13 +409,15 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
         private static Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(
             Iterator<AsyncSnapshotInfoIterator> input,
+            int offset,
             int size,
             SortOrder order,
             NameSortOptimizationResultCallback resultCallback
         ) {
             final var nameComparator = Comparator.comparing(AsyncSnapshotInfo::getSnapshotId);
             final var queueComparator = order == SortOrder.ASC ? nameComparator.reversed() : nameComparator;
-            final var topN = new PriorityQueue<>(size + 1, queueComparator);
+            final int capacity = offset + size;
+            final var topN = new PriorityQueue<>(capacity, queueComparator);
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
                 private int gatherTotalCount = 0;
@@ -423,7 +425,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 private void drainIterator(Iterator<AsyncSnapshotInfo> iterator) {
                     while (iterator.hasNext()) {
                         final var item = iterator.next();
-                        if (topN.size() < size) {
+                        if (topN.size() < capacity) {
                             topN.add(item);
                         } else if (queueComparator.compare(item, topN.peek()) < 0) {
                             topN.poll();
@@ -436,7 +438,10 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 private Iterator<AsyncSnapshotInfo> buildOrderedSnapshotIterator() {
                     final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
                     orderedSnapshots.sort(order == SortOrder.ASC ? nameComparator : nameComparator.reversed());
-                    resultCallback.accept(gatherTotalCount - orderedSnapshots.size(), Math.max(0, gatherTotalCount - size));
+                    resultCallback.accept(
+                        gatherTotalCount - orderedSnapshots.size(),
+                        Math.max(0, gatherTotalCount - offset - size)
+                    );
                     return orderedSnapshots.iterator();
                 }
 
