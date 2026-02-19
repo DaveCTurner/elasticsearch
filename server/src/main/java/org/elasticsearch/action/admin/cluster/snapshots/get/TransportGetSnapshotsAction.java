@@ -585,12 +585,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         }
 
         /**
-         * Result of gathering snapshot names for NAME-sort optimization: the set of keys to load, total count, and the top snapshots in
-         * sort order as {@link AsyncSnapshotInfo} instances (so we can yield them without loading repository data again).
-         */
-        private record NameSortGatherResult(Set<String> toLoad, int totalCount, List<AsyncSnapshotInfo> orderedSnapshots) {}
-
-        /**
          * @return an iterator of {@link AsyncSnapshotInfo} instances in the given repository which match {@link #snapshotNamePredicate}.
          */
         private Iterator<AsyncSnapshotInfo> getAsyncSnapshotInfoIterator(Repository repository, @Nullable RepositoryData repositoryData) {
