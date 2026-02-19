@@ -289,7 +289,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
             this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME && this.size != GetSnapshotsRequest.NO_LIMIT && offset == 0
                 ? this::applyNameSortOptimization
-                : UnaryOperator.<Iterator<Tuple<String, AsyncSnapshotInfoIterator>>>identity();
+                : UnaryOperator.identity();
         }
 
         /**
@@ -323,7 +323,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                         ),
                         repositoryName -> Tuple.tuple(
                             repositoryName,
-                            (AsyncSnapshotInfoIterator) asyncRepositoryContentsListener -> SubscribableListener
+                            asyncRepositoryContentsListener -> SubscribableListener
+
                                 .<RepositoryData>newForked(
                                     l -> maybeGetRepositoryData(
                                         repositoryName,
@@ -356,40 +357,44 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 final Iterator<Tuple<String, AsyncSnapshotInfoIterator>> it = iteratorOperator.apply(asyncSnapshotInfoIterators);
 
                 it.forEachRemaining(
-                    pair -> pair.v2().getAsyncSnapshotInfoIterator(
-                        listeners.acquire(
-                            asyncSnapshotInfoIterator -> ThrottledIterator.run(
-                                Iterators.failFast(asyncSnapshotInfoIterator, failFastSupplier),
-                                (ref, asyncSnapshotInfo) -> ActionListener.run(
-                                    ActionListener.runBefore(listeners.acquire(), ref::close),
-                                    refListener -> asyncSnapshotInfo.getSnapshotInfo(new ActionListener<>() {
-                                        @Override
-                                        public void onResponse(SnapshotInfo snapshotInfo) {
-                                            if (matchesPredicates(snapshotInfo)) {
-                                                totalCount.incrementAndGet();
-                                                if (afterPredicate.test(snapshotInfo)) {
-                                                    snapshotInfoCollector.add(snapshotInfo.maybeWithoutIndices(indices));
+                    pair -> pair.v2()
+                        .getAsyncSnapshotInfoIterator(
+                            listeners.acquire(
+                                asyncSnapshotInfoIterator -> ThrottledIterator.run(
+                                    Iterators.failFast(asyncSnapshotInfoIterator, failFastSupplier),
+                                    (ref, asyncSnapshotInfo) -> ActionListener.run(
+                                        ActionListener.runBefore(listeners.acquire(), ref::close),
+                                        refListener -> asyncSnapshotInfo.getSnapshotInfo(new ActionListener<>() {
+                                            @Override
+                                            public void onResponse(SnapshotInfo snapshotInfo) {
+                                                if (matchesPredicates(snapshotInfo)) {
+                                                    totalCount.incrementAndGet();
+                                                    if (afterPredicate.test(snapshotInfo)) {
+                                                        snapshotInfoCollector.add(snapshotInfo.maybeWithoutIndices(indices));
+                                                    }
+                                                }
+                                                refListener.onResponse(null);
+                                            }
+
+                                            @Override
+                                            public void onFailure(Exception e) {
+                                                if (ignoreUnavailable) {
+                                                    logger.warn(
+                                                        Strings.format("failed to fetch snapshot info for [%s]", asyncSnapshotInfo),
+                                                        e
+                                                    );
+                                                    refListener.onResponse(null);
+                                                } else {
+                                                    refListener.onFailure(e);
                                                 }
                                             }
-                                            refListener.onResponse(null);
-                                        }
-
-                                        @Override
-                                        public void onFailure(Exception e) {
-                                            if (ignoreUnavailable) {
-                                                logger.warn(Strings.format("failed to fetch snapshot info for [%s]", asyncSnapshotInfo), e);
-                                                refListener.onResponse(null);
-                                            } else {
-                                                refListener.onFailure(e);
-                                            }
-                                        }
-                                    })
-                                ),
-                                getSnapshotInfoExecutor.getMaxRunningTasks(),
-                                () -> {}
+                                        })
+                                    ),
+                                    getSnapshotInfoExecutor.getMaxRunningTasks(),
+                                    () -> {}
+                                )
                             )
                         )
-                    )
                 );
             }
         }
@@ -426,11 +431,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                                 repositoryName,
                                 repoDataListener.delegateResponse(
                                     (l2, e) -> l2.onFailure(
-                                        new RepositoryException(
-                                            repositoryName,
-                                            "cannot retrieve snapshots list from this repository",
-                                            e
-                                        )
+                                        new RepositoryException(repositoryName, "cannot retrieve snapshots list from this repository", e)
                                     )
                                 )
                             );
