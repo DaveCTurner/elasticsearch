@@ -392,41 +392,44 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         }
 
         private Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(Iterator<AsyncSnapshotInfoIterator> input) {
-            return Iterators.single(resultListener -> {
-                final Comparator<AsyncSnapshotInfo> nameThenRepo = Comparator.comparing(
-                    (AsyncSnapshotInfo a) -> a.getSnapshotId().getName()
-                ).thenComparing(AsyncSnapshotInfo::getRepositoryName);
-                final Comparator<AsyncSnapshotInfo> queueOrder = order == SortOrder.ASC ? nameThenRepo.reversed() : nameThenRepo;
-                final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(size + 1, queueOrder);
-                final AtomicInteger gatherTotalCount = new AtomicInteger(0);
+            return Iterators.single(new AsyncSnapshotInfoIterator() {
+                @Override
+                public void getAsyncSnapshotInfoIterator(ActionListener<Iterator<AsyncSnapshotInfo>> resultListener) {
+                    final Comparator<AsyncSnapshotInfo> nameThenRepo = Comparator.comparing(
+                        (AsyncSnapshotInfo a) -> a.getSnapshotId().getName()
+                    ).thenComparing(AsyncSnapshotInfo::getRepositoryName);
+                    final Comparator<AsyncSnapshotInfo> queueOrder = order == SortOrder.ASC ? nameThenRepo.reversed() : nameThenRepo;
+                    final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(size + 1, queueOrder);
+                    final AtomicInteger gatherTotalCount = new AtomicInteger(0);
 
-                final var refs = new RefCountingListener(resultListener.map(v -> {
-                    final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
-                    orderedSnapshots.sort(order == SortOrder.ASC ? nameThenRepo : nameThenRepo.reversed());
-                    totalCount.set(gatherTotalCount.get() - orderedSnapshots.size());
-                    optimizedRemaining = Math.max(0, gatherTotalCount.get() - size);
-                    return orderedSnapshots.iterator();
-                }));
-                ThrottledIterator.run(
-                    Iterators.failFast(input, refs::isFailing),
-                    (ref, supplier) -> supplier.getAsyncSnapshotInfoIterator(
-                        ActionListener.releaseAfter(
-                            refs.acquire(iterator -> {
-                                while (iterator.hasNext()) {
-                                    final AsyncSnapshotInfo a = iterator.next();
-                                    topN.add(a);
-                                    while (topN.size() > size) {
-                                        topN.poll();
+                    final var refs = new RefCountingListener(resultListener.map(v -> {
+                        final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
+                        orderedSnapshots.sort(order == SortOrder.ASC ? nameThenRepo : nameThenRepo.reversed());
+                        totalCount.set(gatherTotalCount.get() - orderedSnapshots.size());
+                        optimizedRemaining = Math.max(0, gatherTotalCount.get() - size);
+                        return orderedSnapshots.iterator();
+                    }));
+                    ThrottledIterator.run(
+                        Iterators.failFast(input, refs::isFailing),
+                        (ref, supplier) -> supplier.getAsyncSnapshotInfoIterator(
+                            ActionListener.releaseAfter(
+                                refs.acquire(iterator -> {
+                                    while (iterator.hasNext()) {
+                                        final AsyncSnapshotInfo a = iterator.next();
+                                        topN.add(a);
+                                        while (topN.size() > size) {
+                                            topN.poll();
+                                        }
+                                        gatherTotalCount.incrementAndGet();
                                     }
-                                    gatherTotalCount.incrementAndGet();
-                                }
-                            }),
-                            ref
-                        )
-                    ),
-                    1,
-                    refs::close
-                );
+                                }),
+                                ref
+                            )
+                        ),
+                        1,
+                        refs::close
+                    );
+                }
             });
         }
 
