@@ -358,52 +358,47 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
                 final Iterator<AsyncSnapshotInfoIterator> it = iteratorOperator.apply(asyncSnapshotInfoIterators);
 
-                try {
-                    it.forEachRemaining(
-                        asyncSnapshotInfoIteratorSupplier -> asyncSnapshotInfoIteratorSupplier.getAsyncSnapshotInfoIterator(
-                            listeners.acquire(
-                                asyncSnapshotInfoIterator -> ThrottledIterator.run(
-                                    Iterators.failFast(asyncSnapshotInfoIterator, failFastSupplier),
-                                    (ref, asyncSnapshotInfo) -> ActionListener.run(
-                                        ActionListener.runBefore(listeners.acquire(), ref::close),
-                                        refListener -> asyncSnapshotInfo.getSnapshotInfo(new ActionListener<>() {
-                                            @Override
-                                            public void onResponse(SnapshotInfo snapshotInfo) {
-                                                if (matchesPredicates(snapshotInfo)) {
-                                                    if (nameOptimizedPathUsed == false) {
-                                                        totalCount.incrementAndGet();
-                                                    }
-                                                    if (afterPredicate.test(snapshotInfo)) {
-                                                        snapshotInfoCollector.add(snapshotInfo.maybeWithoutIndices(indices));
-                                                    }
+                it.forEachRemaining(
+                    asyncSnapshotInfoIteratorSupplier -> asyncSnapshotInfoIteratorSupplier.getAsyncSnapshotInfoIterator(
+                        listeners.acquire(
+                            asyncSnapshotInfoIterator -> ThrottledIterator.run(
+                                Iterators.failFast(asyncSnapshotInfoIterator, failFastSupplier),
+                                (ref, asyncSnapshotInfo) -> ActionListener.run(
+                                    ActionListener.runBefore(listeners.acquire(), ref::close),
+                                    refListener -> asyncSnapshotInfo.getSnapshotInfo(new ActionListener<>() {
+                                        @Override
+                                        public void onResponse(SnapshotInfo snapshotInfo) {
+                                            if (matchesPredicates(snapshotInfo)) {
+                                                if (nameOptimizedPathUsed == false) {
+                                                    totalCount.incrementAndGet();
                                                 }
-                                                refListener.onResponse(null);
+                                                if (afterPredicate.test(snapshotInfo)) {
+                                                    snapshotInfoCollector.add(snapshotInfo.maybeWithoutIndices(indices));
+                                                }
                                             }
+                                            refListener.onResponse(null);
+                                        }
 
-                                            @Override
-                                            public void onFailure(Exception e) {
-                                                if (ignoreUnavailable) {
-                                                    logger.warn(
-                                                        Strings.format("failed to fetch snapshot info for [%s]", asyncSnapshotInfo),
-                                                        e
-                                                    );
-                                                    refListener.onResponse(null);
-                                                } else {
-                                                    refListener.onFailure(e);
-                                                }
+                                        @Override
+                                        public void onFailure(Exception e) {
+                                            if (ignoreUnavailable) {
+                                                logger.warn(
+                                                    Strings.format("failed to fetch snapshot info for [%s]", asyncSnapshotInfo),
+                                                    e
+                                                );
+                                                refListener.onResponse(null);
+                                            } else {
+                                                refListener.onFailure(e);
                                             }
-                                        })
-                                    ),
-                                    getSnapshotInfoExecutor.getMaxRunningTasks(),
-                                    () -> {}
-                                )
+                                        }
+                                    })
+                                ),
+                                getSnapshotInfoExecutor.getMaxRunningTasks(),
+                                () -> {}
                             )
                         )
-                    );
-                } catch (RuntimeException e) {
-                    final Exception cause = e.getCause() instanceof Exception ex ? ex : e;
-                    listeners.acquire().onFailure(cause);
-                }
+                    )
+                );
             }
         }
 
