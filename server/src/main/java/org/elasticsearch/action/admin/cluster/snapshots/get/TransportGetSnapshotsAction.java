@@ -299,7 +299,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             }
 
             this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME && size != GetSnapshotsRequest.NO_LIMIT
-                ? input -> applyNameSortOptimization(input, offset, size, order, (optimizedTotalCount, optimizedRemainingValue) -> {
+                ? input -> applyNameSortOptimization(input, offset + size, order, (optimizedTotalCount, optimizedRemainingValue) -> {
                     this.optimizedTotalCount = optimizedTotalCount;
                     this.optimizedRemaining = optimizedRemainingValue;
                 })
@@ -409,14 +409,12 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
         private static Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(
             Iterator<AsyncSnapshotInfoIterator> input,
-            int offset,
-            int size,
+            int capacity,
             SortOrder order,
             NameSortOptimizationResultCallback resultCallback
         ) {
             final var nameComparator = Comparator.comparing(AsyncSnapshotInfo::getSnapshotId);
             final var queueComparator = order == SortOrder.ASC ? nameComparator.reversed() : nameComparator;
-            final int capacity = offset + size;
             final var topN = new PriorityQueue<>(capacity, queueComparator);
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
@@ -437,11 +435,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
                 private Iterator<AsyncSnapshotInfo> buildOrderedSnapshotIterator() {
                     final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
-                    orderedSnapshots.sort(order == SortOrder.ASC ? nameComparator : nameComparator.reversed());
-                    resultCallback.accept(
-                        gatherTotalCount - orderedSnapshots.size(),
-                        Math.max(0, gatherTotalCount - offset - size)
-                    );
+                    orderedSnapshots.sort(queueComparator);
+                    resultCallback.accept(gatherTotalCount - orderedSnapshots.size(), Math.max(0, gatherTotalCount - capacity));
                     return orderedSnapshots.iterator();
                 }
 
