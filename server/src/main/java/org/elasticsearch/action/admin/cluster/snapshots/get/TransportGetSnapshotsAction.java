@@ -393,20 +393,21 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
         private Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(Iterator<AsyncSnapshotInfoIterator> input) {
             return Iterators.single(new AsyncSnapshotInfoIterator() {
+                private final Comparator<AsyncSnapshotInfo> nameThenRepo = Comparator.comparing(
+                    (AsyncSnapshotInfo a) -> a.getSnapshotId().getName()
+                ).thenComparing(AsyncSnapshotInfo::getRepositoryName);
+                private final Comparator<AsyncSnapshotInfo> queueOrder =
+                    order == SortOrder.ASC ? nameThenRepo.reversed() : nameThenRepo;
+                private final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(size + 1, queueOrder);
+                private int gatherTotalCount = 0;
+
                 @Override
                 public void getAsyncSnapshotInfoIterator(ActionListener<Iterator<AsyncSnapshotInfo>> resultListener) {
-                    final Comparator<AsyncSnapshotInfo> nameThenRepo = Comparator.comparing(
-                        (AsyncSnapshotInfo a) -> a.getSnapshotId().getName()
-                    ).thenComparing(AsyncSnapshotInfo::getRepositoryName);
-                    final Comparator<AsyncSnapshotInfo> queueOrder = order == SortOrder.ASC ? nameThenRepo.reversed() : nameThenRepo;
-                    final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(size + 1, queueOrder);
-                    final AtomicInteger gatherTotalCount = new AtomicInteger(0);
-
                     final var refs = new RefCountingListener(resultListener.map(v -> {
                         final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
                         orderedSnapshots.sort(order == SortOrder.ASC ? nameThenRepo : nameThenRepo.reversed());
-                        totalCount.set(gatherTotalCount.get() - orderedSnapshots.size());
-                        optimizedRemaining = Math.max(0, gatherTotalCount.get() - size);
+                        totalCount.set(gatherTotalCount - orderedSnapshots.size());
+                        optimizedRemaining = Math.max(0, gatherTotalCount - size);
                         return orderedSnapshots.iterator();
                     }));
                     ThrottledIterator.run(
@@ -420,7 +421,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                                         while (topN.size() > size) {
                                             topN.poll();
                                         }
-                                        gatherTotalCount.incrementAndGet();
+                                        gatherTotalCount++;
                                     }
                                 }),
                                 ref
