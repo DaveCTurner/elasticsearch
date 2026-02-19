@@ -183,7 +183,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
      * the optimized remaining value in a single call.
      */
     private interface NameSortOptimizationResultCallback {
-        void accept(int totalCount, int optimizedRemaining);
+        void accept(int optimizedTotalCount, int optimizedRemaining);
     }
 
     /**
@@ -211,7 +211,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private final SortOrder order;
         @Nullable
         private final String fromSortValue;
-        private final int size;
         private final Predicate<SnapshotInfo> afterPredicate;
 
         /**
@@ -282,7 +281,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             this.indices = indices;
             this.states = states;
 
-            this.size = size;
             this.snapshotNamePredicate = SnapshotNamePredicate.forSnapshots(ignoreUnavailable, snapshots);
             this.fromSortValuePredicates = SnapshotPredicates.forFromSortValue(fromSortValue, sortBy, order);
             this.slmPolicyPredicate = SlmPolicyPredicate.forPolicies(policies);
@@ -300,9 +298,9 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 assert slmPolicyPredicate == SlmPolicyPredicate.MATCH_ALL_POLICIES : "filtering is not supported in non-verbose mode";
             }
 
-            this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME && this.size != GetSnapshotsRequest.NO_LIMIT && offset == 0
-                ? input -> applyNameSortOptimization(input, size, order, (totalCountValue, optimizedRemainingValue) -> {
-                    this.optimizedTotalCount = totalCountValue;
+            this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME && size != GetSnapshotsRequest.NO_LIMIT && offset == 0
+                ? input -> applyNameSortOptimization(input, size, order, (optimizedTotalCount, optimizedRemainingValue) -> {
+                    this.optimizedTotalCount = optimizedTotalCount;
                     this.optimizedRemaining = optimizedRemainingValue;
                 })
                 : UnaryOperator.identity();
@@ -415,11 +413,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             SortOrder order,
             NameSortOptimizationResultCallback resultCallback
         ) {
-            final Comparator<AsyncSnapshotInfo> nameComparator = Comparator.comparing(AsyncSnapshotInfo::getSnapshotId);
-            final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(
-                size + 1,
-                order == SortOrder.ASC ? nameComparator.reversed() : nameComparator
-            );
+            final var nameComparator = Comparator.comparing(AsyncSnapshotInfo::getSnapshotId);
+            final var topN = new PriorityQueue<>(size + 1, order == SortOrder.ASC ? nameComparator.reversed() : nameComparator);
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
                 private int gatherTotalCount = 0;
