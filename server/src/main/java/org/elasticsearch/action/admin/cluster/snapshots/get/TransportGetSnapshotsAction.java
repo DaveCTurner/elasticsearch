@@ -222,6 +222,12 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private int optimizedRemaining;
 
         /**
+         * Total count from the name-sort optimized path; zero on the normal path. Applied when building the final response as
+         * {@code totalCount.get() + optimizedTotalCount}.
+         */
+        private int optimizedTotalCount;
+
+        /**
          * Identity on non-optimized paths; when sorting by NAME with bounded size and zero offset, performs the collection process and
          * returns an iterator that only yields the snapshots that will appear in the results.
          */
@@ -296,7 +302,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
             this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME && this.size != GetSnapshotsRequest.NO_LIMIT && offset == 0
                 ? input -> applyNameSortOptimization(input, size, order, (totalCountValue, optimizedRemainingValue) -> {
-                    totalCount.set(totalCountValue);
+                    this.optimizedTotalCount = totalCountValue;
                     this.optimizedRemaining = optimizedRemainingValue;
                 })
                 : UnaryOperator.identity();
@@ -318,7 +324,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         }
 
         /**
-         * Populate the results fields ({@link #snapshotInfoCollector} and {@link #totalCount}).
+         * Populate the results fields ({@link #snapshotInfoCollector}, {@link #totalCount}, and on the optimized path
+         * {@link #optimizedTotalCount} and {@link #optimizedRemaining}).
          */
         private void populateResults(ActionListener<Void> listener) {
             try (var listeners = new RefCountingListener(listener)) {
@@ -660,7 +667,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             return new GetSnapshotsResponse(
                 snapshotInfos,
                 remaining > 0 ? sortBy.encodeAfterQueryParam(snapshotInfos.getLast()) : null,
-                totalCount.get(),
+                totalCount.get() + optimizedTotalCount,
                 remaining
             );
         }
