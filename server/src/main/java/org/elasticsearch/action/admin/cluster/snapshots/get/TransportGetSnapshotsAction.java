@@ -68,6 +68,7 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
@@ -399,37 +400,49 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 final Comparator<AsyncSnapshotInfo> queueOrder = order == SortOrder.ASC ? nameThenRepo.reversed() : nameThenRepo;
                 final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(size + 1, queueOrder);
                 final AtomicInteger gatherTotalCount = new AtomicInteger(0);
-                final Object queueLock = new Object();
+                final AtomicReference<Exception> firstFailure = new AtomicReference<>();
 
-                try (var refs = new RefCountingListener(resultListener.map(v -> {
-                    final List<AsyncSnapshotInfo> orderedSnapshots;
-                    final int total;
-                    synchronized (queueLock) {
-                        orderedSnapshots = new ArrayList<>(topN);
-                        total = gatherTotalCount.get();
-                    }
-                    orderedSnapshots.sort(order == SortOrder.ASC ? nameThenRepo : nameThenRepo.reversed());
-                    totalCount.set(total - orderedSnapshots.size());
-                    optimizedRemaining = Math.max(0, total - size);
-                    return orderedSnapshots.iterator();
-                }))) {
-                    while (input.hasNext()) {
-                        input.next().getAsyncSnapshotInfoIterator(refs.acquire(iterator -> {
-                            int count = 0;
-                            synchronized (queueLock) {
-                                while (iterator.hasNext()) {
-                                    final AsyncSnapshotInfo a = iterator.next();
-                                    topN.add(a);
-                                    while (topN.size() > size) {
-                                        topN.poll();
+                ThrottledIterator.run(
+                    input,
+                    (ref, supplier) -> supplier.getAsyncSnapshotInfoIterator(
+                        ActionListener.releaseAfter(
+                            new ActionListener<>() {
+                                @Override
+                                public void onResponse(Iterator<AsyncSnapshotInfo> iterator) {
+                                    int count = 0;
+                                    while (iterator.hasNext()) {
+                                        final AsyncSnapshotInfo a = iterator.next();
+                                        topN.add(a);
+                                        while (topN.size() > size) {
+                                            topN.poll();
+                                        }
+                                        count++;
                                     }
-                                    count++;
+                                    gatherTotalCount.addAndGet(count);
                                 }
-                            }
-                            gatherTotalCount.addAndGet(count);
-                        }));
+
+                                @Override
+                                public void onFailure(Exception e) {
+                                    firstFailure.compareAndSet(null, e);
+                                }
+                            },
+                            ref
+                        )
+                    ),
+                    1,
+                    () -> {
+                        final Exception failure = firstFailure.get();
+                        if (failure != null) {
+                            resultListener.onFailure(failure);
+                        } else {
+                            final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
+                            orderedSnapshots.sort(order == SortOrder.ASC ? nameThenRepo : nameThenRepo.reversed());
+                            totalCount.set(gatherTotalCount.get() - orderedSnapshots.size());
+                            optimizedRemaining = Math.max(0, gatherTotalCount.get() - size);
+                            resultListener.onResponse(orderedSnapshots.iterator());
+                        }
                     }
-                }
+                );
             });
         }
 
