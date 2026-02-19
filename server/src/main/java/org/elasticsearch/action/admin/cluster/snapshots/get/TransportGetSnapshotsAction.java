@@ -419,7 +419,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             return Iterators.single(new AsyncSnapshotInfoIterator() {
                 private int gatherTotalCount = 0;
 
-                private void mergeIteratorIntoTopN(Iterator<AsyncSnapshotInfo> iterator) {
+                private void drainIterator(Iterator<AsyncSnapshotInfo> iterator) {
                     while (iterator.hasNext()) {
                         topN.add(iterator.next());
                         while (topN.size() > size) {
@@ -442,7 +442,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     ThrottledIterator.run(
                         Iterators.failFast(input, refs::isFailing),
                         (ref, supplier) -> supplier.getAsyncSnapshotInfoIterator(
-                            ActionListener.releaseAfter(refs.acquire(this::mergeIteratorIntoTopN), ref)
+                            ActionListener.releaseAfter(refs.acquire(this::drainIterator), ref)
                         ),
                         1,
                         refs::close
