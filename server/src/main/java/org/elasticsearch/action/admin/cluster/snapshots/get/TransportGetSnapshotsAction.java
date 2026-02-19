@@ -70,6 +70,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
 import java.util.function.BooleanSupplier;
+import java.util.function.IntConsumer;
 import java.util.function.Predicate;
 import java.util.function.ToLongFunction;
 import java.util.function.UnaryOperator;
@@ -287,7 +288,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             }
 
             this.iteratorOperator = this.sortBy == SnapshotSortKey.NAME && this.size != GetSnapshotsRequest.NO_LIMIT && offset == 0
-                ? this::applyNameSortOptimization
+                ? input -> applyNameSortOptimization(input, size, order, totalCount, value -> this.optimizedRemaining = value)
                 : UnaryOperator.identity();
         }
 
@@ -391,7 +392,13 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             }
         }
 
-        private Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(Iterator<AsyncSnapshotInfoIterator> input) {
+        private static Iterator<AsyncSnapshotInfoIterator> applyNameSortOptimization(
+            Iterator<AsyncSnapshotInfoIterator> input,
+            int size,
+            SortOrder order,
+            AtomicInteger totalCount,
+            IntConsumer setOptimizedRemaining
+        ) {
             final Comparator<AsyncSnapshotInfo> nameComparator = Comparator.comparing(AsyncSnapshotInfo::getSnapshotId);
             final PriorityQueue<AsyncSnapshotInfo> topN = new PriorityQueue<>(
                 size + 1,
@@ -407,15 +414,14 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                         final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
                         orderedSnapshots.sort(order == SortOrder.ASC ? nameComparator : nameComparator.reversed());
                         totalCount.set(gatherTotalCount - orderedSnapshots.size());
-                        optimizedRemaining = Math.max(0, gatherTotalCount - size);
+                        setOptimizedRemaining.accept(Math.max(0, gatherTotalCount - size));
                         return orderedSnapshots.iterator();
                     }));
                     ThrottledIterator.run(
                         Iterators.failFast(input, refs::isFailing),
                         (ref, supplier) -> supplier.getAsyncSnapshotInfoIterator(ActionListener.releaseAfter(refs.acquire(iterator -> {
                             while (iterator.hasNext()) {
-                                final AsyncSnapshotInfo a = iterator.next();
-                                topN.add(a);
+                                topN.add(iterator.next());
                                 while (topN.size() > size) {
                                     topN.poll();
                                 }
