@@ -459,6 +459,9 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             final var slmPolicyFiltering = slmPolicyPredicate != SlmPolicyPredicate.MATCH_ALL_POLICIES;
             final var statesFiltering = states.size() < SnapshotState.values().length;
             final var residualIterators = new ArrayList<Iterator<AsyncSnapshotInfo>>();
+
+            // TODO bleurgh we should do the preflight after filtering first even when not doing this optimization
+
             final Predicate<AsyncSnapshotInfo> afterCursorPredicate = after == null ? Predicates.always() : switch (sortBy) {
                 case NAME -> order == SortOrder.ASC
                     ? item -> compareNameForAfterCursor(
