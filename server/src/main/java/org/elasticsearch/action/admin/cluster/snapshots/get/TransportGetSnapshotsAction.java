@@ -181,10 +181,13 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
     }
 
     /**
-     * Callback invoked once when the name-sort optimization has gathered and merged snapshot counts, supplying the total count.
+     * Callback invoked once when the name-sort optimization has gathered and merged snapshot counts.
+     *
+     * @param optimizedTotalCount                  total matching count from the optimization (for response total)
+     * @param optimizedEvictedMatchingAfterCursor  count of evicted (unloaded) matching snapshots that pass the after predicate
      */
     private interface NameSortOptimizationResultCallback {
-        void accept(int optimizedTotalCount);
+        void accept(int optimizedTotalCount, int optimizedEvictedMatchingAfterCursor);
     }
 
     /**
@@ -212,16 +215,23 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private final SortOrder order;
         @Nullable
         private final String fromSortValue;
+        @Nullable
+        private final SnapshotSortKey.After after;
         private final int offset;
         private final int size;
         private final Predicate<SnapshotInfo> afterPredicate;
 
         /**
          * Total count from the name-sort optimized path; zero on the normal path. Applied when building the final response as
-         * {@code totalCount.get() + optimizedTotalCount}. On the optimized path remaining is computed as
-         * {@code Math.max(0, total - offset - size)}.
+         * {@code totalCount.get() + optimizedTotalCount}.
          */
         private int optimizedTotalCount;
+
+        /**
+         * Count of evicted (unloaded) matching snapshots that pass the after predicate; zero on the normal path.
+         * Remaining = snapshotInfoCollector.getRemaining() + this (collector only counts adds, which all pass after).
+         */
+        private int optimizedEvictedMatchingAfterCursor;
 
         /**
          * Identity on non-optimized paths; when sorting by NAME or REPOSITORY with bounded size, performs the
@@ -275,6 +285,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             this.sortBy = sortBy;
             this.order = order;
             this.fromSortValue = fromSortValue;
+            this.after = after;
             this.snapshotsInProgress = snapshotsInProgress;
             this.verbose = verbose;
             this.indices = indices;
@@ -306,9 +317,13 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                         offset + size,
                         sortBy,
                         order,
+                        after,
                         slmPolicyPredicate,
                         states,
-                        count -> this.optimizedTotalCount = count
+                        (totalCount, evictedAfterCursor) -> {
+                            this.optimizedTotalCount = totalCount;
+                            this.optimizedEvictedMatchingAfterCursor = evictedAfterCursor;
+                        }
                     )
                     : UnaryOperator.identity();
         }
@@ -428,6 +443,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             int capacity,
             SnapshotSortKey sortBy,
             SortOrder order,
+            @Nullable SnapshotSortKey.After after,
             Predicate<String> slmPolicyPredicate,
             EnumSet<SnapshotState> states,
             NameSortOptimizationResultCallback resultCallback
@@ -446,6 +462,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
                 private int matchingCount = 0;
+                private int evictedMatchingAfterCursor = 0;
 
                 private boolean needsToLoadToDetermineMatch(AsyncSnapshotInfo item) {
                     if (slmPolicyFiltering == false && statesFiltering == false) {
@@ -473,8 +490,15 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                         if (topN.size() < capacity) {
                             topN.add(item);
                         } else if (queueComparator.compare(item, topN.peek()) < 0) {
-                            topN.poll();
+                            final var evicted = topN.poll();
+                            if (sortBy.isAfterCursor(after, order, evicted.getRepositoryName(), evicted.getSnapshotId().getName())) {
+                                evictedMatchingAfterCursor++;
+                            }
                             topN.add(item);
+                        } else {
+                            if (sortBy.isAfterCursor(after, order, item.getRepositoryName(), item.getSnapshotId().getName())) {
+                                evictedMatchingAfterCursor++;
+                            }
                         }
                     }
                 }
@@ -482,7 +506,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 private Iterator<AsyncSnapshotInfo> buildOrderedSnapshotIterator() {
                     final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
                     orderedSnapshots.sort(queueComparator);
-                    resultCallback.accept(matchingCount - orderedSnapshots.size());
+                    resultCallback.accept(matchingCount - orderedSnapshots.size(), evictedMatchingAfterCursor);
                     return Iterators.concat(
                         orderedSnapshots.iterator(),
                         Iterators.flatMap(residualIterators.iterator(), Function.identity())
@@ -730,9 +754,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             final var snapshotInfos = snapshotInfoCollector.getSnapshotInfos();
             assert assertSatisfiesAllPredicates(snapshotInfos);
             final int total = totalCount.get() + optimizedTotalCount;
-            final int remaining = optimizedTotalCount != 0
-                ? Math.max(0, total - offset - size)
-                : snapshotInfoCollector.getRemaining();
+            final int remaining = snapshotInfoCollector.getRemaining() + optimizedEvictedMatchingAfterCursor;
             return new GetSnapshotsResponse(
                 snapshotInfos,
                 remaining > 0 ? sortBy.encodeAfterQueryParam(snapshotInfos.getLast()) : null,
