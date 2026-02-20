@@ -183,11 +183,11 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
     /**
      * Callback invoked once when the name-sort optimization has gathered and merged snapshot counts.
      *
-     * @param optimizedTotalCount                  total matching count from the optimization (for response total)
-     * @param optimizedEvictedMatchingAfterCursor  count of evicted (unloaded) matching snapshots that pass the after predicate
+     * @param optimizedTotalCount            total matching count from the optimization (for response total)
+     * @param optimizedExcludedByAfterCursor count of matching items (at this stage) excluded by the after predicate
      */
     private interface NameSortOptimizationResultCallback {
-        void accept(int optimizedTotalCount, int optimizedEvictedMatchingAfterCursor);
+        void accept(int optimizedTotalCount, int optimizedExcludedByAfterCursor);
     }
 
     /**
@@ -228,10 +228,10 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private int optimizedTotalCount;
 
         /**
-         * Count of evicted (unloaded) matching snapshots that pass the after predicate; zero on the normal path.
-         * Remaining = snapshotInfoCollector.getRemaining() + this (collector only counts adds, which all pass after).
+         * Count of matching items excluded by the after predicate at the optimization stage; zero on the normal path.
+         * Used to compute remaining = getRemaining() + (optimizedTotalCount - this).
          */
-        private int optimizedEvictedMatchingAfterCursor;
+        private int optimizedExcludedByAfterCursor;
 
         /**
          * Identity on non-optimized paths; when sorting by NAME or REPOSITORY with bounded size, performs the
@@ -320,9 +320,9 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                         after,
                         slmPolicyPredicate,
                         states,
-                        (totalCount, evictedAfterCursor) -> {
+                        (totalCount, excludedByAfterCursor) -> {
                             this.optimizedTotalCount = totalCount;
-                            this.optimizedEvictedMatchingAfterCursor = evictedAfterCursor;
+                            this.optimizedExcludedByAfterCursor = excludedByAfterCursor;
                         }
                     )
                     : UnaryOperator.identity();
@@ -459,41 +459,41 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             final var slmPolicyFiltering = slmPolicyPredicate != SlmPolicyPredicate.MATCH_ALL_POLICIES;
             final var statesFiltering = states.size() < SnapshotState.values().length;
             final var residualIterators = new ArrayList<Iterator<AsyncSnapshotInfo>>();
-            final Predicate<AsyncSnapshotInfo> afterCursorPredicate = after == null
-                ? Predicates.always()
-                : switch (sortBy) {
-                    case NAME -> order == SortOrder.ASC
-                        ? item -> compareNameForAfterCursor(
-                            after.snapshotName(),
-                            after.repoName(),
-                            item.getSnapshotId().getName(),
-                            item.getRepositoryName()
-                        ) < 0
-                        : item -> compareNameForAfterCursor(
-                            after.snapshotName(),
-                            after.repoName(),
-                            item.getSnapshotId().getName(),
-                            item.getRepositoryName()
-                        ) > 0;
-                    case REPOSITORY -> order == SortOrder.ASC
-                        ? item -> compareRepositoryForAfterCursor(
-                            after.snapshotName(),
-                            after.repoName(),
-                            item.getSnapshotId().getName(),
-                            item.getRepositoryName()
-                        ) < 0
-                        : item -> compareRepositoryForAfterCursor(
-                            after.snapshotName(),
-                            after.repoName(),
-                            item.getSnapshotId().getName(),
-                            item.getRepositoryName()
-                        ) > 0;
-                    default -> Predicates.always();
-                };
+            final Predicate<AsyncSnapshotInfo> afterCursorPredicate = after == null ? Predicates.always() : switch (sortBy) {
+                case NAME -> order == SortOrder.ASC
+                    ? item -> compareNameForAfterCursor(
+                        after.snapshotName(),
+                        after.repoName(),
+                        item.getSnapshotId().getName(),
+                        item.getRepositoryName()
+                    ) < 0
+                    : item -> compareNameForAfterCursor(
+                        after.snapshotName(),
+                        after.repoName(),
+                        item.getSnapshotId().getName(),
+                        item.getRepositoryName()
+                    ) > 0;
+                case REPOSITORY -> order == SortOrder.ASC
+                    ? item -> compareRepositoryForAfterCursor(
+                        after.snapshotName(),
+                        after.repoName(),
+                        item.getSnapshotId().getName(),
+                        item.getRepositoryName()
+                    ) < 0
+                    : item -> compareRepositoryForAfterCursor(
+                        after.snapshotName(),
+                        after.repoName(),
+                        item.getSnapshotId().getName(),
+                        item.getRepositoryName()
+                    ) > 0;
+                default -> throw new IllegalArgumentException(
+                    "after cursor predicate only supports NAME and REPOSITORY sort, got: " + sortBy
+                );
+            };
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
                 private int matchingCount = 0;
-                private int matchingAfterCursorCount = 0;
+                private int excludedByAfterPredicateCount = 0;
 
                 private boolean needsToLoadToDetermineMatch(AsyncSnapshotInfo item) {
                     if (slmPolicyFiltering == false && statesFiltering == false) {
@@ -519,10 +519,9 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                         matchingCount++;
 
                         if (afterCursorPredicate.test(item) == false) {
+                            excludedByAfterPredicateCount++;
                             continue;
                         }
-
-                        matchingAfterCursorCount++;
 
                         if (topN.size() < capacity) {
                             topN.add(item);
@@ -536,7 +535,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 private Iterator<AsyncSnapshotInfo> buildOrderedSnapshotIterator() {
                     final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
                     orderedSnapshots.sort(queueComparator);
-                    resultCallback.accept(matchingCount - orderedSnapshots.size(), matchingAfterCursorCount - orderedSnapshots.size());
+                    resultCallback.accept(matchingCount - orderedSnapshots.size(), excludedByAfterPredicateCount);
                     return Iterators.concat(
                         orderedSnapshots.iterator(),
                         Iterators.flatMap(residualIterators.iterator(), Function.identity())
@@ -784,7 +783,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             final var snapshotInfos = snapshotInfoCollector.getSnapshotInfos();
             assert assertSatisfiesAllPredicates(snapshotInfos);
             final int total = totalCount.get() + optimizedTotalCount;
-            final int remaining = snapshotInfoCollector.getRemaining() + optimizedEvictedMatchingAfterCursor;
+            final int remaining = snapshotInfoCollector.getRemaining() + (optimizedTotalCount - optimizedExcludedByAfterCursor);
             return new GetSnapshotsResponse(
                 snapshotInfos,
                 remaining > 0 ? sortBy.encodeAfterQueryParam(snapshotInfos.getLast()) : null,
