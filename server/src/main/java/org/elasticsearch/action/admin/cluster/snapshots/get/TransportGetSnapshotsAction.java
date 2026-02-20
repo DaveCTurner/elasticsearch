@@ -71,6 +71,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.ToLongFunction;
 import java.util.function.UnaryOperator;
@@ -446,8 +447,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             };
             final var queueComparator = order == SortOrder.ASC ? ascendingComparator.reversed() : ascendingComparator;
             final var topN = new PriorityQueue<>(capacity, queueComparator);
-            final boolean slmPolicyFiltering = slmPolicyPredicate != SlmPolicyPredicate.MATCH_ALL_POLICIES;
-            final List<Iterator<AsyncSnapshotInfo>> residualIterators = slmPolicyFiltering ? new ArrayList<>() : null;
+            final var slmPolicyFiltering = slmPolicyPredicate != SlmPolicyPredicate.MATCH_ALL_POLICIES;
+            final var residualIterators = new ArrayList<Iterator<AsyncSnapshotInfo>>();
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
                 private int gatherTotalCount = 0;
@@ -489,17 +490,16 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     orderedSnapshots.sort(queueComparator);
                     if (slmPolicyFiltering) {
                         resultCallback.accept(unloadedMatchingSlmPolicy, 0);
-                        final List<Iterator<AsyncSnapshotInfo>> all = new ArrayList<>(1 + residualIterators.size());
-                        all.add(orderedSnapshots.iterator());
-                        all.addAll(residualIterators);
-                        return Iterators.concat(all.toArray(Iterator[]::new));
                     } else {
                         resultCallback.accept(
                             gatherTotalCount - orderedSnapshots.size(),
                             Math.max(0, gatherTotalCount - capacity)
                         );
-                        return orderedSnapshots.iterator();
                     }
+                    return Iterators.concat(
+                        orderedSnapshots.iterator(),
+                        Iterators.flatMap(residualIterators.iterator(), Function.identity())
+                    );
                 }
 
                 @Override
