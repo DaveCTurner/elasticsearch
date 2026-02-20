@@ -457,19 +457,16 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             return Iterators.single(new AsyncSnapshotInfoIterator() {
                 private int matchingCount = 0;
 
-                private boolean hasSlmPolicyInRepoData(AsyncSnapshotInfo item) {
-                    final var details = item.getSnapshotDetails();
-                    return details != null && details.getSlmPolicy() != null;
-                }
-
-                private boolean hasStateInRepoData(AsyncSnapshotInfo item) {
-                    final var details = item.getSnapshotDetails();
-                    return details != null && details.getSnapshotState() != null;
-                }
-
                 private boolean needsToLoadToDetermineMatch(AsyncSnapshotInfo item) {
-                    return (slmPolicyFiltering && hasSlmPolicyInRepoData(item) == false)
-                        || (statesFiltering && hasStateInRepoData(item) == false);
+                    if (slmPolicyFiltering == false && statesFiltering == false) {
+                        return false;
+                    }
+                    final var details = item.getSnapshotDetails();
+                    if (details == null) {
+                        return true;
+                    }
+                    return (slmPolicyFiltering && details.getSlmPolicy() == null)
+                        || (statesFiltering && details.getSnapshotState() == null);
                 }
 
                 private void drainIterator(Iterator<AsyncSnapshotInfo> iterator) {
