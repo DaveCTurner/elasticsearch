@@ -840,7 +840,10 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         }
     }
 
-    /** Compare (cursorName, cursorRepo) with (itemName, itemRepo) for NAME sort; same order as SnapshotSortKey. */
+    /**
+     * Compare (cursorName, cursorRepo) with (itemName, itemRepo) for NAME sort; same order as SnapshotSortKey.
+     * Repository is the tiebreaker when snapshot names are equal.
+     */
     private static int compareNameForAfterCursor(String cursorName, String cursorRepo, String itemName, String itemRepo) {
         final int res = cursorName.compareTo(itemName);
         if (res != 0) {

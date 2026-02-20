@@ -223,49 +223,6 @@ public enum SnapshotSortKey {
      */
     protected abstract Predicate<SnapshotInfo> innerGetAfterPredicate(After after, SortOrder sortOrder);
 
-    /**
-     * Returns true if a snapshot with the given repository and snapshot name sorts after the cursor.
-     * Only supported for {@link #NAME} and {@link #REPOSITORY}; used by the sort optimization to count
-     * unloaded snapshots that pass the after predicate.
-     *
-     * @param after        the cursor (when null, returns true)
-     * @param sortOrder    sort order
-     * @param repoName     repository name
-     * @param snapshotName snapshot name
-     */
-    public boolean isAfterCursor(@Nullable After after, SortOrder sortOrder, String repoName, String snapshotName) {
-        if (after == null) {
-            return true;
-        }
-        return switch (this) {
-            case NAME -> sortOrder == SortOrder.ASC
-                ? compareNameForCursor(after.snapshotName(), after.repoName(), snapshotName, repoName) < 0
-                : compareNameForCursor(after.snapshotName(), after.repoName(), snapshotName, repoName) > 0;
-            case REPOSITORY -> sortOrder == SortOrder.ASC
-                ? compareRepositoryNameForCursor(after.snapshotName(), after.repoName(), snapshotName, repoName) < 0
-                : compareRepositoryNameForCursor(after.snapshotName(), after.repoName(), snapshotName, repoName) > 0;
-            default -> throw new IllegalArgumentException("isAfterCursor only supported for NAME and REPOSITORY sort, got: " + this);
-        };
-    }
-
-    /** Compare (cursorName, cursorRepo) with (itemName, itemRepo); same order as {@link #compareName(String, String, SnapshotInfo)}. */
-    private static int compareNameForCursor(String cursorName, String cursorRepo, String itemName, String itemRepo) {
-        final int res = cursorName.compareTo(itemName);
-        if (res != 0) {
-            return res;
-        }
-        return cursorRepo.compareTo(itemRepo);
-    }
-
-    /** Compare (cursorName, cursorRepo) with (itemName, itemRepo); same order as {@link #compareRepositoryName}. */
-    private static int compareRepositoryNameForCursor(String cursorName, String cursorRepo, String itemName, String itemRepo) {
-        final int res = cursorRepo.compareTo(itemRepo);
-        if (res != 0) {
-            return res;
-        }
-        return cursorName.compareTo(itemName);
-    }
-
     private static int compareName(String name, String repoName, SnapshotInfo info) {
         final int res = name.compareTo(info.snapshotId().getName());
         if (res != 0) {
@@ -288,12 +245,6 @@ public enum SnapshotSortKey {
     }
 
     public record After(String value, String repoName, String snapshotName) implements Writeable {
-
-        public After(String value, String repoName, String snapshotName) {
-            this.value = value;
-            this.repoName = repoName;
-            this.snapshotName = snapshotName;
-        }
 
         After(StreamInput in) throws IOException {
             this(in.readString(), in.readString(), in.readString());
