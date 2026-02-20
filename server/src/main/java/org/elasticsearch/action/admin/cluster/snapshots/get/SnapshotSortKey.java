@@ -289,6 +289,12 @@ public enum SnapshotSortKey {
 
     public record After(String value, String repoName, String snapshotName) implements Writeable {
 
+        public After(String value, String repoName, String snapshotName) {
+            this.value = value;
+            this.repoName = repoName;
+            this.snapshotName = snapshotName;
+        }
+
         After(StreamInput in) throws IOException {
             this(in.readString(), in.readString(), in.readString());
         }

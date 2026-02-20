@@ -462,7 +462,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
                 private int matchingCount = 0;
-                private int evictedMatchingAfterCursor = 0;
+                private int matchingAfterCursorCount = 0;
 
                 private boolean needsToLoadToDetermineMatch(AsyncSnapshotInfo item) {
                     if (slmPolicyFiltering == false && statesFiltering == false) {
@@ -491,14 +491,13 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                             continue;
                         }
 
+                        matchingAfterCursorCount++;
+
                         if (topN.size() < capacity) {
                             topN.add(item);
                         } else if (queueComparator.compare(item, topN.peek()) < 0) {
-                            evictedMatchingAfterCursor++;
                             topN.poll();
                             topN.add(item);
-                        } else {
-                            evictedMatchingAfterCursor++;
                         }
                     }
                 }
@@ -506,7 +505,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 private Iterator<AsyncSnapshotInfo> buildOrderedSnapshotIterator() {
                     final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
                     orderedSnapshots.sort(queueComparator);
-                    resultCallback.accept(matchingCount - orderedSnapshots.size(), evictedMatchingAfterCursor);
+                    resultCallback.accept(matchingCount - orderedSnapshots.size(), matchingAfterCursorCount - orderedSnapshots.size());
                     return Iterators.concat(
                         orderedSnapshots.iterator(),
                         Iterators.flatMap(residualIterators.iterator(), Function.identity())
