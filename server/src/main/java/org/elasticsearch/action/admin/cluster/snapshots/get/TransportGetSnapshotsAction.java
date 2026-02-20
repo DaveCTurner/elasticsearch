@@ -447,7 +447,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             final var queueComparator = order == SortOrder.ASC ? ascendingComparator.reversed() : ascendingComparator;
             final var topN = new PriorityQueue<>(capacity, queueComparator);
             final boolean slmPolicyFiltering = slmPolicyPredicate != SlmPolicyPredicate.MATCH_ALL_POLICIES;
-            final List<AsyncSnapshotInfo> mustLoad = slmPolicyFiltering ? new ArrayList<>() : null;
+            final List<Iterator<AsyncSnapshotInfo>> residualIterators = slmPolicyFiltering ? new ArrayList<>() : null;
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
                 private int gatherTotalCount = 0;
@@ -469,8 +469,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                         gatherTotalCount++;
 
                         if (slmPolicyFiltering && hasSlmPolicyInRepoData(item) == false) {
-                            mustLoad.add(item);
-                            continue;
+                            residualIterators.add(Iterators.concat(Iterators.single(item), iterator));
+                            return;
                         }
 
                         if (topN.size() < capacity) {
@@ -494,7 +494,10 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     orderedSnapshots.sort(queueComparator);
                     if (slmPolicyFiltering) {
                         resultCallback.accept(unloadedMatchingSlmPolicy, 0);
-                        return Iterators.concat(orderedSnapshots.iterator(), mustLoad.iterator());
+                        final List<Iterator<AsyncSnapshotInfo>> all = new ArrayList<>(1 + residualIterators.size());
+                        all.add(orderedSnapshots.iterator());
+                        all.addAll(residualIterators);
+                        return Iterators.concat(all.toArray(Iterator[]::new));
                     } else {
                         resultCallback.accept(
                             gatherTotalCount - orderedSnapshots.size(),
