@@ -455,7 +455,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             final var residualIterators = new ArrayList<Iterator<AsyncSnapshotInfo>>();
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
-                private int unloadedMatchingCount = 0;
+                private int matchingCount = 0;
 
                 private boolean hasSlmPolicyInRepoData(AsyncSnapshotInfo item) {
                     final var details = item.getSnapshotDetails();
@@ -467,27 +467,27 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     return details != null && details.getSnapshotState() != null;
                 }
 
+                private boolean needsToLoadToDetermineMatch(AsyncSnapshotInfo item) {
+                    return (slmPolicyFiltering && hasSlmPolicyInRepoData(item) == false)
+                        || (statesFiltering && hasStateInRepoData(item) == false);
+                }
+
                 private void drainIterator(Iterator<AsyncSnapshotInfo> iterator) {
                     while (iterator.hasNext()) {
                         final var item = iterator.next();
 
-                        if (slmPolicyFiltering && hasSlmPolicyInRepoData(item) == false) {
+                        if (needsToLoadToDetermineMatch(item)) {
                             residualIterators.add(Iterators.concat(Iterators.single(item), iterator));
                             return;
                         }
-                        if (statesFiltering && hasStateInRepoData(item) == false) {
-                            residualIterators.add(Iterators.concat(Iterators.single(item), iterator));
-                            return;
-                        }
+
+                        matchingCount++;
 
                         if (topN.size() < capacity) {
                             topN.add(item);
                         } else if (queueComparator.compare(item, topN.peek()) < 0) {
                             topN.poll();
-                            unloadedMatchingCount++;
                             topN.add(item);
-                        } else {
-                            unloadedMatchingCount++;
                         }
                     }
                 }
@@ -495,7 +495,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 private Iterator<AsyncSnapshotInfo> buildOrderedSnapshotIterator() {
                     final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
                     orderedSnapshots.sort(queueComparator);
-                    resultCallback.accept(unloadedMatchingCount, 0);
+                    resultCallback.accept(matchingCount - orderedSnapshots.size(), 0);
                     return Iterators.concat(
                         orderedSnapshots.iterator(),
                         Iterators.flatMap(residualIterators.iterator(), Function.identity())
