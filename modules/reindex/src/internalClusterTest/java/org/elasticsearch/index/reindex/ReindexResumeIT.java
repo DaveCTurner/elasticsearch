@@ -30,6 +30,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.slice.SliceBuilder;
 import org.elasticsearch.tasks.TaskResult;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.hamcrest.Matchers;
 
 import java.net.InetSocketAddress;
 import java.util.Collection;
@@ -295,21 +296,20 @@ public class ReindexResumeIT extends ESIntegTestCase {
     public void testLocalResumeReindexFromScroll_slicedAuto() {
         String sourceIndex = randomAlphanumericOfLength(10).toLowerCase(Locale.ROOT);
         String destIndex = randomAlphanumericOfLength(10).toLowerCase(Locale.ROOT);
-        final int totalDocs = randomIntBetween(200, 300);
-        final int batchSize = randomIntBetween(5, 10);
         // at least 2 shards to ensure auto-slicing creates multiple slices
         int numSourceShards = randomIntBetween(2, 10);
         // slice count differs from shard count to ensure slicing is from resume info
         int numSlices = numSourceShards + 1;
-        // the first manual search batch creates the scroll, and is not indexed into destination
-        final long expectedDocsDest = totalDocs - numSlices * batchSize;
+        final int batchSize = randomIntBetween(5, 10);
+        final int totalDocs = batchSize * numSlices + between(0, 100);
 
         createIndex(sourceIndex, numSourceShards, 0);
         indexRandom(true, sourceIndex, totalDocs);
-
         Map<Integer, SliceStatus> sliceStatus = new HashMap<>();
         final long startTime = System.nanoTime() - randomTimeValue(2, 10, TimeUnit.HOURS).nanos();
 
+        int consumedDocs = 0;
+        boolean allSlicesUndersized = true;
         for (int sliceId = 0; sliceId < numSlices; sliceId++) {
             SearchRequest searchRequest = new SearchRequest(sourceIndex).source(
                 new SearchSourceBuilder().slice(new SliceBuilder(IdFieldMapper.NAME, sliceId, numSlices)).size(batchSize)
@@ -318,13 +318,20 @@ public class ReindexResumeIT extends ESIntegTestCase {
             try {
                 String scrollId = searchResponse.getScrollId();
                 assertNotNull(scrollId);
-                assertEquals(batchSize, searchResponse.getHits().getHits().length);
+                final var actualBatchSize = searchResponse.getHits().getHits().length;
+                assertThat(actualBatchSize, Matchers.lessThanOrEqualTo(batchSize));
+                consumedDocs += actualBatchSize;
+                allSlicesUndersized &= batchSize == actualBatchSize;
                 BulkByScrollTask.Status sliceStats = randomStats(sliceId, searchResponse.getHits().getTotalHits().value());
                 sliceStatus.put(sliceId, new SliceStatus(sliceId, new ScrollWorkerResumeInfo(scrollId, startTime, sliceStats, null), null));
             } finally {
                 searchResponse.decRef();
             }
         }
+        assertFalse(allSlicesUndersized);
+
+        // the first manual search batch creates the scroll, and is not indexed into destination
+        final long expectedDocsDest = totalDocs - consumedDocs;
 
         ReindexRequest request = new ReindexRequest().setSourceIndices(sourceIndex)
             .setShouldStoreResult(true)
