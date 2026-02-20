@@ -467,17 +467,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     return details != null && details.getSnapshotState() != null;
                 }
 
-                /**
-                 * True if we can treat this unloaded item as matching (for total count). When not filtering by SLM
-                 * or state we always count unloaded; when filtering we only count when repo data confirms a match.
-                 */
-                private boolean unloadedWouldMatch(AsyncSnapshotInfo item) {
-                    if (statesFiltering && (hasStateInRepoData(item) == false || states.contains(item.getSnapshotDetails().getSnapshotState()) == false)) {
-                        return false;
-                    }
-                    return true;
-                }
-
                 private void drainIterator(Iterator<AsyncSnapshotInfo> iterator) {
                     while (iterator.hasNext()) {
                         final var item = iterator.next();
@@ -494,15 +483,11 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                         if (topN.size() < capacity) {
                             topN.add(item);
                         } else if (queueComparator.compare(item, topN.peek()) < 0) {
-                            final var evicted = topN.poll();
-                            if ((slmPolicyFiltering || statesFiltering) == false || unloadedWouldMatch(evicted)) {
-                                unloadedMatchingCount++;
-                            }
+                            topN.poll();
+                            unloadedMatchingCount++;
                             topN.add(item);
                         } else {
-                            if ((slmPolicyFiltering || statesFiltering) == false || unloadedWouldMatch(item)) {
-                                unloadedMatchingCount++;
-                            }
+                            unloadedMatchingCount++;
                         }
                     }
                 }
