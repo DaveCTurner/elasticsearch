@@ -188,7 +188,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
          *
          *     All snapshots (in requested repositories)
          *         |
-         *         +----------------------------------X  ?from_sort_value (when ?sort=repo)
+         *         +----------------------------------X  ?from_sort_value (when ?sort = repo)
          *         |
          *         +-->  In-progress snapshots
          *         |         |
@@ -200,7 +200,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
          *                      |                                                                               |
          *                      +---------------------X  Skipped as also in-progress                            |
          *                      +---------------------X  snapshotNamePredicate (requested names/wildcards)      |
-         *                      +---------------------X  ?from_sort_value (when ?sort=name)                     |
+         *                      +---------------------X  ?from_sort_value (when ?sort = name)                   |
          *                      |                                                                               |
          *                      +-->  Look up SnapshotDetails                                                   |
          *                            |                                                                         |
