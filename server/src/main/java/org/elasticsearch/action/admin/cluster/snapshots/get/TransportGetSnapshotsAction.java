@@ -209,6 +209,24 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
          *                            +---------------X  ?state                                                 |
          *                            +---------------X  ?slm_policy_filter                                     |
          *                            |                                                                         |
+         *                            |                                                                         |
+         *                            |                                                                         |
+         *                            |      We might be able to tell here if it'll pass real filtering         |
+         *                            |      but be skipped due to ?after, so we could add it to total          |
+         *                            |      and then skip loading its SnapshotInfo (TODO).                     |
+         *                            |                                                                         |
+         *                            |      We might be able to tell here if it'll pass real filtering         |
+         *                            |      and ?after but there will be ≥offset+size earlier-sorting          |
+         *                            |      snapshots so we could add it to total & remaining and skip         |
+         *                            |      loading its SnapshotInfo (TODO).                                   |
+         *                            |                                                                         |
+         *                            |      Harder: we might even be able to tell here if it'll pass           |
+         *                            |      real filtering and ?after but there will be <offset                |
+         *                            |      earlier-sorting snapshots so we could add it to total and          |
+         *                            |      then skip loading its SnapshotInfo (TODO).                         |
+         *                            |                                                                         |
+         *                            |                                                                         |
+         *                            |                                                                         |
          *                            +-->  Load SnapshotInfos for completed snapshots -------------------------+
          *                                                                                                      |
          *     SnapshotInfos (merged) <-------------------------------------------------------------------------+
