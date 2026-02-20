@@ -181,11 +181,10 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
     }
 
     /**
-     * Callback invoked once when the name-sort optimization has gathered and merged snapshot counts, supplying both the total count and
-     * the optimized remaining value in a single call.
+     * Callback invoked once when the name-sort optimization has gathered and merged snapshot counts, supplying the total count.
      */
     private interface NameSortOptimizationResultCallback {
-        void accept(int optimizedTotalCount, int optimizedRemaining);
+        void accept(int optimizedTotalCount);
     }
 
     /**
@@ -218,15 +217,9 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private final Predicate<SnapshotInfo> afterPredicate;
 
         /**
-         * Number of snapshots matching the filters after the current page on the optimized path; zero on the normal path.
-         * On the optimized path {@link #snapshotInfoCollector}{@code .getRemaining()} is always 0, so remaining is computed as
-         * {@code getRemaining() + optimizedRemaining}.
-         */
-        private int optimizedRemaining;
-
-        /**
          * Total count from the name-sort optimized path; zero on the normal path. Applied when building the final response as
-         * {@code totalCount.get() + optimizedTotalCount}.
+         * {@code totalCount.get() + optimizedTotalCount}. On the optimized path remaining is computed as
+         * {@code Math.max(0, total - offset - size)}.
          */
         private int optimizedTotalCount;
 
@@ -315,10 +308,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                         order,
                         slmPolicyPredicate,
                         states,
-                        (optimizedTotalCount, optimizedRemainingValue) -> {
-                            this.optimizedTotalCount = optimizedTotalCount;
-                            this.optimizedRemaining = optimizedRemainingValue;
-                        }
+                        count -> this.optimizedTotalCount = count
                     )
                     : UnaryOperator.identity();
         }
@@ -340,7 +330,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
         /**
          * Populate the results fields ({@link #snapshotInfoCollector}, {@link #totalCount}, and on the optimized path
-         * {@link #optimizedTotalCount} and {@link #optimizedRemaining}).
+         * {@link #optimizedTotalCount}).
          */
         private void populateResults(ActionListener<Void> listener) {
             try (var listeners = new RefCountingListener(listener)) {
@@ -492,7 +482,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 private Iterator<AsyncSnapshotInfo> buildOrderedSnapshotIterator() {
                     final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
                     orderedSnapshots.sort(queueComparator);
-                    resultCallback.accept(matchingCount - orderedSnapshots.size(), 0);
+                    resultCallback.accept(matchingCount - orderedSnapshots.size());
                     return Iterators.concat(
                         orderedSnapshots.iterator(),
                         Iterators.flatMap(residualIterators.iterator(), Function.identity())
@@ -740,9 +730,9 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             final var snapshotInfos = snapshotInfoCollector.getSnapshotInfos();
             assert assertSatisfiesAllPredicates(snapshotInfos);
             final int total = totalCount.get() + optimizedTotalCount;
-            final int remaining = (optimizedTotalCount != 0 || optimizedRemaining != 0)
+            final int remaining = optimizedTotalCount != 0
                 ? Math.max(0, total - offset - size)
-                : snapshotInfoCollector.getRemaining() + optimizedRemaining;
+                : snapshotInfoCollector.getRemaining();
             return new GetSnapshotsResponse(
                 snapshotInfos,
                 remaining > 0 ? sortBy.encodeAfterQueryParam(snapshotInfos.getLast()) : null,
