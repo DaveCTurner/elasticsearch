@@ -228,9 +228,9 @@ public enum SnapshotSortKey {
      * Only supported for {@link #NAME} and {@link #REPOSITORY}; used by the sort optimization to count
      * unloaded snapshots that pass the after predicate.
      *
-     * @param after       the cursor (when null, returns true)
-     * @param sortOrder   sort order
-     * @param repoName    repository name
+     * @param after        the cursor (when null, returns true)
+     * @param sortOrder    sort order
+     * @param repoName     repository name
      * @param snapshotName snapshot name
      */
     public boolean isAfterCursor(@Nullable After after, SortOrder sortOrder, String repoName, String snapshotName) {

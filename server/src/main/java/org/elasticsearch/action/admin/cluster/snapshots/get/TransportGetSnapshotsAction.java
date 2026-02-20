@@ -459,6 +459,37 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             final var slmPolicyFiltering = slmPolicyPredicate != SlmPolicyPredicate.MATCH_ALL_POLICIES;
             final var statesFiltering = states.size() < SnapshotState.values().length;
             final var residualIterators = new ArrayList<Iterator<AsyncSnapshotInfo>>();
+            final Predicate<AsyncSnapshotInfo> afterCursorPredicate = after == null
+                ? Predicates.always()
+                : switch (sortBy) {
+                    case NAME -> order == SortOrder.ASC
+                        ? item -> compareNameForAfterCursor(
+                            after.snapshotName(),
+                            after.repoName(),
+                            item.getSnapshotId().getName(),
+                            item.getRepositoryName()
+                        ) < 0
+                        : item -> compareNameForAfterCursor(
+                            after.snapshotName(),
+                            after.repoName(),
+                            item.getSnapshotId().getName(),
+                            item.getRepositoryName()
+                        ) > 0;
+                    case REPOSITORY -> order == SortOrder.ASC
+                        ? item -> compareRepositoryForAfterCursor(
+                            after.snapshotName(),
+                            after.repoName(),
+                            item.getSnapshotId().getName(),
+                            item.getRepositoryName()
+                        ) < 0
+                        : item -> compareRepositoryForAfterCursor(
+                            after.snapshotName(),
+                            after.repoName(),
+                            item.getSnapshotId().getName(),
+                            item.getRepositoryName()
+                        ) > 0;
+                    default -> Predicates.always();
+                };
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
                 private int matchingCount = 0;
@@ -487,7 +518,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
                         matchingCount++;
 
-                        if (sortBy.isAfterCursor(after, order, item.getRepositoryName(), item.getSnapshotId().getName()) == false) {
+                        if (afterCursorPredicate.test(item) == false) {
                             continue;
                         }
 
@@ -807,6 +838,24 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 metadata != null && metadata.get(SnapshotsService.POLICY_ID_METADATA_FIELD) instanceof String s ? s : ""
             );
         }
+    }
+
+    /** Compare (cursorName, cursorRepo) with (itemName, itemRepo) for NAME sort; same order as SnapshotSortKey. */
+    private static int compareNameForAfterCursor(String cursorName, String cursorRepo, String itemName, String itemRepo) {
+        final int res = cursorName.compareTo(itemName);
+        if (res != 0) {
+            return res;
+        }
+        return cursorRepo.compareTo(itemRepo);
+    }
+
+    /** Compare (cursorName, cursorRepo) with (itemName, itemRepo) for REPOSITORY sort; same order as SnapshotSortKey. */
+    private static int compareRepositoryForAfterCursor(String cursorName, String cursorRepo, String itemName, String itemRepo) {
+        final int res = cursorRepo.compareTo(itemRepo);
+        if (res != 0) {
+            return res;
+        }
+        return cursorName.compareTo(itemName);
     }
 
     /**
