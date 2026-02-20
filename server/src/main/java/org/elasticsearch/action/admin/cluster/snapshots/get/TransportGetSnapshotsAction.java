@@ -26,6 +26,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.regex.Regex;
+import org.elasticsearch.common.util.LazyInitializable;
 import org.elasticsearch.common.util.concurrent.AbstractThrottledTaskRunner;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
@@ -301,21 +302,20 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 assert slmPolicyPredicate == SlmPolicyPredicate.MATCH_ALL_POLICIES : "filtering is not supported in non-verbose mode";
             }
 
-            this.iteratorOperator =
-                (this.sortBy == SnapshotSortKey.NAME || this.sortBy == SnapshotSortKey.REPOSITORY)
-                    && size != GetSnapshotsRequest.NO_LIMIT
-                    && slmPolicyPredicate == SlmPolicyPredicate.MATCH_ALL_POLICIES
-                ? input -> applySortOptimization(
-                    input,
-                    offset + size,
-                    sortBy,
-                    order,
-                    (optimizedTotalCount, optimizedRemainingValue) -> {
-                        this.optimizedTotalCount = optimizedTotalCount;
-                        this.optimizedRemaining = optimizedRemainingValue;
-                    }
-                )
-                : UnaryOperator.identity();
+            this.iteratorOperator = (this.sortBy == SnapshotSortKey.NAME || this.sortBy == SnapshotSortKey.REPOSITORY)
+                && size != GetSnapshotsRequest.NO_LIMIT
+                && slmPolicyPredicate == SlmPolicyPredicate.MATCH_ALL_POLICIES
+                    ? input -> applySortOptimization(
+                        input,
+                        offset + size,
+                        sortBy,
+                        order,
+                        (optimizedTotalCount, optimizedRemainingValue) -> {
+                            this.optimizedTotalCount = optimizedTotalCount;
+                            this.optimizedRemaining = optimizedRemainingValue;
+                        }
+                    )
+                    : UnaryOperator.identity();
         }
 
         /**
@@ -536,6 +536,10 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
             /** Repository name for this snapshot. */
             String getRepositoryName();
+
+            /** SnapshotDetails for this snapshot, if available */
+            @Nullable
+            RepositoryData.SnapshotDetails getSnapshotDetails();
         }
 
         /**
@@ -572,6 +576,11 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 }
 
                 @Override
+                public RepositoryData.SnapshotDetails getSnapshotDetails() {
+                    return null;
+                }
+
+                @Override
                 public String toString() {
                     return snapshotInProgress.snapshot().toString();
                 }
@@ -588,6 +597,10 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             Map<SnapshotId, List<String>> indicesLookup
         ) {
             return new AsyncSnapshotInfo() {
+
+                private final LazyInitializable<RepositoryData.SnapshotDetails, RuntimeException> lazySnapshotDetails =
+                    new LazyInitializable<>(() -> repositoryData.getSnapshotDetails(snapshotId));
+
                 @Override
                 public void getSnapshotInfo(ActionListener<SnapshotInfo> listener) {
                     if (verbose) {
@@ -617,6 +630,11 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 @Override
                 public String getRepositoryName() {
                     return repository.getMetadata().name();
+                }
+
+                @Override
+                public RepositoryData.SnapshotDetails getSnapshotDetails() {
+                    return lazySnapshotDetails.getOrCompute();
                 }
 
                 @Override
