@@ -186,20 +186,20 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         /*
          * Overall (conceptual) dataflow:
          *
-         *     All snapshots
+         *     All snapshots (in requested repositories)
          *         |
          *         +----------------------------------X  ?from_sort_value (when ?sort=repo)
          *         |
          *         +-->  In-progress snapshots
          *         |         |
-         *         |         +------------------------X  Filtered out by snapshotNamePredicate
+         *         |         +------------------------X  snapshotNamePredicate (requested names/wildcards)
          *         |         |
          *         |         +-->  Synthesize SnapshotInfos for in-progress snapshots --------------------------+
          *         |                                                                                            |
          *         +-->  Completed snapshots                                                                    |
          *                      |                                                                               |
          *                      +---------------------X  Skipped as also in-progress                            |
-         *                      +---------------------X  Filtered out by requested names/wildcards              |
+         *                      +---------------------X  snapshotNamePredicate (requested names/wildcards)      |
          *                      +---------------------X  ?from_sort_value (when ?sort=name)                     |
          *                      |                                                                               |
          *                      +-->  Look up SnapshotDetails                                                   |
