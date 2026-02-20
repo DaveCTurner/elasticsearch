@@ -72,7 +72,7 @@ import java.util.function.Predicate;
 import java.util.function.ToLongFunction;
 
 /**
- * Transport Action for get snapshots operation
+ * Transport action for get-snapshots API
  */
 public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSnapshotsRequest, GetSnapshotsResponse> {
 
@@ -183,6 +183,55 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
      * results.
      */
     private class GetSnapshotsOperation {
+        /*
+         * Overall (conceptual) dataflow:
+         *
+         *     All snapshots
+         *         |
+         *         +----------------------------------X  ?from_sort_value (when ?sort=repo)
+         *         |
+         *         +-->  In-progress snapshots
+         *         |         |
+         *         |         +------------------------X  Filtered out by snapshotNamePredicate
+         *         |         |
+         *         |         +-->  Synthesize SnapshotInfos for in-progress snapshots --------------------------+
+         *         |                                                                                            |
+         *         +-->  Completed snapshots                                                                    |
+         *                      |                                                                               |
+         *                      +---------------------X  Skipped as also in-progress                            |
+         *                      +---------------------X  Filtered out by requested names/wildcards              |
+         *                      +---------------------X  ?from_sort_value (when ?sort=name)                     |
+         *                      |                                                                               |
+         *                      +-->  Look up SnapshotDetails                                                   |
+         *                            |                                                                         |
+         *                            | Preflight filtering (may be incomplete)                                 |
+         *                            +---------------X  ?from_sort_value (when ?sort = start/duration/indices) |
+         *                            +---------------X  ?state                                                 |
+         *                            +---------------X  ?slm_policy_filter                                     |
+         *                            |                                                                         |
+         *                            +-->  Load SnapshotInfos for completed snapshots -------------------------+
+         *                                                                                                      |
+         *     SnapshotInfos (merged) <-------------------------------------------------------------------------+
+         *         |
+         *         | Real filtering (for when SnapshotDetails incomplete/insufficient)
+         *         +----------------------------------X  ?from_sort_value
+         *         +----------------------------------X  ?state
+         *         +----------------------------------X  ?slm_policy_filter
+         *         |
+         *         +-->  Counted in total
+         *               |
+         *               +----------------------------X  Skipped due to ?after
+         *               |
+         *               +---> Not already returned - added to SnapshotInfoCollector
+         *                     |
+         *                     +----------------------X  Skipped due to ?offset
+         *                     +--------------------------------------------------------------------------------+
+         *                     +----------------------X  Omitted due to ?size (counted in remaining)            |
+         *                                                                                                      |
+         *                                                                                                      |
+         *                                                  RESULTS <-------------------------------------------+
+         */
+
         private final CancellableTask cancellableTask;
 
         private final ProjectId projectId;
