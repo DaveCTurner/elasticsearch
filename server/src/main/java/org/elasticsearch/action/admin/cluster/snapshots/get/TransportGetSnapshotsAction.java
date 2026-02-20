@@ -455,8 +455,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             final var residualIterators = new ArrayList<Iterator<AsyncSnapshotInfo>>();
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
-                private int gatherTotalCount = 0;
-                private int unloadedMatchingSlmPolicy = 0;
+                private int unloadedMatchingCount = 0;
 
                 private boolean hasSlmPolicyInRepoData(AsyncSnapshotInfo item) {
                     final var details = item.getSnapshotDetails();
@@ -468,11 +467,12 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     return details != null && details.getSnapshotState() != null;
                 }
 
+                /**
+                 * True if we can treat this unloaded item as matching (for total count). When not filtering by SLM
+                 * or state we always count unloaded; when filtering we only count when repo data confirms a match.
+                 */
                 private boolean unloadedWouldMatch(AsyncSnapshotInfo item) {
-                    if (statesFiltering && hasStateInRepoData(item) == false) {
-                        return false;
-                    }
-                    if (statesFiltering && states.contains(item.getSnapshotDetails().getSnapshotState()) == false) {
+                    if (statesFiltering && (hasStateInRepoData(item) == false || states.contains(item.getSnapshotDetails().getSnapshotState()) == false)) {
                         return false;
                     }
                     return true;
@@ -481,7 +481,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 private void drainIterator(Iterator<AsyncSnapshotInfo> iterator) {
                     while (iterator.hasNext()) {
                         final var item = iterator.next();
-                        gatherTotalCount++;
 
                         if (slmPolicyFiltering && hasSlmPolicyInRepoData(item) == false) {
                             residualIterators.add(Iterators.concat(Iterators.single(item), iterator));
@@ -496,13 +495,13 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                             topN.add(item);
                         } else if (queueComparator.compare(item, topN.peek()) < 0) {
                             final var evicted = topN.poll();
-                            if ((slmPolicyFiltering || statesFiltering) && unloadedWouldMatch(evicted)) {
-                                unloadedMatchingSlmPolicy++;
+                            if ((slmPolicyFiltering || statesFiltering) == false || unloadedWouldMatch(evicted)) {
+                                unloadedMatchingCount++;
                             }
                             topN.add(item);
                         } else {
-                            if ((slmPolicyFiltering || statesFiltering) && unloadedWouldMatch(item)) {
-                                unloadedMatchingSlmPolicy++;
+                            if ((slmPolicyFiltering || statesFiltering) == false || unloadedWouldMatch(item)) {
+                                unloadedMatchingCount++;
                             }
                         }
                     }
@@ -511,14 +510,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 private Iterator<AsyncSnapshotInfo> buildOrderedSnapshotIterator() {
                     final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
                     orderedSnapshots.sort(queueComparator);
-                    if (slmPolicyFiltering || statesFiltering) {
-                        resultCallback.accept(unloadedMatchingSlmPolicy, 0);
-                    } else {
-                        resultCallback.accept(
-                            gatherTotalCount - orderedSnapshots.size(),
-                            Math.max(0, gatherTotalCount - capacity)
-                        );
-                    }
+                    resultCallback.accept(unloadedMatchingCount, 0);
                     return Iterators.concat(
                         orderedSnapshots.iterator(),
                         Iterators.flatMap(residualIterators.iterator(), Function.identity())
