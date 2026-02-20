@@ -212,6 +212,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private final SortOrder order;
         @Nullable
         private final String fromSortValue;
+        private final int offset;
+        private final int size;
         private final Predicate<SnapshotInfo> afterPredicate;
 
         /**
@@ -228,11 +230,10 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private int optimizedTotalCount;
 
         /**
-         * Identity on non-optimized paths; when sorting by NAME or REPOSITORY with bounded size and no SLM policy
-         * filtering, performs the collection process and returns an iterator that only yields the snapshots that
-         * will appear in the results (the top {@code offset + size} by the sort key). Disabled when SLM policy
-         * filtering is requested because some {@link org.elasticsearch.repositories.RepositoryData.SnapshotDetails}
-         * may lack the policy, so we must load every candidate to compute total and remaining correctly.
+         * Identity on non-optimized paths; when sorting by NAME or REPOSITORY with bounded size, performs the
+         * collection process and returns an iterator that yields the snapshots that need their {@link SnapshotInfo}
+         * loaded (the top {@code offset + size} by the sort key, plus any whose SLM policy cannot be determined
+         * from {@link org.elasticsearch.repositories.RepositoryData.SnapshotDetails} when policy filtering is used).
          */
         private final UnaryOperator<Iterator<AsyncSnapshotInfoIterator>> iteratorOperator;
 
@@ -296,6 +297,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             );
 
             this.snapshotInfoCollector = SnapshotInfoCollector.create(sortBy.getSnapshotInfoComparator(order), size, offset);
+            this.size = size;
+            this.offset = offset;
 
             if (verbose == false) {
                 assert fromSortValuePredicates.isMatchAll() : "filtering is not supported in non-verbose mode";
@@ -304,12 +307,12 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
             this.iteratorOperator = (this.sortBy == SnapshotSortKey.NAME || this.sortBy == SnapshotSortKey.REPOSITORY)
                 && size != GetSnapshotsRequest.NO_LIMIT
-                && slmPolicyPredicate == SlmPolicyPredicate.MATCH_ALL_POLICIES
                     ? input -> applySortOptimization(
                         input,
                         offset + size,
                         sortBy,
                         order,
+                        slmPolicyPredicate,
                         (optimizedTotalCount, optimizedRemainingValue) -> {
                             this.optimizedTotalCount = optimizedTotalCount;
                             this.optimizedRemaining = optimizedRemainingValue;
@@ -422,12 +425,17 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         /**
          * Merges per-repo iterators and keeps only the top {@code capacity} by the given sort key, so that only
          * those need their {@link SnapshotInfo} loaded. Works when sorting by NAME or REPOSITORY.
+         * When {@code slmPolicyPredicate} is not {@link SlmPolicyPredicate#MATCH_ALL_POLICIES}, candidates whose
+         * {@link org.elasticsearch.repositories.RepositoryData.SnapshotDetails} is null or
+         * {@code getSlmPolicy()} is null must be loaded to determine a match; they are yielded after the top
+         * {@code capacity} so the collector can include them.
          */
         private static Iterator<AsyncSnapshotInfoIterator> applySortOptimization(
             Iterator<AsyncSnapshotInfoIterator> input,
             int capacity,
             SnapshotSortKey sortBy,
             SortOrder order,
+            Predicate<String> slmPolicyPredicate,
             NameSortOptimizationResultCallback resultCallback
         ) {
             final Comparator<AsyncSnapshotInfo> ascendingComparator = switch (sortBy) {
@@ -438,28 +446,62 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             };
             final var queueComparator = order == SortOrder.ASC ? ascendingComparator.reversed() : ascendingComparator;
             final var topN = new PriorityQueue<>(capacity, queueComparator);
+            final boolean slmPolicyFiltering = slmPolicyPredicate != SlmPolicyPredicate.MATCH_ALL_POLICIES;
+            final List<AsyncSnapshotInfo> mustLoad = slmPolicyFiltering ? new ArrayList<>() : null;
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
                 private int gatherTotalCount = 0;
+                private int unloadedMatchingSlmPolicy = 0;
+
+                private boolean hasSlmPolicyInRepoData(AsyncSnapshotInfo item) {
+                    final var details = item.getSnapshotDetails();
+                    return details != null && details.getSlmPolicy() != null;
+                }
+
+                private boolean slmPolicyMatches(AsyncSnapshotInfo item) {
+                    final var details = item.getSnapshotDetails();
+                    return details != null && details.getSlmPolicy() != null && slmPolicyPredicate.test(details.getSlmPolicy());
+                }
 
                 private void drainIterator(Iterator<AsyncSnapshotInfo> iterator) {
                     while (iterator.hasNext()) {
                         final var item = iterator.next();
+                        gatherTotalCount++;
+
+                        if (slmPolicyFiltering && hasSlmPolicyInRepoData(item) == false) {
+                            mustLoad.add(item);
+                            continue;
+                        }
+
                         if (topN.size() < capacity) {
                             topN.add(item);
                         } else if (queueComparator.compare(item, topN.peek()) < 0) {
-                            topN.poll();
+                            final var evicted = topN.poll();
+                            if (slmPolicyFiltering && evicted != null && slmPolicyMatches(evicted)) {
+                                unloadedMatchingSlmPolicy++;
+                            }
                             topN.add(item);
+                        } else {
+                            if (slmPolicyFiltering && slmPolicyMatches(item)) {
+                                unloadedMatchingSlmPolicy++;
+                            }
                         }
-                        gatherTotalCount++;
                     }
                 }
 
                 private Iterator<AsyncSnapshotInfo> buildOrderedSnapshotIterator() {
                     final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
                     orderedSnapshots.sort(queueComparator);
-                    resultCallback.accept(gatherTotalCount - orderedSnapshots.size(), Math.max(0, gatherTotalCount - capacity));
-                    return orderedSnapshots.iterator();
+                    if (slmPolicyFiltering) {
+                        resultCallback.accept(unloadedMatchingSlmPolicy, 0);
+                        return Iterators.concat(orderedSnapshots.iterator(), mustLoad.iterator());
+                    } else {
+                        resultCallback.accept(
+                            gatherTotalCount - orderedSnapshots.size(),
+                            Math.max(0, gatherTotalCount - capacity)
+                        );
+                        return orderedSnapshots.iterator();
+                    }
                 }
 
                 @Override
@@ -702,11 +744,14 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             cancellableTask.ensureNotCancelled();
             final var snapshotInfos = snapshotInfoCollector.getSnapshotInfos();
             assert assertSatisfiesAllPredicates(snapshotInfos);
-            final int remaining = snapshotInfoCollector.getRemaining() + optimizedRemaining;
+            final int total = totalCount.get() + optimizedTotalCount;
+            final int remaining = (optimizedTotalCount != 0 || optimizedRemaining != 0)
+                ? Math.max(0, total - offset - size)
+                : snapshotInfoCollector.getRemaining() + optimizedRemaining;
             return new GetSnapshotsResponse(
                 snapshotInfos,
                 remaining > 0 ? sortBy.encodeAfterQueryParam(snapshotInfos.getLast()) : null,
-                totalCount.get() + optimizedTotalCount,
+                total,
                 remaining
             );
         }
