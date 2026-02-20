@@ -314,6 +314,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                         sortBy,
                         order,
                         slmPolicyPredicate,
+                        states,
                         (optimizedTotalCount, optimizedRemainingValue) -> {
                             this.optimizedTotalCount = optimizedTotalCount;
                             this.optimizedRemaining = optimizedRemainingValue;
@@ -428,8 +429,9 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
          * those need their {@link SnapshotInfo} loaded. Works when sorting by NAME or REPOSITORY.
          * When {@code slmPolicyPredicate} is not {@link SlmPolicyPredicate#MATCH_ALL_POLICIES}, candidates whose
          * {@link org.elasticsearch.repositories.RepositoryData.SnapshotDetails} is null or
-         * {@code getSlmPolicy()} is null must be loaded to determine a match; they are yielded after the top
-         * {@code capacity} so the collector can include them.
+         * {@code getSlmPolicy()} is null must be loaded to determine a match. When filtering by {@code states},
+         * candidates whose details lack {@code getSnapshotState()} must also be loaded. Such candidates are yielded
+         * after the top {@code capacity} so the collector can include them.
          */
         private static Iterator<AsyncSnapshotInfoIterator> applySortOptimization(
             Iterator<AsyncSnapshotInfoIterator> input,
@@ -437,6 +439,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             SnapshotSortKey sortBy,
             SortOrder order,
             Predicate<String> slmPolicyPredicate,
+            EnumSet<SnapshotState> states,
             NameSortOptimizationResultCallback resultCallback
         ) {
             final Comparator<AsyncSnapshotInfo> ascendingComparator = switch (sortBy) {
@@ -448,6 +451,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             final var queueComparator = order == SortOrder.ASC ? ascendingComparator.reversed() : ascendingComparator;
             final var topN = new PriorityQueue<>(capacity, queueComparator);
             final var slmPolicyFiltering = slmPolicyPredicate != SlmPolicyPredicate.MATCH_ALL_POLICIES;
+            final var statesFiltering = states.size() < SnapshotState.values().length;
             final var residualIterators = new ArrayList<Iterator<AsyncSnapshotInfo>>();
 
             return Iterators.single(new AsyncSnapshotInfoIterator() {
@@ -459,6 +463,21 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     return details != null && details.getSlmPolicy() != null;
                 }
 
+                private boolean hasStateInRepoData(AsyncSnapshotInfo item) {
+                    final var details = item.getSnapshotDetails();
+                    return details != null && details.getSnapshotState() != null;
+                }
+
+                private boolean unloadedWouldMatch(AsyncSnapshotInfo item) {
+                    if (statesFiltering && hasStateInRepoData(item) == false) {
+                        return false;
+                    }
+                    if (statesFiltering && states.contains(item.getSnapshotDetails().getSnapshotState()) == false) {
+                        return false;
+                    }
+                    return true;
+                }
+
                 private void drainIterator(Iterator<AsyncSnapshotInfo> iterator) {
                     while (iterator.hasNext()) {
                         final var item = iterator.next();
@@ -468,17 +487,21 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                             residualIterators.add(Iterators.concat(Iterators.single(item), iterator));
                             return;
                         }
+                        if (statesFiltering && hasStateInRepoData(item) == false) {
+                            residualIterators.add(Iterators.concat(Iterators.single(item), iterator));
+                            return;
+                        }
 
                         if (topN.size() < capacity) {
                             topN.add(item);
                         } else if (queueComparator.compare(item, topN.peek()) < 0) {
                             final var evicted = topN.poll();
-                            if (slmPolicyFiltering) {
+                            if ((slmPolicyFiltering || statesFiltering) && unloadedWouldMatch(evicted)) {
                                 unloadedMatchingSlmPolicy++;
                             }
                             topN.add(item);
                         } else {
-                            if (slmPolicyFiltering) {
+                            if ((slmPolicyFiltering || statesFiltering) && unloadedWouldMatch(item)) {
                                 unloadedMatchingSlmPolicy++;
                             }
                         }
@@ -488,7 +511,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 private Iterator<AsyncSnapshotInfo> buildOrderedSnapshotIterator() {
                     final List<AsyncSnapshotInfo> orderedSnapshots = new ArrayList<>(topN);
                     orderedSnapshots.sort(queueComparator);
-                    if (slmPolicyFiltering) {
+                    if (slmPolicyFiltering || statesFiltering) {
                         resultCallback.accept(unloadedMatchingSlmPolicy, 0);
                     } else {
                         resultCallback.accept(
