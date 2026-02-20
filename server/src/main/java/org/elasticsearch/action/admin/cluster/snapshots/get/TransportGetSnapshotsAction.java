@@ -458,11 +458,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     return details != null && details.getSlmPolicy() != null;
                 }
 
-                private boolean slmPolicyMatches(AsyncSnapshotInfo item) {
-                    final var details = item.getSnapshotDetails();
-                    return details != null && details.getSlmPolicy() != null && slmPolicyPredicate.test(details.getSlmPolicy());
-                }
-
                 private void drainIterator(Iterator<AsyncSnapshotInfo> iterator) {
                     while (iterator.hasNext()) {
                         final var item = iterator.next();
@@ -477,12 +472,12 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                             topN.add(item);
                         } else if (queueComparator.compare(item, topN.peek()) < 0) {
                             final var evicted = topN.poll();
-                            if (slmPolicyFiltering && evicted != null && slmPolicyMatches(evicted)) {
+                            if (slmPolicyFiltering) {
                                 unloadedMatchingSlmPolicy++;
                             }
                             topN.add(item);
                         } else {
-                            if (slmPolicyFiltering && slmPolicyMatches(item)) {
+                            if (slmPolicyFiltering) {
                                 unloadedMatchingSlmPolicy++;
                             }
                         }
