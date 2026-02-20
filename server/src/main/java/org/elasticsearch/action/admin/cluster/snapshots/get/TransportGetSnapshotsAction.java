@@ -487,18 +487,18 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
                         matchingCount++;
 
+                        if (sortBy.isAfterCursor(after, order, item.getRepositoryName(), item.getSnapshotId().getName()) == false) {
+                            continue;
+                        }
+
                         if (topN.size() < capacity) {
                             topN.add(item);
                         } else if (queueComparator.compare(item, topN.peek()) < 0) {
-                            final var evicted = topN.poll();
-                            if (sortBy.isAfterCursor(after, order, evicted.getRepositoryName(), evicted.getSnapshotId().getName())) {
-                                evictedMatchingAfterCursor++;
-                            }
+                            evictedMatchingAfterCursor++;
+                            topN.poll();
                             topN.add(item);
                         } else {
-                            if (sortBy.isAfterCursor(after, order, item.getRepositoryName(), item.getSnapshotId().getName())) {
-                                evictedMatchingAfterCursor++;
-                            }
+                            evictedMatchingAfterCursor++;
                         }
                     }
                 }
