@@ -464,6 +464,7 @@ sequenceDiagram
     rect rgb(255, 248, 240)
     Note over M,F: Phase 2 — Commit
     M->>F: ApplyCommitRequest
+    M->>M: local apply commit request/response
     Note right of F: Coordinator::handleApplyCommit<br/>Marks last accepted state as committed
     Note right of F: ClusterApplierService<br/>::onNewClusterState<br/>Applies new ClusterState
     F->>M: ACK (after application completes)
