@@ -10,6 +10,13 @@ logic, and shard recovery.
 
 A guide to the general Elasticsearch components can be found [here](https://github.com/elastic/elasticsearch/blob/main/docs/internal/GeneralArchitectureGuide.md).
 
+```mermaid
+sequenceDiagram
+    Alice->>John: Hello John, how are you?
+    John-->>Alice: Great!
+    Alice-)John: See you later!
+```
+
 # Networking
 
 Every elasticsearch node maintains various networking clients and servers,
