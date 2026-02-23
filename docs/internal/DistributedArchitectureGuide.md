@@ -448,6 +448,7 @@ sequenceDiagram
     rect rgb(255, 248, 240)
     Note over M,F: Phase 1 — Publish
     M->>F: PublishRequest (diff or full state)
+    M->>M: local publish request/response
     Note right of F: PublicationTransportHandler<br/>::handleIncomingPublishRequest<br/>Deserializes state
     Note right of F: CoordinationState<br/>::handlePublishRequest<br/>Validates term/version,<br/>persists as lastAcceptedState
     F->>M: PublishResponse (term, version)
