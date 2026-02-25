@@ -192,6 +192,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
     }
 
     // for tests
+    @SuppressWarnings("this-escape")
     IndicesClusterStateService(
         final Settings settings,
         final AllocatedIndices<? extends Shard, ? extends AllocatedIndex<? extends Shard>> indicesService,
