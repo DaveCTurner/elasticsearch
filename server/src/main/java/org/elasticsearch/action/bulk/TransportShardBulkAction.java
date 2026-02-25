@@ -198,26 +198,39 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
             assert update != null;
             assert shardId != null;
             mappingUpdatedAction.updateMappingOnMaster(shardId.getIndex(), update, mappingListener);
-        }, (mappingUpdateListener, initialMappingVersion) -> observer.waitForNextChange(new ClusterStateObserver.Listener() {
-            @Override
-            public void onNewClusterState(ClusterState state) {
-                mappingUpdateListener.onResponse(null);
-            }
+        }, (mappingUpdateListener, initialMappingVersion) -> {
+            logger.info(
+                "--> waiting for mapping update, initialMappingVersion={}, clusterState={}",
+                initialMappingVersion,
+                clusterService.state().version()
+            );
+            observer.waitForNextChange(new ClusterStateObserver.Listener() {
+                @Override
+                public void onNewClusterState(ClusterState state) {
+                    mappingUpdateListener.onResponse(null);
+                }
 
-            @Override
-            public void onClusterServiceClose() {
-                mappingUpdateListener.onFailure(new NodeClosedException(clusterService.localNode()));
-            }
+                @Override
+                public void onClusterServiceClose() {
+                    mappingUpdateListener.onFailure(new NodeClosedException(clusterService.localNode()));
+                }
 
-            @Override
-            public void onTimeout(TimeValue timeout) {
-                mappingUpdateListener.onFailure(new MapperException("timed out while waiting for a dynamic mapping update"));
-            }
-        }, clusterState -> {
-            var index = primary.shardId().getIndex();
-            var indexMetadata = clusterState.metadata().lookupProject(index).map(p -> p.index(index)).orElse(null);
-            return indexMetadata == null || (indexMetadata.mapping() != null && indexMetadata.getMappingVersion() != initialMappingVersion);
-        }), listener, executor(primary), postWriteRefresh, postWriteAction, documentParsingProvider);
+                @Override
+                public void onTimeout(TimeValue timeout) {
+                    mappingUpdateListener.onFailure(new MapperException("timed out while waiting for a dynamic mapping update"));
+                }
+            }, clusterState -> {
+                var index = primary.shardId().getIndex();
+                var indexMetadata = clusterState.metadata().lookupProject(index).map(p -> p.index(index)).orElse(null);
+                logger.info(
+                    "--> observed clusterState={}, imd={}",
+                    clusterState.version(),
+                    indexMetadata == null ? "null" : indexMetadata.mapping() == null ? "null mapping" : indexMetadata.getMappingVersion()
+                );
+                return indexMetadata == null
+                    || (indexMetadata.mapping() != null && indexMetadata.getMappingVersion() != initialMappingVersion);
+            });
+        }, listener, executor(primary), postWriteRefresh, postWriteAction, documentParsingProvider);
     }
 
     @Override
