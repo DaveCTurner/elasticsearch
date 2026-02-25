@@ -301,6 +301,7 @@ public class IndexServiceTests extends ESSingleNodeTestCase {
         indicesAdmin().prepareUpdateSettings("test")
             .setSettings(Settings.builder().put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), "1ms"))
             .get();
+        safeAwait(getInstanceFromNode(IndicesClusterStateService.class)::addApplyListener);
         assertTrue(refreshTask.isClosed());
         assertBusy(() -> {
             // this one becomes visible due to the force refresh we are running on updateMetadata if the interval changes
