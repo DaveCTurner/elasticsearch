@@ -157,7 +157,6 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
 
     private final Executor shardCloseExecutor;
     private final AsyncClusterStateApplier asyncClusterStateApplier;
-    private static final String APPLIER_THREAD_NAME_SUFFIX = "[IndicesClusterStateService#applyClusterState]";
 
     @Inject
     public IndicesClusterStateService(
@@ -1079,6 +1078,11 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         return sourceNode;
     }
 
+    /*
+     * TODO: the following are apparently assumed to be applied by the time the cluster state is acked:
+     * - mapping updates
+     * - setting updates
+     */
     public void addApplyListener(ActionListener<Void> listener) {
         asyncClusterStateApplier.awaitCurrentStateApplication(listener);
     }
