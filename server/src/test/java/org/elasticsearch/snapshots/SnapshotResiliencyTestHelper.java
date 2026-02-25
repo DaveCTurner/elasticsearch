@@ -872,7 +872,8 @@ public class SnapshotResiliencyTestHelper {
                     indexingMemoryLimits,
                     EmptySystemIndices.INSTANCE,
                     projectResolver,
-                    DocumentParsingProvider.EMPTY_INSTANCE
+                    DocumentParsingProvider.EMPTY_INSTANCE,
+                    null
                 );
                 actions.put(TransportShardBulkAction.TYPE, transportShardBulkAction);
                 final RestoreService restoreService = new RestoreService(

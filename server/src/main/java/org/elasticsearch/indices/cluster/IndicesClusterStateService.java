@@ -1079,6 +1079,10 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         return sourceNode;
     }
 
+    public void addApplyListener(ActionListener<Void> listener) {
+        asyncClusterStateApplier.awaitCurrentStateApplication(listener);
+    }
+
     private record PendingShardCreation(String clusterStateUUID, long startTimeMillis) {}
 
     private class RecoveryListener implements PeerRecoveryTargetService.RecoveryListener {

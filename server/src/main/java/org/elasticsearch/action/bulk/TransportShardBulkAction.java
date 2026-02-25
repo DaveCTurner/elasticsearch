@@ -12,6 +12,7 @@ package org.elasticsearch.action.bulk;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
@@ -61,6 +62,7 @@ import org.elasticsearch.index.translog.Translog;
 import org.elasticsearch.indices.ExecutorSelector;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.SystemIndices;
+import org.elasticsearch.indices.cluster.IndicesClusterStateService;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.node.NodeClosedException;
 import org.elasticsearch.plugins.internal.DocumentParsingProvider;
@@ -97,6 +99,7 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
 
     private final UpdateHelper updateHelper;
     private final MappingUpdatedAction mappingUpdatedAction;
+    private final IndicesClusterStateService indicesClusterStateService;
     private final Consumer<Runnable> postWriteAction;
 
     private final DocumentParsingProvider documentParsingProvider;
@@ -115,7 +118,8 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
         IndexingPressure indexingPressure,
         SystemIndices systemIndices,
         ProjectResolver projectResolver,
-        DocumentParsingProvider documentParsingProvider
+        DocumentParsingProvider documentParsingProvider,
+        IndicesClusterStateService indicesClusterStateService
     ) {
         super(
             settings,
@@ -137,6 +141,7 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
         );
         this.updateHelper = updateHelper;
         this.mappingUpdatedAction = mappingUpdatedAction;
+        this.indicesClusterStateService = indicesClusterStateService;
         this.postWriteAction = WriteAckDelay.create(settings, threadPool);
         this.documentParsingProvider = documentParsingProvider;
     }
@@ -207,7 +212,8 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
             observer.waitForNextChange(new ClusterStateObserver.Listener() {
                 @Override
                 public void onNewClusterState(ClusterState state) {
-                    mappingUpdateListener.onResponse(null);
+                    logger.info("--> mapping updated in state [" + state.version() + "]", new ElasticsearchException("stack trace"));
+                    indicesClusterStateService.addApplyListener(mappingUpdateListener);
                 }
 
                 @Override
@@ -297,11 +303,15 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
 
             final long startBulkTime = System.nanoTime();
 
-            private final ActionListener<Void> onMappingUpdateDone = ActionListener.wrap(v -> executor.execute(this), this::onRejection);
+            private final ActionListener<Void> onMappingUpdateDone = ActionListener.wrap(v -> {
+                logger.info("--> onMappingUpdateDone", new ElasticsearchException("stack trace"));
+                executor.execute(this);
+            }, this::onRejection);
 
             @Override
             protected void doRun() throws Exception {
                 while (context.hasMoreOperationsToExecute()) {
+                    logger.info("--> TransportShardBulkAction#performOnPrimary", new ElasticsearchException("stack trace"));
                     if (executeBulkItemRequest(
                         context,
                         updateHelper,
