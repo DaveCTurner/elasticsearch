@@ -873,7 +873,7 @@ public class SnapshotResiliencyTestHelper {
                     EmptySystemIndices.INSTANCE,
                     projectResolver,
                     DocumentParsingProvider.EMPTY_INSTANCE,
-                    null
+                    indicesClusterStateService
                 );
                 actions.put(TransportShardBulkAction.TYPE, transportShardBulkAction);
                 final RestoreService restoreService = new RestoreService(
