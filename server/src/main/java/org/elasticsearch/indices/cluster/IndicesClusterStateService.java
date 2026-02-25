@@ -157,6 +157,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
 
     private final Executor shardCloseExecutor;
     private final AsyncClusterStateApplier asyncClusterStateApplier;
+    private static final String APPLIER_THREAD_NAME_SUFFIX = "[IndicesClusterStateService#applyClusterState]";
 
     @Inject
     public IndicesClusterStateService(
@@ -260,7 +261,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
 
     // protected for tests
     protected ActionListener<Void> getShardsClosedListener() {
-        assert ThreadPool.assertCurrentThreadPool(ClusterApplierService.CLUSTER_UPDATE_THREAD_NAME);
+        assert assertApplierThread();
         if (currentClusterStateShardsClosedListeners == null) {
             assert false : "not currently applying cluster state";
             return ActionListener.noop();
@@ -786,7 +787,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
                         );
                     }
                 }, () -> {
-                    assert ThreadPool.assertCurrentThreadPool(ClusterApplierService.CLUSTER_UPDATE_THREAD_NAME);
+                    assertApplierThread();
                     pendingShardCreations.remove(shardId, pendingShardCreation);
                 })
             );
@@ -798,7 +799,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
     }
 
     private PendingShardCreation createOrRefreshPendingShardCreation(ShardId shardId, String clusterStateUUID) {
-        assert ThreadPool.assertCurrentThreadPool(ClusterApplierService.CLUSTER_UPDATE_THREAD_NAME);
+        assertApplierThread();
         final var currentPendingShardCreation = pendingShardCreations.get(shardId);
         final var newPendingShardCreation = new PendingShardCreation(
             clusterStateUUID,
@@ -864,7 +865,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
                 () -> clusterService.getClusterApplierService()
                     .runOnApplierThread("create shard " + shardRouting, Priority.NORMAL, currentState -> {
 
-                        assert ThreadPool.assertCurrentThreadPool(ClusterApplierService.CLUSTER_UPDATE_THREAD_NAME);
+                        assert assertApplierThread();
                         final var pendingShardCreation = pendingShardCreations.get(shardRouting.shardId());
                         if (pendingShardCreation == null) {
                             listener.onResponse(false);
@@ -932,6 +933,10 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         } catch (Exception e) {
             listener.onFailure(e);
         }
+    }
+
+    private static boolean assertApplierThread() {
+        return ThreadPool.assertCurrentThreadPool(ClusterApplierService.CLUSTER_UPDATE_THREAD_NAME, ThreadPool.Names.GENERIC);
     }
 
     private void updateShard(ShardRouting shardRouting, Shard shard, ClusterState clusterState) {
