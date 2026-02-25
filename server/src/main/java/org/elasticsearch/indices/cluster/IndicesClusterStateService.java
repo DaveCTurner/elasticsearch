@@ -36,6 +36,7 @@ import org.elasticsearch.cluster.routing.RecoverySource.Type;
 import org.elasticsearch.cluster.routing.RoutingNode;
 import org.elasticsearch.cluster.routing.RoutingTable;
 import org.elasticsearch.cluster.routing.ShardRouting;
+import org.elasticsearch.cluster.service.AsyncClusterStateApplier;
 import org.elasticsearch.cluster.service.ClusterApplierService;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
@@ -155,6 +156,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
     private final TimeValue shardLockRetryTimeout;
 
     private final Executor shardCloseExecutor;
+    private final AsyncClusterStateApplier asyncClusterStateApplier;
 
     @Inject
     public IndicesClusterStateService(
@@ -219,20 +221,21 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         this.shardLockRetryInterval = SHARD_LOCK_RETRY_INTERVAL_SETTING.get(settings);
         this.shardLockRetryTimeout = SHARD_LOCK_RETRY_TIMEOUT_SETTING.get(settings);
         this.shardCloseExecutor = new ShardCloseExecutor(settings, threadPool.generic());
+        this.asyncClusterStateApplier = new AsyncClusterStateApplier(this, threadPool.generic());
     }
 
     @Override
     protected void doStart() {
         // Doesn't make sense to manage shards on non-data nodes
         if (DiscoveryNode.canContainData(settings)) {
-            clusterService.addHighPriorityApplier(this);
+            clusterService.addHighPriorityApplier(asyncClusterStateApplier);
         }
     }
 
     @Override
     protected void doStop() {
         if (DiscoveryNode.canContainData(settings)) {
-            clusterService.removeApplier(this);
+            clusterService.removeApplier(asyncClusterStateApplier);
         }
     }
 
