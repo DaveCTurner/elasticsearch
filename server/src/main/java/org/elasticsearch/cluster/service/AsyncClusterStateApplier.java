@@ -134,12 +134,14 @@ public class AsyncClusterStateApplier implements ClusterStateApplier {
             assert appliedState != null : "must be initialized";
 
             final var source = Strings.format(
-                "async update state from version [{}] to version [{}]",
+                "async update state from version [%d] to version [%d]",
                 appliedState.version(),
                 stateToApply.version()
             );
 
+            logger.info("--> async applying [{}]", source);
             applier.applyClusterState(new ClusterChangedEvent(source, stateToApply, appliedState));
+            logger.info("--> done async applying [{}]", source);
             appliedState = stateToApply;
 
             assert applyListener.isDone() == false;

@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.sameInstance;
 
@@ -44,6 +45,16 @@ public class AsyncClusterStateApplierTests extends ESTestCase {
             final var applier = new AsyncClusterStateApplier(event -> {
                 assertFalse(isApplying.getAndSet(true));
                 assertThat(Thread.currentThread().getName(), containsString("[generic]"));
+                assertThat(
+                    event.source(),
+                    equalTo(
+                        "async update state from version ["
+                            + event.previousState().version()
+                            + "] to version ["
+                            + event.state().version()
+                            + "]"
+                    )
+                );
                 Thread.yield();
                 appliedState.set(event.state());
                 assertTrue(isApplying.getAndSet(false));
