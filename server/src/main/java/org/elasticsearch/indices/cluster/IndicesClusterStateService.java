@@ -275,7 +275,9 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
      *               thread, or on the thread that completed the closing of the last such shard.
      */
     public void onClusterStateShardsClosed(Runnable action) {
-        lastClusterStateShardsClosedListener.andThenAccept(ignored -> action.run());
+        SubscribableListener.newForked(asyncClusterStateApplier::awaitCurrentStateApplication)
+            .<Void>andThen(l -> lastClusterStateShardsClosedListener.addListener(l))
+            .andThenAccept(ignored -> action.run());
     }
 
     @Override
