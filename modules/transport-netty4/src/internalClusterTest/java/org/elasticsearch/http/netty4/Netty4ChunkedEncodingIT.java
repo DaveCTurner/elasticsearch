@@ -31,6 +31,7 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
+import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.RefCounted;
@@ -236,7 +237,9 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
                     @Override
                     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
                         return channel -> sendChunksResponse(channel, new Iterator<>() {
-                            private static final BytesReference CHUNK = new BytesArray(randomByteArrayOfLength(16384));
+                            private static final BytesReference CHUNK = new BytesArray(
+                                randomByteArrayOfLength(between(ByteSizeUnit.KB.toIntBytes(16), ByteSizeUnit.KB.toIntBytes(512)))
+                            );
 
                             @Override
                             public boolean hasNext() {
