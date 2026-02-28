@@ -11,6 +11,7 @@ package org.elasticsearch.http.netty4;
 
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ESNetty4IntegTestCase;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
@@ -35,6 +36,8 @@ import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.features.NodeFeature;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -46,6 +49,7 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.TaskCancelledException;
+import org.elasticsearch.test.ESIntegTestCase;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -63,7 +67,10 @@ import static org.elasticsearch.rest.RestResponse.TEXT_CONTENT_TYPE;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 
+@ESIntegTestCase.ClusterScope(numDataNodes = 1)
 public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
+
+    private static final Logger logger = LogManager.getLogger(Netty4ChunkedEncodingIT.class);
 
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
@@ -121,9 +128,9 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
                     }
                 }
             );
-            if (randomBoolean()) {
-                safeSleep(scaledRandomIntBetween(10, 500));
-            }
+            logger.info("--> client waiting");
+            safeSleep(1000);
+            logger.info("--> client cancelling");
             cancellable.cancel();
         }
     }
@@ -131,7 +138,10 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
     private static Releasable withResourceTracker() {
         assertNull(refs);
         final var latch = new CountDownLatch(1);
-        refs = AbstractRefCounted.of(latch::countDown);
+        refs = AbstractRefCounted.of(() -> {
+            logger.info("--> refs all released", new ElasticsearchException("stack trace"));
+            latch.countDown();
+        });
         return () -> {
             refs.decRef();
             try {
@@ -226,7 +236,7 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
                     @Override
                     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
                         return channel -> sendChunksResponse(channel, new Iterator<>() {
-                            private static final BytesReference CHUNK = new BytesArray("CHUNK\n");
+                            private static final BytesReference CHUNK = new BytesArray(randomByteArrayOfLength(16384));
 
                             @Override
                             public boolean hasNext() {
@@ -235,6 +245,8 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
 
                             @Override
                             public BytesReference next() {
+                                logger.info("--> yielding chunk");
+                                safeSleep(100);
                                 return CHUNK;
                             }
                         });

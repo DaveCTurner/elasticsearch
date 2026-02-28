@@ -399,6 +399,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             return false;
         }
         while (channel.isWritable()) {
+
             // NB "writable" means there's space in the downstream ChannelOutboundBuffer, we aren't trying to saturate the physical channel.
             WriteOperation currentWrite = queuedWrites.poll();
             if (currentWrite == null) {
@@ -411,16 +412,20 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             if (currentWrite == null) {
                 // no bytes were found queued, check if a chunked message might have become writable
                 if (currentChunkedWrite != null) {
+                    logger.info("--> channel.isActive() = {} before writeChunk", channel.isActive());
                     if (writeChunk(ctx, currentChunkedWrite)) {
                         finishChunkedWrite();
                     }
+                    logger.info("--> channel.isActive() = {} after writeChunk", channel.isActive());
                     continue;
                 }
                 break;
             }
             ctx.write(currentWrite.msg, currentWrite.promise);
         }
+        logger.info("--> channel.isActive() = {} channel.isWriteable() = {} before flush", channel.isActive(), channel.isWritable());
         ctx.flush();
+        logger.info("--> channel.isActive() = {} channel.isWriteable() = {} after flush", channel.isActive(), channel.isWritable());
         if (channel.isActive() == false) {
             failQueuedWrites(ctx);
         }
