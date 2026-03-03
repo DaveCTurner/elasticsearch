@@ -18,6 +18,7 @@ import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -237,6 +238,11 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
     protected void doStop() {
         if (DiscoveryNode.canContainData(settings)) {
             clusterService.removeApplier(asyncClusterStateApplier);
+            final var finalApplyFuture = new PlainActionFuture<Void>();
+            addApplyListener(finalApplyFuture);
+            // hmm blocking, is this ok? maybe use AbstractThrottledTaskRunner.runSyncTasksEagerly so single-threaded tests will complete
+            // the last apply first?
+            finalApplyFuture.actionGet();
         }
     }
 
