@@ -180,6 +180,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
             (AllocatedIndices<? extends Shard, ? extends AllocatedIndex<? extends Shard>>) indicesService,
             clusterService,
             threadPool,
+            threadPool.generic(),
             recoveryTargetService,
             shardStateAction,
             repositoriesService,
@@ -199,6 +200,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         final AllocatedIndices<? extends Shard, ? extends AllocatedIndex<? extends Shard>> indicesService,
         final ClusterService clusterService,
         final ThreadPool threadPool,
+        final Executor applyExecutor,
         final PeerRecoveryTargetService recoveryTargetService,
         final ShardStateAction shardStateAction,
         final RepositoriesService repositoriesService,
@@ -223,7 +225,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         this.shardLockRetryInterval = SHARD_LOCK_RETRY_INTERVAL_SETTING.get(settings);
         this.shardLockRetryTimeout = SHARD_LOCK_RETRY_TIMEOUT_SETTING.get(settings);
         this.shardCloseExecutor = new ShardCloseExecutor(settings, threadPool.generic());
-        this.asyncClusterStateApplier = new AsyncClusterStateApplier(this, threadPool.generic());
+        this.asyncClusterStateApplier = new AsyncClusterStateApplier(this, applyExecutor);
     }
 
     @Override

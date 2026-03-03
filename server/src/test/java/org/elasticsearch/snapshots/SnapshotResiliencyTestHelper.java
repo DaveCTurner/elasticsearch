@@ -93,6 +93,7 @@ import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.PrioritizedEsThreadPoolExecutor;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.env.NodeEnvironment;
@@ -121,6 +122,7 @@ import org.elasticsearch.indices.TestIndexNameExpressionResolver;
 import org.elasticsearch.indices.analysis.AnalysisModule;
 import org.elasticsearch.indices.breaker.NoneCircuitBreakerService;
 import org.elasticsearch.indices.cluster.IndicesClusterStateService;
+import org.elasticsearch.indices.cluster.IndicesClusterStateServiceTestUtils;
 import org.elasticsearch.indices.recovery.PeerRecoverySourceService;
 import org.elasticsearch.indices.recovery.PeerRecoveryTargetService;
 import org.elasticsearch.indices.recovery.RecoverySettings;
@@ -758,11 +760,12 @@ public class SnapshotResiliencyTestHelper {
                     SearchExecutionStatsCollector.makeWrapper(responseCollectorService)
                 );
 
-                indicesClusterStateService = new IndicesClusterStateService(
+                indicesClusterStateService = IndicesClusterStateServiceTestUtils.newIndicesClusterStateService(
                     settings,
                     indicesService,
                     clusterService,
                     threadPool,
+                    EsExecutors.DIRECT_EXECUTOR_SERVICE,
                     peerRecoveryTargetService,
                     shardStateAction,
                     repositoriesService,
