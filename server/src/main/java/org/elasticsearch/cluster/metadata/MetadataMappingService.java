@@ -297,6 +297,7 @@ public class MetadataMappingService {
             // Step 2: await async updates
             .<AcknowledgedResponse>andThen((l, response) -> {
                 // TODO group (by timeout) the requests in the batch and only await once
+                // TODO re-use code between here and MetadataUpdateSettingsService
                 final var clusterState = clusterService.state();
                 final var nodes = clusterState.nodes().getDataNodes().values().toArray(DiscoveryNode[]::new);
                 client.execute(

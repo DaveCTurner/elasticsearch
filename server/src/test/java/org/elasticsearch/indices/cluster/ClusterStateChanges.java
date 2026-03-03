@@ -299,7 +299,8 @@ public class ClusterStateChanges {
             IndexScopedSettings.DEFAULT_SCOPED_SETTINGS,
             indicesService,
             shardLimitValidator,
-            threadPool
+            threadPool,
+            client
         );
         MetadataCreateIndexService createIndexService = new MetadataCreateIndexService(
             SETTINGS,
