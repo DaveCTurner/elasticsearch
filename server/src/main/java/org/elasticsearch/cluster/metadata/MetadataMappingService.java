@@ -310,13 +310,9 @@ public class MetadataMappingService {
                     new AwaitClusterStateVersionAppliedRequest(clusterState.version(), request.ackTimeout(), nodes),
                     new ActionListener<>() {
                         @Override
-                        public void onResponse(AwaitClusterStateVersionAppliedResponse awaitClusterStateVersionAppliedResponse) {
-                            logger.info("--> mapping update completed apply of state");
-                            l.onResponse(
-                                AcknowledgedResponse.of(
-                                    response.isAcknowledged() && awaitClusterStateVersionAppliedResponse.failures().isEmpty() == false
-                                )
-                            );
+                        public void onResponse(AwaitClusterStateVersionAppliedResponse awaitResponse) {
+                            logger.info("--> mapping update completed apply of state, failures={}", awaitResponse.hasFailures());
+                            l.onResponse(AcknowledgedResponse.of(response.isAcknowledged() && awaitResponse.failures().isEmpty()));
                         }
 
                         @Override

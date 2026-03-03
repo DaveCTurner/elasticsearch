@@ -195,13 +195,9 @@ public class TransportAwaitClusterStateVersionAppliedAction extends TransportNod
         }
     }
 
-    protected static class NodeResponse extends BaseNodeResponse {
+    public static class NodeResponse extends BaseNodeResponse {
         NodeResponse(StreamInput in, DiscoveryNode node) throws IOException {
             super(in, node);
-        }
-
-        NodeResponse(StreamInput in) throws IOException {
-            super(in);
         }
 
         NodeResponse(DiscoveryNode node) {
