@@ -739,7 +739,8 @@ public class SnapshotResiliencyTestHelper {
                 final MetadataMappingService metadataMappingService = new MetadataMappingService(
                     clusterService,
                     indicesService,
-                    IndexSettingProviders.EMPTY
+                    IndexSettingProviders.EMPTY,
+                    client
                 );
 
                 peerRecoverySourceService = new PeerRecoverySourceService(
