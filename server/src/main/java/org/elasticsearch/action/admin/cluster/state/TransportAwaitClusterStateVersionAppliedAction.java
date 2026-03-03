@@ -160,7 +160,7 @@ public class TransportAwaitClusterStateVersionAppliedAction extends TransportNod
         final var onceListener = new SubscribableListener<Void>();
         onceListener.addListener(listener.map(ignored -> new NodeResponse(clusterService.localNode())));
 
-        if (request.timeout != TimeValue.MINUS_ONE) {
+        if (request.timeout.millis() >= 0) {
             onceListener.addTimeout(request.timeout, threadPool, EsExecutors.DIRECT_EXECUTOR_SERVICE);
         }
 
