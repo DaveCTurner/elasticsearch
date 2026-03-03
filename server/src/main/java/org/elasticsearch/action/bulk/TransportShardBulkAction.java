@@ -99,7 +99,6 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
 
     private final UpdateHelper updateHelper;
     private final MappingUpdatedAction mappingUpdatedAction;
-    private final IndicesClusterStateService indicesClusterStateService;
     private final Consumer<Runnable> postWriteAction;
 
     private final DocumentParsingProvider documentParsingProvider;
@@ -118,8 +117,7 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
         IndexingPressure indexingPressure,
         SystemIndices systemIndices,
         ProjectResolver projectResolver,
-        DocumentParsingProvider documentParsingProvider,
-        IndicesClusterStateService indicesClusterStateService
+        DocumentParsingProvider documentParsingProvider
     ) {
         super(
             settings,
@@ -141,7 +139,6 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
         );
         this.updateHelper = updateHelper;
         this.mappingUpdatedAction = mappingUpdatedAction;
-        this.indicesClusterStateService = indicesClusterStateService;
         this.postWriteAction = WriteAckDelay.create(settings, threadPool);
         this.documentParsingProvider = documentParsingProvider;
     }
@@ -203,40 +200,26 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
             assert update != null;
             assert shardId != null;
             mappingUpdatedAction.updateMappingOnMaster(shardId.getIndex(), update, mappingListener);
-        }, (mappingUpdateListener, initialMappingVersion) -> {
-            logger.info(
-                "--> waiting for mapping update, initialMappingVersion={}, clusterState={}",
-                initialMappingVersion,
-                clusterService.state().version()
-            );
-            observer.waitForNextChange(new ClusterStateObserver.Listener() {
-                @Override
-                public void onNewClusterState(ClusterState state) {
-                    logger.info("--> mapping updated in state [" + state.version() + "]", new ElasticsearchException("stack trace"));
-                    indicesClusterStateService.addApplyListener(mappingUpdateListener);
-                }
+        }, (mappingUpdateListener, initialMappingVersion) -> observer.waitForNextChange(new ClusterStateObserver.Listener() {
+            @Override
+            public void onNewClusterState(ClusterState state) {
+                mappingUpdateListener.onResponse(null);
+            }
 
-                @Override
-                public void onClusterServiceClose() {
-                    mappingUpdateListener.onFailure(new NodeClosedException(clusterService.localNode()));
-                }
+            @Override
+            public void onClusterServiceClose() {
+                mappingUpdateListener.onFailure(new NodeClosedException(clusterService.localNode()));
+            }
 
-                @Override
-                public void onTimeout(TimeValue timeout) {
-                    mappingUpdateListener.onFailure(new MapperException("timed out while waiting for a dynamic mapping update"));
-                }
-            }, clusterState -> {
-                var index = primary.shardId().getIndex();
-                var indexMetadata = clusterState.metadata().lookupProject(index).map(p -> p.index(index)).orElse(null);
-                logger.info(
-                    "--> observed clusterState={}, imd={}",
-                    clusterState.version(),
-                    indexMetadata == null ? "null" : indexMetadata.mapping() == null ? "null mapping" : indexMetadata.getMappingVersion()
-                );
-                return indexMetadata == null
-                    || (indexMetadata.mapping() != null && indexMetadata.getMappingVersion() != initialMappingVersion);
-            });
-        }, listener, executor(primary), postWriteRefresh, postWriteAction, documentParsingProvider);
+            @Override
+            public void onTimeout(TimeValue timeout) {
+                mappingUpdateListener.onFailure(new MapperException("timed out while waiting for a dynamic mapping update"));
+            }
+        }, clusterState -> {
+            var index = primary.shardId().getIndex();
+            var indexMetadata = clusterState.metadata().lookupProject(index).map(p -> p.index(index)).orElse(null);
+            return indexMetadata == null || (indexMetadata.mapping() != null && indexMetadata.getMappingVersion() != initialMappingVersion);
+        }), listener, executor(primary), postWriteRefresh, postWriteAction, documentParsingProvider);
     }
 
     @Override
@@ -303,15 +286,11 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
 
             final long startBulkTime = System.nanoTime();
 
-            private final ActionListener<Void> onMappingUpdateDone = ActionListener.wrap(v -> {
-                logger.info("--> onMappingUpdateDone", new ElasticsearchException("stack trace"));
-                executor.execute(this);
-            }, this::onRejection);
+            private final ActionListener<Void> onMappingUpdateDone = ActionListener.wrap(v -> executor.execute(this), this::onRejection);
 
             @Override
             protected void doRun() throws Exception {
                 while (context.hasMoreOperationsToExecute()) {
-                    logger.info("--> TransportShardBulkAction#performOnPrimary", new ElasticsearchException("stack trace"));
                     if (executeBulkItemRequest(
                         context,
                         updateHelper,

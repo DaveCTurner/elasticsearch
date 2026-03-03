@@ -16,14 +16,12 @@ import org.elasticsearch.indices.IndexClosedException;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.junit.Before;
 
 import java.util.Collection;
 
 import static org.hamcrest.Matchers.is;
 
-@TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.metadata.MetadataMappingService:TRACE")
 public class IndicesSegmentsRequestTests extends ESSingleNodeTestCase {
 
     @Override

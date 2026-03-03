@@ -18,7 +18,6 @@ import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
 import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.indices.IndicesModule;
-import org.elasticsearch.indices.cluster.IndicesClusterStateService;
 import org.elasticsearch.plugins.FieldPredicate;
 import org.elasticsearch.plugins.MapperPlugin;
 import org.elasticsearch.plugins.Plugin;
@@ -52,7 +51,6 @@ public class FieldFilterMapperPluginTests extends ESSingleNodeTestCase {
         assertAcked(indicesAdmin().prepareCreate("index1"));
         assertAcked(indicesAdmin().prepareCreate("filtered"));
         assertAcked(indicesAdmin().preparePutMapping("index1", "filtered").setSource(TEST_ITEM, XContentType.JSON));
-        safeAwait(getInstanceFromNode(IndicesClusterStateService.class)::addApplyListener);
     }
 
     public void testGetMappings() {
