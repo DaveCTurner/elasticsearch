@@ -300,12 +300,14 @@ public class MetadataMappingService {
                 // TODO re-use code between here and MetadataUpdateSettingsService
                 final var clusterState = clusterService.state();
                 final var nodes = clusterState.nodes().getDataNodes().values().toArray(DiscoveryNode[]::new);
+                logger.info("--> mapping update awaiting apply of state version [{}]", clusterState.version());
                 client.execute(
                     TransportAwaitClusterStateVersionAppliedAction.TYPE,
                     new AwaitClusterStateVersionAppliedRequest(clusterState.version(), request.ackTimeout(), nodes),
                     new ActionListener<>() {
                         @Override
                         public void onResponse(AwaitClusterStateVersionAppliedResponse awaitClusterStateVersionAppliedResponse) {
+                            logger.info("--> mapping update completed apply of state");
                             l.onResponse(
                                 AcknowledgedResponse.of(
                                     response.isAcknowledged() && awaitClusterStateVersionAppliedResponse.failures().isEmpty() == false
@@ -315,6 +317,7 @@ public class MetadataMappingService {
 
                         @Override
                         public void onFailure(Exception e) {
+                            logger.info("--> mapping update state wait failed", e);
                             l.onResponse(AcknowledgedResponse.FALSE);
                         }
                     }
