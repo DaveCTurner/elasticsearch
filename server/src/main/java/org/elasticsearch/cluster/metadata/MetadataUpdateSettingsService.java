@@ -447,16 +447,14 @@ public class MetadataUpdateSettingsService {
                     new AwaitClusterStateVersionAppliedRequest(clusterState.version(), request.ackTimeout(), nodes),
                     new ActionListener<>() {
                         @Override
-                        public void onResponse(AwaitClusterStateVersionAppliedResponse awaitClusterStateVersionAppliedResponse) {
-                            l.onResponse(
-                                AcknowledgedResponse.of(
-                                    response.isAcknowledged() && awaitClusterStateVersionAppliedResponse.failures().isEmpty() == false
-                                )
-                            );
+                        public void onResponse(AwaitClusterStateVersionAppliedResponse awaitResponse) {
+                            logger.info("--> settings update completed apply of state, failures={}", awaitResponse.hasFailures());
+                            l.onResponse(AcknowledgedResponse.of(response.isAcknowledged() && awaitResponse.failures().isEmpty()));
                         }
 
                         @Override
                         public void onFailure(Exception e) {
+                            logger.info("--> settings update state wait failed", e);
                             l.onResponse(AcknowledgedResponse.FALSE);
                         }
                     }
