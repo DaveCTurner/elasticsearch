@@ -300,7 +300,11 @@ public class MetadataMappingService {
                 // TODO re-use code between here and MetadataUpdateSettingsService
                 final var clusterState = clusterService.state();
                 final var nodes = clusterState.nodes().getDataNodes().values().toArray(DiscoveryNode[]::new);
-                logger.info("--> mapping update awaiting apply of state version [{}]", clusterState.version());
+                logger.info(
+                    "--> mapping update awaiting apply of state version [{}], interim response [{}]",
+                    clusterState.version(),
+                    Strings.toString(response)
+                );
                 client.execute(
                     TransportAwaitClusterStateVersionAppliedAction.TYPE,
                     new AwaitClusterStateVersionAppliedRequest(clusterState.version(), request.ackTimeout(), nodes),
