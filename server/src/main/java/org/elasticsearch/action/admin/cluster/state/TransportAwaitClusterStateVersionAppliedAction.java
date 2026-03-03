@@ -16,6 +16,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.cluster.ClusterState;
@@ -25,7 +26,9 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.indices.cluster.IndicesClusterStateService;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.node.NodeClosedException;
 import org.elasticsearch.tasks.CancellableTask;
@@ -39,8 +42,6 @@ import org.elasticsearch.transport.TransportService;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Predicate;
 
 /**
  * An action that waits for a given cluster state version to be applied on provided set of nodes in the cluster.
@@ -57,11 +58,13 @@ public class TransportAwaitClusterStateVersionAppliedAction extends TransportNod
 
     private static final Logger logger = LogManager.getLogger(TransportAwaitClusterStateVersionAppliedAction.class);
 
+    private final IndicesClusterStateService indicesClusterStateService;
     private final ThreadPool threadPool;
 
     @Inject
     public TransportAwaitClusterStateVersionAppliedAction(
         ClusterService clusterService,
+        IndicesClusterStateService indicesClusterStateService,
         TransportService transportService,
         ActionFilters actionFilters,
         ThreadPool threadPool
@@ -74,6 +77,7 @@ public class TransportAwaitClusterStateVersionAppliedAction extends TransportNod
             NodeRequest::new,
             threadPool.executor(ThreadPool.Names.GENERIC)
         );
+        this.indicesClusterStateService = indicesClusterStateService;
         this.threadPool = threadPool;
     }
 
@@ -104,69 +108,71 @@ public class TransportAwaitClusterStateVersionAppliedAction extends TransportNod
 
     @Override
     protected void nodeOperationAsync(NodeRequest request, Task task, ActionListener<NodeResponse> listener) {
-        var completed = new AtomicBoolean(false);
+        final var onceListener = new SubscribableListener<Void>();
+        onceListener.addListener(listener.map(ignored -> new NodeResponse(clusterService.localNode())));
+
+        if (request.timeout != TimeValue.MINUS_ONE) {
+            onceListener.addTimeout(request.timeout, threadPool, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        }
 
         var cancellableTask = (CancellableTask) task;
-        cancellableTask.addListener(() -> {
-            if (completed.compareAndSet(false, true)) {
-                listener.onFailure(new TaskCancelledException(cancellableTask.getReasonCancelled()));
-            }
-        });
+        cancellableTask.addListener(() -> onceListener.onFailure(new TaskCancelledException(cancellableTask.getReasonCancelled())));
 
-        Predicate<ClusterState> predicate = (ClusterState state) -> cancellableTask.isCancelled()
-            || state.version() >= request.clusterStateVersion;
+        SubscribableListener
+            // Step 1: wait for cluster state application
+            .<Void>newForked(
+                l -> ClusterStateObserver.waitForState(
+                    //
+                    clusterService,
+                    threadPool.getThreadContext(),
+                    new ClusterStateObserver.Listener() {
+                        @Override
+                        public void onNewClusterState(ClusterState state1) {
+                            l.onResponse(null);
+                        }
 
-        var clusterStateListener = new ClusterStateObserver.Listener() {
-            @Override
-            public void onNewClusterState(ClusterState state) {
-                // The listener is notified directly from the task in case of cancellation.
-                if (completed.compareAndSet(false, true)) {
-                    listener.onResponse(new NodeResponse(clusterService.localNode()));
+                        @Override
+                        public void onClusterServiceClose() {
+                            l.onFailure(new NodeClosedException(clusterService.localNode()));
+                        }
+
+                        @Override
+                        public void onTimeout(TimeValue timeout) {
+                            l.onFailure(
+                                new ElasticsearchTimeoutException(
+                                    "timed out waiting for cluster state version [" + request.clusterStateVersion + "] to be applied"
+                                )
+                            );
+                        }
+                    },
+                    state -> onceListener.isDone() == false || state.version() >= request.clusterStateVersion,
+                    request.timeout == TimeValue.MINUS_ONE ? null : request.timeout,
+                    logger
+                )
+            )
+            // Step 2: wait for async application
+            .<Void>andThen(l -> {
+                if (onceListener.isDone()) {
+                    l.onResponse(null);
+                } else {
+                    indicesClusterStateService.addApplyListener(l);
                 }
-            }
-
-            @Override
-            public void onClusterServiceClose() {
-                // The listener is notified directly from the task in case of cancellation.
-                if (completed.compareAndSet(false, true)) {
-                    listener.onFailure(new NodeClosedException(clusterService.localNode()));
-                }
-            }
-
-            @Override
-            public void onTimeout(TimeValue timeout) {
-                // The listener is notified directly from the task in case of cancellation.
-                if (completed.compareAndSet(false, true)) {
-                    listener.onFailure(
-                        new ElasticsearchTimeoutException(
-                            "timed out waiting for cluster state version [" + request.clusterStateVersion + "] to be applied"
-                        )
-                    );
-                }
-            }
-        };
-
-        ClusterStateObserver.waitForState(
-            clusterService,
-            threadPool.getThreadContext(),
-            clusterStateListener,
-            predicate,
-            request.timeout == TimeValue.MINUS_ONE ? null : request.timeout,
-            logger
-        );
+            })
+            // Step 3: complete listener
+            .addListener(onceListener);
     }
 
-    public static class NodeRequest extends AbstractTransportRequest {
+    protected static class NodeRequest extends AbstractTransportRequest {
         private final long clusterStateVersion;
         private final TimeValue timeout;
 
-        public NodeRequest(StreamInput in) throws IOException {
+        NodeRequest(StreamInput in) throws IOException {
             super(in);
             this.clusterStateVersion = in.readLong();
             this.timeout = in.readTimeValue();
         }
 
-        public NodeRequest(long clusterStateVersion, TimeValue timeout) {
+        NodeRequest(long clusterStateVersion, TimeValue timeout) {
             this.clusterStateVersion = clusterStateVersion;
             this.timeout = timeout;
         }
@@ -189,16 +195,16 @@ public class TransportAwaitClusterStateVersionAppliedAction extends TransportNod
         }
     }
 
-    public static class NodeResponse extends BaseNodeResponse {
-        public NodeResponse(StreamInput in, DiscoveryNode node) throws IOException {
+    protected static class NodeResponse extends BaseNodeResponse {
+        NodeResponse(StreamInput in, DiscoveryNode node) throws IOException {
             super(in, node);
         }
 
-        public NodeResponse(StreamInput in) throws IOException {
+        NodeResponse(StreamInput in) throws IOException {
             super(in);
         }
 
-        public NodeResponse(DiscoveryNode node) {
+        NodeResponse(DiscoveryNode node) {
             super(node);
         }
     }
