@@ -9,6 +9,7 @@
 
 package org.elasticsearch.index.mapper.blockloader;
 
+import org.apache.lucene.tests.util.LuceneTestCase;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@LuceneTestCase.AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/143414")
 public class FlattenedFieldRootBlockLoaderTests extends BinaryDVBlockLoaderTestCase {
 
     public FlattenedFieldRootBlockLoaderTests(Params params) {
