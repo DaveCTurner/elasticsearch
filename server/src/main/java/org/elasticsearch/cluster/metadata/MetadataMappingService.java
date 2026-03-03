@@ -144,6 +144,7 @@ public class MetadataMappingService {
 
         @Override
         public ClusterState execute(BatchExecutionContext<PutMappingClusterStateUpdateTask> batchExecutionContext) throws Exception {
+            logger.info("computing put-mapping update starting at clusterState={}", batchExecutionContext.initialState().version());
             Map<Index, MapperService> indexMapperServices = new HashMap<>();
             try {
                 var currentState = batchExecutionContext.initialState();

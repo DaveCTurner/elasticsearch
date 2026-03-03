@@ -13,6 +13,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.shard.EngineAccess;
+import org.elasticsearch.indices.cluster.IndicesClusterStateService;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 
 import java.util.concurrent.TimeUnit;
@@ -24,6 +25,7 @@ public class InternalEngineSettingsTests extends ESSingleNodeTestCase {
     public void testSettingsUpdate() {
         final IndexService service = createIndex("foo");
         InternalEngine engine = ((InternalEngine) EngineAccess.engine(service.getShardOrNull(0)));
+        final var indicesClusterStateService = getInstanceFromNode(IndicesClusterStateService.class);
         assertThat(engine.getCurrentIndexWriterConfig().getUseCompoundFile(), is(true));
         final int iters = between(1, 20);
         for (int i = 0; i < iters; i++) {
@@ -38,6 +40,7 @@ public class InternalEngineSettingsTests extends ESSingleNodeTestCase {
             assertEquals(gcDeletes, build.getAsTime(IndexSettings.INDEX_GC_DELETES_SETTING.getKey(), null).millis());
 
             indicesAdmin().prepareUpdateSettings("foo").setSettings(build).get();
+            safeAwait(indicesClusterStateService::addApplyListener);
             LiveIndexWriterConfig currentIndexWriterConfig = engine.getCurrentIndexWriterConfig();
             assertEquals(currentIndexWriterConfig.getUseCompoundFile(), true);
 
@@ -48,17 +51,20 @@ public class InternalEngineSettingsTests extends ESSingleNodeTestCase {
 
         Settings settings = Settings.builder().put(IndexSettings.INDEX_GC_DELETES_SETTING.getKey(), 1000, TimeUnit.MILLISECONDS).build();
         indicesAdmin().prepareUpdateSettings("foo").setSettings(settings).get();
+        safeAwait(indicesClusterStateService::addApplyListener);
         assertEquals(engine.getGcDeletesInMillis(), 1000);
         assertTrue(engine.config().isEnableGcDeletes());
 
         settings = Settings.builder().put(IndexSettings.INDEX_GC_DELETES_SETTING.getKey(), "0ms").build();
 
         indicesAdmin().prepareUpdateSettings("foo").setSettings(settings).get();
+        safeAwait(indicesClusterStateService::addApplyListener);
         assertEquals(engine.getGcDeletesInMillis(), 0);
         assertTrue(engine.config().isEnableGcDeletes());
 
         settings = Settings.builder().put(IndexSettings.INDEX_GC_DELETES_SETTING.getKey(), 1000, TimeUnit.MILLISECONDS).build();
         indicesAdmin().prepareUpdateSettings("foo").setSettings(settings).get();
+        safeAwait(indicesClusterStateService::addApplyListener);
         assertEquals(engine.getGcDeletesInMillis(), 1000);
         assertTrue(engine.config().isEnableGcDeletes());
     }
