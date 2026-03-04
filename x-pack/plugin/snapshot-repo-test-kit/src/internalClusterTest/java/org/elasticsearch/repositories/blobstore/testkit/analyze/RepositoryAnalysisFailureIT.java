@@ -44,7 +44,6 @@ import org.elasticsearch.repositories.SnapshotMetrics;
 import org.elasticsearch.repositories.blobstore.BlobStoreRepository;
 import org.elasticsearch.repositories.blobstore.testkit.SnapshotRepositoryTestKit;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xpack.core.LocalStateCompositeXPackPlugin;
 import org.junit.Before;
@@ -438,7 +437,6 @@ public class RepositoryAnalysisFailureIT extends AbstractSnapshotIntegTestCase {
         assertFalse(registerWasCorrupted.get());
     }
 
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.repositories.blobstore.testkit.analyze:TRACE")
     public void testFailsIfRegisterHoldsSpuriousValue() {
         final RepositoryAnalyzeAction.Request request = new RepositoryAnalyzeAction.Request("test-repo");
 
@@ -469,7 +467,6 @@ public class RepositoryAnalysisFailureIT extends AbstractSnapshotIntegTestCase {
 
         safeAwait((ActionListener<RepositoryAnalyzeAction.Response> l) -> analyseRepository(request, l.delegateResponse((ll, e) -> {
             if (ExceptionsHelper.unwrapCause(e) instanceof RepositoryVerificationException repositoryVerificationException) {
-                logger.info("--> NOCOMMIT verify failed", e);
                 assertAnalysisFailureMessage(repositoryVerificationException.getMessage());
                 assertTrue(
                     "did not see spurious value, so why did the verification fail?",
