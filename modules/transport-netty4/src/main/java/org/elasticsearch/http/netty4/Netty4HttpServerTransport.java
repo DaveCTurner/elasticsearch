@@ -29,6 +29,9 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.flow.FlowControlHandler;
+import io.netty.handler.logging.ByteBufFormat;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.netty.handler.timeout.ReadTimeoutHandler;
@@ -340,6 +343,9 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
                         )
                     );
             }
+
+            ch.pipeline().addLast(new LoggingHandler("edge", LogLevel.INFO, ByteBufFormat.SIMPLE));
+
             if (tlsConfig.isTLSEnabled()) {
                 final var sslHandler = new SslHandler(tlsConfig.createServerSSLEngine());
                 final var tlsHandshakeThrottle = transport.tlsHandshakeThrottleManager.getThrottleForCurrentThread();
