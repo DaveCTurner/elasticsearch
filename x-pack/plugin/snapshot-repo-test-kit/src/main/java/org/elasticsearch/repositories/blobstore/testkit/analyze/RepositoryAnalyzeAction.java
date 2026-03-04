@@ -119,6 +119,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
 
         // construct (and therefore implicitly register) the subsidiary actions
         new BlobAnalyzeAction(transportService, clusterService.getSettings(), actionFilters, repositoriesService);
+        new BlobOverwriteAction(transportService, actionFilters, repositoriesService);
         new GetBlobChecksumAction(transportService, actionFilters, repositoriesService);
         new ContendedRegisterAnalyzeAction(transportService, actionFilters, repositoriesService);
         new UncontendedRegisterAnalyzeAction(transportService, actionFilters, repositoriesService);
@@ -642,7 +643,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                     request,
                     task,
                     TransportRequestOptions.EMPTY,
-                    new ActionListenerResponseHandler<>(ActionListener.releaseAfter(new ActionListener<ActionResponse.Empty>() {
+                    new ActionListenerResponseHandler<>(ActionListener.releaseAfter(new ActionListener<BlobOverwriteAction.Response>() {
                         @Override
                         public void onResponse(BlobOverwriteAction.Response response) {
                             logger.trace("finished [{}] on [{}]: [{}]", request, node, response);
