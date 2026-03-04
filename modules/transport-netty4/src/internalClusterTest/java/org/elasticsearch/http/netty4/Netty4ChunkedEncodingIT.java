@@ -9,14 +9,15 @@
 
 package org.elasticsearch.http.netty4;
 
+import org.apache.http.HttpHost;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ESNetty4IntegTestCase;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseListener;
+import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -32,7 +33,6 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
-import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.core.AbstractRefCounted;
@@ -118,15 +118,22 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
         }
     }
 
-    public void testClientCancellation() {
-        try (var ignored = withResourceTracker()) {
-            NodesInfoResponse nodesInfo = clusterAdmin().prepareNodesInfo().get();
-            final var ports = nodesInfo.getNodes()
+    public void testClientCancellation() throws IOException {
+        final var address = randomFrom(
+            clusterAdmin().prepareNodesInfo()
+                .get()
+                .getNodes()
                 .stream()
-                .flatMapToInt(n -> Arrays.stream(n.getInfo(HttpInfo.class).address().boundAddresses()).mapToInt(TransportAddress::getPort))
-                .distinct()
-                .toArray();
-            var client = getRestClient();
+                .flatMap(n -> Arrays.stream(n.getInfo(HttpInfo.class).address().boundAddresses()))
+                .toList()
+        ).address();
+
+        try (
+            var ignored = withResourceTracker();
+            var client = RestClient.builder(new HttpHost(address.getAddress(), address.getPort()))
+                .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setMaxConnPerRoute(1).setMaxConnTotal(1))
+                .build()
+        ) {
             final var cancellable = client.performRequestAsync(
                 new Request("GET", YieldsChunksPlugin.INFINITE_ROUTE),
                 new ResponseListener() {
@@ -147,9 +154,7 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
             logger.info("--> client cancelling");
             var cancelSuccess = false;
             try {
-                for (var port : ports) {
-                    killTcpConnectionsToPort(port);
-                }
+                killTcpConnectionsToPort(address.getPort());
                 cancelSuccess = true;
             } finally {
                 if (cancelSuccess == false) {
