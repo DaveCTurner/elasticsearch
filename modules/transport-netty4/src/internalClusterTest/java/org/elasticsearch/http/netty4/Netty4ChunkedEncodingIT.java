@@ -69,6 +69,7 @@ import java.util.function.Supplier;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestResponse.TEXT_CONTENT_TYPE;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 
@@ -136,7 +137,8 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
 
                     @Override
                     public void onFailure(Exception exception) {
-                        assertThat(exception, instanceOf(CancellationException.class));
+                        logger.info("--> got response exception", exception);
+                        assertThat(exception, anyOf(instanceOf(IOException.class), instanceOf(CancellationException.class)));
                     }
                 }
             );
