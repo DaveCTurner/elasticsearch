@@ -13,6 +13,8 @@ import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ESNetty4IntegTestCase;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
+import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseListener;
@@ -37,6 +39,7 @@ import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.features.NodeFeature;
+import org.elasticsearch.http.HttpInfo;
 import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
 import org.elasticsearch.plugins.ActionPlugin;
@@ -115,7 +118,15 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
 
     public void testClientCancellation() {
         try (var ignored = withResourceTracker()) {
-            final var cancellable = getRestClient().performRequestAsync(
+            NodesInfoResponse nodesInfo = clusterAdmin().prepareNodesInfo().get();
+            NodeInfo node = nodesInfo.getNodes()
+                .stream()
+                .filter(n -> n.getInfo(HttpInfo.class) != null)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no node with HttpInfo"));
+            int port = node.getInfo(HttpInfo.class).address().publishAddress().address().getPort();
+            var client = getRestClient();
+            final var cancellable = client.performRequestAsync(
                 new Request("GET", YieldsChunksPlugin.INFINITE_ROUTE),
                 new ResponseListener() {
                     @Override
@@ -132,7 +143,26 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
             logger.info("--> client waiting");
             safeSleep(1000);
             logger.info("--> client cancelling");
-            cancellable.cancel();
+            killTcpConnectionsToPort(port);
+        }
+    }
+    /**
+     * Kill established TCP connections from this host to the given port using Linux {@code ss -K}.
+     * Requires root or CAP_NET_RAW; skips the test if the command cannot be run or fails.
+     */
+    private void killTcpConnectionsToPort(int port) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder("ss", "-t", "-K", "state", "established", "dport", "=", ":" + port);
+            pb.redirectErrorStream(true);
+            Process p = pb.start();
+            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            int exit = p.waitFor();
+            assumeTrue(
+                "ss -K failed (exit " + exit + "). May require root or kernel CONFIG_INET_DIAG_DESTROY. Output: " + out,
+                exit == 0
+            );
+        } catch (Exception e) {
+            assumeTrue("could not run ss -K to kill connection: " + e.getMessage(), false);
         }
     }
 
