@@ -51,30 +51,31 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
 
     @Override
     protected void doExecute(Task task, Request request, ActionListener<Response> listener) {
-        final Repository repository = repositoriesService.repository(request.repositoryName);
-        if (repository instanceof BlobStoreRepository == false) {
-            throw new IllegalArgumentException("repository [" + request.repositoryName + "] is not a blob-store repository");
-        }
-        if (repository.isReadOnly()) {
-            throw new IllegalArgumentException("repository [" + request.repositoryName + "] is read-only");
-        }
-        final BlobStoreRepository blobStoreRepository = (BlobStoreRepository) repository;
-        final BlobPath path = blobStoreRepository.basePath().add(request.blobPath);
-        final BlobContainer blobContainer = blobStoreRepository.blobStore().blobContainer(path);
-        assert task instanceof CancellableTask;
+        ActionListener.completeWith(listener, () -> {
+            final Repository repository = repositoriesService.repository(request.repositoryName);
+            if (repository instanceof BlobStoreRepository == false) {
+                throw new IllegalArgumentException("repository [" + request.repositoryName + "] is not a blob-store repository");
+            }
+            if (repository.isReadOnly()) {
+                throw new IllegalArgumentException("repository [" + request.repositoryName + "] is read-only");
+            }
+            final BlobStoreRepository blobStoreRepository = (BlobStoreRepository) repository;
+            final BlobPath path = blobStoreRepository.basePath().add(request.blobPath);
+            final BlobContainer blobContainer = blobStoreRepository.blobStore().blobContainer(path);
+            assert task instanceof CancellableTask;
 
-        logger.trace("handling [{}]", request);
+            logger.trace("handling [{}]", request);
 
-        boolean writeSuccess;
-        try {
-            writeBlob(blobStoreRepository, blobContainer, request, task);
-            writeSuccess = true;
-        } catch (Exception e) {
-            // TODO be more precise about the exceptions we get for a failed overwrite because the blob already exists, rethrowing others
-            logger.trace(() -> "write failed for [" + request + "]: " + e.getMessage());
-            writeSuccess = false;
-        }
-        listener.onResponse(new Response(writeSuccess));
+            try {
+                writeBlob(blobStoreRepository, blobContainer, request, task);
+                return new Response(true);
+            } catch (Exception e) {
+                // TODO be more precise about the exceptions we get for a failed overwrite because the blob already exists, rethrowing
+                // others
+                logger.info(() -> "write failed for [" + request + "]: " + e.getMessage());
+                return new Response(false);
+            }
+        });
     }
 
     private static void writeBlob(BlobStoreRepository repository, BlobContainer blobContainer, Request request, Task task)
