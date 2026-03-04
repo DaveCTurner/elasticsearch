@@ -98,6 +98,8 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
 
     public static final ActionType<Response> INSTANCE = new ActionType<>("cluster:admin/repository/analyze");
 
+    static final TransportVersion REPO_ANALYSIS_BLOB_OVERWRITE = TransportVersion.fromName("repo_analysis_blob_overwrite");
+
     static final String UNCONTENDED_REGISTER_NAME_PREFIX = "test-register-uncontended-";
     static final String CONTENDED_REGISTER_NAME_PREFIX = "test-register-contended-";
 
@@ -366,7 +368,6 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
     public static class AsyncAction {
 
         private static final TransportVersion REPO_ANALYSIS_COPY_BLOB = TransportVersion.fromName("repo_analysis_copy_blob");
-        private static final TransportVersion REPO_ANALYSIS_BLOB_OVERWRITE = TransportVersion.fromName("repo_analysis_blob_overwrite");
 
         private final TransportService transportService;
         private final BlobStoreRepository repository;
@@ -1061,7 +1062,8 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
             detailed = in.readBoolean();
             reroutedFrom = in.readOptionalWriteable(DiscoveryNode::new);
             abortWritePermitted = in.readBoolean();
-            checkOverwriteProtection = in.readBoolean();
+            checkOverwriteProtection = in.getTransportVersion().supports(RepositoryAnalyzeAction.REPO_ANALYSIS_BLOB_OVERWRITE)
+                && in.readBoolean();
         }
 
         @Override
@@ -1086,7 +1088,11 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
             out.writeBoolean(detailed);
             out.writeOptionalWriteable(reroutedFrom);
             out.writeBoolean(abortWritePermitted);
-            out.writeBoolean(checkOverwriteProtection);
+            if (out.getTransportVersion().supports(RepositoryAnalyzeAction.REPO_ANALYSIS_BLOB_OVERWRITE)) {
+                out.writeBoolean(checkOverwriteProtection);
+            } else if (checkOverwriteProtection) {
+                throw new IllegalArgumentException("not all nodes support overwrite-protection checks");
+            }
         }
 
         @Override
