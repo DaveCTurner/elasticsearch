@@ -486,7 +486,7 @@ public class RepositoryAnalysisSuccessIT extends AbstractSnapshotIntegTestCase {
                 } else {
                     blobs.put(blobName, contents);
                 }
-                assertThat(blobs.size(), lessThanOrEqualTo(maxBlobCount));
+                assertThat(blobs.keySet().toString(), blobs.size(), lessThanOrEqualTo(maxBlobCount + 1 /* overwrite-check blob */));
                 final long currentTotal = totalBytesWritten.addAndGet(blobSize - existingSize);
                 assertThat(currentTotal, lessThanOrEqualTo(maxTotalBlobSize));
             } finally {
