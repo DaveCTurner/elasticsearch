@@ -386,6 +386,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
         private final RefCountingRunnable requestRefs = new RefCountingRunnable(this::runCleanUp);
         private final Set<String> expectedBlobs = ConcurrentCollections.newConcurrentSet();
         private final List<BlobAnalyzeAction.Response> responses;
+        private final AtomicBoolean blobOverwriteSucceeded = new AtomicBoolean();
         private final RepositoryPerformanceSummary.Builder summary = new RepositoryPerformanceSummary.Builder();
 
         private final RepositoryVerificationException analysisCancelledException;
@@ -549,6 +550,23 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                 queue.add(ref -> runBlobAnalysis(ref, blobAnalyzeRequest, node));
             }
 
+            final var overwriteBlobName = "test-overwrite-blob-" + UUIDs.randomBase64UUID(random);
+            int overwriteCount = 0;
+            long overwriteSize = request.getMaxBlobSize().getBytes();
+            Iterator<DiscoveryNode> nodesIterator = nodes.iterator();
+            while (overwriteSize >= 1 && overwriteCount < request.getConcurrency() && nodesIterator.hasNext()) {
+                final BlobOverwriteAction.Request overwriteRequest = new BlobOverwriteAction.Request(
+                    request.getRepositoryName(),
+                    blobPath,
+                    overwriteBlobName,
+                    overwriteSize,
+                    random.nextLong()
+                );
+                overwriteCount += 1;
+                overwriteSize /= 2L;
+                queue.add(ref -> runBlobOverwrite(ref, overwriteRequest, nodesIterator.next()));
+            }
+
             ThrottledIterator.run(getQueueIterator(), (ref, task) -> task.accept(ref), request.getConcurrency(), requestRefs::close);
         }
 
@@ -607,6 +625,46 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                             fail(exp);
                         }
                     }, ref), BlobAnalyzeAction.Response::new, TransportResponseHandler.TRANSPORT_WORKER)
+                );
+            } else {
+                ref.close();
+            }
+        }
+
+        private void runBlobOverwrite(Releasable ref, final BlobOverwriteAction.Request request, DiscoveryNode node) {
+            if (isRunning()) {
+                logger.trace("processing [{}] on [{}]", request, node);
+                // NB although all this is on the SAME thread, the per-blob verification runs on a SNAPSHOT thread so we don't have to worry
+                // about local requests resulting in a stack overflow here
+                transportService.sendChildRequest(
+                    node,
+                    BlobOverwriteAction.NAME,
+                    request,
+                    task,
+                    TransportRequestOptions.EMPTY,
+                    new ActionListenerResponseHandler<>(ActionListener.releaseAfter(new ActionListener<ActionResponse.Empty>() {
+                        @Override
+                        public void onResponse(BlobOverwriteAction.Response response) {
+                            logger.trace("finished [{}] on [{}]: [{}]", request, node, response);
+                            if (response.writeSuccess() && blobOverwriteSucceeded.compareAndSet(false, true) == false) {
+                                fail(
+                                    new RepositoryVerificationException(
+                                        request.repository(),
+                                        "multiple writes succeeded to overwrite-protected blob "
+                                            + request.blobPath()
+                                            + "/"
+                                            + request.blobName()
+                                    )
+                                );
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Exception exp) {
+                            logger.debug(() -> "failed [" + request + "] on [" + node + "]", exp);
+                            fail(exp);
+                        }
+                    }, ref), BlobOverwriteAction.Response::new, TransportResponseHandler.TRANSPORT_WORKER)
                 );
             } else {
                 ref.close();
