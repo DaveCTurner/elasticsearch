@@ -142,8 +142,16 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
             logger.info("--> client waiting");
             safeSleep(1000);
             logger.info("--> client cancelling");
-            for (var port : ports) {
-                killTcpConnectionsToPort(port);
+            var cancelSuccess = false;
+            try {
+                for (var port : ports) {
+                    killTcpConnectionsToPort(port);
+                }
+                cancelSuccess = true;
+            } finally {
+                if (cancelSuccess == false) {
+                    cancellable.cancel();
+                }
             }
         }
     }
