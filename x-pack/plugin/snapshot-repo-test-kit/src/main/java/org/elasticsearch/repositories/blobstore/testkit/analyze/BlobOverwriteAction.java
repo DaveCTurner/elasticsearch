@@ -44,11 +44,7 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
 
     private final RepositoriesService repositoriesService;
 
-    BlobOverwriteAction(
-        TransportService transportService,
-        ActionFilters actionFilters,
-        RepositoriesService repositoriesService
-    ) {
+    BlobOverwriteAction(TransportService transportService, ActionFilters actionFilters, RepositoriesService repositoriesService) {
         super(NAME, transportService, actionFilters, Request::new, transportService.getThreadPool().executor(ThreadPool.Names.SNAPSHOT));
         this.repositoriesService = repositoriesService;
     }
@@ -68,7 +64,7 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
 
         logger.trace("handling [{}]", request);
 
-        final boolean writeSuccess;
+        boolean writeSuccess;
         try {
             writeBlob(blobStoreRepository, blobContainer, request, task);
             writeSuccess = true;
@@ -93,20 +89,12 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
                 content,
                 Math.toIntExact(request.overwriteSize)
             );
-            blobContainer.writeBlobAtomic(
-                OperationPurpose.REPOSITORY_ANALYSIS,
-                request.blobName,
-                bytesReference,
-                false
-            );
+            blobContainer.writeBlobAtomic(OperationPurpose.REPOSITORY_ANALYSIS, request.blobName, bytesReference, false);
         } else {
             blobContainer.writeBlob(
                 OperationPurpose.REPOSITORY_ANALYSIS,
                 request.blobName,
-                repository.maybeRateLimitSnapshots(
-                    new RandomBlobContentStream(content, request.overwriteSize),
-                    (ignored) -> {}
-                ),
+                repository.maybeRateLimitSnapshots(new RandomBlobContentStream(content, request.overwriteSize), (ignored) -> {}),
                 request.overwriteSize,
                 false
             );
@@ -158,8 +146,18 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
             return new CancellableTask(id, type, action, getDescription(), parentTaskId, headers);
         }
 
-        String getDescription() {
-            return "blob overwrite [" + repositoryName + ":" + blobPath + "/" + blobName + ", size=" + overwriteSize + ", seed=" + seed + "]";
+        public String getDescription() {
+            return "blob overwrite ["
+                + repositoryName
+                + ":"
+                + blobPath
+                + "/"
+                + blobName
+                + ", size="
+                + overwriteSize
+                + ", seed="
+                + seed
+                + "]";
         }
 
         String repository() {
@@ -189,7 +187,6 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
         }
 
         Response(StreamInput in) throws IOException {
-            super(in);
             writeSuccess = in.readBoolean();
         }
 
