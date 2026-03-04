@@ -552,8 +552,9 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                 queue.add(ref -> runBlobAnalysis(ref, blobAnalyzeRequest, node));
             }
 
-            if (minClusterTransportVersion.supports(REPO_ANALYSIS_BLOB_OVERWRITE)) {
+            if (minClusterTransportVersion.supports(REPO_ANALYSIS_BLOB_OVERWRITE) && request.checkOverwriteProtection()) {
                 final var overwriteBlobName = "test-overwrite-blob-" + UUIDs.randomBase64UUID(random);
+                expectedBlobs.add(overwriteBlobName);
                 int overwriteCount = 0;
                 long overwriteSize = request.getMaxBlobSize().getBytes();
                 Iterator<DiscoveryNode> nodesIterator = nodes.iterator();
@@ -1038,6 +1039,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
         private boolean detailed = false;
         private DiscoveryNode reroutedFrom = null;
         private boolean abortWritePermitted = true;
+        private boolean checkOverwriteProtection = true;
 
         public Request(String repositoryName) {
             this.repositoryName = repositoryName;
@@ -1059,6 +1061,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
             detailed = in.readBoolean();
             reroutedFrom = in.readOptionalWriteable(DiscoveryNode::new);
             abortWritePermitted = in.readBoolean();
+            checkOverwriteProtection = in.readBoolean();
         }
 
         @Override
@@ -1083,6 +1086,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
             out.writeBoolean(detailed);
             out.writeOptionalWriteable(reroutedFrom);
             out.writeBoolean(abortWritePermitted);
+            out.writeBoolean(checkOverwriteProtection);
         }
 
         @Override
@@ -1228,6 +1232,14 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
             return abortWritePermitted;
         }
 
+        public void checkOverwriteProtection(boolean checkOverwriteProtection) {
+            this.checkOverwriteProtection = checkOverwriteProtection;
+        }
+
+        public boolean checkOverwriteProtection() {
+            return checkOverwriteProtection;
+        }
+
         @Override
         public String toString() {
             return "Request{" + getDescription() + '}';
@@ -1259,6 +1271,8 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                 + detailed
                 + ", abortWritePermitted="
                 + abortWritePermitted
+                + ", checkOverwriteProtection="
+                + checkOverwriteProtection
                 + "]";
         }
 
