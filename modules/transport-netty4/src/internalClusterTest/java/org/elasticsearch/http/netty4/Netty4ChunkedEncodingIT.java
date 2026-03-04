@@ -266,7 +266,7 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
                     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
                         return channel -> sendChunksResponse(channel, new Iterator<>() {
                             private static final BytesReference CHUNK = new BytesArray(
-                                randomByteArrayOfLength(between(ByteSizeUnit.KB.toIntBytes(16), ByteSizeUnit.KB.toIntBytes(512)))
+                                new byte[between(ByteSizeUnit.KB.toIntBytes(16), ByteSizeUnit.KB.toIntBytes(512))]
                             );
 
                             @Override
