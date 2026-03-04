@@ -61,6 +61,7 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
         final BlobStoreRepository blobStoreRepository = (BlobStoreRepository) repository;
         final BlobPath path = blobStoreRepository.basePath().add(request.blobPath);
         final BlobContainer blobContainer = blobStoreRepository.blobStore().blobContainer(path);
+        assert task instanceof CancellableTask;
 
         logger.trace("handling [{}]", request);
 
@@ -69,6 +70,7 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
             writeBlob(blobStoreRepository, blobContainer, request, task);
             writeSuccess = true;
         } catch (Exception e) {
+            // TODO be more precise about the exceptions we get for a failed overwrite because the blob already exists, rethrowing others
             logger.trace(() -> "write failed for [" + request + "]: " + e.getMessage());
             writeSuccess = false;
         }
@@ -80,7 +82,7 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
         final RandomBlobContent content = new RandomBlobContent(
             request.repositoryName,
             request.seed,
-            task instanceof CancellableTask ct ? ct::isCancelled : () -> false,
+            ((CancellableTask) task)::isCancelled,
             () -> {}
         );
         final boolean atomic = request.overwriteSize <= BlobAnalyzeAction.MAX_ATOMIC_WRITE_SIZE;
@@ -89,19 +91,19 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
                 content,
                 Math.toIntExact(request.overwriteSize)
             );
-            blobContainer.writeBlobAtomic(OperationPurpose.REPOSITORY_ANALYSIS, request.blobName, bytesReference, false);
+            blobContainer.writeBlobAtomic(OperationPurpose.REPOSITORY_ANALYSIS, request.blobName, bytesReference, true);
         } else {
             blobContainer.writeBlob(
                 OperationPurpose.REPOSITORY_ANALYSIS,
                 request.blobName,
                 repository.maybeRateLimitSnapshots(new RandomBlobContentStream(content, request.overwriteSize), (ignored) -> {}),
                 request.overwriteSize,
-                false
+                true
             );
         }
     }
 
-    static class Request extends LegacyActionRequest {
+    public static class Request extends LegacyActionRequest {
 
         private final String repositoryName;
         private final String blobPath;
@@ -178,7 +180,7 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
         }
     }
 
-    static class Response extends ActionResponse {
+    public static class Response extends ActionResponse {
 
         private final boolean writeSuccess;
 
