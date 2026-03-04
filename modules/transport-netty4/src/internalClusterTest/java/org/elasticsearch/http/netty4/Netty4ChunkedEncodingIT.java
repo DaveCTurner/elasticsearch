@@ -58,6 +58,7 @@ import org.elasticsearch.test.ESIntegTestCase;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -153,11 +154,14 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
      */
     private void killTcpConnectionsToPort(int port) {
         try {
-            ProcessBuilder pb = new ProcessBuilder("ss", "-t", "-K", "state", "established", "dport", "=", ":" + port);
+            final var args = new String[] { "ss", "-t", "-K", "state", "established", "dport", "=", ":" + port };
+            logger.info("--> running [{}]", Arrays.toString(args));
+            ProcessBuilder pb = new ProcessBuilder(args);
             pb.redirectErrorStream(true);
             Process p = pb.start();
             String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             int exit = p.waitFor();
+            logger.info("--> ss -K completed with exit code [{}]", exit);
             assumeTrue("ss -K failed (exit " + exit + "). May require root or kernel CONFIG_INET_DIAG_DESTROY. Output: " + out, exit == 0);
         } catch (Exception e) {
             assumeTrue("could not run ss -K to kill connection: " + e.getMessage(), false);
