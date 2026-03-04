@@ -569,6 +569,8 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                     overwriteSize /= 2L;
                     queue.add(ref -> runBlobOverwrite(ref, overwriteRequest, nodesIterator.next()));
                 }
+            } else {
+                blobOverwriteSucceeded.set(true);
             }
 
             ThrottledIterator.run(getQueueIterator(), (ref, task) -> task.accept(ref), request.getConcurrency(), requestRefs::close);
@@ -888,12 +890,24 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
 
         private void runCleanUp() {
             transportService.getThreadPool().executor(ThreadPool.Names.SNAPSHOT).execute(ActionRunnable.wrap(listener, l -> {
+                ensureOverwriteSucceeded();
                 final long listingStartTimeNanos = System.nanoTime();
                 ensureConsistentListing();
                 final long deleteStartTimeNanos = System.nanoTime();
                 deleteContainer();
                 sendResponse(listingStartTimeNanos, deleteStartTimeNanos);
             }));
+        }
+
+        private void ensureOverwriteSucceeded() {
+            if (blobOverwriteSucceeded.get() == false) {
+                final var repositoryVerificationException = new RepositoryVerificationException(
+                    request.repositoryName,
+                    "all overwrite protection checks failed"
+                );
+                logger.debug("all overwrite protection checks failed", repositoryVerificationException);
+                fail(repositoryVerificationException);
+            }
         }
 
         private void ensureConsistentListing() {
