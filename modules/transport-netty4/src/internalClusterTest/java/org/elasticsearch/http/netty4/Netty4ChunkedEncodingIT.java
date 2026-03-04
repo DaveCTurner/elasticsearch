@@ -169,7 +169,7 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
             Process p = pb.start();
             String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             int exit = p.waitFor();
-            logger.info("--> ss -K completed with exit code [{}]", exit);
+            logger.info("--> ss -K completed with exit code [{}] and output:\n{}", exit, out);
             assertEquals("ss -K failed (exit " + exit + "). May require root or kernel CONFIG_INET_DIAG_DESTROY. Output: " + out, 0, exit);
         } catch (Exception e) {
             logger.info("ss -K failed with exception", e);
