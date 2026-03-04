@@ -558,7 +558,8 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                 long overwriteSize = request.getMaxBlobSize().getBytes();
                 Iterator<DiscoveryNode> nodesIterator = nodes.iterator();
                 while (overwriteSize >= 1 && overwriteCount < request.getConcurrency() && nodesIterator.hasNext()) {
-                    final BlobOverwriteAction.Request overwriteRequest = new BlobOverwriteAction.Request(
+                    final var node = nodesIterator.next();
+                    final var overwriteRequest = new BlobOverwriteAction.Request(
                         request.getRepositoryName(),
                         blobPath,
                         overwriteBlobName,
@@ -567,7 +568,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                     );
                     overwriteCount += 1;
                     overwriteSize /= 2L;
-                    queue.add(ref -> runBlobOverwrite(ref, overwriteRequest, nodesIterator.next()));
+                    queue.add(ref -> runBlobOverwrite(ref, overwriteRequest, node));
                 }
             } else {
                 blobOverwriteSucceeded.set(true);
