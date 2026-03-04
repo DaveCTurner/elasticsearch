@@ -162,6 +162,8 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
     /**
      * Kill established TCP connections from this host to the given port using Linux {@code ss -K}.
      * Requires root or CAP_NET_RAW; skips the test if the command cannot be run or fails.
+     * <p>
+     * Requires running tests with {@code -Dtests.system_call_filter=false}.
      */
     private void killTcpConnectionsToPort(int port) {
         try {
