@@ -146,6 +146,7 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
             killTcpConnectionsToPort(port);
         }
     }
+
     /**
      * Kill established TCP connections from this host to the given port using Linux {@code ss -K}.
      * Requires root or CAP_NET_RAW; skips the test if the command cannot be run or fails.
@@ -157,10 +158,7 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
             Process p = pb.start();
             String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             int exit = p.waitFor();
-            assumeTrue(
-                "ss -K failed (exit " + exit + "). May require root or kernel CONFIG_INET_DIAG_DESTROY. Output: " + out,
-                exit == 0
-            );
+            assumeTrue("ss -K failed (exit " + exit + "). May require root or kernel CONFIG_INET_DIAG_DESTROY. Output: " + out, exit == 0);
         } catch (Exception e) {
             assumeTrue("could not run ss -K to kill connection: " + e.getMessage(), false);
         }
@@ -278,7 +276,7 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
 
                             @Override
                             public BytesReference next() {
-                                logger.info("--> yielding chunk");
+                                logger.info("--> yielding chunk of size [{}]", CHUNK.length());
                                 safeSleep(100);
                                 return CHUNK;
                             }
