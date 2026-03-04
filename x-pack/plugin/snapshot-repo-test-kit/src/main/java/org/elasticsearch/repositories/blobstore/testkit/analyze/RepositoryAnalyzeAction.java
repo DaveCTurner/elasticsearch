@@ -1000,7 +1000,8 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                         summary.build(),
                         responses,
                         deleteStartTimeNanos - listingStartTimeNanos,
-                        completionTimeNanos - deleteStartTimeNanos
+                        completionTimeNanos - deleteStartTimeNanos,
+                        request.checkOverwriteProtection()
                     )
                 );
             } else {
@@ -1308,6 +1309,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
         private final List<BlobAnalyzeAction.Response> blobResponses;
         private final long listingTimeNanos;
         private final long deleteTimeNanos;
+        private final boolean checkOverwriteProtection;
 
         public Response(
             String coordinatingNodeId,
@@ -1325,7 +1327,8 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
             RepositoryPerformanceSummary summary,
             List<BlobAnalyzeAction.Response> blobResponses,
             long listingTimeNanos,
-            long deleteTimeNanos
+            long deleteTimeNanos,
+            boolean checkOverwriteProtection
         ) {
             this.coordinatingNodeId = coordinatingNodeId;
             this.coordinatingNodeName = coordinatingNodeName;
@@ -1343,6 +1346,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
             this.blobResponses = blobResponses;
             this.listingTimeNanos = listingTimeNanos;
             this.deleteTimeNanos = deleteTimeNanos;
+            this.checkOverwriteProtection = checkOverwriteProtection;
         }
 
         public Response(StreamInput in) throws IOException {
@@ -1362,6 +1366,8 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
             blobResponses = in.readCollectionAsList(BlobAnalyzeAction.Response::new);
             listingTimeNanos = in.readVLong();
             deleteTimeNanos = in.readVLong();
+            checkOverwriteProtection = in.getTransportVersion().supports(RepositoryAnalyzeAction.REPO_ANALYSIS_BLOB_OVERWRITE)
+                && in.readBoolean();
         }
 
         @Override
@@ -1382,6 +1388,9 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
             out.writeCollection(blobResponses);
             out.writeVLong(listingTimeNanos);
             out.writeVLong(deleteTimeNanos);
+            if (out.getTransportVersion().supports(RepositoryAnalyzeAction.REPO_ANALYSIS_BLOB_OVERWRITE)) {
+                out.writeBoolean(checkOverwriteProtection);
+            }
         }
 
         @Override
@@ -1403,6 +1412,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
             builder.field("seed", seed);
             builder.field("rare_action_probability", rareActionProbability);
             builder.field("blob_path", blobPath);
+            builder.field("check_overwrite_protection", checkOverwriteProtection);
 
             builder.startArray("issues_detected");
             // nothing to report here, if we detected an issue then we would have thrown an exception, but we include this to emphasise
