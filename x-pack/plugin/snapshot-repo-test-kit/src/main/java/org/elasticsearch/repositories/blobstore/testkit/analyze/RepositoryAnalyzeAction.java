@@ -35,6 +35,7 @@ import org.elasticsearch.common.blobstore.OperationPurpose;
 import org.elasticsearch.common.blobstore.OptionalBytesReference;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.unit.ByteSizeValue;
@@ -558,8 +559,8 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                 expectedBlobs.add(overwriteBlobName);
                 int overwriteCount = 0;
                 long overwriteSize = request.getMaxBlobSize().getBytes();
-                Iterator<DiscoveryNode> nodesIterator = nodes.iterator();
-                while (overwriteSize >= 1 && overwriteCount < request.getConcurrency() && nodesIterator.hasNext()) {
+                Iterator<DiscoveryNode> nodesIterator = Iterators.cycling(nodes);
+                while (overwriteSize >= 1 && overwriteCount < request.getConcurrency()) {
                     final var node = nodesIterator.next();
                     final var overwriteRequest = new BlobOverwriteAction.Request(
                         request.getRepositoryName(),
