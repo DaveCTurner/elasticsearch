@@ -366,6 +366,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
     public static class AsyncAction {
 
         private static final TransportVersion REPO_ANALYSIS_COPY_BLOB = TransportVersion.fromName("repo_analysis_copy_blob");
+        private static final TransportVersion REPO_ANALYSIS_BLOB_OVERWRITE = TransportVersion.fromName("repo_analysis_blob_overwrite");
 
         private final TransportService transportService;
         private final BlobStoreRepository repository;
@@ -551,21 +552,23 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                 queue.add(ref -> runBlobAnalysis(ref, blobAnalyzeRequest, node));
             }
 
-            final var overwriteBlobName = "test-overwrite-blob-" + UUIDs.randomBase64UUID(random);
-            int overwriteCount = 0;
-            long overwriteSize = request.getMaxBlobSize().getBytes();
-            Iterator<DiscoveryNode> nodesIterator = nodes.iterator();
-            while (overwriteSize >= 1 && overwriteCount < request.getConcurrency() && nodesIterator.hasNext()) {
-                final BlobOverwriteAction.Request overwriteRequest = new BlobOverwriteAction.Request(
-                    request.getRepositoryName(),
-                    blobPath,
-                    overwriteBlobName,
-                    overwriteSize,
-                    random.nextLong()
-                );
-                overwriteCount += 1;
-                overwriteSize /= 2L;
-                queue.add(ref -> runBlobOverwrite(ref, overwriteRequest, nodesIterator.next()));
+            if (minClusterTransportVersion.supports(REPO_ANALYSIS_BLOB_OVERWRITE)) {
+                final var overwriteBlobName = "test-overwrite-blob-" + UUIDs.randomBase64UUID(random);
+                int overwriteCount = 0;
+                long overwriteSize = request.getMaxBlobSize().getBytes();
+                Iterator<DiscoveryNode> nodesIterator = nodes.iterator();
+                while (overwriteSize >= 1 && overwriteCount < request.getConcurrency() && nodesIterator.hasNext()) {
+                    final BlobOverwriteAction.Request overwriteRequest = new BlobOverwriteAction.Request(
+                        request.getRepositoryName(),
+                        blobPath,
+                        overwriteBlobName,
+                        overwriteSize,
+                        random.nextLong()
+                    );
+                    overwriteCount += 1;
+                    overwriteSize /= 2L;
+                    queue.add(ref -> runBlobOverwrite(ref, overwriteRequest, nodesIterator.next()));
+                }
             }
 
             ThrottledIterator.run(getQueueIterator(), (ref, task) -> task.accept(ref), request.getConcurrency(), requestRefs::close);
