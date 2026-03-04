@@ -50,6 +50,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -466,8 +467,8 @@ public class RepositoryAnalysisSuccessIT extends AbstractSnapshotIntegTestCase {
             throws IOException {
 
             final byte[] existingBlob = blobs.get(blobName);
-            if (failIfAlreadyExists) {
-                assertNull("blob [" + blobName + "] must not exist", existingBlob);
+            if (failIfAlreadyExists && existingBlob != null) {
+                throw new FileAlreadyExistsException(blobName);
             }
             final int existingSize = existingBlob == null ? 0 : existingBlob.length;
 
@@ -477,7 +478,14 @@ public class RepositoryAnalysisSuccessIT extends AbstractSnapshotIntegTestCase {
             try {
                 final byte[] contents = inputStream.readAllBytes();
                 assertThat((long) contents.length, equalTo(blobSize));
-                blobs.put(blobName, contents);
+                if (failIfAlreadyExists) {
+                    final var previousContents = blobs.putIfAbsent(blobName, contents);
+                    if (previousContents != null) {
+                        throw new FileAlreadyExistsException(blobName);
+                    }
+                } else {
+                    blobs.put(blobName, contents);
+                }
                 assertThat(blobs.size(), lessThanOrEqualTo(maxBlobCount));
                 final long currentTotal = totalBytesWritten.addAndGet(blobSize - existingSize);
                 assertThat(currentTotal, lessThanOrEqualTo(maxTotalBlobSize));
