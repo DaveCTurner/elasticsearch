@@ -466,6 +466,7 @@ public class RepositoryAnalysisFailureIT extends AbstractSnapshotIntegTestCase {
 
         safeAwait((ActionListener<RepositoryAnalyzeAction.Response> l) -> analyseRepository(request, l.delegateResponse((ll, e) -> {
             if (ExceptionsHelper.unwrapCause(e) instanceof RepositoryVerificationException repositoryVerificationException) {
+                logger.info("--> NOCOMMIT verify failed", e);
                 assertAnalysisFailureMessage(repositoryVerificationException.getMessage());
                 assertTrue(
                     "did not see spurious value, so why did the verification fail?",
