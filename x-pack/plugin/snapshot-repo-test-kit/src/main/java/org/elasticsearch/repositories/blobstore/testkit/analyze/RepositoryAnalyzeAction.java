@@ -652,16 +652,20 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                         @Override
                         public void onResponse(BlobOverwriteAction.Response response) {
                             logger.trace("finished [{}] on [{}]: [{}]", request, node, response);
-                            if (response.writeSuccess() && blobOverwriteSucceeded.compareAndSet(false, true) == false) {
-                                fail(
-                                    new RepositoryVerificationException(
-                                        request.repository(),
-                                        "multiple writes succeeded to overwrite-protected blob "
-                                            + request.blobPath()
-                                            + "/"
-                                            + request.blobName()
-                                    )
-                                );
+                            if (response.writeSuccess()) {
+                                if (blobOverwriteSucceeded.compareAndSet(false, true)) {
+                                    expectedBlobs.add(request.blobName());
+                                } else {
+                                    fail(
+                                        new RepositoryVerificationException(
+                                            request.repository(),
+                                            "multiple writes succeeded to overwrite-protected blob "
+                                                + request.blobPath()
+                                                + "/"
+                                                + request.blobName()
+                                        )
+                                    );
+                                }
                             }
                         }
 
