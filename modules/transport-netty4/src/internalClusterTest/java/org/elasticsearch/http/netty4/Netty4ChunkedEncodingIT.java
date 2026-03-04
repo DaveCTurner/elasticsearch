@@ -67,6 +67,7 @@ import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.TaskCancelledException;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.transport.netty4.Netty4Utils;
 import org.elasticsearch.transport.netty4.NettyAllocator;
 
 import java.io.IOException;
@@ -135,9 +136,11 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
 
     public void testClientCancellation() {
 
-        final var releasables = new ArrayList<Releasable>(3);
+        final var releasables = new ArrayList<Releasable>(4);
 
-        try (var ignored = withResourceTracker()) {
+        try {
+            releasables.add(withResourceTracker());
+
             final var eventLoopGroup = new NioEventLoopGroup(1);
             releasables.add(() -> eventLoopGroup.shutdownGracefully(0, 0, TimeUnit.SECONDS).awaitUninterruptibly());
 
@@ -195,7 +198,7 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
             channel.writeAndFlush(request);
 
             logger.info("--> client waiting");
-            channel.closeFuture().syncUninterruptibly();
+            safeAwait(l -> Netty4Utils.addListener(channel.closeFuture(), ignoredFuture -> l.onResponse(null)));
             logger.info("--> client channel closed");
         } finally {
             Collections.reverse(releasables);
