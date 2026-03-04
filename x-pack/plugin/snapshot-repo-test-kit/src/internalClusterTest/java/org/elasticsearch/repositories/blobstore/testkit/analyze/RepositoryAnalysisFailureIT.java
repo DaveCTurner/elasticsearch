@@ -54,6 +54,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -840,8 +841,31 @@ public class RepositoryAnalysisFailureIT extends AbstractSnapshotIntegTestCase {
                 }
                 throw e;
             }
-            disruption.onWrite();
-            blobs.put(blobName, contents);
+            if (failIfAlreadyExists) {
+                final byte[] updatedContents;
+                try {
+                    updatedContents = blobs.computeIfAbsent(blobName, ignored -> {
+                        try {
+                            disruption.onWrite();
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                        return contents;
+                    });
+                } catch (UncheckedIOException e) {
+                    if (e.getCause() instanceof IOException ioException) {
+                        throw ioException;
+                    } else {
+                        throw e;
+                    }
+                }
+                if (updatedContents != contents) {
+                    throw new FileAlreadyExistsException(blobName);
+                }
+            } else {
+                disruption.onWrite();
+                blobs.put(blobName, contents);
+            }
         }
 
         @Override
