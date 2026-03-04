@@ -643,7 +643,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
                     request,
                     task,
                     TransportRequestOptions.EMPTY,
-                    new ActionListenerResponseHandler<>(ActionListener.releaseAfter(new ActionListener<BlobOverwriteAction.Response>() {
+                    new ActionListenerResponseHandler<>(ActionListener.releaseAfter(new ActionListener<>() {
                         @Override
                         public void onResponse(BlobOverwriteAction.Response response) {
                             logger.trace("finished [{}] on [{}]: [{}]", request, node, response);
