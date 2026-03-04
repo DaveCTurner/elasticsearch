@@ -123,6 +123,7 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
             final var ports = nodesInfo.getNodes()
                 .stream()
                 .flatMapToInt(n -> Arrays.stream(n.getInfo(HttpInfo.class).address().boundAddresses()).mapToInt(TransportAddress::getPort))
+                .distinct()
                 .toArray();
             var client = getRestClient();
             final var cancellable = client.performRequestAsync(
@@ -162,7 +163,7 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
      */
     private void killTcpConnectionsToPort(int port) {
         try {
-            final var args = new String[] { "ss", "-t", "-K", "state", "established", "dport", "=", ":" + port };
+            final var args = new String[] { "sudo", "ss", "-t", "-K", "state", "established", "dport", "=", ":" + port };
             logger.info("--> running [{}]", Arrays.toString(args));
             ProcessBuilder pb = new ProcessBuilder(args);
             pb.redirectErrorStream(true);
