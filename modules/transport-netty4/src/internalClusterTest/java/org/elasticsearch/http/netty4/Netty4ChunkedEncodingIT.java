@@ -9,15 +9,26 @@
 
 package org.elasticsearch.http.netty4;
 
-import org.apache.http.HttpHost;
+import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.HttpClientCodec;
+import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.http.HttpVersion;
+
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ESNetty4IntegTestCase;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.client.Request;
-import org.elasticsearch.client.Response;
-import org.elasticsearch.client.ResponseListener;
-import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -38,8 +49,10 @@ import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.Releasable;
+import org.elasticsearch.core.Releasables;
 import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.http.HttpInfo;
+import org.elasticsearch.http.HttpResponse;
 import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
 import org.elasticsearch.plugins.ActionPlugin;
@@ -54,22 +67,24 @@ import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.TaskCancelledException;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.transport.netty4.NettyAllocator;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestResponse.TEXT_CONTENT_TYPE;
-import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 
@@ -118,73 +133,73 @@ public class Netty4ChunkedEncodingIT extends ESNetty4IntegTestCase {
         }
     }
 
-    public void testClientCancellation() throws IOException {
-        final var address = randomFrom(
-            clusterAdmin().prepareNodesInfo()
-                .get()
-                .getNodes()
-                .stream()
-                .flatMap(n -> Arrays.stream(n.getInfo(HttpInfo.class).address().boundAddresses()))
-                .toList()
-        ).address();
+    public void testClientCancellation() {
 
-        try (
-            var ignored = withResourceTracker();
-            var client = RestClient.builder(new HttpHost(address.getAddress(), address.getPort()))
-                .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setMaxConnPerRoute(1).setMaxConnTotal(1))
-                .build()
-        ) {
-            final var cancellable = client.performRequestAsync(
-                new Request("GET", YieldsChunksPlugin.INFINITE_ROUTE),
-                new ResponseListener() {
-                    @Override
-                    public void onSuccess(Response response) {
-                        fail("should not complete");
-                    }
+        final var releasables = new ArrayList<Releasable>(3);
 
+        try (var ignored = withResourceTracker()) {
+            final var eventLoopGroup = new NioEventLoopGroup(1);
+            releasables.add(() -> eventLoopGroup.shutdownGracefully(0, 0, TimeUnit.SECONDS).awaitUninterruptibly());
+
+            final var gracefulClose = randomBoolean();
+
+            final var clientBootstrap = new Bootstrap().channel(NettyAllocator.getChannelType())
+                .option(ChannelOption.ALLOCATOR, NettyAllocator.getAllocator())
+                .group(eventLoopGroup)
+                .handler(new ChannelInitializer<SocketChannel>() {
                     @Override
-                    public void onFailure(Exception exception) {
-                        logger.info("--> got response exception", exception);
-                        assertThat(exception, anyOf(instanceOf(IOException.class), instanceOf(CancellationException.class)));
+                    protected void initChannel(SocketChannel ch) {
+                        if (gracefulClose == false) {
+                            ch.config().setOption(ChannelOption.SO_LINGER, 0); // RST on close
+                        }
+
+                        ch.pipeline().addLast(new HttpClientCodec()).addLast(new SimpleChannelInboundHandler<HttpObject>() {
+
+                            private final long bytesTarget = ByteSizeUnit.MB.toBytes(1);
+                            private long bytesReceived;
+
+                            @Override
+                            protected void channelRead0(ChannelHandlerContext ctx, HttpObject msg) {
+                                if (msg instanceof io.netty.handler.codec.http.HttpResponse httpResponse) {
+                                    assertEquals(200, httpResponse.status().code());
+                                    assertEquals(0L, bytesReceived);
+                                } else if (msg instanceof HttpContent hc) {
+                                    bytesReceived += hc.content().readableBytes();
+                                    if (bytesReceived > bytesTarget) {
+                                        ctx.close();
+                                    }
+                                } else {
+                                    assertThat(msg, instanceOf(HttpResponse.class));
+                                }
+                            }
+                        });
                     }
-                }
-            );
+                });
+
+            final var channel = clientBootstrap.connect(
+                randomFrom(
+                    clusterAdmin().prepareNodesInfo()
+                        .get()
+                        .getNodes()
+                        .stream()
+                        .flatMap(n -> Arrays.stream(n.getInfo(HttpInfo.class).address().boundAddresses()))
+                        .toList()
+                ).address()
+            ).syncUninterruptibly().channel();
+            releasables.add(() -> channel.close().syncUninterruptibly());
+
+            logger.info("--> using client channel [{}] with gracefulClose={}", channel, gracefulClose);
+
+            final var request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, YieldsChunksPlugin.INFINITE_ROUTE);
+            request.headers().set(HttpHeaderNames.HOST, "localhost");
+            channel.writeAndFlush(request);
+
             logger.info("--> client waiting");
-            safeSleep(1000);
-            logger.info("--> client cancelling");
-            var cancelSuccess = false;
-            try {
-                killTcpConnectionsToPort(address.getPort());
-                cancelSuccess = true;
-            } finally {
-                if (cancelSuccess == false) {
-                    cancellable.cancel();
-                }
-            }
-        }
-    }
-
-    /**
-     * Kill established TCP connections from this host to the given port using Linux {@code ss -K}.
-     * Requires root or CAP_NET_RAW; skips the test if the command cannot be run or fails.
-     * <p>
-     * Requires running tests with {@code -Dtests.system_call_filter=false}.
-     */
-    private void killTcpConnectionsToPort(int port) {
-        try {
-            final var args = new String[] { "sudo", "ss", "-t", "-K", "state", "established", "dport", "=", ":" + port };
-            logger.info("--> running [{}]", Arrays.toString(args));
-            ProcessBuilder pb = new ProcessBuilder(args);
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            String err = new String(p.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
-            int exit = p.waitFor();
-            logger.info("--> ss -K completed with exit code [{}]\nstdout:\n{}stderr:\n{}", exit, out, err);
-            assertEquals("ss -K failed (exit " + exit + "). May require root or kernel CONFIG_INET_DIAG_DESTROY. Output: " + out, 0, exit);
-        } catch (Exception e) {
-            logger.info("ss -K failed with exception", e);
-            throw new AssertionError(e);
+            channel.closeFuture().syncUninterruptibly();
+            logger.info("--> client channel closed");
+        } finally {
+            Collections.reverse(releasables);
+            Releasables.close(releasables);
         }
     }
 
