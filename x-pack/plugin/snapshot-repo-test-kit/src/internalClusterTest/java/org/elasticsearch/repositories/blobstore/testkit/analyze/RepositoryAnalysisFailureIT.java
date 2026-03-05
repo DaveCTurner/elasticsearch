@@ -845,7 +845,7 @@ public class RepositoryAnalysisFailureIT extends AbstractSnapshotIntegTestCase {
         }
 
         private void writeBlobAtomic(String blobName, InputStream inputStream, boolean failIfAlreadyExists) throws IOException {
-            if (failIfAlreadyExists && blobs.get(blobName) != null) {
+            if (failIfAlreadyExists && disruption.ignoreOverwriteProtection() == false && blobs.get(blobName) != null) {
                 throw new FileAlreadyExistsException(blobName);
             }
 
