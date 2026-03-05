@@ -72,7 +72,7 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
             } catch (Exception e) {
                 // TODO be more precise about the exceptions we get for a failed overwrite because the blob already exists, rethrowing
                 // others
-                logger.info(() -> "write failed for [" + request + "]: " + e.getMessage());
+                logger.info(() -> "write failed for [" + request + "]", e);
                 return new Response(false);
             }
         });
@@ -86,19 +86,19 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
             ((CancellableTask) task)::isCancelled,
             () -> {}
         );
-        final boolean atomic = request.overwriteSize <= BlobAnalyzeAction.MAX_ATOMIC_WRITE_SIZE;
+        final boolean atomic = request.blobSize <= BlobAnalyzeAction.MAX_ATOMIC_WRITE_SIZE;
         if (atomic) {
             final RandomBlobContentBytesReference bytesReference = new RandomBlobContentBytesReference(
                 content,
-                Math.toIntExact(request.overwriteSize)
+                Math.toIntExact(request.blobSize)
             );
             blobContainer.writeBlobAtomic(OperationPurpose.REPOSITORY_ANALYSIS, request.blobName, bytesReference, true);
         } else {
             blobContainer.writeBlob(
                 OperationPurpose.REPOSITORY_ANALYSIS,
                 request.blobName,
-                repository.maybeRateLimitSnapshots(new RandomBlobContentStream(content, request.overwriteSize), (ignored) -> {}),
-                request.overwriteSize,
+                repository.maybeRateLimitSnapshots(new RandomBlobContentStream(content, request.blobSize), (ignored) -> {}),
+                request.blobSize,
                 true
             );
         }
@@ -109,14 +109,14 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
         private final String repositoryName;
         private final String blobPath;
         private final String blobName;
-        private final long overwriteSize;
+        private final long blobSize;
         private final long seed;
 
-        Request(String repositoryName, String blobPath, String blobName, long overwriteSize, long seed) {
+        Request(String repositoryName, String blobPath, String blobName, long blobSize, long seed) {
             this.repositoryName = repositoryName;
             this.blobPath = blobPath;
             this.blobName = blobName;
-            this.overwriteSize = overwriteSize;
+            this.blobSize = blobSize;
             this.seed = seed;
         }
 
@@ -125,7 +125,7 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
             repositoryName = in.readString();
             blobPath = in.readString();
             blobName = in.readString();
-            overwriteSize = in.readVLong();
+            blobSize = in.readVLong();
             seed = in.readLong();
         }
 
@@ -135,7 +135,7 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
             out.writeString(repositoryName);
             out.writeString(blobPath);
             out.writeString(blobName);
-            out.writeVLong(overwriteSize);
+            out.writeVLong(blobSize);
             out.writeLong(seed);
         }
 
@@ -150,17 +150,7 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
         }
 
         public String getDescription() {
-            return "blob overwrite ["
-                + repositoryName
-                + ":"
-                + blobPath
-                + "/"
-                + blobName
-                + ", size="
-                + overwriteSize
-                + ", seed="
-                + seed
-                + "]";
+            return "blob overwrite [" + repositoryName + ":" + blobPath + "/" + blobName + ", size=" + blobSize + ", seed=" + seed + "]";
         }
 
         String repository() {
