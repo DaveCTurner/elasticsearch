@@ -558,6 +558,22 @@ public class RepositoryAnalysisFailureIT extends AbstractSnapshotIntegTestCase {
         }
     }
 
+    public void testFailsIfOverwriteProtectionIgnored() {
+        final RepositoryAnalyzeAction.Request request = new RepositoryAnalyzeAction.Request("test-repo");
+        blobStore.setDisruption(new Disruption() {
+            @Override
+            public boolean ignoreOverwriteProtection() {
+                return true;
+            }
+        });
+        final var exception = analyseRepositoryExpectFailure(request);
+        assertAnalysisFailureMessage(exception.getMessage());
+        assertThat(
+            asInstanceOf(RepositoryVerificationException.class, ExceptionsHelper.unwrapCause(exception.getCause())).getMessage(),
+            containsString("multiple writes succeeded to overwrite-protected blob")
+        );
+    }
+
     private RepositoryVerificationException analyseRepositoryExpectFailure(RepositoryAnalyzeAction.Request request) {
         return safeAwaitAndUnwrapFailure(
             RepositoryVerificationException.class,
@@ -702,6 +718,10 @@ public class RepositoryAnalysisFailureIT extends AbstractSnapshotIntegTestCase {
             return true;
         }
 
+        default boolean ignoreOverwriteProtection() {
+            return false;
+        }
+
         default BytesReference onContendedCompareAndExchange(BytesRegister register, BytesReference expected, BytesReference updated) {
             return register.compareAndExchange(expected, updated);
         }
@@ -838,7 +858,7 @@ public class RepositoryAnalysisFailureIT extends AbstractSnapshotIntegTestCase {
                 }
                 throw e;
             }
-            if (failIfAlreadyExists) {
+            if (failIfAlreadyExists && disruption.ignoreOverwriteProtection() == false) {
                 final byte[] updatedContents;
                 try {
                     updatedContents = blobs.computeIfAbsent(blobName, ignored -> {
