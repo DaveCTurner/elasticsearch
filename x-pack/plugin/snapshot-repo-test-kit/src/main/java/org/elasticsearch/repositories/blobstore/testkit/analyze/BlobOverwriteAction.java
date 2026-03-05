@@ -51,7 +51,7 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
 
     @Override
     protected void doExecute(Task task, Request request, ActionListener<Response> listener) {
-        ActionListener.completeWith(listener, () -> {
+        ActionListener.completeWith(listener.map(Response::new), () -> {
             final Repository repository = repositoriesService.repository(request.repositoryName);
             if (repository instanceof BlobStoreRepository == false) {
                 throw new IllegalArgumentException("repository [" + request.repositoryName + "] is not a blob-store repository");
@@ -68,12 +68,11 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
 
             try {
                 writeBlob(blobStoreRepository, blobContainer, request, task);
-                return new Response(true);
+                return true;
             } catch (Exception e) {
-                // TODO be more precise about the exceptions we get for a failed overwrite because the blob already exists, rethrowing
-                // others
-                logger.info(() -> "write failed for [" + request + "]", e);
-                return new Response(false);
+                // There is no specific exception thrown on overwrite, so we must catch them all.
+                logger.trace(() -> "write failed for [" + request + "]", e);
+                return false;
             }
         });
     }
