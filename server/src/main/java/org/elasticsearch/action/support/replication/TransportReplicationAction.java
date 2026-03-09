@@ -1129,7 +1129,18 @@ public abstract class TransportReplicationAction<
             observer.waitForNextChange(new ClusterStateObserver.Listener() {
                 @Override
                 public void onNewClusterState(ClusterState state) {
-                    run();
+                    clusterService.getClusterApplierService().awaitAllAsyncAppliers(new ActionListener<>() {
+                        @Override
+                        public void onResponse(Void ignored) {
+                            run();
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            failure.addSuppressed(e);
+                            finishWithUnexpectedFailure(failure);
+                        }
+                    });
                 }
 
                 @Override
