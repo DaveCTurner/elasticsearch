@@ -705,14 +705,7 @@ public class SnapshotResiliencyTestHelper {
                     indicesService,
                     createSnapshotShardContextFactory()
                 );
-                shardStateAction = new ShardStateAction(
-                    clusterService,
-                    transportService,
-                    allocationService,
-                    rerouteService,
-                    threadPool,
-                    client
-                );
+                shardStateAction = new ShardStateAction(clusterService, transportService, allocationService, rerouteService, threadPool);
                 nodeConnectionsService = new NodeConnectionsService(clusterService.getSettings(), threadPool, transportService);
                 actions.put(
                     TransportUpdateSnapshotStatusAction.TYPE,

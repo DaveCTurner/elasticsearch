@@ -36,7 +36,6 @@ import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardLongFieldRange;
 import org.elasticsearch.index.shard.ShardLongFieldRangeWireTests;
 import org.elasticsearch.test.ESTestCase;
-import org.elasticsearch.test.client.NoOpClient;
 import org.elasticsearch.test.transport.CapturingTransport;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -88,7 +87,7 @@ public class ShardStateActionTests extends ESTestCase {
             AllocationService allocationService,
             RerouteService rerouteService
         ) {
-            super(clusterService, transportService, allocationService, rerouteService, THREAD_POOL, new NoOpClient(THREAD_POOL));
+            super(clusterService, transportService, allocationService, rerouteService, THREAD_POOL);
         }
 
         private Runnable onBeforeWaitForNewMasterAndRetry;

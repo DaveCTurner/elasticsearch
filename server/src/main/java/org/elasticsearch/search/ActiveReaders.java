@@ -9,11 +9,7 @@
 
 package org.elasticsearch.search;
 
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
-import org.elasticsearch.logging.LogManager;
-import org.elasticsearch.logging.Logger;
 import org.elasticsearch.search.internal.ReaderContext;
 import org.elasticsearch.search.internal.ShardSearchContextId;
 
@@ -21,8 +17,6 @@ import java.util.Collection;
 import java.util.Map;
 
 public class ActiveReaders {
-
-    private static final Logger logger = LogManager.getLogger(ActiveReaders.class);
 
     private final Map<Long, ReaderContext> activeReaders = ConcurrentCollections.newConcurrentMapWithAggressiveConcurrency();
     private final Map<ShardSearchContextId, Long> relocationMap = ConcurrentCollections.newConcurrentMapWithAggressiveConcurrency();
@@ -63,7 +57,6 @@ public class ActiveReaders {
     }
 
     ReaderContext remove(ShardSearchContextId contextId) {
-        logger.info(() -> Strings.format("--> remove search context [%s]", contextId), new ElasticsearchException("stack trace"));
         if (sessionId.equals(contextId.getSessionId())) {
             return activeReaders.remove(contextId.getId());
         } else {

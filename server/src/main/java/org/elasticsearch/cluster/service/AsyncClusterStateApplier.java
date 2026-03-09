@@ -141,7 +141,7 @@ public class AsyncClusterStateApplier implements ClusterStateApplier {
 
             logger.info("--> waiting before async applying [{}]", source);
             try {
-                Thread.sleep(100);
+                Thread.sleep(50);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new AssertionError("nocommit", e);

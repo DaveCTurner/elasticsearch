@@ -44,7 +44,6 @@ import org.elasticsearch.index.shard.IndexShardTestCase;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.test.client.NoOpClient;
 import org.elasticsearch.test.transport.MockTransport;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportException;
@@ -206,7 +205,7 @@ public class TransportReplicationAllPermitsAcquisitionTests extends IndexShardTe
         );
         transportService.start();
         transportService.acceptIncomingRequests();
-        shardStateAction = new ShardStateAction(clusterService, transportService, null, null, threadPool, new NoOpClient(threadPool));
+        shardStateAction = new ShardStateAction(clusterService, transportService, null, null, threadPool);
     }
 
     @Override
