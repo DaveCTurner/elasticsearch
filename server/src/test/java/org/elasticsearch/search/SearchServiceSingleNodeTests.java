@@ -130,6 +130,7 @@ import org.elasticsearch.tasks.TaskCancelledException;
 import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.json.JsonXContent;
@@ -1176,7 +1177,13 @@ public class SearchServiceSingleNodeTests extends ESSingleNodeTestCase {
         );
     }
 
-    public void testSearchWhileIndexDeletedDoesNotLeakSearchContext() throws ExecutionException, InterruptedException {
+    @TestLogging(
+        reason = "nocommit",
+        value = "org.elasticsearch.action.support.replication:TRACE"
+            + ",org.elasticsearch.action.bulk:TRACE"
+            + ",org.elasticsearch.indices.recovery:TRACE"
+    )
+    public void testSearchWhileIndexDeletedDoesNotLeakSearchContext() {
         logger.info("--> createIndex");
         createIndex("index");
         logger.info("--> index doc & refresh");
