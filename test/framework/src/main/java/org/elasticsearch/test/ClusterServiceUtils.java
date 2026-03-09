@@ -11,7 +11,10 @@ package org.elasticsearch.test;
 import org.apache.logging.log4j.core.util.Throwables;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.cluster.state.AwaitClusterStateVersionAppliedRequest;
+import org.elasticsearch.action.admin.cluster.state.TransportAwaitClusterStateVersionAppliedAction;
 import org.elasticsearch.action.support.SubscribableListener;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
@@ -43,12 +46,14 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import static junit.framework.TestCase.fail;
+import static org.elasticsearch.rest.ChunkedRestResponseBodyPart.logger;
 
 public class ClusterServiceUtils {
 
@@ -370,5 +375,38 @@ public class ClusterServiceUtils {
      */
     public static SubscribableListener<Void> addMasterTemporaryStateListener(Predicate<ClusterState> predicate) {
         return addTemporaryStateListener(ESIntegTestCase.internalCluster().getCurrentMasterNodeInstance(ClusterService.class), predicate);
+    }
+
+    /**
+     * Creates a {@link SubscribableListener} which will be completed once all nodes have applied the latest-applied state observed when
+     * this method was called.
+     */
+    public static SubscribableListener<Void> newStateFullyAppliedListener(Client client, Iterator<ClusterService> clusterServices) {
+        return SubscribableListener.newForked(l -> {
+            final Set<DiscoveryNode> nodes = new HashSet<>();
+            long latestAppliedVersion = Long.MIN_VALUE;
+            while (clusterServices.hasNext()) {
+                final var state = clusterServices.next().state();
+                latestAppliedVersion = Math.max(latestAppliedVersion, state.version());
+                nodes.addAll(state.nodes().getAllNodes());
+            }
+            client.execute(
+                TransportAwaitClusterStateVersionAppliedAction.TYPE,
+                new AwaitClusterStateVersionAppliedRequest(
+                    latestAppliedVersion,
+                    ESTestCase.SAFE_AWAIT_TIMEOUT,
+                    nodes.toArray(DiscoveryNode[]::new)
+                ),
+                l.map(response -> {
+                    if (response.hasFailures()) {
+                        for (var failure : response.failures()) {
+                            logger.error("state-fully-applied listener failed", failure);
+                        }
+                        fail("state-fully-applied listener failed");
+                    }
+                    return null;
+                })
+            );
+        });
     }
 }
