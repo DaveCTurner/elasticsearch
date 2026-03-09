@@ -39,6 +39,7 @@ import org.elasticsearch.action.search.TransportOpenPointInTimeAction;
 import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -1183,10 +1184,12 @@ public class SearchServiceSingleNodeTests extends ESSingleNodeTestCase {
         IndexService indexService = indicesService.indexServiceSafe(resolveIndex("index"));
         IndexShard indexShard = indexService.getShard(0);
 
+        final var indexDeleteAppliedListener = new SubscribableListener<Void>();
         MockSearchService service = (MockSearchService) getInstanceFromNode(SearchService.class);
         service.setOnPutContext(context -> {
             if (context.indexShard() == indexShard) {
                 assertAcked(indicesAdmin().prepareDelete("index"));
+                newStateFullyAppliedListener().addListener(indexDeleteAppliedListener);
             }
         });
 
@@ -1221,6 +1224,7 @@ public class SearchServiceSingleNodeTests extends ESSingleNodeTestCase {
 
         expectThrows(IndexNotFoundException.class, () -> indicesAdmin().prepareGetIndex(TEST_REQUEST_TIMEOUT).setIndices("index").get());
 
+        safeAwait(indexDeleteAppliedListener); // TODO didn't help?!
         assertEquals(0, service.getActiveContexts());
 
         SearchStats.Stats totalStats = indexShard.searchStats().getTotal();
