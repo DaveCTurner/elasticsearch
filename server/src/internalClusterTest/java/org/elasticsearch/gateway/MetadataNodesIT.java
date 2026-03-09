@@ -9,7 +9,6 @@
 
 package org.elasticsearch.gateway;
 
-import org.apache.lucene.tests.util.LuceneTestCase;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.cluster.coordination.Coordinator;
@@ -32,7 +31,6 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcke
 import static org.elasticsearch.xcontent.XContentFactory.jsonBuilder;
 import static org.hamcrest.Matchers.equalTo;
 
-@LuceneTestCase.AwaitsFix(bugUrl = "TODO")
 @ClusterScope(scope = Scope.TEST, numDataNodes = 0)
 public class MetadataNodesIT extends ESIntegTestCase {
     public void testMetaWrittenAlsoOnDataNode() throws Exception {
