@@ -307,6 +307,7 @@ public class ClusterService extends AbstractLifecycleComponent {
     public void awaitCurrentStateFullyApplied(Client client, TimeValue timeout, ActionListener<Boolean> listener) {
         final var clusterState = state();
         final var nodes = clusterState.nodes().getAllNodes().toArray(DiscoveryNode[]::new);
+        // TODO make request a child of appropriate task
         final var targetVersion = clusterState.version();
         logger.info("--> awaiting full apply of state version [{}]", targetVersion);
         client.execute(

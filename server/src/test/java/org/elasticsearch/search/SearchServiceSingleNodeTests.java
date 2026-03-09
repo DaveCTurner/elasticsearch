@@ -77,6 +77,7 @@ import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.SearchOperationListener;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.indices.cluster.IndicesClusterStateService;
 import org.elasticsearch.indices.settings.InternalOrPrivateSettingsPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.SearchPlugin;
@@ -1183,7 +1184,7 @@ public class SearchServiceSingleNodeTests extends ESSingleNodeTestCase {
             + ",org.elasticsearch.action.bulk:TRACE"
             + ",org.elasticsearch.indices.recovery:TRACE"
     )
-    public void testSearchWhileIndexDeletedDoesNotLeakSearchContext() {
+    public void testSearchWhileIndexDeletedDoesNotLeakSearchContext() throws Exception {
         logger.info("--> createIndex");
         createIndex("index");
         logger.info("--> index doc & refresh");
@@ -1199,6 +1200,7 @@ public class SearchServiceSingleNodeTests extends ESSingleNodeTestCase {
         service.setOnPutContext(context -> {
             if (context.indexShard() == indexShard) {
                 assertAcked(indicesAdmin().prepareDelete("index"));
+                logger.info("--> index deleted");
                 newStateFullyAppliedListener().addListener(indexDeleteAppliedListener);
             }
         });
@@ -1234,7 +1236,8 @@ public class SearchServiceSingleNodeTests extends ESSingleNodeTestCase {
 
         expectThrows(IndexNotFoundException.class, () -> indicesAdmin().prepareGetIndex(TEST_REQUEST_TIMEOUT).setIndices("index").get());
 
-        safeAwait(indexDeleteAppliedListener); // TODO didn't help?!
+        safeAwait(l -> getInstanceFromNode(IndicesClusterStateService.class).onClusterStateShardsClosed(() -> l.onResponse(null)));
+        logger.info("--> onClusterStateShardsClosed complete");
         assertEquals(0, service.getActiveContexts());
 
         SearchStats.Stats totalStats = indexShard.searchStats().getTotal();
