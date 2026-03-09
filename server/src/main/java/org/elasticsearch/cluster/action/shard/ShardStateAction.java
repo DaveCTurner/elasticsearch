@@ -639,7 +639,7 @@ public class ShardStateAction {
             SubscribableListener
 
                 .<Void>newForked(l -> taskQueue.submitTask("shard-started " + request, new StartedShardUpdateTask(request, l), null))
-                .<Boolean>andThen(l -> clusterService.awaitCurrentStateFullyApplied(client, null, l))
+                .<Boolean>andThen(l -> clusterService.awaitCurrentStateFullyApplied(client, TimeValue.MINUS_ONE, l))
                 .addListener(new ChannelActionListener<>(channel).map(ignored -> ActionResponse.Empty.INSTANCE));
         }
     }

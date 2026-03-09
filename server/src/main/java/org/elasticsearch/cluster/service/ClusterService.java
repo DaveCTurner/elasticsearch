@@ -32,7 +32,6 @@ import org.elasticsearch.common.settings.ProjectScopedSettings;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.logging.LogManager;
@@ -305,7 +304,7 @@ public class ClusterService extends AbstractLifecycleComponent {
 
     private static final Logger logger = LogManager.getLogger(ClusterService.class);
 
-    public void awaitCurrentStateFullyApplied(Client client, @Nullable TimeValue timeout, ActionListener<Boolean> listener) {
+    public void awaitCurrentStateFullyApplied(Client client, TimeValue timeout, ActionListener<Boolean> listener) {
         final var clusterState = state();
         final var nodes = clusterState.nodes().getAllNodes().toArray(DiscoveryNode[]::new);
         final var targetVersion = clusterState.version();
