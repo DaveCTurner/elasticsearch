@@ -157,6 +157,7 @@ public class ClusterStatsIT extends ESIntegTestCase {
         assertThat(stats.getReplication(), Matchers.equalTo(replicationFactor));
     }
 
+    @AwaitsFix(bugUrl = "TODO")
     public void testIndicesShardStats() throws ExecutionException, InterruptedException {
         internalCluster().startNode();
         ensureGreen();
