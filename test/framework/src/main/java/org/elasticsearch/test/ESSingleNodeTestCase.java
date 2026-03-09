@@ -115,8 +115,10 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
             .setOrder(0)
             .setSettings(Settings.builder().put(IndexSettings.INDEX_SOFT_DELETES_RETENTION_OPERATIONS_SETTING.getKey(), between(0, 1000)))
             .get();
-        safeAwait(newStateFullyAppliedListener());
+        onNodeStarted();
     }
+
+    protected void onNodeStarted() {}
 
     private static void stopNode() throws IOException, InterruptedException {
         Node node = NODE;
