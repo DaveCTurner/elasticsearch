@@ -134,7 +134,7 @@ public final class IndicesStore implements ClusterStateListener, Closeable {
         }
     }
 
-    private final AtomicReference<ClusterState> stateToApply = new AtomicReference<>();
+    private final AtomicReference<ClusterState> stateToApplyHolder = new AtomicReference<>();
 
     @Override
     public void clusterChanged(ClusterChangedEvent event) {
@@ -146,7 +146,7 @@ public final class IndicesStore implements ClusterStateListener, Closeable {
             return;
         }
 
-        stateToApply.set(event.state());
+        stateToApplyHolder.set(event.state());
         final var stateToApplyVersion = event.state().version();
 
         indicesClusterStateService.addApplyListener(new ActionListener<>() {
@@ -166,11 +166,11 @@ public final class IndicesStore implements ClusterStateListener, Closeable {
             }
 
             private ClusterState takeStateToApply() {
-                final var candidateState = stateToApply.get();
-                if (candidateState != null
-                    && candidateState.version() == stateToApplyVersion
-                    && stateToApply.compareAndSet(candidateState, null)) {
-                    return candidateState;
+                final var stateToApply = stateToApplyHolder.get();
+                if (stateToApply != null
+                    && stateToApply.version() == stateToApplyVersion
+                    && stateToApplyHolder.compareAndSet(stateToApply, null)) {
+                    return stateToApply;
                 } else {
                     logger.debug("skipping handling state version [" + stateToApplyVersion + "]");
                     return null;
