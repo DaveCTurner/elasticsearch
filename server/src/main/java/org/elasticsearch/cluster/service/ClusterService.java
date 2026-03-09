@@ -9,6 +9,11 @@
 
 package org.elasticsearch.cluster.service;
 
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.cluster.state.AwaitClusterStateVersionAppliedRequest;
+import org.elasticsearch.action.admin.cluster.state.AwaitClusterStateVersionAppliedResponse;
+import org.elasticsearch.action.admin.cluster.state.TransportAwaitClusterStateVersionAppliedAction;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateApplier;
@@ -27,7 +32,11 @@ import org.elasticsearch.common.settings.ProjectScopedSettings;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.SuppressForbidden;
+import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.telemetry.metric.MeterRegistry;
@@ -292,5 +301,31 @@ public class ClusterService extends AbstractLifecycleComponent {
         ClusterStateTaskExecutor<T> executor
     ) {
         return masterService.createTaskQueue(name, priority, executor);
+    }
+
+    private static final Logger logger = LogManager.getLogger(ClusterService.class);
+
+    public void awaitCurrentStateFullyApplied(Client client, @Nullable TimeValue timeout, ActionListener<Boolean> listener) {
+        final var clusterState = state();
+        final var nodes = clusterState.nodes().getAllNodes().toArray(DiscoveryNode[]::new);
+        final var targetVersion = clusterState.version();
+        logger.info("--> awaiting full apply of state version [{}]", targetVersion);
+        client.execute(
+            TransportAwaitClusterStateVersionAppliedAction.TYPE,
+            new AwaitClusterStateVersionAppliedRequest(targetVersion, timeout, nodes),
+            new ActionListener<>() {
+                @Override
+                public void onResponse(AwaitClusterStateVersionAppliedResponse awaitResponse) {
+                    logger.info("--> completed apply of state [{}], failures={}", targetVersion, awaitResponse.hasFailures());
+                    listener.onResponse(awaitResponse.hasFailures());
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    logger.info("--> failed during await of state [" + targetVersion + "]", e);
+                    listener.onResponse(false);
+                }
+            }
+        );
     }
 }

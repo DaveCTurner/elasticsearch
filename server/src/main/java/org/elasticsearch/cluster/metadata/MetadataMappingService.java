@@ -12,9 +12,6 @@ package org.elasticsearch.cluster.metadata;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.admin.cluster.state.AwaitClusterStateVersionAppliedRequest;
-import org.elasticsearch.action.admin.cluster.state.AwaitClusterStateVersionAppliedResponse;
-import org.elasticsearch.action.admin.cluster.state.TransportAwaitClusterStateVersionAppliedAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingClusterStateUpdateRequest;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -298,30 +295,18 @@ public class MetadataMappingService {
             .<AcknowledgedResponse>andThen((l, response) -> {
                 // TODO group (by timeout) the requests in the batch and only await once
                 // TODO re-use code between here and MetadataUpdateSettingsService
-                final var clusterState = clusterService.state();
-                final var nodes = clusterState.nodes().getDataNodes().values().toArray(DiscoveryNode[]::new);
-                logger.info(
-                    "--> mapping update awaiting apply of state version [{}], interim response [{}]",
-                    clusterState.version(),
-                    Strings.toString(response)
-                );
-                client.execute(
-                    TransportAwaitClusterStateVersionAppliedAction.TYPE,
-                    new AwaitClusterStateVersionAppliedRequest(clusterState.version(), request.ackTimeout(), nodes),
-                    new ActionListener<>() {
-                        @Override
-                        public void onResponse(AwaitClusterStateVersionAppliedResponse awaitResponse) {
-                            logger.info("--> mapping update completed apply of state, failures={}", awaitResponse.hasFailures());
-                            l.onResponse(AcknowledgedResponse.of(response.isAcknowledged() && awaitResponse.failures().isEmpty()));
-                        }
-
-                        @Override
-                        public void onFailure(Exception e) {
-                            logger.info("--> mapping update state wait failed", e);
-                            l.onResponse(AcknowledgedResponse.FALSE);
-                        }
+                logger.info("--> mapping update awaiting apply of state, interim response [{}]", Strings.toString(response));
+                clusterService.awaitCurrentStateFullyApplied(client, request.ackTimeout(), new ActionListener<>() {
+                    @Override
+                    public void onResponse(Boolean fullyApplied) {
+                        l.onResponse(AcknowledgedResponse.of(response.isAcknowledged() && fullyApplied == Boolean.TRUE));
                     }
-                );
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        l.onResponse(AcknowledgedResponse.FALSE);
+                    }
+                });
             })
             // Step 3: complete outer listener
             .addListener(listener);
