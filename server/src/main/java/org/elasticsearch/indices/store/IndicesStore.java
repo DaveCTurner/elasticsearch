@@ -26,6 +26,7 @@ import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
 import org.elasticsearch.cluster.routing.RoutingNode;
 import org.elasticsearch.cluster.routing.RoutingTable;
 import org.elasticsearch.cluster.routing.ShardRouting;
+import org.elasticsearch.cluster.service.AsyncClusterStateApplier;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -121,7 +122,7 @@ public final class IndicesStore implements ClusterStateListener, Closeable {
             // we double check nothing has changed when responses come back from other nodes.
             // it's easier to do that check when the current cluster state is visible.
             // also it's good in general to let things settle down
-            clusterService.addListener(this);
+            clusterService.addListener(new AsyncClusterStateApplier(this::clusterChanged, threadPool.generic())::applyClusterState);
         }
     }
 
@@ -178,6 +179,12 @@ public final class IndicesStore implements ClusterStateListener, Closeable {
                         IndicesService.ShardDeletionCheckResult shardDeletionCheckResult = indicesService.canDeleteShardContent(
                             shardId,
                             indexSettings
+                        );
+                        logger.info(
+                            "--> indicesService.canDeleteShardContent({}) returned {} at state version {}",
+                            shardId,
+                            shardDeletionCheckResult,
+                            event.state().version()
                         );
                         switch (shardDeletionCheckResult) {
                             case FOLDER_FOUND_CAN_DELETE:
@@ -236,6 +243,8 @@ public final class IndicesStore implements ClusterStateListener, Closeable {
         long clusterStateVersion,
         IndexShardRoutingTable indexShardRoutingTable
     ) {
+        logger.info("--> deleteShardIfExistElseWhere({})", indexShardRoutingTable.shardId());
+
         if (DiscoveryNode.isStateless(clusterService.getSettings())) {
             deleteShardStoreOnApplierThread(indexShardRoutingTable.shardId(), clusterStateVersion, IndexRemovalReason.NO_LONGER_ASSIGNED);
             return;
