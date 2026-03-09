@@ -635,12 +635,15 @@ public class ShardStateAction {
 
         @Override
         public void messageReceived(StartedShardEntry request, TransportChannel channel, Task task) {
-            logger.debug("{} received shard started for [{}]", request.shardId, request);
+            logger.info("{} received shard started for [{}]", request.shardId, request);
             SubscribableListener
 
                 .<Void>newForked(l -> taskQueue.submitTask("shard-started " + request, new StartedShardUpdateTask(request, l), null))
                 .<Boolean>andThen(l -> clusterService.awaitCurrentStateFullyApplied(client, TimeValue.MINUS_ONE, l))
-                .addListener(new ChannelActionListener<>(channel).map(ignored -> ActionResponse.Empty.INSTANCE));
+                .addListener(new ChannelActionListener<>(channel).map(ignored -> {
+                    logger.info("--> shard-started [{}] done", request.shardId);
+                    return ActionResponse.Empty.INSTANCE;
+                }));
         }
     }
 
