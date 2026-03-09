@@ -292,6 +292,10 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
     public synchronized void applyClusterState(final ClusterChangedEvent event) {
         final var previousShardsClosedListener = lastClusterStateShardsClosedListener;
         lastClusterStateShardsClosedListener = new SubscribableListener<>();
+        final var newStateVersion = event.state().version();
+        lastClusterStateShardsClosedListener.addListener(
+            ActionListener.running(() -> logger.info("--> shards closed after state update to version [{}]", newStateVersion))
+        );
         currentClusterStateShardsClosedListeners = new RefCountingListener(lastClusterStateShardsClosedListener);
         try {
             // HACK: chain listeners but avoid too deep of a stack
