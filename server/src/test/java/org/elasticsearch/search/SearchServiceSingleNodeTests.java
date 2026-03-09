@@ -1178,30 +1178,18 @@ public class SearchServiceSingleNodeTests extends ESSingleNodeTestCase {
         );
     }
 
-    @TestLogging(
-        reason = "nocommit",
-        value = "org.elasticsearch.action.support.replication:TRACE"
-            + ",org.elasticsearch.action.bulk:TRACE"
-            + ",org.elasticsearch.indices.recovery:TRACE"
-    )
-    public void testSearchWhileIndexDeletedDoesNotLeakSearchContext() throws Exception {
-        logger.info("--> createIndex");
+    public void testSearchWhileIndexDeletedDoesNotLeakSearchContext() throws ExecutionException, InterruptedException {
         createIndex("index");
-        logger.info("--> index doc & refresh");
         prepareIndex("index").setId("1").setSource("field", "value").setRefreshPolicy(IMMEDIATE).get();
-        logger.info("--> setup done");
 
         IndicesService indicesService = getInstanceFromNode(IndicesService.class);
         IndexService indexService = indicesService.indexServiceSafe(resolveIndex("index"));
         IndexShard indexShard = indexService.getShard(0);
 
-        final var indexDeleteAppliedListener = new SubscribableListener<Void>();
         MockSearchService service = (MockSearchService) getInstanceFromNode(SearchService.class);
         service.setOnPutContext(context -> {
             if (context.indexShard() == indexShard) {
                 assertAcked(indicesAdmin().prepareDelete("index"));
-                logger.info("--> index deleted");
-                newStateFullyAppliedListener().addListener(indexDeleteAppliedListener);
             }
         });
 
@@ -1237,7 +1225,6 @@ public class SearchServiceSingleNodeTests extends ESSingleNodeTestCase {
         expectThrows(IndexNotFoundException.class, () -> indicesAdmin().prepareGetIndex(TEST_REQUEST_TIMEOUT).setIndices("index").get());
 
         safeAwait(l -> getInstanceFromNode(IndicesClusterStateService.class).onClusterStateShardsClosed(() -> l.onResponse(null)));
-        logger.info("--> onClusterStateShardsClosed complete");
         assertEquals(0, service.getActiveContexts());
 
         SearchStats.Stats totalStats = indexShard.searchStats().getTotal();
