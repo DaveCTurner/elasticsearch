@@ -172,6 +172,7 @@ public final class IndicesStore implements ClusterStateListener, Closeable {
                     && stateToApply.compareAndSet(candidateState, null)) {
                     return candidateState;
                 } else {
+                    logger.debug("skipping handling state version [" + stateToApplyVersion + "]");
                     return null;
                 }
             }
