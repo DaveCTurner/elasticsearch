@@ -40,6 +40,8 @@ import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.telemetry.tracing.Tracer;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -53,9 +55,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import static junit.framework.TestCase.fail;
-import static org.elasticsearch.rest.ChunkedRestResponseBodyPart.logger;
 
 public class ClusterServiceUtils {
+
+    private static final Logger logger = LogManager.getLogger(ClusterServiceUtils.class);
 
     public static void setState(ClusterApplierService executor, ClusterState clusterState) {
         CountDownLatch latch = new CountDownLatch(1);
