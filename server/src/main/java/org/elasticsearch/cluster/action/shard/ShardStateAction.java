@@ -17,6 +17,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ResultDeduplicator;
 import org.elasticsearch.action.support.ChannelActionListener;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateObserver;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor;
@@ -119,7 +120,8 @@ public class ShardStateAction {
         TransportService transportService,
         AllocationService allocationService,
         RerouteService rerouteService,
-        ThreadPool threadPool
+        ThreadPool threadPool,
+        Client client
     ) {
         this.transportService = transportService;
         this.clusterService = clusterService;
