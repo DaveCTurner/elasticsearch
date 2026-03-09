@@ -17,6 +17,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ResultDeduplicator;
 import org.elasticsearch.action.support.ChannelActionListener;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateObserver;
@@ -133,6 +134,7 @@ public class ShardStateAction {
             EsExecutors.DIRECT_EXECUTOR_SERVICE,
             StartedShardEntry::new,
             new ShardStartedTransportHandler(
+                client,
                 clusterService,
                 new ShardStartedClusterStateTaskExecutor(clusterService.getClusterSettings(), allocationService, rerouteService)
             )
@@ -616,23 +618,29 @@ public class ShardStateAction {
 
     // TODO: Make this a TransportMasterNodeAction and remove duplication of master failover retrying from upstream code
     private static class ShardStartedTransportHandler implements TransportRequestHandler<StartedShardEntry> {
+
+        private final Client client;
+        private final ClusterService clusterService;
         private final MasterServiceTaskQueue<StartedShardUpdateTask> taskQueue;
 
         ShardStartedTransportHandler(
+            Client client,
             ClusterService clusterService,
             ShardStartedClusterStateTaskExecutor shardStartedClusterStateTaskExecutor
         ) {
+            this.client = client;
+            this.clusterService = clusterService;
             taskQueue = clusterService.createTaskQueue("shard-started", Priority.URGENT, shardStartedClusterStateTaskExecutor);
         }
 
         @Override
         public void messageReceived(StartedShardEntry request, TransportChannel channel, Task task) {
             logger.debug("{} received shard started for [{}]", request.shardId, request);
-            taskQueue.submitTask(
-                "shard-started " + request,
-                new StartedShardUpdateTask(request, new ChannelActionListener<>(channel).map(ignored -> ActionResponse.Empty.INSTANCE)),
-                null
-            );
+            SubscribableListener
+
+                .<Void>newForked(l -> taskQueue.submitTask("shard-started " + request, new StartedShardUpdateTask(request, l), null))
+                .<Boolean>andThen(l -> clusterService.awaitCurrentStateFullyApplied(client, null, l))
+                .addListener(new ChannelActionListener<>(channel).map(ignored -> ActionResponse.Empty.INSTANCE));
         }
     }
 

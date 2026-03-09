@@ -67,6 +67,7 @@ import org.elasticsearch.indices.breaker.NoneCircuitBreakerService;
 import org.elasticsearch.indices.cluster.ClusterStateChanges;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.test.client.NoOpClient;
 import org.elasticsearch.test.transport.CapturingTransport;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.threadpool.TestThreadPool;
@@ -180,7 +181,7 @@ public class TransportReplicationActionTests extends ESTestCase {
         );
         transportService.start();
         transportService.acceptIncomingRequests();
-        shardStateAction = new ShardStateAction(clusterService, transportService, null, null, threadPool);
+        shardStateAction = new ShardStateAction(clusterService, transportService, null, null, threadPool, new NoOpClient(threadPool));
         action = new TestAction(Settings.EMPTY, "internal:testAction", transportService, clusterService, shardStateAction, threadPool);
     }
 

@@ -36,6 +36,7 @@ import org.elasticsearch.indices.EmptySystemIndices;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.node.NodeClosedException;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.test.client.NoOpClient;
 import org.elasticsearch.test.transport.CapturingTransport;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -75,7 +76,7 @@ public class RetentionLeaseSyncActionTests extends ESTestCase {
         );
         transportService.start();
         transportService.acceptIncomingRequests();
-        shardStateAction = new ShardStateAction(clusterService, transportService, null, null, threadPool);
+        shardStateAction = new ShardStateAction(clusterService, transportService, null, null, threadPool,new NoOpClient(threadPool));
     }
 
     public void tearDown() throws Exception {

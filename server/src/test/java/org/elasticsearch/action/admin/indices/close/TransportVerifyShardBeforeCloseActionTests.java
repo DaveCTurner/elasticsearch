@@ -19,7 +19,6 @@ import org.elasticsearch.action.support.replication.ReplicationOperation;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.action.support.replication.TransportReplicationAction;
 import org.elasticsearch.action.support.replication.TransportReplicationAction.ConcreteShardRequest;
-import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
@@ -44,6 +43,7 @@ import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.test.client.NoOpClient;
 import org.elasticsearch.test.transport.CapturingTransport;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -135,7 +135,14 @@ public class TransportVerifyShardBeforeCloseActionTests extends ESTestCase {
         transportService.start();
         transportService.acceptIncomingRequests();
 
-        ShardStateAction shardStateAction = new ShardStateAction(clusterService, transportService, null, null, threadPool);
+        ShardStateAction shardStateAction = new ShardStateAction(
+            clusterService,
+            transportService,
+            null,
+            null,
+            threadPool,
+            new NoOpClient(threadPool)
+        );
         action = new TransportVerifyShardBeforeCloseAction(
             Settings.EMPTY,
             transportService,

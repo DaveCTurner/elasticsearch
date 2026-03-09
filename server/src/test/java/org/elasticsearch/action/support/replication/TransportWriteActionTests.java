@@ -50,6 +50,7 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.node.NodeClosedException;
 import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.test.client.NoOpClient;
 import org.elasticsearch.test.transport.CapturingTransport;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -293,7 +294,13 @@ public class TransportWriteActionTests extends ESTestCase {
         );
         transportService.start();
         transportService.acceptIncomingRequests();
-        ShardStateAction shardStateAction = new ShardStateAction(clusterService, transportService, null, null, threadPool);
+        ShardStateAction shardStateAction = new ShardStateAction(
+            clusterService,
+            transportService,
+            null,
+            null,
+            threadPool,
+            new NoOpClient(threadPool));
         TestAction action = new TestAction(
             Settings.EMPTY,
             "internal:testAction",
