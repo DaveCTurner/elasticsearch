@@ -18,7 +18,9 @@ import org.junit.ClassRule;
 @ThreadLeakFilters(filters = TestClustersThreadFilter.class)
 public class FieldExtractorIT extends FieldExtractorTestCase {
     @ClassRule
-    public static ElasticsearchCluster cluster = Clusters.testCluster(spec -> spec.setting("not.a.setting", "boom"));
+    public static ElasticsearchCluster cluster = Clusters.testCluster(
+        spec -> spec.setting("logger.org.elasticsearch.index.mapper.FieldMapper", "DEBUG")
+    );
 
     public FieldExtractorIT(MappedFieldType.FieldExtractPreference preference) {
         super(preference);

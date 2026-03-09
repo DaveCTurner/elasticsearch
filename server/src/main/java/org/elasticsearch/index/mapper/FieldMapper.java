@@ -12,6 +12,7 @@ package org.elasticsearch.index.mapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.LeafReaderContext;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.Explicit;
 import org.elasticsearch.common.TriFunction;
@@ -1939,6 +1940,7 @@ public abstract class FieldMapper extends Mapper {
                     );
                 }
                 if (parameter.deprecated) {
+                    logger.debug("--> EMITTING DEPRECATION WARNING", new ElasticsearchException("stack trace"));
                     deprecationLogger.warn(
                         DeprecationCategory.API,
                         propName,
