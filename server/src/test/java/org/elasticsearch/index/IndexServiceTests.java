@@ -229,7 +229,10 @@ public class IndexServiceTests extends ESSingleNodeTestCase {
         assertTrue(refreshTask.isClosed());
     }
 
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE")
+    @TestLogging(
+        reason = "nocommit",
+        value = "org.elasticsearch.cluster.service.MasterService:TRACE," + "org.elasticsearch.cluster.action.shard.ShardStateAction:TRACE"
+    )
     public void testFsyncTaskIsRunning() throws Exception {
         Settings settings = Settings.builder()
             .put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.ASYNC)
