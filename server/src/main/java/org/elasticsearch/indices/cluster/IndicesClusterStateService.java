@@ -634,6 +634,11 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
                 final var indexService = indicesService.indexService(index);
                 if (shardRouting.initializing() == false && (indexService == null || indexService.getShardOrNull(shardId.id()) == null)) {
                     // the master thinks we are active, but we don't have this shard at all, mark it as failed
+                    logger.info(
+                        "--> notifying master: nonexistent active shard ({}) {}",
+                        indexService == null ? "null IndexService" : "IndexService exists",
+                        shardRouting
+                    );
                     sendFailShard(
                         shardRouting,
                         "master marked shard as active, but shard has not been created, mark shard as failed",
