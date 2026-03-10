@@ -720,7 +720,46 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
             assert shardRouting.initializing() : shardRouting + " should have been removed by failMissingShards";
             createShard(shardRouting, state);
         } else {
-            updateShard(shardRouting, shard, state);
+            final ShardRouting currentRouting = shard.routingEntry();
+            final long newPrimaryTerm = getPrimaryTerm(state, shardRouting.shardId());
+            if (isNewCopyAfterFailure(currentRouting, shardRouting, newPrimaryTerm, shard)) {
+                logger.debug(
+                    "[{}] treating re-assignment as new copy (primary term bumped), replacing existing shard with new allocation",
+                    shardRouting.shardId()
+                );
+                indexService.removeShard(
+                    shardRouting.shardId().id(),
+                    "replaced by new allocation after failure (primary term bump)",
+                    shardCloseExecutor,
+                    getShardsClosedListener()
+                );
+                createShard(shardRouting, state);
+            } else {
+                updateShard(shardRouting, shard, state);
+            }
+        }
+    }
+
+    /**
+     * Returns true when the incoming routing is a new shard copy after a failure: same allocation id but higher primary term,
+     * with both current and new routings being initializing primaries. In that case we must not call {@link Shard#updateShardState}
+     * (which would hit the "term is only increased as part of primary promotion" assertion); we should remove the old shard and
+     * create a new one instead.
+     */
+    private static boolean isNewCopyAfterFailure(ShardRouting currentRouting, ShardRouting newRouting, long newPrimaryTerm, Shard shard) {
+        if (currentRouting.primary() == false || newRouting.primary() == false) {
+            return false;
+        }
+        if (currentRouting.initializing() == false || newRouting.initializing() == false) {
+            return false;
+        }
+        if (currentRouting.isSameAllocation(newRouting) == false) {
+            return false;
+        }
+        if (shard instanceof IndexShard indexShard) {
+            return newPrimaryTerm > indexShard.getPendingPrimaryTerm();
+        } else {
+            return false;
         }
     }
 
