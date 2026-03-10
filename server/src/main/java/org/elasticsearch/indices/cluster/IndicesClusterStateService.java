@@ -394,15 +394,19 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
 
         DiscoveryNode masterNode = state.nodes().getMasterNode();
 
-        // remove items from cache which are not in our routing table anymore and resend failures that have not executed on master yet
+        // Remove cache entries when the shard is no longer assigned here, has a different allocation, or the master has
+        // moved to a new instance (different primary term). Only resend failure when the state still has the same
+        // instance assigned — we must not re-notify for an old instance once the master has assigned a new one.
         for (final var iterator = failedShardsCache.entrySet().iterator(); iterator.hasNext();) {
             final var cacheEntry = iterator.next().getValue();
             ShardRouting failedShardRouting = cacheEntry.v1();
-            long primaryTerm = cacheEntry.v2();
+            long cachePrimaryTerm = cacheEntry.v2();
             ShardRouting matchedRouting = localRoutingNode.getByShardId(failedShardRouting.shardId());
+            final long statePrimaryTerm = getPrimaryTerm(state, failedShardRouting.shardId());
+            final boolean sameInstance = cachePrimaryTerm == statePrimaryTerm;
             if (matchedRouting == null
                 || matchedRouting.isSameAllocation(failedShardRouting) == false
-                || primaryTerm != getPrimaryTerm(state, failedShardRouting.shardId())) {
+                || sameInstance == false) {
                 iterator.remove();
             } else {
                 if (masterNode != null) { // TODO: can we remove this? Is resending shard failures the responsibility of shardStateAction?
@@ -727,6 +731,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
                     "[{}] treating re-assignment as new copy (primary term bumped), replacing existing shard with new allocation",
                     shardRouting.shardId()
                 );
+                failedShardsCache.remove(shardRouting.shardId());
                 indexService.removeShard(
                     shardRouting.shardId().id(),
                     "replaced by new allocation after failure (primary term bump)",
