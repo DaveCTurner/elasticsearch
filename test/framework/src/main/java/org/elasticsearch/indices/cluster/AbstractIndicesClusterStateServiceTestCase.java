@@ -49,7 +49,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
@@ -89,13 +88,13 @@ public abstract class AbstractIndicesClusterStateServiceTestCase extends ESTestC
      */
     public void assertClusterStateMatchesNodeState(ClusterState state, IndicesClusterStateService indicesClusterStateService) {
         MockIndicesService indicesService = (MockIndicesService) indicesClusterStateService.indicesService;
-        ConcurrentMap<ShardId, ShardRouting> failedShardsCache = indicesClusterStateService.failedShardsCache;
+        final var failedShardsCache = indicesClusterStateService.failedShardsCache;
         RoutingNode localRoutingNode = state.getRoutingNodes().node(state.getNodes().getLocalNodeId());
         if (localRoutingNode != null) {
             if (enableRandomFailures == false) {
                 // initializing a shard should succeed when enableRandomFailures is disabled
                 // active shards can be failed if state persistence was disabled in an earlier CS update
-                if (failedShardsCache.values().stream().anyMatch(ShardRouting::initializing)) {
+                if (failedShardsCache.values().stream().anyMatch(r -> r.v1().initializing())) {
                     fail("failed shard cache should not contain initializing shard routing: " + failedShardsCache.values());
                 }
             }
@@ -105,7 +104,7 @@ public abstract class AbstractIndicesClusterStateServiceTestCase extends ESTestC
                 IndexMetadata indexMetadata = state.metadata().getProject().getIndexSafe(index);
 
                 MockIndexShard shard = indicesService.getShardOrNull(shardRouting.shardId());
-                ShardRouting failedShard = failedShardsCache.get(shardRouting.shardId());
+                ShardRouting failedShard = failedShardsCache.get(shardRouting.shardId()).v1();
 
                 if (state.blocks().disableStatePersistence()) {
                     if (shard != null) {
