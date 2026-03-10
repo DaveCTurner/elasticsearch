@@ -269,7 +269,9 @@ public class IndexServiceTests extends ESSingleNodeTestCase {
         assertTrue(fsyncTask.isScheduled());
         assertFalse(fsyncTask.isClosed());
 
+        logger.info("--> directly closing index service");
         closeIndexService(indexService);
+        logger.info("--> directly closed index service");
         assertFalse(fsyncTask.isScheduled());
         assertTrue(fsyncTask.isClosed());
 
