@@ -54,6 +54,7 @@ import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Strings;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.core.Tuple;
 import org.elasticsearch.env.ShardLockObtainFailedException;
 import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.index.CloseUtils;
@@ -90,7 +91,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -143,7 +143,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
     private final Settings settings;
     // a list of shards that failed during recovery
     // we keep track of these shards in order to prevent repeated recovery of these shards on each cluster state update
-    final ConcurrentMap<ShardId, ShardRouting> failedShardsCache = ConcurrentCollections.newConcurrentMap();
+    final ConcurrentMap<ShardId, Tuple<ShardRouting, Long>> failedShardsCache = ConcurrentCollections.newConcurrentMap();
     private final Map<ShardId, PendingShardCreation> pendingShardCreations = new HashMap<>();
     private final RepositoriesService repositoriesService;
 
@@ -394,10 +394,14 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         DiscoveryNode masterNode = state.nodes().getMasterNode();
 
         // remove items from cache which are not in our routing table anymore and resend failures that have not executed on master yet
-        for (Iterator<Map.Entry<ShardId, ShardRouting>> iterator = failedShardsCache.entrySet().iterator(); iterator.hasNext();) {
-            ShardRouting failedShardRouting = iterator.next().getValue();
+        for (final var iterator = failedShardsCache.entrySet().iterator(); iterator.hasNext();) {
+            final var cacheEntry = iterator.next().getValue();
+            ShardRouting failedShardRouting = cacheEntry.v1();
+            long primaryTerm = cacheEntry.v2();
             ShardRouting matchedRouting = localRoutingNode.getByShardId(failedShardRouting.shardId());
-            if (matchedRouting == null || matchedRouting.isSameAllocation(failedShardRouting) == false) {
+            if (matchedRouting == null
+                || matchedRouting.isSameAllocation(failedShardRouting) == false
+                || primaryTerm != getPrimaryTerm(state, failedShardRouting.shardId())) {
                 iterator.remove();
             } else {
                 if (masterNode != null) { // TODO: can we remove this? Is resending shard failures the responsibility of shardStateAction?
@@ -406,6 +410,24 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
                     shardStateAction.localShardFailed(matchedRouting, message, null, ActionListener.noop(), state);
                 }
             }
+        }
+    }
+
+    private static long getPrimaryTerm(ClusterState clusterState, ShardId shardId) {
+        final var maybeProjectMetadata = clusterState.metadata().lookupProject(shardId.getIndex());
+        if (maybeProjectMetadata.isEmpty()) {
+            return Long.MIN_VALUE;
+        }
+
+        final var indexMetadata = maybeProjectMetadata.get().index(shardId.getIndex());
+        if (indexMetadata == null) {
+            return Long.MIN_VALUE;
+        }
+
+        try {
+            return indexMetadata.primaryTerm(shardId.id());
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return Long.MIN_VALUE;
         }
     }
 
@@ -1209,7 +1231,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
     private void sendFailShard(ShardRouting shardRouting, String message, @Nullable Exception failure, ClusterState state) {
         try {
             logger.warn(() -> format("%s marking and sending shard failed due to [%s]", shardRouting.shardId(), message), failure);
-            failedShardsCache.put(shardRouting.shardId(), shardRouting);
+            failedShardsCache.put(shardRouting.shardId(), Tuple.tuple(shardRouting, getPrimaryTerm(state, shardRouting.shardId())));
             shardStateAction.localShardFailed(shardRouting, message, failure, ActionListener.noop(), state);
         } catch (Exception inner) {
             if (failure != null) inner.addSuppressed(failure);
