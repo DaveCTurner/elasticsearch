@@ -26,6 +26,7 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
@@ -228,6 +229,7 @@ public class IndexServiceTests extends ESSingleNodeTestCase {
         assertTrue(refreshTask.isClosed());
     }
 
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE")
     public void testFsyncTaskIsRunning() throws Exception {
         Settings settings = Settings.builder()
             .put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.ASYNC)
