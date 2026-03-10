@@ -402,7 +402,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
             } else {
                 if (masterNode != null) { // TODO: can we remove this? Is resending shard failures the responsibility of shardStateAction?
                     String message = "master " + masterNode + " has not removed previously failed shard. resending shard failure";
-                    logger.trace("[{}] re-sending failed shard [{}], reason [{}]", matchedRouting.shardId(), matchedRouting, message);
+                    logger.info("[{}] re-sending failed shard [{}], reason [{}]", matchedRouting, matchedRouting, message);
                     shardStateAction.localShardFailed(matchedRouting, message, null, ActionListener.noop(), state);
                 }
             }
