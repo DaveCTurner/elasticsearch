@@ -528,7 +528,9 @@ public final class InternalTestCluster extends TestCluster {
             builder.put(others);
         }
         builder.put(ClusterName.CLUSTER_NAME_SETTING.getKey(), clusterName);
-        return builder.build();
+        final var result = builder.build();
+        logger.info("--> getSettings({}) returning {}", nodeOrdinal, Strings.toString(result));
+        return result;
     }
 
     public Collection<Class<? extends Plugin>> getPlugins() {
@@ -653,7 +655,9 @@ public final class InternalTestCluster extends TestCluster {
             builder.put(INITIAL_STATE_TIMEOUT_SETTING.getKey(), "0s");
         }
 
-        return builder.build();
+        final var result = builder.build();
+        logger.info("--> getRandomNodeSettings() returning {}", Strings.toString(result));
+        return result;
     }
 
     public static String clusterName(String prefix, long clusterSeed) {
@@ -791,7 +795,9 @@ public final class InternalTestCluster extends TestCluster {
         updatedSettings.put("node.name", name);
         updatedSettings.put(NodeEnvironment.NODE_ID_SEED_SETTING.getKey(), seed);
 
-        return updatedSettings.build();
+        final var result = updatedSettings.build();
+        logger.info("--> getNodeSettings({}) returning {}", nodeId, Strings.toString(result));
+        return result;
     }
 
     /**

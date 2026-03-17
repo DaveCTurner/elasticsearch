@@ -1020,7 +1020,7 @@ public class ConcurrentSnapshotsIT extends AbstractSnapshotIntegTestCase {
             + ",org.elasticsearch.snapshots:TRACE"
     )
     public void testBackToBackQueuedDeletes() throws Exception {
-        final String masterName = internalCluster().startMasterOnlyNode();
+        final String masterName = internalCluster().startMasterOnlyNode(Settings.builder().put("thread_pool.snapshot.max", 4).build());
         internalCluster().startDataOnlyNode();
 
         logger.info(

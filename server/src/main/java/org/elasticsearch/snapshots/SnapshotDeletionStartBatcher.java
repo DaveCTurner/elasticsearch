@@ -282,6 +282,12 @@ final class SnapshotDeletionStartBatcher {
     }
 
     private void completeBatch(int batchSize) {
+        logger.trace("completeBatch: sleeping before completing batch of size [{}]", batchSize);
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         logger.trace("completeBatch: completing batch of size [{}]", batchSize);
         synchronized (snapshotDeletionsItems) {
             for (int i = 0; i < batchSize; i++) {
