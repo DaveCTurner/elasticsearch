@@ -292,7 +292,11 @@ final class SnapshotDeletionStartBatcher {
         }
         final int remaining = snapshotDeletionForBatchingCount.addAndGet(-batchSize);
         if (remaining > 0) {
-            logger.trace("completeBatch: scheduling next runQueueProcessor, remaining [{}]", remaining);
+            logger.trace(
+                "completeBatch: scheduling next runQueueProcessor, remaining [{}], snapshotExecutor [{}]",
+                remaining,
+                snapshotExecutor
+            );
             snapshotExecutor.execute(this::runQueueProcessor);
         }
     }
@@ -396,10 +400,7 @@ final class SnapshotDeletionStartBatcher {
                     // check for ongoing operations which conflict
                     final var concurrentSnapshotExecutionException = checkConcurrentClonesAndRestores();
                     if (concurrentSnapshotExecutionException != null) {
-                        logger.trace(
-                            "resolveItem: item concurrent clone/restore, snapshots=[{}]",
-                            Arrays.toString(item.snapshots)
-                        );
+                        logger.trace("resolveItem: item concurrent clone/restore, snapshots=[{}]", Arrays.toString(item.snapshots));
                         return failItem(concurrentSnapshotExecutionException);
                     }
 
@@ -624,9 +625,7 @@ final class SnapshotDeletionStartBatcher {
             );
 
             if (snapshotIdsRequiringCleanup.isEmpty()) {
-                logger.trace(
-                    "Executor.execute: no snapshots requiring cleanup, returning with updated SnapshotsInProgress only"
-                );
+                logger.trace("Executor.execute: no snapshots requiring cleanup, returning with updated SnapshotsInProgress only");
                 logger.debug("snapshot deletion targets no completed snapshots");
                 return SnapshotsServiceUtils.updateWithSnapshots(initialState, updatedSnapshots, null);
             }
@@ -664,10 +663,7 @@ final class SnapshotDeletionStartBatcher {
                     && entry.state() == SnapshotDeletionsInProgress.State.WAITING) {
 
                     batchCompletionHandler.deletionUuid = entry.uuid();
-                    logger.trace(
-                        "Executor.execute: combining with existing WAITING entry uuid=[{}]",
-                        entry.uuid()
-                    );
+                    logger.trace("Executor.execute: combining with existing WAITING entry uuid=[{}]", entry.uuid());
                     logger.debug("combining new snapshot deletions with existing waiting batch");
                     final var updatedDeletionsInProgress = deletionsInProgress.withReplacedEntry(
                         entry.withAddedSnapshots(snapshotIdsRequiringCleanup)
@@ -846,10 +842,7 @@ final class SnapshotDeletionStartBatcher {
             for (var snapshot : abortedAndImmediatelyRemoved) {
                 notifyAbortedByDeletion.accept(snapshot);
             }
-            logger.trace(
-                "BatchCompletionHandler.run: notified [{}] aborted-immediate snapshots",
-                abortedAndImmediatelyRemoved.size()
-            );
+            logger.trace("BatchCompletionHandler.run: notified [{}] aborted-immediate snapshots", abortedAndImmediatelyRemoved.size());
 
             assert abortedAndNeedingFinalization.isEmpty() || entryToStart == null
                 : "unexpectedly completed " + abortedAndNeedingFinalization + " while starting " + entryToStart;

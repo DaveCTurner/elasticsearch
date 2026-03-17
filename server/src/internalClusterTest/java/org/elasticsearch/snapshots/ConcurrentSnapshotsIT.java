@@ -47,6 +47,7 @@ import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.disruption.NetworkDisruption;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.MockTransportService;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -1021,6 +1022,12 @@ public class ConcurrentSnapshotsIT extends AbstractSnapshotIntegTestCase {
     public void testBackToBackQueuedDeletes() throws Exception {
         final String masterName = internalCluster().startMasterOnlyNode();
         internalCluster().startDataOnlyNode();
+
+        logger.info(
+            "--> master snapshot thread pool [{}]",
+            Strings.toString(internalCluster().getCurrentMasterNodeInstance(ThreadPool.class).info(ThreadPool.Names.SNAPSHOT))
+        );
+
         final String repoName = "test-repo";
         createRepository(repoName, "mock");
         createIndexWithContent("index-test");
