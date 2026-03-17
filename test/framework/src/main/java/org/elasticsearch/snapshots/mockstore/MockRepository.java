@@ -397,7 +397,7 @@ public class MockRepository extends FsRepository {
     }
 
     private synchronized boolean blockExecution() {
-        logger.debug(() -> "[" + metadata.name() + "] Blocking execution", new ElasticsearchException("stack trace"));
+        logger.debug("[{}] Blocking execution", metadata.name());
         boolean wasBlocked = false;
         try {
             while (blockAndFailOnDataFiles

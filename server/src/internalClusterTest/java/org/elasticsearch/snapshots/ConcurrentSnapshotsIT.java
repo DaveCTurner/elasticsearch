@@ -45,9 +45,7 @@ import org.elasticsearch.snapshots.mockstore.MockRepository;
 import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.disruption.NetworkDisruption;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.MockTransportService;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -1013,21 +1011,11 @@ public class ConcurrentSnapshotsIT extends AbstractSnapshotIntegTestCase {
         }
     }
 
-    @TestLogging(
-        reason = "nocommit",
-        value = "org.elasticsearch.cluster.service.MasterService:TRACE"
-            + ",org.elasticsearch.snapshots.mockstore.MockRepository:TRACE"
-            + ",org.elasticsearch.snapshots:TRACE"
-    )
     public void testBackToBackQueuedDeletes() throws Exception {
-        final String masterName = internalCluster().startMasterOnlyNode(Settings.builder().put("thread_pool.snapshot.max", 4).build());
+        final String masterName = internalCluster().startMasterOnlyNode(Settings.builder()
+            // SnapshotDeletionStartBatcher requires a snapshot thread so we must have at least two of them
+            .put("thread_pool.snapshot.max", 2).build());
         internalCluster().startDataOnlyNode();
-
-        logger.info(
-            "--> master snapshot thread pool [{}]",
-            Strings.toString(internalCluster().getCurrentMasterNodeInstance(ThreadPool.class).info(ThreadPool.Names.SNAPSHOT))
-        );
-
         final String repoName = "test-repo";
         createRepository(repoName, "mock");
         createIndexWithContent("index-test");
