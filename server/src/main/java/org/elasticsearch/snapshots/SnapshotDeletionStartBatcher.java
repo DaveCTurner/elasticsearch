@@ -221,7 +221,14 @@ final class SnapshotDeletionStartBatcher {
         synchronized (snapshotDeletionsItems) {
             snapshotDeletionsItems.addLast(new SnapshotDeletionsItem(snapshots, waitForCompletion, timeoutRefs, wrappedListener));
         }
-        if (snapshotDeletionForBatchingCount.getAndIncrement() == 0) {
+        final int countAfterAdd = snapshotDeletionForBatchingCount.getAndIncrement();
+        final boolean startedProcessor = countAfterAdd == 0;
+        logger.trace(
+            "startDeletion enqueued item, queue size [{}], runQueueProcessor [{}]",
+            countAfterAdd,
+            startedProcessor ? "started" : "not started (already running)"
+        );
+        if (startedProcessor) {
             runQueueProcessor();
         }
     }
@@ -252,10 +259,13 @@ final class SnapshotDeletionStartBatcher {
             failBatch(batch, e);
             return;
         }
+        logger.trace("runQueueProcessor resolved repository [{}]", repositoryName);
+        logger.trace("runQueueProcessor fetching RepositoryData for batch of size [{}]", batch.length);
 
         repository.getRepositoryData(snapshotExecutor, new ActionListener<>() {
             @Override
             public void onResponse(RepositoryData repositoryData) {
+                logger.trace("runQueueProcessor submitting batch task to master service, batch size [{}]", batch.length);
                 snapshotDeletionBatchTaskQueue.submitTask(
                     queueName + "[" + batch.length + "]",
                     new Batch(batch, repositoryMetadata, repositoryData),
@@ -265,12 +275,14 @@ final class SnapshotDeletionStartBatcher {
 
             @Override
             public void onFailure(Exception e) {
+                logger.trace("runQueueProcessor getRepositoryData failed: [{}]", e.getMessage());
                 failBatch(batch, e);
             }
         });
     }
 
     private void completeBatch(int batchSize) {
+        logger.trace("completeBatch: completing batch of size [{}]", batchSize);
         synchronized (snapshotDeletionsItems) {
             for (int i = 0; i < batchSize; i++) {
                 final var item = snapshotDeletionsItems.pollFirst();
@@ -278,12 +290,15 @@ final class SnapshotDeletionStartBatcher {
                 assert item.timeoutRefs.hasReferences() == false || item.listener.isDone() || item.waitForCompletion;
             }
         }
-        if (snapshotDeletionForBatchingCount.addAndGet(-batchSize) > 0) {
+        final int remaining = snapshotDeletionForBatchingCount.addAndGet(-batchSize);
+        if (remaining > 0) {
+            logger.trace("completeBatch: scheduling next runQueueProcessor, remaining [{}]", remaining);
             snapshotExecutor.execute(this::runQueueProcessor);
         }
     }
 
     private void failBatch(SnapshotDeletionsItem[] batch, Exception e) {
+        logger.trace("failBatch: batch size [{}], exception [{}]", batch.length, e.getMessage());
         synchronized (snapshotDeletionsItems) {
             for (var item : batch) {
                 final var fromQueue = snapshotDeletionsItems.removeFirst();
@@ -295,7 +310,9 @@ final class SnapshotDeletionStartBatcher {
             item.listener.onFailure(e); // NB outside mutex
         }
 
-        if (snapshotDeletionForBatchingCount.addAndGet(-batch.length) > 0) {
+        final int remaining = snapshotDeletionForBatchingCount.addAndGet(-batch.length);
+        if (remaining > 0) {
+            logger.trace("failBatch: scheduling next runQueueProcessor after failure, remaining [{}]", remaining);
             snapshotExecutor.execute(this::runQueueProcessor);
         }
     }
@@ -355,7 +372,7 @@ final class SnapshotDeletionStartBatcher {
                     assert itemUnmatchedNames.isEmpty();
 
                     if (item.timeoutRefs.tryIncRef() == false) {
-                        // timeout elapsed, nothing to do here
+                        logger.trace("resolveItem: item timed out, snapshots=[{}]", Arrays.toString(item.snapshots));
                         return ItemCompletionHandler.DO_NOTHING;
                     }
                     assert item.listener.isDone() == false : Arrays.toString(item.snapshots);
@@ -365,17 +382,24 @@ final class SnapshotDeletionStartBatcher {
 
                     // ensure all non-wildcard names are matched
                     if (itemUnmatchedNames.isEmpty() == false) {
-                        return failItem(new SnapshotMissingException(repositoryName, itemUnmatchedNames.iterator().next()));
+                        final String unmatched = itemUnmatchedNames.iterator().next();
+                        logger.trace("resolveItem: item snapshot missing, unmatched=[{}]", unmatched);
+                        return failItem(new SnapshotMissingException(repositoryName, unmatched));
                     }
 
                     // skip no-op items
                     if (itemCompletedSnapshotIds.isEmpty() && itemInProgressSnapshotIds.isEmpty()) {
+                        logger.trace("resolveItem: item no-op, snapshots=[{}]", Arrays.toString(item.snapshots));
                         return ItemCompletionHandler.COMPLETE_LISTENER_IMMEDIATELY;
                     }
 
                     // check for ongoing operations which conflict
                     final var concurrentSnapshotExecutionException = checkConcurrentClonesAndRestores();
                     if (concurrentSnapshotExecutionException != null) {
+                        logger.trace(
+                            "resolveItem: item concurrent clone/restore, snapshots=[{}]",
+                            Arrays.toString(item.snapshots)
+                        );
                         return failItem(concurrentSnapshotExecutionException);
                     }
 
@@ -384,6 +408,11 @@ final class SnapshotDeletionStartBatcher {
                         // item is only targeting snapshots whose deletion is already present and STARTED so it need only wait for that
                         // deletion to finish, even if the rest of the batch creates/updates a WAITING deletion
                         batchCompletionHandler.appendToFinalLog(item.snapshots);
+                        logger.trace(
+                            "resolveItem: item covered by started deletion uuid=[{}], waitForCompletion=[{}]",
+                            startedDeletionUuid,
+                            item.waitForCompletion
+                        );
                         if (item.waitForCompletion) {
                             item.startedDeletionUuid = startedDeletionUuid;
                             return subscribeToPendingDelete;
@@ -396,6 +425,12 @@ final class SnapshotDeletionStartBatcher {
                     // goes on to succeed then it's important that D2 alone really did delete all the snapshots requested by this item,
                     // because the item's listener will report only the outcome of D2.
 
+                    logger.trace(
+                        "resolveItem: item added to batch, waitForCompletion=[{}], completedCount=[{}], inProgressCount=[{}]",
+                        item.waitForCompletion,
+                        itemCompletedSnapshotIds.size(),
+                        itemInProgressSnapshotIds.size()
+                    );
                     snapshotIds.addAll(itemCompletedSnapshotIds);
                     snapshotIds.addAll(itemInProgressSnapshotIds);
                     batchCompletionHandler.appendToFinalLog(item.snapshots);
@@ -469,12 +504,22 @@ final class SnapshotDeletionStartBatcher {
                 }
                 return null;
             }
+
+            @Nullable
+            String getStartedDeletionUuid() {
+                return startedDeletionUuid;
+            }
         }
 
         final var itemCompletionHandlerResolver = new ItemCompletionHandlerResolver();
         for (final var item : batch) {
             item.itemCompletionHandler = itemCompletionHandlerResolver.resolveItemAndAddSnapshotIds(item);
         }
+        logger.trace(
+            "resolveSnapshotIdsAndItemCompletionHandlers: resolved snapshotIds size=[{}], startedDeletionUuid=[{}]",
+            snapshotIds.size(),
+            itemCompletionHandlerResolver.getStartedDeletionUuid()
+        );
         return snapshotIds;
     }
 
@@ -495,6 +540,7 @@ final class SnapshotDeletionStartBatcher {
 
         @Override
         public void onFailure(Exception e) {
+            logger.trace("Batch.onFailure: [{}]", e.getMessage());
             failBatch(batch, e);
         }
     }
@@ -506,13 +552,14 @@ final class SnapshotDeletionStartBatcher {
         @Override
         public ClusterState execute(BatchExecutionContext<Batch> batchExecutionContext) {
             final var initialState = batchExecutionContext.initialState();
+            assert batchExecutionContext.taskContexts().size() == 1;
+            final var task = batchExecutionContext.taskContexts().getFirst().getTask();
+            logger.trace("Executor.execute: batch size [{}], repository [{}]", task.batch.length, repositoryName);
 
             final var projectMetadata = initialState.metadata().getProject(projectId);
             SnapshotsServiceUtils.ensureRepositoryExists(repositoryName, projectMetadata);
 
-            assert batchExecutionContext.taskContexts().size() == 1;
             final var taskContext = batchExecutionContext.taskContexts().getFirst();
-            final var task = taskContext.getTask();
 
             final var repositoryMetadata = RepositoriesMetadata.get(projectMetadata).repository(repositoryName);
             // Similar to SnapshotsService#executeConsistentStateUpdate: check RepositoryMetadata equality.
@@ -548,7 +595,9 @@ final class SnapshotDeletionStartBatcher {
                 task.repositoryData,
                 batchCompletionHandler
             );
+            logger.trace("Executor.execute: after resolve snapshotIds size=[{}]", snapshotIds.size());
             if (snapshotIds.isEmpty()) {
+                logger.trace("Executor.execute: batch targets no snapshots, returning unchanged state");
                 logger.debug("snapshot deletion targets no snapshots");
                 return initialState;
             }
@@ -567,9 +616,17 @@ final class SnapshotDeletionStartBatcher {
                 snapshotIdsRequiringCleanup,
                 batchCompletionHandler
             );
+            logger.trace(
+                "Executor.execute: after abortRunningSnapshots abortedImmediate=[{}] abortedNeedingFinalization=[{}] snapshotIdsRequiringCleanup=[{}]",
+                batchCompletionHandler.abortedAndImmediatelyRemoved.size(),
+                batchCompletionHandler.abortedAndNeedingFinalization.size(),
+                snapshotIdsRequiringCleanup.size()
+            );
 
             if (snapshotIdsRequiringCleanup.isEmpty()) {
-                // We only saw snapshots that could be removed from the cluster state right away, no need to update the deletions
+                logger.trace(
+                    "Executor.execute: no snapshots requiring cleanup, returning with updated SnapshotsInProgress only"
+                );
                 logger.debug("snapshot deletion targets no completed snapshots");
                 return SnapshotsServiceUtils.updateWithSnapshots(initialState, updatedSnapshots, null);
             }
@@ -587,6 +644,10 @@ final class SnapshotDeletionStartBatcher {
                         // NB copied over from the unbatched implementation, may now already be handled in resolveItemAndAddSnapshotIds?
                         assert false : "should be already handled"; // TODO remove all this if tests are reliably passing
 
+                        logger.trace(
+                            "Executor.execute: all targets in existing STARTED deletion uuid=[{}], no cluster state update",
+                            entry.uuid()
+                        );
                         // all target snapshots are already marked for deletion so any running ones must already be aborted
                         assert updatedSnapshots == snapshotsInProgress;
                         batchCompletionHandler.deletionUuid = entry.uuid();
@@ -603,6 +664,10 @@ final class SnapshotDeletionStartBatcher {
                     && entry.state() == SnapshotDeletionsInProgress.State.WAITING) {
 
                     batchCompletionHandler.deletionUuid = entry.uuid();
+                    logger.trace(
+                        "Executor.execute: combining with existing WAITING entry uuid=[{}]",
+                        entry.uuid()
+                    );
                     logger.debug("combining new snapshot deletions with existing waiting batch");
                     final var updatedDeletionsInProgress = deletionsInProgress.withReplacedEntry(
                         entry.withAddedSnapshots(snapshotIdsRequiringCleanup)
@@ -616,12 +681,19 @@ final class SnapshotDeletionStartBatcher {
             }
 
             // Otherwise we must add a new snapshot deletion to the cluster state
-            final var newEntryState = updatedSnapshots.forRepo(projectId, repositoryName)
+            final boolean noWriters = updatedSnapshots.forRepo(projectId, repositoryName)
                 .stream()
-                .noneMatch(SnapshotsServiceUtils::isWritingToRepository)
-                && deletionsInProgress.hasExecutingDeletion(projectId, repositoryName) == false
-                    ? SnapshotDeletionsInProgress.State.STARTED
-                    : SnapshotDeletionsInProgress.State.WAITING;
+                .noneMatch(SnapshotsServiceUtils::isWritingToRepository);
+            final boolean noExecutingDeletion = deletionsInProgress.hasExecutingDeletion(projectId, repositoryName) == false;
+            final var newEntryState = noWriters && noExecutingDeletion
+                ? SnapshotDeletionsInProgress.State.STARTED
+                : SnapshotDeletionsInProgress.State.WAITING;
+            logger.trace(
+                "Executor.execute: new entry state=[{}] (noWriters=[{}], noExecutingDeletion=[{}])",
+                newEntryState,
+                noWriters,
+                noExecutingDeletion
+            );
             final var newEntry = new SnapshotDeletionsInProgress.Entry(
                 projectId,
                 repositoryName,
@@ -631,6 +703,7 @@ final class SnapshotDeletionStartBatcher {
                 newEntryState
             );
             batchCompletionHandler.deletionUuid = newEntry.uuid();
+            logger.trace("Executor.execute: created new entry uuid=[{}] state=[{}]", newEntry.uuid(), newEntryState);
 
             if (newEntryState == SnapshotDeletionsInProgress.State.STARTED) {
                 logger.debug("creating new batch of deletions and starting their processing");
@@ -662,11 +735,24 @@ final class SnapshotDeletionStartBatcher {
                     if (abortedEntry == null) {
                         // No work has been done for this snapshot yet so we remove it from the cluster state directly
                         final Snapshot existingNotYetStartedSnapshot = existing.snapshot();
+                        logger.trace(
+                            "abortRunningSnapshots: snapshot [{}] removed immediately (no data written)",
+                            existingNotYetStartedSnapshot.getSnapshotId()
+                        );
                         batchCompletionHandler.abortedAndImmediatelyRemoved.add(existingNotYetStartedSnapshot);
                         snapshotIdsRequiringCleanup.remove(existingNotYetStartedSnapshot.getSnapshotId());
                     } else {
                         if (abortedEntry.state().completed()) {
                             batchCompletionHandler.abortedAndNeedingFinalization.add(abortedEntry);
+                            logger.trace(
+                                "abortRunningSnapshots: snapshot [{}] aborted, needs finalization",
+                                existing.snapshot().getSnapshotId()
+                            );
+                        } else {
+                            logger.trace(
+                                "abortRunningSnapshots: snapshot [{}] aborted, in updatedEntries",
+                                existing.snapshot().getSnapshotId()
+                            );
                         }
                         updatedEntries.add(abortedEntry);
                     }
@@ -745,6 +831,12 @@ final class SnapshotDeletionStartBatcher {
 
         @Override
         public void run() {
+            logger.trace(
+                "BatchCompletionHandler.run: deletionUuid=[{}] entryToStart=[{}] batchLength=[{}]",
+                deletionUuid,
+                entryToStart != null ? entryToStart.uuid() : "null",
+                batch.length
+            );
             if (finalLogBuilderStarted) {
                 finalLogCollector.finish();
                 finalLogBuilder.append("] from repository ").append(projectRepoString(projectId, repositoryName));
@@ -754,6 +846,10 @@ final class SnapshotDeletionStartBatcher {
             for (var snapshot : abortedAndImmediatelyRemoved) {
                 notifyAbortedByDeletion.accept(snapshot);
             }
+            logger.trace(
+                "BatchCompletionHandler.run: notified [{}] aborted-immediate snapshots",
+                abortedAndImmediatelyRemoved.size()
+            );
 
             assert abortedAndNeedingFinalization.isEmpty() || entryToStart == null
                 : "unexpectedly completed " + abortedAndNeedingFinalization + " while starting " + entryToStart;
@@ -761,11 +857,17 @@ final class SnapshotDeletionStartBatcher {
             for (var entry : abortedAndNeedingFinalization) {
                 snapshotEnder.endSnapshot(entry, metadata, repositoryData);
             }
+            logger.trace(
+                "BatchCompletionHandler.run: ended [{}] aborted-and-needing-finalization snapshots",
+                abortedAndNeedingFinalization.size()
+            );
 
             if (entryToStart != null) {
+                logger.trace("BatchCompletionHandler.run: starting deletion for entry uuid=[{}]", entryToStart.uuid());
                 deletionStarter.startDeletion(projectId, repositoryName, entryToStart, repositoryData, maxDataNodeCompatibleIndexVersion);
             }
 
+            logger.trace("BatchCompletionHandler.run: completing [{}] batch items", batch.length);
             for (var item : batch) {
                 assert item.itemCompletionHandler != null;
                 item.itemCompletionHandler.onCompletion(
