@@ -8,6 +8,7 @@
  */
 package org.elasticsearch.snapshots;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionFuture;
@@ -38,6 +39,7 @@ import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.IndexVersions;
+import org.elasticsearch.monitor.jvm.HotThreads;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.repositories.FinalizeSnapshotContext;
 import org.elasticsearch.repositories.FinalizeSnapshotContext.UpdatedShardGenerations;
@@ -564,7 +566,11 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
 
     protected void awaitNDeletionsInProgress(int count) {
         logger.info("--> wait for [{}] deletions to show up in the cluster state", count);
-        awaitClusterState(state -> SnapshotDeletionsInProgress.get(state).getEntries().size() == count);
+        try {
+            awaitClusterState(state -> SnapshotDeletionsInProgress.get(state).getEntries().size() == count);
+        } finally {
+            HotThreads.logLocalCurrentThreads(logger, Level.INFO, "thread dump at end of awaitNDeletionsInProgress()");
+        }
     }
 
     protected void awaitNoMoreRunningOperations() throws Exception {
