@@ -1014,7 +1014,9 @@ public class ConcurrentSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
     @TestLogging(
         reason = "nocommit",
-        value = "org.elasticsearch.cluster.service.MasterService:TRACE,org.elasticsearch.snapshots.mockstore.MockRepository:TRACE"
+        value = "org.elasticsearch.cluster.service.MasterService:TRACE"
+            + ",org.elasticsearch.snapshots.mockstore.MockRepository:TRACE"
+            + ",org.elasticsearch.snapshots:TRACE"
     )
     public void testBackToBackQueuedDeletes() throws Exception {
         final String masterName = internalCluster().startMasterOnlyNode();
