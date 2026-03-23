@@ -9,6 +9,7 @@
 
 package org.elasticsearch.action.support;
 
+import org.apache.logging.log4j.Level;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.common.Strings;
@@ -17,6 +18,7 @@ import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.common.util.concurrent.EsExecutors.TaskTrackingConfig;
 import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.monitor.jvm.HotThreads;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.threadpool.FixedExecutorBuilder;
 import org.elasticsearch.threadpool.ScalingExecutorBuilder;
@@ -135,7 +137,10 @@ public class ThreadedActionListenerTests extends ESTestCase {
                 }
             });
         } finally {
-            safeAwait(startLatch);
+            if (startLatch.await(10, TimeUnit.SECONDS) == false) {
+                HotThreads.logLocalCurrentThreads(logger, Level.INFO, "thread dump on start latch failure");
+                fail("start latch failed");
+            }
             logger.info("--> startLatch released");
             synchronized (closeFlag) {
                 logger.info("--> closing threadpool");
@@ -146,7 +151,10 @@ public class ThreadedActionListenerTests extends ESTestCase {
             assertTrue(threadPool.awaitTermination(10, TimeUnit.SECONDS));
             logger.info("--> threadpool terminated");
         }
-        safeAwait(finishLatch);
+        if (finishLatch.await(10, TimeUnit.SECONDS) == false) {
+            HotThreads.logLocalCurrentThreads(logger, Level.INFO, "thread dump on finish latch failure");
+            fail("finish latch failed");
+        }
         logger.info("--> latch complete");
     }
 
