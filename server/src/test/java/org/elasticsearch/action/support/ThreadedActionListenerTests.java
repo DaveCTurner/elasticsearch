@@ -127,6 +127,7 @@ public class ThreadedActionListenerTests extends ESTestCase {
                 }
             });
         } finally {
+            safeSleep(10);
             synchronized (closeFlag) {
                 logger.info("--> closing threadpool");
                 assertTrue(closeFlag.compareAndSet(false, true));
