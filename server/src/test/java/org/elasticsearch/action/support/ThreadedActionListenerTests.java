@@ -68,7 +68,7 @@ public class ThreadedActionListenerTests extends ESTestCase {
                     final var pool = randomFrom(pools);
                     final var forceExecution = (pool.equals("fixed-bounded-queue") || pool.startsWith("scaling")) && rarely();
                     final var listenerDescription = Strings.format(
-                        "listener [%d] on pool [%s] with forceExecution={}",
+                        "listener [%d] on pool [%s] with forceExecution=%s",
                         i,
                         pool,
                         forceExecution
