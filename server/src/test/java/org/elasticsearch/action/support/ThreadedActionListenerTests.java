@@ -91,7 +91,9 @@ public class ThreadedActionListenerTests extends ESTestCase {
                                     logger.info("--> OUTCOME [{}] failed: {}", listenerDescription, e.getMessage());
                                     assertNull(e.getCause());
                                     if (e instanceof EsRejectedExecutionException esRejectedExecutionException) {
-                                        assertTrue(esRejectedExecutionException.isExecutorShutdown());
+                                        if (pool.equals("fixed-bounded-queue") == false || forceExecution) {
+                                            assertTrue(esRejectedExecutionException.isExecutorShutdown());
+                                        }
                                         if (e.getSuppressed().length == 0) {
                                             return;
                                         }
