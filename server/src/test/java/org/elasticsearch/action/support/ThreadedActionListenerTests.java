@@ -32,7 +32,8 @@ public class ThreadedActionListenerTests extends ESTestCase {
 
     public void testRejectionHandling() throws InterruptedException {
         final var listenerCount = between(1, 1000);
-        final var countdownLatch = new CountDownLatch(listenerCount);
+        final var startLatch = new CountDownLatch(between(1, listenerCount));
+        final var finishLatch = new CountDownLatch(listenerCount);
         final var threadPool = new TestThreadPool(
             "test",
             Settings.EMPTY,
@@ -68,7 +69,7 @@ public class ThreadedActionListenerTests extends ESTestCase {
                     final var pool = randomFrom(pools);
                     final var forceExecution = (pool.equals("fixed-bounded-queue") || pool.startsWith("scaling")) && rarely();
                     final var listenerDescription = Strings.format(
-                        "listener [%d] on pool [%s] with forceExecution=%s",
+                        "listener [%04d] on pool [%s] with forceExecution=%s",
                         i,
                         pool,
                         forceExecution
@@ -79,12 +80,12 @@ public class ThreadedActionListenerTests extends ESTestCase {
                         ActionListener.runAfter(new ActionListener<>() {
                             @Override
                             public void onResponse(Void ignored) {
-                                logger.info("--> [{}] completed successfully", listenerDescription);
+                                logger.info("--> OUTCOME [{}] completed successfully", listenerDescription);
                             }
 
                             @Override
                             public void onFailure(Exception e) {
-                                logger.info("--> [{}] failed: {}", listenerDescription, e.getMessage());
+                                logger.info("--> OUTCOME [{}] failed: {}", listenerDescription, e.getMessage());
                                 assertNull(e.getCause());
                                 if (e instanceof EsRejectedExecutionException esRejectedExecutionException) {
                                     assertTrue(esRejectedExecutionException.isExecutorShutdown());
@@ -108,13 +109,15 @@ public class ThreadedActionListenerTests extends ESTestCase {
                                 }
 
                             }
-                        }, countdownLatch::countDown)
+                        }, finishLatch::countDown)
                     );
+                    startLatch.countDown();
+                    Thread.yield();
                     synchronized (closeFlag) {
                         if (closeFlag.get() && shutdownUnsafePools.contains(pool)) {
                             // closing, so tasks submitted to this pool may just be dropped
-                            logger.info("--> [{}] dropping as unsafe at shutdown", listenerDescription);
-                            countdownLatch.countDown();
+                            logger.info("--> OUTCOME [{}] dropping as unsafe at shutdown", listenerDescription);
+                            finishLatch.countDown();
                         } else if (randomBoolean()) {
                             logger.info("--> [{}] completing successfully", listenerDescription);
                             listener.onResponse(null);
@@ -127,7 +130,8 @@ public class ThreadedActionListenerTests extends ESTestCase {
                 }
             });
         } finally {
-            safeSleep(10);
+            safeAwait(startLatch);
+            logger.info("--> startLatch released");
             synchronized (closeFlag) {
                 logger.info("--> closing threadpool");
                 assertTrue(closeFlag.compareAndSet(false, true));
@@ -137,7 +141,7 @@ public class ThreadedActionListenerTests extends ESTestCase {
             assertTrue(threadPool.awaitTermination(10, TimeUnit.SECONDS));
             logger.info("--> threadpool terminated");
         }
-        safeAwait(countdownLatch);
+        safeAwait(finishLatch);
         logger.info("--> latch complete");
     }
 
