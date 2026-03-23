@@ -9,16 +9,13 @@
 
 package org.elasticsearch.action.support;
 
-import org.apache.logging.log4j.Level;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.common.util.concurrent.EsExecutors.TaskTrackingConfig;
 import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.monitor.jvm.HotThreads;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.threadpool.FixedExecutorBuilder;
 import org.elasticsearch.threadpool.ScalingExecutorBuilder;
@@ -66,110 +63,69 @@ public class ThreadedActionListenerTests extends ESTestCase {
             final var shutdownUnsafePools = Set.of("fixed-bounded-queue", "scaling-drop-if-shutdown");
 
             threadPool.generic().execute(() -> {
-                try {
-                    logger.info("--> using [{}] listeners", listenerCount);
-                    for (int i = 0; i < listenerCount; i++) {
-                        final var pool = randomFrom(pools);
-                        final var forceExecution = (pool.equals("fixed-bounded-queue") || pool.startsWith("scaling")) && rarely();
-                        final var listenerDescription = Strings.format(
-                            "listener [%04d] on pool [%s] with forceExecution=%s",
-                            i,
-                            pool,
-                            forceExecution
-                        );
-                        final var listener = new ThreadedActionListener<Void>(
-                            threadPool.executor(pool),
-                            forceExecution,
-                            ActionListener.runAfter(new ActionListener<>() {
-                                @Override
-                                public void onResponse(Void ignored) {
-                                    logger.info("--> OUTCOME [{}] completed successfully", listenerDescription);
-                                }
+                for (int i = 0; i < listenerCount; i++) {
+                    final var pool = randomFrom(pools);
+                    final var forceExecution = (pool.equals("fixed-bounded-queue") || pool.startsWith("scaling")) && rarely();
+                    final var listener = new ThreadedActionListener<Void>(
+                        threadPool.executor(pool),
+                        forceExecution,
+                        ActionListener.runAfter(new ActionListener<>() {
+                            @Override
+                            public void onResponse(Void ignored) {}
 
-                                @Override
-                                public void onFailure(Exception e) {
-                                    logger.info("--> OUTCOME [{}] failed: {}", listenerDescription, e.getMessage());
-                                    assertNull(e.getCause());
-                                    if (e instanceof EsRejectedExecutionException esRejectedExecutionException) {
-                                        if (pool.equals("fixed-bounded-queue") == false || forceExecution) {
-                                            assertTrue(esRejectedExecutionException.isExecutorShutdown());
-                                        }
-                                        if (e.getSuppressed().length == 0) {
-                                            return;
-                                        }
-                                        assertEquals(1, e.getSuppressed().length);
-                                        if (e.getSuppressed()[0] instanceof ElasticsearchException elasticsearchException) {
-                                            e = elasticsearchException;
-                                            assertNull(e.getCause());
-                                        } else {
-                                            fail(e);
-                                        }
+                            @Override
+                            public void onFailure(Exception e) {
+                                assertNull(e.getCause());
+                                if (e instanceof EsRejectedExecutionException esRejectedExecutionException) {
+                                    if (pool.equals("fixed-bounded-queue") == false || forceExecution) {
+                                        assertTrue(esRejectedExecutionException.isExecutorShutdown());
                                     }
-
-                                    if (e instanceof ElasticsearchException) {
-                                        assertEquals("simulated", e.getMessage());
-                                        assertEquals(0, e.getSuppressed().length);
+                                    if (e.getSuppressed().length == 0) {
+                                        return;
+                                    }
+                                    assertEquals(1, e.getSuppressed().length);
+                                    if (e.getSuppressed()[0] instanceof ElasticsearchException elasticsearchException) {
+                                        e = elasticsearchException;
+                                        assertNull(e.getCause());
                                     } else {
                                         fail(e);
                                     }
+                                }
 
+                                if (e instanceof ElasticsearchException) {
+                                    assertEquals("simulated", e.getMessage());
+                                    assertEquals(0, e.getSuppressed().length);
+                                } else {
+                                    fail(e);
                                 }
-                            }, finishLatch::countDown)
-                        );
-                        startLatch.countDown();
-                        Thread.yield();
-                        synchronized (closeFlag) {
-                            if (closeFlag.get() && shutdownUnsafePools.contains(pool)) {
-                                // closing, so tasks submitted to this pool may just be dropped
-                                logger.info("--> OUTCOME [{}] dropping as unsafe at shutdown", listenerDescription);
-                                finishLatch.countDown();
-                            } else if (randomBoolean()) {
-                                logger.info("--> [{}] completing successfully", listenerDescription);
-                                try {
-                                    listener.onResponse(null);
-                                } catch (Throwable t) {
-                                    logger.error("failure on listener [" + listenerDescription + "]", t);
-                                    throw t;
-                                }
-                            } else {
-                                logger.info("--> [{}] failing", listenerDescription);
-                                try {
-                                    listener.onFailure(new ElasticsearchException("simulated"));
-                                } catch (Throwable t) {
-                                    logger.error("failure on listener [" + listenerDescription + "]", t);
-                                    throw t;
-                                }
+
                             }
+                        }, finishLatch::countDown)
+                    );
+                    startLatch.countDown();
+                    Thread.yield();
+                    synchronized (closeFlag) {
+                        if (closeFlag.get() && shutdownUnsafePools.contains(pool)) {
+                            // closing, so tasks submitted to this pool may just be dropped
+                            finishLatch.countDown();
+                        } else if (randomBoolean()) {
+                            listener.onResponse(null);
+                        } else {
+                            listener.onFailure(new ElasticsearchException("simulated"));
                         }
-                        Thread.yield();
                     }
-                } catch (Throwable e) {
-                    logger.error("boom", e);
-                    throw e;
-                } finally {
-                    logger.info("--> spawn thread exiting");
+                    Thread.yield();
                 }
             });
+            safeAwait(startLatch);
         } finally {
-            if (startLatch.await(10, TimeUnit.SECONDS) == false) {
-                HotThreads.logLocalCurrentThreads(logger, Level.INFO, "thread dump on start latch failure");
-                fail("start latch failed");
-            }
-            logger.info("--> startLatch released");
             synchronized (closeFlag) {
-                logger.info("--> closing threadpool");
                 assertTrue(closeFlag.compareAndSet(false, true));
                 threadPool.shutdown();
-                logger.info("--> closed threadpool");
             }
             assertTrue(threadPool.awaitTermination(10, TimeUnit.SECONDS));
-            logger.info("--> threadpool terminated");
         }
-        if (finishLatch.await(10, TimeUnit.SECONDS) == false) {
-            HotThreads.logLocalCurrentThreads(logger, Level.INFO, "thread dump on finish latch failure");
-            fail("finish latch failed");
-        }
-        logger.info("--> latch complete");
+        safeAwait(finishLatch);
     }
 
     public void testToString() {
