@@ -11,6 +11,7 @@ package org.elasticsearch.action.support;
 
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.common.util.concurrent.EsExecutors.TaskTrackingConfig;
@@ -62,17 +63,28 @@ public class ThreadedActionListenerTests extends ESTestCase {
             final var shutdownUnsafePools = Set.of("fixed-bounded-queue", "scaling-drop-if-shutdown");
 
             threadPool.generic().execute(() -> {
+                logger.info("--> using [{}] listeners", listenerCount);
                 for (int i = 0; i < listenerCount; i++) {
                     final var pool = randomFrom(pools);
+                    final var forceExecution = (pool.equals("fixed-bounded-queue") || pool.startsWith("scaling")) && rarely();
+                    final var listenerDescription = Strings.format(
+                        "listener [%d] on pool [%s] with forceExecution={}",
+                        i,
+                        pool,
+                        forceExecution
+                    );
                     final var listener = new ThreadedActionListener<Void>(
                         threadPool.executor(pool),
-                        (pool.equals("fixed-bounded-queue") || pool.startsWith("scaling")) && rarely(),
+                        forceExecution,
                         ActionListener.runAfter(new ActionListener<>() {
                             @Override
-                            public void onResponse(Void ignored) {}
+                            public void onResponse(Void ignored) {
+                                logger.info("--> [{}] completed successfully", listenerDescription);
+                            }
 
                             @Override
                             public void onFailure(Exception e) {
+                                logger.info("--> [{}] failed: {}", listenerDescription, e.getMessage());
                                 assertNull(e.getCause());
                                 if (e instanceof EsRejectedExecutionException esRejectedExecutionException) {
                                     assertTrue(esRejectedExecutionException.isExecutorShutdown());
@@ -101,10 +113,13 @@ public class ThreadedActionListenerTests extends ESTestCase {
                     synchronized (closeFlag) {
                         if (closeFlag.get() && shutdownUnsafePools.contains(pool)) {
                             // closing, so tasks submitted to this pool may just be dropped
+                            logger.info("--> [{}] dropping as unsafe at shutdown", listenerDescription);
                             countdownLatch.countDown();
                         } else if (randomBoolean()) {
+                            logger.info("--> [{}] completing successfully", listenerDescription);
                             listener.onResponse(null);
                         } else {
+                            logger.info("--> [{}] failing", listenerDescription);
                             listener.onFailure(new ElasticsearchException("simulated"));
                         }
                     }
@@ -113,12 +128,16 @@ public class ThreadedActionListenerTests extends ESTestCase {
             });
         } finally {
             synchronized (closeFlag) {
+                logger.info("--> closing threadpool");
                 assertTrue(closeFlag.compareAndSet(false, true));
                 threadPool.shutdown();
+                logger.info("--> closed threadpool");
             }
             assertTrue(threadPool.awaitTermination(10, TimeUnit.SECONDS));
+            logger.info("--> threadpool terminated");
         }
-        assertTrue(countdownLatch.await(10, TimeUnit.SECONDS));
+        safeAwait(countdownLatch);
+        logger.info("--> latch complete");
     }
 
     public void testToString() {
