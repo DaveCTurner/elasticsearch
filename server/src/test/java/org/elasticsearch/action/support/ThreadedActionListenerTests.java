@@ -126,7 +126,12 @@ public class ThreadedActionListenerTests extends ESTestCase {
                                 listener.onResponse(null);
                             } else {
                                 logger.info("--> [{}] failing", listenerDescription);
-                                listener.onFailure(new ElasticsearchException("simulated"));
+                                try {
+                                    listener.onFailure(new ElasticsearchException("simulated"));
+                                } catch (Throwable t) {
+                                    logger.error("failure on listener [{}]", listenerDescription, t);
+                                    throw t;
+                                }
                             }
                         }
                         Thread.yield();
