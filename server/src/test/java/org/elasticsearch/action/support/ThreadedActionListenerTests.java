@@ -131,9 +131,11 @@ public class ThreadedActionListenerTests extends ESTestCase {
                         }
                         Thread.yield();
                     }
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     logger.error("boom", e);
                     throw e;
+                } finally {
+                    logger.info("--> spawn thread exiting");
                 }
             });
         } finally {
