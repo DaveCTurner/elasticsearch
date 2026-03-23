@@ -134,6 +134,7 @@ public final class ShardRouting implements Writeable, ToXContentObject {
     @Nullable
     private ShardRouting initializeTargetRelocatingShard() {
         if (state == ShardRoutingState.RELOCATING) {
+            assert unassignedInfo == null : this;
             return new ShardRouting(
                 shardId,
                 relocatingNodeId,
@@ -141,7 +142,7 @@ public final class ShardRouting implements Writeable, ToXContentObject {
                 primary,
                 ShardRoutingState.INITIALIZING,
                 PeerRecoverySource.INSTANCE,
-                unassignedInfo,
+                null,
                 RelocationFailureInfo.NO_FAILURES,
                 AllocationId.newTargetRelocation(allocationId),
                 expectedShardSize,
