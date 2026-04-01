@@ -97,6 +97,8 @@ dependencies {
     exclude group: 'org.checkerframework', module: 'checker-qual'
     // Exclude Arrow transitive deps - provided at runtime by x-pack-esql's arrow module
     exclude group: 'org.apache.arrow'
+    // iceberg-arrow pulls Netty 4.2.x; align with the rest of Elasticsearch (see versions.netty)
+    exclude group: 'io.netty', module: 'netty-buffer'
     // Exclude Jackson to avoid jar hell - x-pack-esql already provides Jackson 2.15.0
     exclude group: 'com.fasterxml.jackson.core', module: 'jackson-core'
     exclude group: 'com.fasterxml.jackson.core', module: 'jackson-databind'
@@ -104,6 +106,7 @@ dependencies {
     // aircompressor provided by esql-datasource-compression-libs parent plugin
     exclude group: 'io.airlift', module: 'aircompressor'
   }
+  implementation "io.netty:netty-buffer:${versions.netty}"
   implementation("org.apache.parquet:parquet-hadoop-bundle:${versions.parquet}")
   implementation("com.github.ben-manes.caffeine:caffeine:${versions.caffeine}") {
     exclude group: 'org.checkerframework', module: 'checker-qual'
@@ -190,6 +193,7 @@ tasks.named("dependencyLicenses").configure {
   mapping from: /parquet-.*/, to: 'parquet'
   mapping from: /hadoop-.*/, to: 'hadoop'
   mapping from: /log4j-.*/, to: 'log4j'
+  mapping from: /netty-buffer/, to: 'netty'
 }
 
 tasks.withType(org.elasticsearch.gradle.internal.AbstractDependenciesTask).configureEach {
