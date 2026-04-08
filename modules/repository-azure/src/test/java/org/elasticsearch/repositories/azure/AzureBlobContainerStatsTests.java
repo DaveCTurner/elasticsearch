@@ -50,8 +50,19 @@ public class AzureBlobContainerStatsTests extends AbstractAzureServerTestCase {
         );
     }
 
+    /**
+     * Extra logging for <a href="https://github.com/elastic/elasticsearch/issues/145281">#145281</a>.
+     * <p>
+     * Test output uses {@code log4j2-test.properties}, which abbreviates logger names ({@code %c{1.}}), so
+     * {@code com.azure...} appears as {@code c.a....} in {@code TEST-*.xml} (for example
+     * {@code c.a.c.h.n.i.NettyUtility} is the Azure SDK Netty helper). Elasticsearch and fixture loggers
+     * are shortened the same way ({@code o.e.r.a.*}, {@code f.a.*}). The Azure SDK emits relatively few
+     * {@code TRACE} lines; {@code INFO}/{@code DEBUG} under {@code c.a.*} is expected. Reactor Netty client
+     * diagnostics use {@code reactor.netty.http.client} (often abbreviated {@code r.n.h.c.*}).
+     */
     @TestIssueLogging(
-        value = "org.elasticsearch.repositories.azure:TRACE,com.azure:TRACE,fixture.azure:TRACE,org.elasticsearch.http:TRACE",
+        value = "org.elasticsearch.repositories.azure:TRACE,com.azure:TRACE,fixture.azure:TRACE,org.elasticsearch.http:TRACE,"
+            + "reactor.netty.http.client:DEBUG",
         issueUrl = "https://github.com/elastic/elasticsearch/issues/145281"
     )
     public void testRetriesAndOperationsAreTrackedSeparately() throws IOException {
