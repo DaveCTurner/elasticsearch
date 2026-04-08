@@ -59,12 +59,21 @@ public class AzureBlobContainerStatsTests extends AbstractAzureServerTestCase {
         final List<AzureBlobStore.Operation> supportedOperations = Arrays.asList(PUT_BLOB, LIST_BLOBS, BLOB_BATCH);
         final Map<AzureBlobStore.Operation, BlobStoreActionStats> expectedActionStats = new HashMap<>();
 
-        for (int i = 0; i < randomIntBetween(10, 50); i++) {
+        final int iterations = randomIntBetween(10, 50);
+        logger.info(
+            "testRetriesAndOperationsAreTrackedSeparately: purpose=[{}], iterations=[{}], tests.seed=[{}]",
+            purpose,
+            iterations,
+            System.getProperty("tests.seed")
+        );
+        for (int i = 0; i < iterations; i++) {
             final boolean triggerRetry = randomBoolean();
             if (triggerRetry) {
                 requestHandlers.offer(new ResponseInjectingHttpHandler.FixedRequestHandler(RestStatus.TOO_MANY_REQUESTS));
             }
             final AzureBlobStore.Operation operation = randomFrom(supportedOperations);
+            final long deltaRequests = triggerRetry ? 2L : 1L;
+            final String key = statsKey(purpose, operation);
             switch (operation) {
                 case PUT_BLOB -> blobStore.writeBlob(
                     purpose,
@@ -79,18 +88,30 @@ public class AzureBlobContainerStatsTests extends AbstractAzureServerTestCase {
                 );
             }
             expectedActionStats.compute(operation, (op, existing) -> {
-                BlobStoreActionStats currentStats = new BlobStoreActionStats(1, triggerRetry ? 2 : 1);
+                BlobStoreActionStats currentStats = new BlobStoreActionStats(1, deltaRequests);
                 if (existing != null) {
                     currentStats = existing.add(currentStats);
                 }
                 return currentStats;
             });
+            logger.info(
+                "step [{}]: triggerRetry=[{}], operation=[{}], statsKey=[{}], deltaOps=1, deltaRequests=[{}], "
+                    + "cumulativeExpectedForOperation=[{}]",
+                i,
+                triggerRetry,
+                operation,
+                key,
+                deltaRequests,
+                expectedActionStats.get(operation)
+            );
         }
 
         final Map<String, BlobStoreActionStats> stats = blobStore.stats();
+        logger.info("expectedActionStats (by Operation enum): [{}]", expectedActionStats);
+        logger.info("blobStore.stats() (stateless keys): [{}]", stats);
         expectedActionStats.forEach((operation, value) -> {
-            String key = statsKey(purpose, operation);
-            assertEquals(key, stats.get(key), value);
+            String assertKey = statsKey(purpose, operation);
+            assertEquals(assertKey, stats.get(assertKey), value);
         });
     }
 
