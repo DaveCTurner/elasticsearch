@@ -12,6 +12,8 @@ package org.elasticsearch.http;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.repositories.blobstore.ESMockAPIBasedRepositoryIntegTestCase;
 import org.elasticsearch.rest.RestStatus;
@@ -23,6 +25,8 @@ import java.util.function.Predicate;
 
 @SuppressForbidden(reason = "We use HttpServer for the fixtures")
 public class ResponseInjectingHttpHandler implements ESMockAPIBasedRepositoryIntegTestCase.DelegatingHttpHandler {
+
+    private static final Logger logger = LogManager.getLogger(ResponseInjectingHttpHandler.class);
 
     private final HttpHandler delegate;
     private final Queue<RequestHandler> requestHandlerQueue;
@@ -86,12 +90,45 @@ public class ResponseInjectingHttpHandler implements ESMockAPIBasedRepositoryInt
 
         @Override
         public void writeResponse(HttpExchange exchange, HttpHandler delegateHandler) throws IOException {
+            if (logger.isTraceEnabled()) {
+                logger.trace(
+                    "FixedRequestHandler request: {} {} from [{}] (x-ms-client-request-id=[{}]), injecting status=[{}], "
+                        + "hasResponseBody=[{}], requestMatcher=[{}]",
+                    exchange.getRequestMethod(),
+                    exchange.getRequestURI(),
+                    exchange.getRemoteAddress(),
+                    exchange.getRequestHeaders().getFirst("x-ms-client-request-id"),
+                    status,
+                    responseBody != null,
+                    requestMatcher
+                );
+            }
             if (responseBody != null) {
                 byte[] responseBytes = responseBody.getBytes(StandardCharsets.UTF_8);
                 exchange.sendResponseHeaders(status.getStatus(), responseBytes.length == 0 ? -1 : responseBytes.length);
+                if (logger.isTraceEnabled()) {
+                    logger.trace(
+                        "FixedRequestHandler response: status=[{}], responseLength=[{}], x-ms-client-request-id=[{}], "
+                            + "responseHeaders=[{}]",
+                        status.getStatus(),
+                        responseBytes.length == 0 ? -1 : (long) responseBytes.length,
+                        exchange.getRequestHeaders().getFirst("x-ms-client-request-id"),
+                        exchange.getResponseHeaders()
+                    );
+                }
                 exchange.getResponseBody().write(responseBytes);
             } else {
                 exchange.sendResponseHeaders(status.getStatus(), -1);
+                if (logger.isTraceEnabled()) {
+                    logger.trace(
+                        "FixedRequestHandler response: status=[{}], responseLength=[{}], x-ms-client-request-id=[{}], "
+                            + "responseHeaders=[{}]",
+                        status.getStatus(),
+                        -1L,
+                        exchange.getRequestHeaders().getFirst("x-ms-client-request-id"),
+                        exchange.getResponseHeaders()
+                    );
+                }
             }
         }
     }
