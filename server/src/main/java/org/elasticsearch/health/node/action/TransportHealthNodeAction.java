@@ -107,15 +107,27 @@ public abstract class TransportHealthNodeAction<Request extends HealthNodeReques
             if (healthNode == null) {
                 listener.onFailure(new HealthNodeNotDiscoveredException());
             } else if (localNode.getId().equals(healthNode.getId())) {
-                executor.execute(() -> {
-                    try {
-                        if (isTaskCancelled(task)) {
-                            listener.onFailure(new TaskCancelledException("Task was cancelled"));
-                        } else {
-                            healthOperation(task, request, clusterState, listener);
+                executor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            if (isTaskCancelled(task)) {
+                                listener.onFailure(new TaskCancelledException("Task was cancelled"));
+                            } else {
+                                TransportHealthNodeAction.this.healthOperation(task, request, clusterState, listener);
+                            }
+                        } catch (Exception e) {
+                            listener.onFailure(e);
                         }
-                    } catch (Exception e) {
-                        listener.onFailure(e);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "org.elasticsearch.health.node.action.TransportHealthNodeAction.doExecute["
+                            + task.getAction()
+                            + "]["
+                            + task.getId()
+                            + "]";
                     }
                 });
             } else {
