@@ -10,6 +10,7 @@ package org.elasticsearch.xpack.esql.plan.logical;
 import org.elasticsearch.xpack.esql.core.expression.Expression;
 import org.elasticsearch.xpack.esql.core.expression.NamedExpression;
 import org.elasticsearch.xpack.esql.core.tree.Source;
+import org.elasticsearch.xpack.esql.expression.AbstractExpressionSerializationTests;
 import org.elasticsearch.xpack.esql.expression.function.grouping.Bucket;
 import org.elasticsearch.xpack.esql.expression.function.grouping.BucketSerializationTests;
 
@@ -23,8 +24,17 @@ public class TimeSeriesAggregateSerializationTests extends AbstractLogicalPlanSe
         LogicalPlan child = randomChild(0);
         List<Expression> groupings = randomFieldAttributes(0, 5, false).stream().map(a -> (Expression) a).toList();
         List<? extends NamedExpression> aggregates = AggregateSerializationTests.randomAggregates();
-        Bucket timeBucket = BucketSerializationTests.createRandomBucket();
-        return new TimeSeriesAggregate(source, child, groupings, aggregates, timeBucket);
+        Bucket timeBucket = BucketSerializationTests.createRandomBucket(configuration());
+        boolean collapsed = randomBoolean();
+        return new TimeSeriesAggregate(
+            source,
+            child,
+            groupings,
+            aggregates,
+            timeBucket,
+            AbstractExpressionSerializationTests.randomChild(),
+            collapsed
+        );
     }
 
     @Override
@@ -33,16 +43,19 @@ public class TimeSeriesAggregateSerializationTests extends AbstractLogicalPlanSe
         List<Expression> groupings = instance.groupings();
         List<? extends NamedExpression> aggregates = instance.aggregates();
         Bucket timeBucket = instance.timeBucket();
-        switch (between(0, 3)) {
+        boolean collapsed = instance.isCollapsed();
+        switch (between(0, 4)) {
             case 0 -> child = randomValueOtherThan(child, () -> randomChild(0));
             case 1 -> groupings = randomValueOtherThan(
                 groupings,
                 () -> randomFieldAttributes(0, 5, false).stream().map(a -> (Expression) a).toList()
             );
             case 2 -> aggregates = randomValueOtherThan(aggregates, AggregateSerializationTests::randomAggregates);
-            case 3 -> timeBucket = randomValueOtherThan(timeBucket, BucketSerializationTests::createRandomBucket);
+            case 3 -> timeBucket = randomValueOtherThan(timeBucket, () -> BucketSerializationTests.createRandomBucket(configuration()));
+            case 4 -> collapsed = collapsed == false;
+            default -> throw new IllegalStateException();
         }
-        return new TimeSeriesAggregate(instance.source(), child, groupings, aggregates, timeBucket);
+        return new TimeSeriesAggregate(instance.source(), child, groupings, aggregates, timeBucket, instance.timestamp(), collapsed);
     }
 
     @Override
