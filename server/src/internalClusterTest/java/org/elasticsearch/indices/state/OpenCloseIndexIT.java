@@ -402,11 +402,12 @@ public class OpenCloseIndexIT extends ESIntegTestCase {
     }
 
     /**
-     * @see <a href="https://github.com/elastic/elasticsearch/issues/146604">#45801</a>
+     * @see <a href="https://github.com/elastic/elasticsearch/issues/146604">#146604</a>
      */
     private void logShardStatus(String indexName) {
-        for (IndicesService indicesService : internalCluster().getDataNodeInstances(IndicesService.class)) {
-            final var index = internalCluster().clusterService().state().metadata().getProject().index(indexName).getIndex();
+        final var index = internalCluster().clusterService().state().metadata().getProject().index(indexName).getIndex();
+        for (String nodeName : internalCluster().nodesInclude(indexName)) {
+            IndicesService indicesService = internalCluster().getInstance(IndicesService.class, nodeName);
             IndexService indexService = indicesService.indexServiceSafe(index);
             for (IndexShard shard : indexService) {
                 if (shard.routingEntry().primary()) {
@@ -426,7 +427,7 @@ public class OpenCloseIndexIT extends ESIntegTestCase {
 
     /**
      *
-     * @see <a href="https://github.com/elastic/elasticsearch/issues/146604">#45801</a>
+     * @see <a href="https://github.com/elastic/elasticsearch/issues/146604">#146604</a>
      */
     private void logTranslogStats(TranslogStats translogStats, int uncommittedTranslogOps) {
         logger.info(
