@@ -382,7 +382,7 @@ public class OpenCloseIndexIT extends ESIntegTestCase {
             logShardStatus(indexName);
             IndicesStatsResponse stats = indicesAdmin().prepareStats(indexName).clear().setTranslog(true).get();
             assertThat(stats.getIndex(indexName), notNullValue());
-            var translogStats = stats.getIndex(indexName).getPrimaries().getTranslog();
+            final var translogStats = stats.getIndex(indexName).getPrimaries().getTranslog();
             logTranslogStats(translogStats, uncommittedTranslogOps);
             assertThat(translogStats.estimatedNumberOfOperations(), equalTo(uncommittedTranslogOps));
             assertThat(translogStats.getUncommittedOperations(), equalTo(uncommittedTranslogOps));
