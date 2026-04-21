@@ -193,37 +193,37 @@ public class DesiredBalanceMetrics {
             this::getUndesiredAllocationsRatioMetrics
         );
 
-        meterRegistry.registerLongsGauge(
+        meterRegistry.registerLongsAsyncCounter(
             COMPUTATIONS_SUBMITTED_METRIC_NAME,
             "Total number of desired balance computations submitted on this elected master",
             "unit",
             this::getComputationSubmittedMetrics
         );
-        meterRegistry.registerLongsGauge(
+        meterRegistry.registerLongsAsyncCounter(
             COMPUTATIONS_EXECUTED_METRIC_NAME,
             "Total number of desired balance computations executed on this elected master",
             "unit",
             this::getComputationExecutedMetrics
         );
-        meterRegistry.registerLongsGauge(
+        meterRegistry.registerLongsAsyncCounter(
             COMPUTATIONS_CONVERGED_METRIC_NAME,
             "Total number of desired balance computations that converged on this elected master",
             "unit",
             this::getComputationConvergedMetrics
         );
-        meterRegistry.registerLongsGauge(
+        meterRegistry.registerLongsAsyncCounter(
             COMPUTATIONS_ITERATIONS_METRIC_NAME,
             "Total iterations across desired balance computations on this elected master",
             "unit",
             this::getComputationIterationsMetrics
         );
-        meterRegistry.registerLongsGauge(
+        meterRegistry.registerLongsAsyncCounter(
             COMPUTATIONS_TIME_METRIC_NAME,
             "Cumulative wall-clock time spent in desired balance computation on this elected master",
             "ms",
             this::getCumulativeComputationTimeMillisMetrics
         );
-        meterRegistry.registerLongsGauge(
+        meterRegistry.registerLongsAsyncCounter(
             RECONCILIATIONS_TIME_METRIC_NAME,
             "Cumulative wall-clock time spent reconciling toward the desired balance on this elected master",
             "ms",

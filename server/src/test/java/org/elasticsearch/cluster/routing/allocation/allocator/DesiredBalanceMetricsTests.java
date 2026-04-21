@@ -129,29 +129,32 @@ public class DesiredBalanceMetricsTests extends ESTestCase {
         );
         assertThat(
             meterRegistry.getRecorder()
-                .getMeasurements(InstrumentType.LONG_GAUGE, DesiredBalanceMetrics.COMPUTATIONS_SUBMITTED_METRIC_NAME),
+                .getMeasurements(InstrumentType.LONG_ASYNC_COUNTER, DesiredBalanceMetrics.COMPUTATIONS_SUBMITTED_METRIC_NAME),
             measures(desiredBalanceStats.computationSubmitted())
         );
         assertThat(
-            meterRegistry.getRecorder().getMeasurements(InstrumentType.LONG_GAUGE, DesiredBalanceMetrics.COMPUTATIONS_EXECUTED_METRIC_NAME),
+            meterRegistry.getRecorder()
+                .getMeasurements(InstrumentType.LONG_ASYNC_COUNTER, DesiredBalanceMetrics.COMPUTATIONS_EXECUTED_METRIC_NAME),
             measures(desiredBalanceStats.computationExecuted())
         );
         assertThat(
             meterRegistry.getRecorder()
-                .getMeasurements(InstrumentType.LONG_GAUGE, DesiredBalanceMetrics.COMPUTATIONS_CONVERGED_METRIC_NAME),
+                .getMeasurements(InstrumentType.LONG_ASYNC_COUNTER, DesiredBalanceMetrics.COMPUTATIONS_CONVERGED_METRIC_NAME),
             measures(desiredBalanceStats.computationConverged())
         );
         assertThat(
             meterRegistry.getRecorder()
-                .getMeasurements(InstrumentType.LONG_GAUGE, DesiredBalanceMetrics.COMPUTATIONS_ITERATIONS_METRIC_NAME),
+                .getMeasurements(InstrumentType.LONG_ASYNC_COUNTER, DesiredBalanceMetrics.COMPUTATIONS_ITERATIONS_METRIC_NAME),
             measures(desiredBalanceStats.computationIterations())
         );
         assertThat(
-            meterRegistry.getRecorder().getMeasurements(InstrumentType.LONG_GAUGE, DesiredBalanceMetrics.COMPUTATIONS_TIME_METRIC_NAME),
+            meterRegistry.getRecorder()
+                .getMeasurements(InstrumentType.LONG_ASYNC_COUNTER, DesiredBalanceMetrics.COMPUTATIONS_TIME_METRIC_NAME),
             measures(desiredBalanceStats.cumulativeComputationTime())
         );
         assertThat(
-            meterRegistry.getRecorder().getMeasurements(InstrumentType.LONG_GAUGE, DesiredBalanceMetrics.RECONCILIATIONS_TIME_METRIC_NAME),
+            meterRegistry.getRecorder()
+                .getMeasurements(InstrumentType.LONG_ASYNC_COUNTER, DesiredBalanceMetrics.RECONCILIATIONS_TIME_METRIC_NAME),
             measures(desiredBalanceStats.cumulativeReconciliationTime())
         );
     }
