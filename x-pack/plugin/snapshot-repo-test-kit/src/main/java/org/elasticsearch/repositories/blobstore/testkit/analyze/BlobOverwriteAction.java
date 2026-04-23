@@ -190,5 +190,10 @@ public class BlobOverwriteAction extends HandledTransportAction<BlobOverwriteAct
         boolean writeSuccess() {
             return writeSuccess;
         }
+
+        @Override
+        public String toString() {
+            return "BlobOverwriteAction$Response{" + "writeSuccess=" + writeSuccess + '}';
+        }
     }
 }

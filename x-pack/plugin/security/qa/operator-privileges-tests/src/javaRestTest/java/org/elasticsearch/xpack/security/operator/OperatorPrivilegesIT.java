@@ -63,6 +63,7 @@ public class OperatorPrivilegesIT extends ESRestTestCase {
         .user("test_admin", "x-pack-test-password", "superuser", false)
         // the user is defined as an operator in the "operator_users.yml" file
         .user("test_operator", "x-pack-test-password", "limited_operator", false)
+        .setting("logger.org.elasticsearch.repositories.blobstore.testkit", "TRACE")
         .build();
 
     @ClassRule

@@ -408,8 +408,26 @@ public class FsBlobContainer extends AbstractBlobContainer {
             if (failIfAlreadyExists && Files.exists(targetBlobPath)) {
                 throw new FileAlreadyExistsException("blob [" + targetBlobPath + "] already exists, cannot overwrite");
             }
+            logger.info(
+                "[{}] atomically moving [{}] to [{}] (failIfAlreadyExists={})",
+                Thread.currentThread().getName(),
+                sourceBlobPath,
+                targetBlobPath,
+                failIfAlreadyExists
+            );
             Files.move(sourceBlobPath, targetBlobPath, StandardCopyOption.ATOMIC_MOVE);
+            logger.info("[{}] atomically moved [{}] to [{}]", Thread.currentThread().getName(), sourceBlobPath, targetBlobPath);
         } catch (IOException e) {
+            logger.info(
+                () -> Strings.format(
+                    "[%s] failed atomically moving [%s] to [%s] (failIfAlreadyExists=%s)",
+                    Thread.currentThread().getName(),
+                    sourceBlobPath,
+                    targetBlobPath,
+                    failIfAlreadyExists
+                ),
+                e
+            );
             // If the target file exists then Files.move() behaviour is implementation specific
             // the existing file might be replaced or this method fails by throwing an IOException so we retry in a non-atomic
             // way by deleting and then writing.
