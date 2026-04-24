@@ -404,9 +404,6 @@ public class FsBlobContainer extends AbstractBlobContainer {
     ) throws IOException {
         final Path sourceBlobPath = path.resolve(sourceBlobName);
         final Path targetBlobPath = path.resolve(targetBlobName);
-        if (failIfAlreadyExists && Files.exists(targetBlobPath)) {
-            throw new FileAlreadyExistsException("blob [" + targetBlobPath + "] already exists, cannot overwrite");
-        }
         try {
             if (failIfAlreadyExists) {
                 Files.createLink(targetBlobPath, sourceBlobPath);
