@@ -404,11 +404,16 @@ public class FsBlobContainer extends AbstractBlobContainer {
     ) throws IOException {
         final Path sourceBlobPath = path.resolve(sourceBlobName);
         final Path targetBlobPath = path.resolve(targetBlobName);
+        if (failIfAlreadyExists && Files.exists(targetBlobPath)) {
+            throw new FileAlreadyExistsException("blob [" + targetBlobPath + "] already exists, cannot overwrite");
+        }
         try {
-            if (failIfAlreadyExists && Files.exists(targetBlobPath)) {
-                throw new FileAlreadyExistsException("blob [" + targetBlobPath + "] already exists, cannot overwrite");
+            if (failIfAlreadyExists) {
+                Files.createLink(targetBlobPath, sourceBlobPath);
+                Files.delete(sourceBlobPath);
+            } else {
+                Files.move(sourceBlobPath, targetBlobPath, StandardCopyOption.ATOMIC_MOVE);
             }
-            Files.move(sourceBlobPath, targetBlobPath, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
             // If the target file exists then Files.move() behaviour is implementation specific
             // the existing file might be replaced or this method fails by throwing an IOException so we retry in a non-atomic
