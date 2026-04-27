@@ -1192,6 +1192,14 @@ public class SettingTests extends ESTestCase {
         assertThat(e, hasToString(containsString("non-index-scoped setting [foo.bar] can not have property [PrivateIndex]")));
     }
 
+    public void testRejectNonIndexScopedServerlessPublicSetting() {
+        final IllegalArgumentException e = expectThrows(
+            IllegalArgumentException.class,
+            () -> Setting.simpleString("foo.bar", Property.ServerlessPublic)
+        );
+        assertThat(e, hasToString(containsString("non-index-scoped setting [foo.bar] can not have property [ServerlessPublic]")));
+    }
+
     public void testTimeValue() {
         final TimeValue random = randomTimeValue();
 
