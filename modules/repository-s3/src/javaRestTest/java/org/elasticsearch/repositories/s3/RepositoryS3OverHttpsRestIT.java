@@ -17,6 +17,7 @@ import fixture.s3.S3HttpHandler;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 import com.sun.net.httpserver.HttpHandler;
 
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.test.cluster.ElasticsearchCluster;
 import org.elasticsearch.test.fixtures.testcontainers.TestContainersThreadFilter;
@@ -60,7 +61,8 @@ public class RepositoryS3OverHttpsRestIT extends AbstractRepositoryS3RestTestCas
         protected HttpHandler createHandler() {
             final var delegate = asInstanceOf(S3HttpHandler.class, super.createHandler());
             return exchange -> {
-                delegate.assertContentSha256Header(exchange, equalTo("UNSIGNED-PAYLOAD"));
+                delegate.assertContentSha256Header(exchange, equalTo("STREAMING-UNSIGNED-PAYLOAD-TRAILER"));
+                delegate.assertCrc64NvmeChecksumHeader(exchange);
                 delegate.handle(exchange);
             };
         }
@@ -72,7 +74,6 @@ public class RepositoryS3OverHttpsRestIT extends AbstractRepositoryS3RestTestCas
         .keystore("s3.client." + CLIENT + ".access_key", ACCESS_KEY)
         .keystore("s3.client." + CLIENT + ".secret_key", SECRET_KEY)
         .setting("s3.client." + CLIENT + ".endpoint", s3Fixture::getAddress)
-        .setting("s3.client." + CLIENT + ".disable_chunked_encoding", () -> randomFrom("true", "false"), ignored -> randomBoolean())
         .setting("s3.client." + CLIENT + ".path_style_access", "true")
         .apply(builder -> trustStore.apply(builder, true))
         .build();
@@ -98,5 +99,10 @@ public class RepositoryS3OverHttpsRestIT extends AbstractRepositoryS3RestTestCas
     @Override
     protected String getClientName() {
         return CLIENT;
+    }
+
+    @Override
+    protected Settings extraRepositorySettings() {
+        return Settings.builder().putNull("disable_chunked_encoding").build();
     }
 }

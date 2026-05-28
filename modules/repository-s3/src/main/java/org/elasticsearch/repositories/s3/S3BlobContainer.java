@@ -15,6 +15,7 @@ import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
@@ -279,6 +280,7 @@ class S3BlobContainer extends AbstractBlobContainer {
         uploadPartRequestBuilder.partNumber(number);
         uploadPartRequestBuilder.contentLength(size);
         uploadPartRequestBuilder.sdkPartType(lastPart ? SdkPartType.LAST : SdkPartType.DEFAULT);
+        uploadPartRequestBuilder.checksumAlgorithm(ChecksumAlgorithm.CRC64_NVME);
         S3BlobStore.configureRequestForMetrics(uploadPartRequestBuilder, blobStore, Operation.PUT_MULTIPART_OBJECT, purpose);
         return uploadPartRequestBuilder.build();
     }
@@ -573,7 +575,8 @@ class S3BlobContainer extends AbstractBlobContainer {
             .key(blobName)
             .contentLength(contentLength)
             .storageClass(s3BlobStore.resolveStorageClass(purpose))
-            .acl(s3BlobStore.getCannedACL());
+            .acl(s3BlobStore.getCannedACL())
+            .checksumAlgorithm(ChecksumAlgorithm.CRC64_NVME);
         if (s3BlobStore.serverSideEncryption()) {
             putRequestBuilder.serverSideEncryption(ServerSideEncryption.AES256);
         }
@@ -1049,6 +1052,7 @@ class S3BlobContainer extends AbstractBlobContainer {
             uploadPartRequestBuilder.uploadId(uploadId);
             uploadPartRequestBuilder.partNumber(1);
             uploadPartRequestBuilder.sdkPartType(SdkPartType.LAST);
+            uploadPartRequestBuilder.checksumAlgorithm(ChecksumAlgorithm.CRC64_NVME);
             S3BlobStore.configureRequestForMetrics(uploadPartRequestBuilder, blobStore, Operation.PUT_MULTIPART_OBJECT, purpose);
             return client.uploadPart(uploadPartRequestBuilder.build(), RequestBody.fromInputStream(updated.streamInput(), updated.length()))
                 .eTag();

@@ -64,6 +64,7 @@ import static org.hamcrest.Matchers.matchesPattern;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.w3c.dom.Node.ELEMENT_NODE;
 
 /**
@@ -75,6 +76,8 @@ public class S3HttpHandler implements HttpHandler {
     private static final Logger logger = LogManager.getLogger(S3HttpHandler.class);
     public static final String STORAGE_CLASS_HEADER = "X-amz-storage-class";
     public static final String CONTENT_SHA256_HEADER = "X-amz-content-sha256";
+    public static final String CHECKSUM_CRC64NVME_HEADER = "x-amz-checksum-crc64nvme";
+    public static final String TRAILER_HEADER = "x-amz-trailer";
     public static final String COPY_SOURCE_HEADER = "X-amz-copy-source";
     public static final Pattern SHA256_PATTERN = Pattern.compile("^[0-9a-f]{64}$");
 
@@ -657,6 +660,7 @@ public class S3HttpHandler implements HttpHandler {
                     + "]"
             );
         }
+
         return decodedRequestBody;
     }
 
@@ -829,18 +833,37 @@ public class S3HttpHandler implements HttpHandler {
     }
 
     /**
+     * Assert that if the exchange is a {@code PutObject} or {@code UploadPart} request then the request includes a CRC64NVME checksum, sent
+     * either as {@code x-amz-checksum-crc64nvme} or {@code x-amz-trailer}.
+     */
+    public void assertCrc64NvmeChecksumHeader(HttpExchange exchange) {
+        if (requestBodyIsObjectContents(exchange)) {
+            final var requestHeaders = exchange.getRequestHeaders();
+            assertTrue(
+                requestHeaders.toString(),
+                Strings.hasText(requestHeaders.getFirst(CHECKSUM_CRC64NVME_HEADER))
+                    || List.of(CHECKSUM_CRC64NVME_HEADER).equals(requestHeaders.get(TRAILER_HEADER))
+            );
+        }
+    }
+
+    /**
      * Assert that if the exchange is a {@code PutObject} or {@code UploadPart} request then {@code X-amz-content-sha256} header is present
      * and either contains a full SHA256 hash or another value matching the provided {@link org.hamcrest.Matcher}.
      */
     public void assertContentSha256Header(HttpExchange exchange, org.hamcrest.Matcher<String> otherPermittedValues) {
-        final var request = parseRequest(exchange);
-        if ((request.isUploadPartRequest() || request.isPutObjectRequest())
-            && Optional.ofNullable(exchange.getRequestHeaders().get(S3HttpHandler.COPY_SOURCE_HEADER)).orElse(List.of()).isEmpty()) {
+        if (requestBodyIsObjectContents(exchange)) {
             assertThat(
                 exchange.getRequestHeaders().getFirst(S3HttpHandler.CONTENT_SHA256_HEADER),
                 anyOf(matchesPattern(S3HttpHandler.SHA256_PATTERN), otherPermittedValues)
             );
         }
+    }
+
+    private boolean requestBodyIsObjectContents(HttpExchange exchange) {
+        final var request = parseRequest(exchange);
+        return (request.isUploadPartRequest() || request.isPutObjectRequest())
+            && Optional.ofNullable(exchange.getRequestHeaders().get(S3HttpHandler.COPY_SOURCE_HEADER)).orElse(List.of()).isEmpty();
     }
 
     public S3Request parseRequest(HttpExchange exchange) {
