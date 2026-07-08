@@ -136,13 +136,15 @@ public class TransportGetAction extends TransportSingleShardAction<GetRequest, G
         var refreshStats = indexShard.refreshStats();
         var seqNoStats = indexShard.seqNoStats();
         logger.info(
-            "realtime-refresh-probe get async shard={} id={} realtime={} refresh={} promotable={} searchIdle={} searchIdleTime={}ms "
-                + "hasRefreshPending={} refreshTotal={} refreshExternalTotal={} refreshListeners={} maxSeqNo={} localCheckpoint={} "
-                + "globalCheckpoint={}",
+            "realtime-refresh-probe get async shard={} routing=[{}] id={} realtime={} refresh={} primary={} promotable={} "
+                + "searchIdle={} searchIdleTime={}ms hasRefreshPending={} refreshTotal={} refreshExternalTotal={} refreshListeners={} "
+                + "maxSeqNo={} localCheckpoint={} globalCheckpoint={}",
             shardId,
+            indexShard.routingEntry(),
             request.id(),
             request.realtime(),
             request.refresh(),
+            indexShard.routingEntry().primary(),
             indexShard.routingEntry().isPromotableToPrimary(),
             indexShard.isSearchIdle(),
             indexShard.searchIdleTime(),
