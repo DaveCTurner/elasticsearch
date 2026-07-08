@@ -2170,20 +2170,18 @@ public class InternalEngine extends Engine {
                 + localCheckpointBeforeRefresh
                 + " refresh_checkpoint="
                 + lastRefreshedCheckpoint();
-        if (shouldLogRealtimeRefreshProbe()) {
-            logger.info(
-                "realtime-refresh-probe engine refresh shard={} source={} scope={} block={} refreshed={} localCheckpointBeforeRefresh={} "
-                    + "lastRefreshedCheckpoint={} generation={}",
-                shardId,
-                source,
-                scope,
-                block,
-                refreshed,
-                localCheckpointBeforeRefresh,
-                lastRefreshedCheckpoint(),
-                segmentGeneration
-            );
-        }
+        logger.info(
+            "realtime-refresh-probe engine refresh shard={} source={} scope={} block={} refreshed={} localCheckpointBeforeRefresh={} "
+                + "lastRefreshedCheckpoint={} generation={}",
+            shardId,
+            source,
+            scope,
+            block,
+            refreshed,
+            localCheckpointBeforeRefresh,
+            lastRefreshedCheckpoint(),
+            segmentGeneration
+        );
         // TODO: maybe we should just put a scheduled job in threadPool?
         // We check for pruning in each delete request, but we also prune here e.g. in case a delete burst comes in and then no more deletes
         // for a long time:
@@ -2191,10 +2189,6 @@ public class InternalEngine extends Engine {
         mergeScheduler.refreshConfig();
         long primaryTerm = config().getPrimaryTermSupplier().getAsLong();
         return new RefreshResult(refreshed, primaryTerm, segmentGeneration);
-    }
-
-    private boolean shouldLogRealtimeRefreshProbe() {
-        return "test_1".equals(shardId.getIndexName());
     }
 
     private long segmentGenerationAfterRefresh(

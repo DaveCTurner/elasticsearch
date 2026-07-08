@@ -154,17 +154,14 @@ public final class ShardGetService extends AbstractIndexShardComponent {
                 .versionType(versionType)
                 .setIfSeqNo(ifSeqNo)
                 .setIfPrimaryTerm(ifPrimaryTerm);
-            final boolean logRealtimeRefreshProbe = shouldLogRealtimeRefreshProbe(id);
-            if (logRealtimeRefreshProbe) {
-                logger.info(
-                    "realtime-refresh-probe shard-get id={} realtime={} readFromTranslog={} version={} versionType={}",
-                    id,
-                    engineGet.realtime(),
-                    engineGet.isReadFromTranslog(),
-                    version,
-                    versionType
-                );
-            }
+            logger.info(
+                "realtime-refresh-probe shard-get id={} realtime={} readFromTranslog={} version={} versionType={}",
+                id,
+                engineGet.realtime(),
+                engineGet.isReadFromTranslog(),
+                version,
+                versionType
+            );
 
             final GetResult getResult;
             try (Engine.GetResult get = engineGetOperator.apply(engineGet)) {
@@ -198,24 +195,18 @@ public final class ShardGetService extends AbstractIndexShardComponent {
             } else {
                 missingMetric.inc(System.nanoTime() - now);
             }
-            if (logRealtimeRefreshProbe) {
-                logger.info(
-                    "realtime-refresh-probe shard-get result id={} exists={} seqNo={} primaryTerm={} version={}",
-                    id,
-                    getResult != null && getResult.isExists(),
-                    getResult == null ? UNASSIGNED_SEQ_NO : getResult.getSeqNo(),
-                    getResult == null ? UNASSIGNED_PRIMARY_TERM : getResult.getPrimaryTerm(),
-                    getResult == null ? -1 : getResult.getVersion()
-                );
-            }
+            logger.info(
+                "realtime-refresh-probe shard-get result id={} exists={} seqNo={} primaryTerm={} version={}",
+                id,
+                getResult != null && getResult.isExists(),
+                getResult == null ? UNASSIGNED_SEQ_NO : getResult.getSeqNo(),
+                getResult == null ? UNASSIGNED_PRIMARY_TERM : getResult.getPrimaryTerm(),
+                getResult == null ? -1 : getResult.getVersion()
+            );
             return getResult;
         } finally {
             currentMetric.dec();
         }
-    }
-
-    private boolean shouldLogRealtimeRefreshProbe(String id) {
-        return "test_1".equals(shardId.getIndexName()) && "1".equals(id);
     }
 
     public GetResult getFromTranslog(

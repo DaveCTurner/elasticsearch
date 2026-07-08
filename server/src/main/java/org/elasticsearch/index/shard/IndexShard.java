@@ -4532,44 +4532,40 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     public final void ensureShardSearchActive(Consumer<Boolean> listener) {
         markSearcherAccessed(); // move the shard into non-search idle
         final Translog.Location location = pendingRefreshLocation.get();
-        if (shouldLogRealtimeRefreshProbe()) {
-            var refreshStats = refreshStats();
-            var seqNoStats = seqNoStats();
-            logger.info(
-                "realtime-refresh-probe ensureShardSearchActive shard={} pendingLocation={} searchIdle={} searchIdleTime={}ms "
-                    + "explicitRefreshSetting={} refreshInterval={} refreshTotal={} refreshExternalTotal={} refreshListeners={} maxSeqNo={} "
-                    + "localCheckpoint={} globalCheckpoint={}",
-                shardId,
-                location,
-                isSearchIdle(),
-                searchIdleTime(),
-                indexSettings.isExplicitRefresh(),
-                indexSettings.getRefreshInterval(),
-                refreshStats.getTotal(),
-                refreshStats.getExternalTotal(),
-                refreshStats.getListeners(),
-                seqNoStats.getMaxSeqNo(),
-                seqNoStats.getLocalCheckpoint(),
-                seqNoStats.getGlobalCheckpoint()
-            );
-        }
+        var refreshStats = refreshStats();
+        var seqNoStats = seqNoStats();
+        logger.info(
+            "realtime-refresh-probe ensureShardSearchActive shard={} pendingLocation={} searchIdle={} searchIdleTime={}ms "
+                + "explicitRefreshSetting={} refreshInterval={} refreshTotal={} refreshExternalTotal={} refreshListeners={} maxSeqNo={} "
+                + "localCheckpoint={} globalCheckpoint={}",
+            shardId,
+            location,
+            isSearchIdle(),
+            searchIdleTime(),
+            indexSettings.isExplicitRefresh(),
+            indexSettings.getRefreshInterval(),
+            refreshStats.getTotal(),
+            refreshStats.getExternalTotal(),
+            refreshStats.getListeners(),
+            seqNoStats.getMaxSeqNo(),
+            seqNoStats.getLocalCheckpoint(),
+            seqNoStats.getGlobalCheckpoint()
+        );
         if (location != null) {
             addRefreshListener(location, (result) -> {
                 pendingRefreshLocation.compareAndSet(location, null);
-                if (shouldLogRealtimeRefreshProbe()) {
-                    var refreshStats = refreshStats();
-                    logger.info(
-                        "realtime-refresh-probe ensureShardSearchActive listener-complete shard={} pendingLocation={} forcedRefresh={} "
-                            + "hasRefreshPending={} refreshTotal={} refreshExternalTotal={} refreshListeners={}",
-                        shardId,
-                        location,
-                        result,
-                        hasRefreshPending(),
-                        refreshStats.getTotal(),
-                        refreshStats.getExternalTotal(),
-                        refreshStats.getListeners()
-                    );
-                }
+                var statsAfterRefreshListener = refreshStats();
+                logger.info(
+                    "realtime-refresh-probe ensureShardSearchActive listener-complete shard={} pendingLocation={} forcedRefresh={} "
+                        + "hasRefreshPending={} refreshTotal={} refreshExternalTotal={} refreshListeners={}",
+                    shardId,
+                    location,
+                    result,
+                    hasRefreshPending(),
+                    statsAfterRefreshListener.getTotal(),
+                    statsAfterRefreshListener.getExternalTotal(),
+                    statsAfterRefreshListener.getListeners()
+                );
                 listener.accept(true);
             });
             // trigger a refresh to avoid waiting for scheduledRefresh(...) to be invoked from index level refresh scheduler.
@@ -4580,13 +4576,11 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 // a refresh can be a costly operation, so we should fork to a refresh thread to be safe:
                 threadPool.executor(ThreadPool.Names.REFRESH).execute(() -> {
                     if (location == pendingRefreshLocation.get()) {
-                        if (shouldLogRealtimeRefreshProbe()) {
-                            logger.info(
-                                "realtime-refresh-probe ensureShardSearchActive maybeRefresh shard={} pendingLocation={}",
-                                shardId,
-                                location
-                            );
-                        }
+                        logger.info(
+                            "realtime-refresh-probe ensureShardSearchActive maybeRefresh shard={} pendingLocation={}",
+                            shardId,
+                            location
+                        );
                         getEngine().maybeRefresh("ensure-shard-search-active", new PlainActionFuture<>());
                     }
                 });
@@ -4594,10 +4588,6 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         } else {
             listener.accept(false);
         }
-    }
-
-    private boolean shouldLogRealtimeRefreshProbe() {
-        return "test_1".equals(shardId.getIndexName());
     }
 
     /**

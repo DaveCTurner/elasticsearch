@@ -950,49 +950,41 @@ public abstract class Engine implements Closeable {
         }
 
         if (docIdAndVersion != null) {
-            if (shouldLogRealtimeRefreshProbe(get)) {
-                logger.info(
-                    "realtime-refresh-probe engine getFromSearcher FOUND shard={} id={} realtime={} readFromTranslog={} searcherSource={} "
-                        + "uncachedLookup={} docId={} seqNo={} primaryTerm={} version={} readerMaxDoc={} readerNumDocs={}",
-                    shardId,
-                    get.id(),
-                    get.realtime(),
-                    get.isReadFromTranslog(),
-                    searcher.source(),
-                    uncachedLookup,
-                    docIdAndVersion.docId,
-                    docIdAndVersion.seqNo,
-                    docIdAndVersion.primaryTerm,
-                    docIdAndVersion.version,
-                    searcher.getIndexReader().maxDoc(),
-                    searcher.getIndexReader().numDocs()
-                );
-            }
+            logger.info(
+                "realtime-refresh-probe engine getFromSearcher FOUND shard={} id={} realtime={} readFromTranslog={} searcherSource={} "
+                    + "uncachedLookup={} docId={} seqNo={} primaryTerm={} version={} readerMaxDoc={} readerNumDocs={}",
+                shardId,
+                get.id(),
+                get.realtime(),
+                get.isReadFromTranslog(),
+                searcher.source(),
+                uncachedLookup,
+                docIdAndVersion.docId,
+                docIdAndVersion.seqNo,
+                docIdAndVersion.primaryTerm,
+                docIdAndVersion.version,
+                searcher.getIndexReader().maxDoc(),
+                searcher.getIndexReader().numDocs()
+            );
             // don't release the searcher on this path, it is the
             // responsibility of the caller to call GetResult.release
             return new GetResult(searcher, docIdAndVersion);
         } else {
-            if (shouldLogRealtimeRefreshProbe(get)) {
-                logger.info(
-                    "realtime-refresh-probe engine getFromSearcher NOT_FOUND shard={} id={} realtime={} readFromTranslog={} searcherSource={} "
-                        + "uncachedLookup={} readerMaxDoc={} readerNumDocs={}",
-                    shardId,
-                    get.id(),
-                    get.realtime(),
-                    get.isReadFromTranslog(),
-                    searcher.source(),
-                    uncachedLookup,
-                    searcher.getIndexReader().maxDoc(),
-                    searcher.getIndexReader().numDocs()
-                );
-            }
+            logger.info(
+                "realtime-refresh-probe engine getFromSearcher NOT_FOUND shard={} id={} realtime={} readFromTranslog={} searcherSource={} "
+                    + "uncachedLookup={} readerMaxDoc={} readerNumDocs={}",
+                shardId,
+                get.id(),
+                get.realtime(),
+                get.isReadFromTranslog(),
+                searcher.source(),
+                uncachedLookup,
+                searcher.getIndexReader().maxDoc(),
+                searcher.getIndexReader().numDocs()
+            );
             Releasables.close(searcher);
             return GetResult.NOT_EXISTS;
         }
-    }
-
-    private boolean shouldLogRealtimeRefreshProbe(Get get) {
-        return "test_1".equals(shardId.getIndexName()) && "1".equals(get.id());
     }
 
     /**

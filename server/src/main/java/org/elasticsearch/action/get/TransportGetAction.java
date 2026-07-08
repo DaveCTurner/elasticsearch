@@ -133,47 +133,43 @@ public class TransportGetAction extends TransportSingleShardAction<GetRequest, G
         }
         assert DiscoveryNode.isStateless(clusterService.getSettings()) == false
             : "in Stateless a promotable to primary shard should not receive a TransportGetAction";
-        if (shouldLogRealtimeRefreshProbe(request)) {
-            var refreshStats = indexShard.refreshStats();
-            var seqNoStats = indexShard.seqNoStats();
-            logger.info(
-                "realtime-refresh-probe get async shard={} id={} realtime={} refresh={} promotable={} searchIdle={} searchIdleTime={}ms "
-                    + "hasRefreshPending={} refreshTotal={} refreshExternalTotal={} refreshListeners={} maxSeqNo={} localCheckpoint={} "
-                    + "globalCheckpoint={}",
-                shardId,
-                request.id(),
-                request.realtime(),
-                request.refresh(),
-                indexShard.routingEntry().isPromotableToPrimary(),
-                indexShard.isSearchIdle(),
-                indexShard.searchIdleTime(),
-                indexShard.hasRefreshPending(),
-                refreshStats.getTotal(),
-                refreshStats.getExternalTotal(),
-                refreshStats.getListeners(),
-                seqNoStats.getMaxSeqNo(),
-                seqNoStats.getLocalCheckpoint(),
-                seqNoStats.getGlobalCheckpoint()
-            );
-        }
+        var refreshStats = indexShard.refreshStats();
+        var seqNoStats = indexShard.seqNoStats();
+        logger.info(
+            "realtime-refresh-probe get async shard={} id={} realtime={} refresh={} promotable={} searchIdle={} searchIdleTime={}ms "
+                + "hasRefreshPending={} refreshTotal={} refreshExternalTotal={} refreshListeners={} maxSeqNo={} localCheckpoint={} "
+                + "globalCheckpoint={}",
+            shardId,
+            request.id(),
+            request.realtime(),
+            request.refresh(),
+            indexShard.routingEntry().isPromotableToPrimary(),
+            indexShard.isSearchIdle(),
+            indexShard.searchIdleTime(),
+            indexShard.hasRefreshPending(),
+            refreshStats.getTotal(),
+            refreshStats.getExternalTotal(),
+            refreshStats.getListeners(),
+            seqNoStats.getMaxSeqNo(),
+            seqNoStats.getLocalCheckpoint(),
+            seqNoStats.getGlobalCheckpoint()
+        );
         if (request.realtime()) { // we are not tied to a refresh cycle here anyway
             asyncGet(request, shardId, listener);
         } else {
             indexShard.ensureShardSearchActive(b -> {
-                if (shouldLogRealtimeRefreshProbe(request)) {
-                    var refreshStats = indexShard.refreshStats();
-                    logger.info(
-                        "realtime-refresh-probe get after ensureShardSearchActive shard={} id={} registeredRefreshListener={} "
-                            + "hasRefreshPending={} refreshTotal={} refreshExternalTotal={} refreshListeners={}",
-                        shardId,
-                        request.id(),
-                        b,
-                        indexShard.hasRefreshPending(),
-                        refreshStats.getTotal(),
-                        refreshStats.getExternalTotal(),
-                        refreshStats.getListeners()
-                    );
-                }
+                var statsAfterEnsure = indexShard.refreshStats();
+                logger.info(
+                    "realtime-refresh-probe get after ensureShardSearchActive shard={} id={} registeredRefreshListener={} "
+                        + "hasRefreshPending={} refreshTotal={} refreshExternalTotal={} refreshListeners={}",
+                    shardId,
+                    request.id(),
+                    b,
+                    indexShard.hasRefreshPending(),
+                    statsAfterEnsure.getTotal(),
+                    statsAfterEnsure.getExternalTotal(),
+                    statsAfterEnsure.getListeners()
+                );
                 try {
                     asyncGet(request, shardId, listener);
                 } catch (Exception ex) {
@@ -216,9 +212,7 @@ public class TransportGetAction extends TransportSingleShardAction<GetRequest, G
 
     private void asyncGet(GetRequest request, ShardId shardId, ActionListener<GetResponse> listener) throws IOException {
         if (request.refresh() && request.realtime() == false) {
-            if (shouldLogRealtimeRefreshProbe(request)) {
-                logger.info("realtime-refresh-probe get explicit refresh shard={} id={}", shardId, request.id());
-            }
+            logger.info("realtime-refresh-probe get explicit refresh shard={} id={}", shardId, request.id());
             getExecutor(shardId).execute(ActionRunnable.wrap(listener, l -> {
                 var indexShard = getIndexShard(shardId);
                 indexShard.externalRefresh("refresh_flag_get", l.map(r -> shardOperation(request, shardId)));
@@ -226,10 +220,6 @@ public class TransportGetAction extends TransportSingleShardAction<GetRequest, G
         } else {
             super.asyncShardOperation(request, shardId, listener);
         }
-    }
-
-    private static boolean shouldLogRealtimeRefreshProbe(GetRequest request) {
-        return "test_1".equals(request.index()) && "1".equals(request.id());
     }
 
     private void handleGetOnUnpromotableShard(GetRequest request, IndexShard indexShard, ActionListener<GetResponse> listener)
