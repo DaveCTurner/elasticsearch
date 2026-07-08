@@ -580,6 +580,15 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                     || replicationTracker.isPrimaryMode()
                     : "a primary relocation is completed by the master, but primary mode is not active " + currentRouting;
 
+                logger.info(
+                    "realtime-refresh-probe local-shard-starting shard={} currentRouting=[{}] newRouting=[{}] state={} "
+                        + "applyingClusterStateVersion={}",
+                    shardId,
+                    currentRouting,
+                    newRouting,
+                    state,
+                    applyingClusterStateVersion
+                );
                 changeState(IndexShardState.STARTED, "global state is [" + newRouting.state() + "]");
                 long relativeTimeInNanos = getRelativeTimeInNanos();
                 // We use -1 to indicate that startedRelativeTimeInNanos has yet not been set to its true value. So in the vanishingly
@@ -614,6 +623,17 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 throw new IllegalIndexShardStateException(shardId, state, "master processed stale shard-started event, failing shard");
             }
 
+            if (newRouting.equals(currentRouting) == false) {
+                logger.info(
+                    "realtime-refresh-probe local-routing-change shard={} currentRouting=[{}] newRouting=[{}] state={} "
+                        + "applyingClusterStateVersion={}",
+                    shardId,
+                    currentRouting,
+                    newRouting,
+                    state,
+                    applyingClusterStateVersion
+                );
+            }
             persistMetadata(path, indexSettings, newRouting, currentRouting, logger);
             final CountDownLatch shardStateUpdated = new CountDownLatch(1);
 
@@ -816,6 +836,13 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         final ActionListener<Void> listener
     ) throws IllegalIndexShardStateException, IllegalStateException {
         assert shardRouting.primary() : "only primaries can be marked as relocated: " + shardRouting;
+        logger.info(
+            "realtime-refresh-probe primary-relocation-handoff-start shard={} routing=[{}] targetNode={} targetAllocation={}",
+            shardId,
+            shardRouting,
+            targetNodeId,
+            targetAllocationId
+        );
         try (Releasable forceRefreshes = refreshListeners.forceRefreshes()) {
             blockOperations(new ActionListener<>() {
                 @Override
@@ -1920,6 +1947,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
 
     public void postRecovery(String reason, ActionListener<Void> listener) throws IndexShardStartedException, IndexShardRelocatedException,
         IndexShardClosedException {
+        logger.info("realtime-refresh-probe postRecovery-start shard={} routing=[{}] state={} reason={}", shardId, shardRouting, state, reason);
         assert postRecoveryComplete == null;
         SubscribableListener<Void> subscribableListener = new SubscribableListener<>();
         postRecoveryComplete = subscribableListener;
@@ -1959,6 +1987,13 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                     if (state == IndexShardState.STARTED) {
                         throw new IndexShardStartedException(shardId);
                     }
+                    logger.info(
+                        "realtime-refresh-probe postRecovery-complete shard={} routing=[{}] state={} reason={}",
+                        shardId,
+                        shardRouting,
+                        state,
+                        reason
+                    );
                     changeState(IndexShardState.POST_RECOVERY, reason);
                 }
             }).addListener(finalListener);
@@ -2460,6 +2495,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      * note that you should still call {@link #postRecovery(String, ActionListener)}.
      */
     public void finalizeRecovery() {
+        logger.info("realtime-refresh-probe finalizeRecovery shard={} routing=[{}] state={}", shardId, shardRouting, state);
         recoveryState().setStage(RecoveryState.Stage.FINALIZE);
         Engine engine = getEngine();
         engine.refresh("recovery_finalization");
@@ -3627,6 +3663,16 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         IndicesService indicesService,
         long clusterStateVersion
     ) {
+        logger.info(
+            "realtime-refresh-probe startRecovery shard={} routing=[{}] recoverySource={} sourceNode={} targetNode={} "
+                + "clusterStateVersion={}",
+            shardId,
+            shardRouting,
+            recoveryState.getRecoverySource().getType(),
+            recoveryState.getSourceNode(),
+            recoveryState.getTargetNode(),
+            clusterStateVersion
+        );
         // TODO: Create a proper object to encapsulate the recovery context
         // all of the current methods here follow a pattern of:
         // resolve context which isn't really dependent on the local shards and then async

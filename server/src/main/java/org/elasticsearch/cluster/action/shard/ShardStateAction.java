@@ -573,6 +573,13 @@ public class ShardStateAction {
         final ActionListener<Void> listener,
         final ClusterState currentState
     ) {
+        logger.info(
+            "realtime-refresh-probe shard-started-notify shard=[{}] primaryTerm={} message={} masterNode={}",
+            shardRouting,
+            primaryTerm,
+            message,
+            currentState.nodes().getMasterNode()
+        );
         remoteShardStateUpdateDeduplicator.executeOnce(
             new StartedShardEntry(
                 shardRouting.shardId(),

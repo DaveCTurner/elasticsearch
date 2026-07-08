@@ -21,6 +21,13 @@ public class ShardChangesObserver implements RoutingChangesObserver {
 
     @Override
     public void shardInitialized(ShardRouting unassignedShard, ShardRouting initializedShard) {
+        logger.info(
+            "realtime-refresh-probe shard-initialized initializing=[{}] fromUnassigned=[{}] recoverySource={} node={}",
+            initializedShard,
+            unassignedShard,
+            initializedShard.recoverySource().getType(),
+            initializedShard.currentNodeId()
+        );
         logger.trace(
             "{} initializing from {} on node [{}]",
             shardIdentifier(initializedShard),
@@ -31,6 +38,13 @@ public class ShardChangesObserver implements RoutingChangesObserver {
 
     @Override
     public void shardStarted(ShardRouting initializingShard, ShardRouting startedShard) {
+        logger.info(
+            "realtime-refresh-probe shard-started initializing=[{}] started=[{}] recoverySource={} node={}",
+            initializingShard,
+            startedShard,
+            initializingShard.recoverySource().getType(),
+            startedShard.currentNodeId()
+        );
         logger.debug(
             "{} started from {} on node [{}]",
             shardIdentifier(startedShard),
@@ -41,6 +55,12 @@ public class ShardChangesObserver implements RoutingChangesObserver {
 
     @Override
     public void relocationStarted(ShardRouting startedShard, ShardRouting targetRelocatingShard, String reason) {
+        logger.info(
+            "realtime-refresh-probe relocation-started source=[{}] target=[{}] reason={}",
+            startedShard,
+            targetRelocatingShard,
+            reason
+        );
         logger.debug(
             "{} is relocating ({}) from [{}] to [{}]",
             shardIdentifier(startedShard),
@@ -52,11 +72,13 @@ public class ShardChangesObserver implements RoutingChangesObserver {
 
     @Override
     public void shardFailed(ShardRouting failedShard, UnassignedInfo unassignedInfo) {
+        logger.info("realtime-refresh-probe shard-failed shard=[{}] unassignedInfo=[{}]", failedShard, unassignedInfo);
         logger.debug("{} has failed on [{}]: {}", shardIdentifier(failedShard), failedShard.currentNodeId(), unassignedInfo.reason());
     }
 
     @Override
     public void replicaPromoted(ShardRouting replicaShard) {
+        logger.info("realtime-refresh-probe replica-promoted shard=[{}]", replicaShard);
         logger.debug("{} is promoted to primary on [{}]", shardIdentifier(replicaShard), replicaShard.currentNodeId());
     }
 
