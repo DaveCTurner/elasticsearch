@@ -83,7 +83,6 @@ import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xpack.stateless.cache.SearchCommitPrefetcherDynamicSettings;
 import org.elasticsearch.xpack.stateless.cache.SharedBlobCacheWarmingService;
-import org.elasticsearch.xpack.stateless.cache.SharedBlobCacheWarmingService.WarmTarget;
 import org.elasticsearch.xpack.stateless.cache.StatelessSharedBlobCacheService;
 import org.elasticsearch.xpack.stateless.cache.WarmingRatioProvider;
 import org.elasticsearch.xpack.stateless.cluster.coordination.StatelessElectionStrategy;
@@ -925,7 +924,7 @@ public abstract class AbstractStatelessPluginIntegTestCase extends ESIntegTestCa
             }
             bulkRequest.add(indexRequest.setSource(source));
         }
-        var bulkResponse = bulkRequestOperator.apply(bulkRequest).get();
+        var bulkResponse = safeGet(bulkRequestOperator.apply(bulkRequest).execute());
         if (assertNoFailures) {
             assertNoFailures(bulkResponse);
         }
