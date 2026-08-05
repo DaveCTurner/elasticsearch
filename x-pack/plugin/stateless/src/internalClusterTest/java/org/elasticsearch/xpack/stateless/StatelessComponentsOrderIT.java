@@ -57,7 +57,7 @@ public class StatelessComponentsOrderIT extends AbstractStatelessPluginIntegTest
         final var indexShard = findIndexShard(indexName);
 
         logger.info("--> indexing and flush docs to trigger background merge");
-        for (int i = 0; i < 11; i++) {
+        for (int i = 0; i < 20; i++) {
             indexDocs(indexName, 10);
             flush(indexName);
         }
