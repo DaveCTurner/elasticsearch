@@ -1,0 +1,5 @@
+area: Cluster Coordination
+issues: []
+pr: 157001
+summary: Add link to docs from `LagDetector` warning
+type: enhancement
