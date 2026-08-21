@@ -40,6 +40,7 @@ import org.elasticsearch.indices.recovery.ThrottlingRecoveryService;
 import org.elasticsearch.plugins.EnginePlugin;
 import org.elasticsearch.plugins.IndexStorePlugin;
 import org.elasticsearch.plugins.PluginsService;
+import org.elasticsearch.plugins.RecoveryFailureStrategySelectorPlugin;
 import org.elasticsearch.plugins.internal.InternalSearchPlugin;
 import org.elasticsearch.plugins.internal.rewriter.QueryRewriteInterceptor;
 import org.elasticsearch.script.ScriptService;
@@ -287,7 +288,10 @@ public class IndicesServiceBuilder {
             .flatMap(m -> m.entrySet().stream())
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-        failureStrategySelector = FailureStrategySelector.DEFAULT;
+        failureStrategySelector = pluginsService.filterPlugins(RecoveryFailureStrategySelectorPlugin.class)
+            .findFirst()
+            .orElse(() -> FailureStrategySelector.DEFAULT)
+            .createFailureStrategySelector();
 
         var queryRewriteInterceptors = pluginsService.filterPlugins(InternalSearchPlugin.class)
             .map(InternalSearchPlugin::getQueryRewriteInterceptors)
