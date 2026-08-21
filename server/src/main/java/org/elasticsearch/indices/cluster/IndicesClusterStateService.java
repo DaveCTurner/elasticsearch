@@ -1446,6 +1446,11 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         IndexSettings getIndexSettings();
 
         /**
+         * Returns the {@link IndexEventListener} for this index
+         */
+        IndexEventListener getIndexEventListener();
+
+        /**
          * Updates the metadata of this index. Changes become visible through {@link #getIndexSettings()}.
          *
          * @param currentIndexMetadata the current index metadata
