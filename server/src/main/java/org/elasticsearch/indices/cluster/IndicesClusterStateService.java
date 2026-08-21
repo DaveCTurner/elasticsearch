@@ -933,11 +933,20 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
     ) {
         try {
             logger.debug("{} creating shard with primary term [{}], iteration [{}]", shardRouting.shardId(), primaryTerm, iteration);
+            AllocatedIndex<? extends Shard> allocatedIndex = indicesService.indexService(shardRouting.index());
+            assert allocatedIndex != null;
+            IndexEventListener eventListener = allocatedIndex.getIndexEventListener();
+            ShardRecoveryListener recoveryListener = new ShardRecoveryListener(
+                shardRouting,
+                primaryTerm,
+                originalState.version(),
+                eventListener
+            );
             indicesService.createShard(
                 originalState.metadata().projectFor(shardRouting.index()).id(),
                 shardRouting,
                 recoveryTargetService,
-                new ShardRecoveryListener(shardRouting, primaryTerm, originalState.version()),
+                recoveryListener,
                 repositoriesService,
                 failedShardHandler,
                 this::updateGlobalCheckpointForShard,
@@ -1207,11 +1216,18 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
          * The cluster state version under which this shard creation started.
          */
         private final long creationClusterStateVersion;
+        private final IndexEventListener eventListener;
 
-        private ShardRecoveryListener(final ShardRouting shardRouting, final long primaryTerm, final long creationClusterStateVersion) {
+        private ShardRecoveryListener(
+            final ShardRouting shardRouting,
+            final long primaryTerm,
+            final long creationClusterStateVersion,
+            IndexEventListener eventListener
+        ) {
             this.shardRouting = shardRouting;
             this.primaryTerm = primaryTerm;
             this.creationClusterStateVersion = creationClusterStateVersion;
+            this.eventListener = eventListener;
         }
 
         @Override
@@ -1239,7 +1255,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
                 threadPool.getThreadContext(),
                 ActionListener.noop(),
                 listener -> {
-                    handleRecoveryFailure(shardRouting, failureStrategy, primaryTerm, e);
+                    handleRecoveryFailure(shardRouting, failureStrategy, primaryTerm, e, eventListener);
                     listener.onResponse(null);
                 }
             );
@@ -1258,9 +1274,11 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         ShardRouting shardRouting,
         FailureStrategy failureStrategy,
         long primaryTerm,
-        Exception failure
+        Exception failure,
+        IndexEventListener eventListener
     ) {
         try {
+            ClusterState state = clusterService.state();
             CloseUtils.executeDirectly(
                 l -> failAndRemoveShard(
                     shardRouting,
@@ -1268,7 +1286,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
                     failureStrategy.notifyMaster(),
                     "failed recovery",
                     failure,
-                    clusterService.state(),
+                    state,
                     EsExecutors.DIRECT_EXECUTOR_SERVICE,
                     l
                 )
