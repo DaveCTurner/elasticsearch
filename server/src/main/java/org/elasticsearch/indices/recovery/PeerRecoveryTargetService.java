@@ -228,7 +228,8 @@ public class PeerRecoveryTargetService implements IndexEventListener {
         final IndexShard indexShard,
         final DiscoveryNode sourceNode,
         final long clusterStateVersion,
-        final RecoveryListener listener
+        final RecoveryListener listener,
+        final FailureStrategySelector failureStrategySelector
     ) {
         assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.GENERIC);
         final Releasable snapshotFileDownloadsPermit = tryAcquireSnapshotDownloadPermits();
@@ -239,6 +240,7 @@ public class PeerRecoveryTargetService implements IndexEventListener {
             clusterStateVersion,
             snapshotFilesProvider,
             listener,
+            failureStrategySelector,
             snapshotFileDownloadsPermit
         );
         RecoveryRunner recoveryRunner = new RecoveryRunner(recoveryId);

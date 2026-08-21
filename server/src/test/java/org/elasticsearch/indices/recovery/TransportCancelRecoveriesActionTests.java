@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.elasticsearch.indices.recovery.FailureStrategySelector.DEFAULT;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -106,6 +107,7 @@ public class TransportCancelRecoveriesActionTests extends ESTestCase {
         throttlingRecoveryService.enqueue(
             ProjectId.DEFAULT,
             RecoveryListener.NOOP,
+            DEFAULT,
             recoveryState0,
             newIndexMetadata(),
             allocationId0,
@@ -121,6 +123,7 @@ public class TransportCancelRecoveriesActionTests extends ESTestCase {
         throttlingRecoveryService.enqueue(
             ProjectId.DEFAULT,
             RecoveryListener.NOOP,
+            DEFAULT,
             recoveryState1,
             newIndexMetadata(),
             allocationId1,
@@ -133,6 +136,7 @@ public class TransportCancelRecoveriesActionTests extends ESTestCase {
         throttlingRecoveryService.enqueue(
             ProjectId.DEFAULT,
             RecoveryListener.NOOP,
+            DEFAULT,
             recoveryState2,
             newIndexMetadata(),
             allocationId2,
@@ -180,6 +184,7 @@ public class TransportCancelRecoveriesActionTests extends ESTestCase {
         throttlingRecoveryService.enqueue(
             ProjectId.DEFAULT,
             RecoveryListener.NOOP,
+            DEFAULT,
             newRecoveryState(runningShardId, ShardRouting.RecoveryPriority.UNASSIGNED_NEW_PRIMARY), // high priority
             newIndexMetadata(),
             runningAllocationId,
@@ -190,6 +195,7 @@ public class TransportCancelRecoveriesActionTests extends ESTestCase {
         throttlingRecoveryService.enqueue(
             ProjectId.DEFAULT,
             RecoveryListener.NOOP,
+            DEFAULT,
             newRecoveryState(queuedShardId, ShardRouting.RecoveryPriority.RELOCATE_REBALANCING), // low priority, previous should run first
             newIndexMetadata(),
             queuedAllocationId,
@@ -233,6 +239,7 @@ public class TransportCancelRecoveriesActionTests extends ESTestCase {
         throttlingRecoveryService.enqueue(
             ProjectId.DEFAULT,
             RecoveryListener.NOOP,
+            DEFAULT,
             recoveryState0,
             newIndexMetadata(),
             allocationId0,
@@ -248,6 +255,7 @@ public class TransportCancelRecoveriesActionTests extends ESTestCase {
         throttlingRecoveryService.enqueue(
             ProjectId.DEFAULT,
             RecoveryListener.NOOP,
+            DEFAULT,
             recoveryState1,
             newIndexMetadata(),
             allocationId1,
@@ -319,6 +327,7 @@ public class TransportCancelRecoveriesActionTests extends ESTestCase {
         throttlingRecoveryService.enqueue(
             ProjectId.DEFAULT,
             RecoveryListener.NOOP,
+            DEFAULT,
             recoveryState0,
             newIndexMetadata(),
             allocationId0,
@@ -334,6 +343,7 @@ public class TransportCancelRecoveriesActionTests extends ESTestCase {
         throttlingRecoveryService.enqueue(
             ProjectId.DEFAULT,
             RecoveryListener.NOOP,
+            DEFAULT,
             recoveryState1,
             newIndexMetadata(),
             allocationId1,
@@ -384,6 +394,7 @@ public class TransportCancelRecoveriesActionTests extends ESTestCase {
         throttlingRecoveryService.enqueue(
             ProjectId.DEFAULT,
             RecoveryListener.NOOP,
+            DEFAULT,
             recoveryState0,
             newIndexMetadata(),
             allocationId0,
@@ -399,6 +410,7 @@ public class TransportCancelRecoveriesActionTests extends ESTestCase {
         throttlingRecoveryService.enqueue(
             ProjectId.DEFAULT,
             RecoveryListener.NOOP,
+            DEFAULT,
             recoveryState2,
             newIndexMetadata(),
             allocationId2,
@@ -504,6 +516,7 @@ public class TransportCancelRecoveriesActionTests extends ESTestCase {
             }
 
         },
+            DEFAULT,
             newRecoveryState(shardId),
             newIndexMetadata(),
             allocationId,

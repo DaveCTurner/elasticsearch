@@ -35,6 +35,7 @@ import org.elasticsearch.index.store.PluggableDirectoryMetricsHolder;
 import org.elasticsearch.index.store.StoreMetrics;
 import org.elasticsearch.index.store.ThreadLocalDirectoryMetricHolder;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
+import org.elasticsearch.indices.recovery.FailureStrategySelector;
 import org.elasticsearch.indices.recovery.ThrottlingRecoveryService;
 import org.elasticsearch.plugins.EnginePlugin;
 import org.elasticsearch.plugins.IndexStorePlugin;
@@ -93,6 +94,7 @@ public class IndicesServiceBuilder {
     Map<String, PluggableDirectoryMetricsHolder<?>> directoryMetricHolderMap;
     ThreadLocalDirectoryMetricHolder<StoreMetrics> storeMetricsHolder;
     ThrottlingRecoveryService throttlingRecoveryService;
+    FailureStrategySelector failureStrategySelector;
 
     public IndicesServiceBuilder settings(Settings settings) {
         this.settings = settings;
@@ -284,6 +286,8 @@ public class IndicesServiceBuilder {
             .map(IndexStorePlugin::getSnapshotCommitSuppliers)
             .flatMap(m -> m.entrySet().stream())
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        failureStrategySelector = FailureStrategySelector.DEFAULT;
 
         var queryRewriteInterceptors = pluginsService.filterPlugins(InternalSearchPlugin.class)
             .map(InternalSearchPlugin::getQueryRewriteInterceptors)

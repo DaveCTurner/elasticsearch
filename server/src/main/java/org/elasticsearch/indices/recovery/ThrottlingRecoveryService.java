@@ -154,6 +154,7 @@ public final class ThrottlingRecoveryService extends AbstractLifecycleComponent 
     public void enqueue(
         ProjectId projectId,
         RecoveryListener recoveryListener,
+        FailureStrategySelector failureStrategySelector,
         RecoveryState recoveryState,
         IndexMetadata indexMetadata,
         String allocationId,
@@ -172,7 +173,16 @@ public final class ThrottlingRecoveryService extends AbstractLifecycleComponent 
                     : "mismatch between cached cancellation [" + cancelled + "] and enqueue recovery: [" + recoveryState + "]";
                 pendingRecovery = null;
             } else {
-                pendingRecovery = new PendingRecovery(recoveryState, indexMetadata, allocationId, stats, task, recoveryListener, context);
+                pendingRecovery = new PendingRecovery(
+                    recoveryState,
+                    indexMetadata,
+                    allocationId,
+                    stats,
+                    task,
+                    recoveryListener,
+                    failureStrategySelector,
+                    context
+                );
                 // Note that the PendingRecovery captures the IndexMetadata that was passed in when the recovery was enqueued, so it does
                 // not respond to changes in index.priority and reorder the queue. If we wanted that, we would need to maintain a collection
                 // of listeners (see IndexService.addMetadataListener) which are mapped to the queued entries, and remove and re-add them.
@@ -190,15 +200,13 @@ public final class ThrottlingRecoveryService extends AbstractLifecycleComponent 
                 // Get off the cluster applier thread. Generic executor has unbounded queue and thread shutdown happens
                 // after service close so this runnable should never get rejected.
                 executor.execute(() -> {
+                    RecoveryCancelledException e = new RecoveryCancelledException(
+                        recoveryState.getShardId(),
+                        recoveryState.getSourceNode(),
+                        recoveryState.getTargetNode()
+                    );
                     RecoveryListener.wrapPreservingContext(recoveryListener, context)
-                        .onRecoveryFailure(
-                            new RecoveryCancelledException(
-                                recoveryState.getShardId(),
-                                recoveryState.getSourceNode(),
-                                recoveryState.getTargetNode()
-                            ),
-                            FAIL_SEND
-                        );
+                        .onRecoveryFailure(e, failureStrategySelector.select(e, FAIL_SEND));
                     schedulingListener.onRecoveryCancelledBeforeQueuing(recoveryType, RecoveryRole.TARGET);
                 });
             }
@@ -241,11 +249,9 @@ public final class ThrottlingRecoveryService extends AbstractLifecycleComponent 
             final RecoveryState state = pendingRecovery.recoveryState();
 
             logger.trace("cancelling recovery in queue: {}", state);
+            RecoveryCancelledException e = new RecoveryCancelledException(state.getShardId(), state.getSourceNode(), state.getTargetNode());
             RecoveryListener.wrapPreservingContext(pendingRecovery.listener, pendingRecovery.context)
-                .onRecoveryFailure(
-                    new RecoveryCancelledException(state.getShardId(), state.getSourceNode(), state.getTargetNode()),
-                    FAIL_SILENT
-                );
+                .onRecoveryFailure(e, pendingRecovery.failureStrategySelector.select(e, FAIL_SILENT));
             schedulingListener.onQueuedRecoveryCancelled(state.getRecoverySource().getType(), RecoveryRole.TARGET);
             cancelledInQueue.add(pendingRecovery.allocationId());
         }
@@ -293,11 +299,12 @@ public final class ThrottlingRecoveryService extends AbstractLifecycleComponent 
             // after service close so this runnable should never get rejected.
             logger.debug("cancelling stale queued recovery {}", state);
             executor.execute(() -> {
-                stale.listener()
-                    .onRecoveryFailure(
-                        new RecoveryCancelledException(state.getShardId(), state.getSourceNode(), state.getTargetNode()),
-                        FAIL_SILENT
-                    );
+                RecoveryCancelledException e = new RecoveryCancelledException(
+                    state.getShardId(),
+                    state.getSourceNode(),
+                    state.getTargetNode()
+                );
+                stale.listener().onRecoveryFailure(e, stale.failureStrategySelector.select(e, FAIL_SILENT));
                 schedulingListener.onQueuedRecoveryDiscarded(state.getRecoverySource().getType(), RecoveryRole.TARGET);
             });
         }
@@ -503,6 +510,7 @@ public final class ThrottlingRecoveryService extends AbstractLifecycleComponent 
         RecoveryStats stats,
         Consumer<RecoveryListener> task,
         RecoveryListener listener,
+        FailureStrategySelector failureStrategySelector,
         Supplier<ThreadContext.StoredContext> context
     ) {
 
@@ -560,16 +568,19 @@ public final class ThrottlingRecoveryService extends AbstractLifecycleComponent 
         private final RecoveryState recoveryState;
         private final Consumer<RecoveryListener> task;
         private final RecoveryListener listener;
+        private final FailureStrategySelector failureStrategySelector;
 
         private RecoveryRunnable(PendingRecovery pending, RecoveryListener listener) {
             this.recoveryState = pending.recoveryState;
             this.task = pending.task;
             this.listener = RecoveryListener.assertOnce(listener);
+            this.failureStrategySelector = pending.failureStrategySelector;
         }
 
         @Override
-        public void onFailure(Exception e) {
-            listener.onRecoveryFailure(new RecoveryFailedException(recoveryState, null, e), FAIL_SEND);
+        public void onFailure(Exception cause) {
+            RecoveryFailedException e = new RecoveryFailedException(recoveryState, null, cause);
+            listener.onRecoveryFailure(e, failureStrategySelector.select(e, FAIL_SEND));
         }
 
         @Override

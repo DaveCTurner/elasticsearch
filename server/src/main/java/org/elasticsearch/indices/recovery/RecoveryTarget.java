@@ -76,6 +76,7 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
     private final RecoveryRequestTracker requestTracker = new RecoveryRequestTracker();
     private final Store store;
     private final RecoveryListener listener;
+    private final FailureStrategySelector failureStrategySelector;
 
     private final AtomicBoolean finished = new AtomicBoolean();
 
@@ -103,6 +104,8 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
      *                                    limiting the concurrent snapshot file downloads per node
      *                                    preventing the exhaustion of repository resources.
      * @param listener                    called when recovery is completed/failed
+     * @param failureStrategySelector     selector for which failure strategy to use in the case of
+     *                                    failure
      */
     @SuppressWarnings("this-escape")
     public RecoveryTarget(
@@ -111,11 +114,13 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
         long clusterStateVersion,
         SnapshotFilesProvider snapshotFilesProvider,
         @Nullable Releasable snapshotFileDownloadsPermit,
-        RecoveryListener listener
+        RecoveryListener listener,
+        FailureStrategySelector failureStrategySelector
     ) {
         this.cancellableThreads = new CancellableThreads();
         this.recoveryId = idGenerator.incrementAndGet();
         this.listener = listener;
+        this.failureStrategySelector = failureStrategySelector;
         this.logger = Loggers.getLogger(getClass(), indexShard.shardId());
         this.indexShard = indexShard;
         this.sourceNode = sourceNode;
@@ -162,7 +167,8 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
             clusterStateVersion,
             snapshotFilesProvider,
             snapshotFileDownloadsPermitCopy,
-            listener
+            listener,
+            failureStrategySelector
         );
     }
 
@@ -275,7 +281,7 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
     public void fail(RecoveryFailedException e, FailureStrategy failureStrategy) {
         if (finished.compareAndSet(false, true)) {
             try {
-                listener.onRecoveryFailure(e, failureStrategy);
+                listener.onRecoveryFailure(e, failureStrategySelector.select(e, failureStrategy));
             } finally {
                 try {
                     cancellableThreads.cancel("failed recovery [" + ExceptionsHelper.stackTrace(e) + "]");
@@ -298,9 +304,10 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
                 }
 
                 @Override
-                public void onFailure(Exception e) {
-                    logger.debug("recovery failed after being marked as done", e);
-                    listener.onRecoveryFailure(new RecoveryFailedException(state(), "Recovery failed on post recovery step", e), FAIL_SEND);
+                public void onFailure(Exception cause) {
+                    logger.debug("recovery failed after being marked as done", cause);
+                    RecoveryFailedException e = new RecoveryFailedException(state(), "Recovery failed on post recovery step", cause);
+                    listener.onRecoveryFailure(e, failureStrategySelector.select(e, FAIL_SEND));
                 }
             }, this::decRef));
         }

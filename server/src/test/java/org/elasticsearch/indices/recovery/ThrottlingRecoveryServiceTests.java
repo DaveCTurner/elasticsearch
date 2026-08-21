@@ -70,6 +70,7 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.toSet;
 import static org.elasticsearch.indices.recovery.FailureStrategy.FAIL_SEND;
 import static org.elasticsearch.indices.recovery.FailureStrategy.FAIL_SILENT;
+import static org.elasticsearch.indices.recovery.FailureStrategySelector.DEFAULT;
 import static org.elasticsearch.indices.recovery.RecoveryGateMonitor.ENABLE_RECOVERY_GATES_SETTING;
 import static org.elasticsearch.indices.recovery.ThrottlingRecoveryService.INDICES_RECOVERY_MAX_CONCURRENT_RECOVERIES_SETTING;
 import static org.elasticsearch.indices.recovery.ThrottlingRecoveryService.INDICES_RECOVERY_MAX_CONCURRENT_RELOCATION_RECOVERIES_SETTING;
@@ -133,6 +134,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             projectId1,
             RecoveryListener.NOOP,
+            DEFAULT,
             newRecoveryState(ShardRouting.RecoveryPriority.UNASSIGNED_NEW_PRIMARY), // top priority
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -167,6 +169,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             projectId2,
             secondListener,
+            DEFAULT,
             newRecoveryState(ShardRouting.RecoveryPriority.UNASSIGNED_UNEXPECTED), // second priority, so should happen second
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -184,6 +187,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             projectId3,
             thirdListener,
+            DEFAULT,
             newRecoveryState(ShardRouting.RecoveryPriority.UNASSIGNED_EXPECTED), // third priority, so should happen third
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -214,6 +218,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             listener,
+            DEFAULT,
             newRecoveryState(recoveryType, new ShardId(randomIndexName(), IndexMetadata.INDEX_UUID_NA_VALUE, 1)),
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -248,6 +253,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             userListener,
+            DEFAULT,
             newRecoveryState(),
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -299,6 +305,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
             service.enqueue(
                 ProjectId.DEFAULT,
                 trackingListener,
+                DEFAULT,
                 newRecoveryState(),
                 newIndexMetadata(),
                 UUIDs.randomBase64UUID(),
@@ -356,6 +363,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
             service.enqueue(
                 ProjectId.DEFAULT,
                 noopRecoveryListener(),
+                DEFAULT,
                 newRelocationRecoveryState(),
                 newIndexMetadata(),
                 UUIDs.randomBase64UUID(),
@@ -373,6 +381,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             noopRecoveryListener(),
+            DEFAULT,
             newRelocationRecoveryState(),
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -388,6 +397,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
             service.enqueue(
                 ProjectId.DEFAULT,
                 noopRecoveryListener(),
+                DEFAULT,
                 newUnassignedRecoveryState(),
                 newIndexMetadata(),
                 UUIDs.randomBase64UUID(),
@@ -410,6 +420,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             noopRecoveryListener(),
+            DEFAULT,
             newUnassignedRecoveryState(),
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -451,6 +462,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
             service.enqueue(
                 ProjectId.DEFAULT,
                 new TestCaptureResultListener(ExpectedRecoveryOutcome.COMPLETED),
+                DEFAULT,
                 newRecoveryState(),
                 newIndexMetadata(),
                 UUIDs.randomBase64UUID(),
@@ -491,6 +503,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
             service.enqueue(
                 ProjectId.DEFAULT,
                 new TestCaptureResultListener(ExpectedRecoveryOutcome.COMPLETED),
+                DEFAULT,
                 newRelocationRecoveryState(),
                 newIndexMetadata(),
                 UUIDs.randomBase64UUID(),
@@ -531,6 +544,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
             service.enqueue(
                 ProjectId.DEFAULT,
                 onRecoveryDoneListener(done::incrementAndGet),
+                DEFAULT,
                 newRecoveryState(),
                 newIndexMetadata(),
                 UUIDs.randomBase64UUID(),
@@ -624,6 +638,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
             service.enqueue(
                 ProjectId.DEFAULT,
                 userListener,
+                DEFAULT,
                 record.recoveryState(),
                 record.indexMetadata(),
                 UUIDs.randomBase64UUID(),
@@ -646,6 +661,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             listener1,
+            DEFAULT,
             newRecoveryState(ShardRouting.RecoveryPriority.UNASSIGNED_NEW_PRIMARY), // high priority
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -657,6 +673,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             listener2,
+            DEFAULT,
             newRecoveryState(ShardRouting.RecoveryPriority.RELOCATE_REBALANCING), // low priority, so previous recovery should happen first
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -680,6 +697,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             listener1,
+            DEFAULT,
             newRecoveryState(ShardRouting.RecoveryPriority.UNASSIGNED_NEW_PRIMARY), // high priority
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -690,6 +708,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             listener2,
+            DEFAULT,
             newRecoveryState(ShardRouting.RecoveryPriority.RELOCATE_REBALANCING), // low priority, so previous recovery should happen first
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -714,6 +733,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             listener1,
+            DEFAULT,
             newRecoveryState(ShardRouting.RecoveryPriority.UNASSIGNED_NEW_PRIMARY), // high priority
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -730,6 +750,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             listener2,
+            DEFAULT,
             newRecoveryState(ShardRouting.RecoveryPriority.RELOCATE_REBALANCING), // low priority, so previous recovery should happen first
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -758,6 +779,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             listener,
+            DEFAULT,
             newRecoveryState(),
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -780,6 +802,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             listener,
+            DEFAULT,
             newRecoveryState(shardId),
             newIndexMetadata(),
             allocationId,
@@ -805,6 +828,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             listener1,
+            DEFAULT,
             newRecoveryState(shardId, ShardRouting.RecoveryPriority.UNASSIGNED_NEW_PRIMARY), // high priority
             newIndexMetadata(),
             allocationId,
@@ -816,6 +840,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             listener2,
+            DEFAULT,
             newRecoveryState(shardId, ShardRouting.RecoveryPriority.RELOCATE_REBALANCING), // low priority, so previous should happen first
             newIndexMetadata(),
             allocationId,
@@ -840,6 +865,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             listener1,
+            DEFAULT,
             newRecoveryState(shardId1),
             newIndexMetadata(),
             allocationId1,
@@ -858,6 +884,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             listener2,
+            DEFAULT,
             newRecoveryState(shardId2),
             newIndexMetadata(),
             allocationId2,
@@ -907,6 +934,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             staleListener,
+            DEFAULT,
             staleRecoveryState,
             newIndexMetadata(),
             staleAllocationId,
@@ -918,6 +946,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             retainedListener,
+            DEFAULT,
             newRecoveryState(retainedShardId, ShardRouting.RecoveryPriority.RELOCATE_REBALANCING), // low priority
             newIndexMetadata(),
             retainedAllocationId,
@@ -940,6 +969,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             blockerListener,
+            DEFAULT,
             newRecoveryState(blockerShardId),
             newIndexMetadata(),
             UUIDs.randomBase64UUID(),
@@ -967,6 +997,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             listener,
+            DEFAULT,
             newRecoveryState(shardId),
             newIndexMetadata(),
             oldAllocationId,
@@ -1000,6 +1031,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
         service.enqueue(
             ProjectId.DEFAULT,
             new TestCaptureResultListener(ExpectedRecoveryOutcome.COMPLETED),
+            DEFAULT,
             recoveryState,
             newIndexMetadata(),
             allocationId,
@@ -1086,6 +1118,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
                     () -> service.enqueue(
                         ProjectId.DEFAULT,
                         trackingListener,
+                        DEFAULT,
                         recoveryState,
                         newIndexMetadata(),
                         UUIDs.randomBase64UUID(),
@@ -1227,6 +1260,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
                         throttlingRecoveryService.enqueue(
                             ProjectId.DEFAULT,
                             trackingListener,
+                            DEFAULT,
                             recoveryState,
                             newIndexMetadata(),
                             UUIDs.randomBase64UUID(),
@@ -1365,6 +1399,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
             service.enqueue(
                 ProjectId.DEFAULT,
                 RecoveryListener.NOOP,
+                DEFAULT,
                 newRecoveryState(),
                 newIndexMetadata(),
                 UUIDs.randomBase64UUID(),
@@ -1404,6 +1439,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
             service.enqueue(
                 ProjectId.DEFAULT,
                 RecoveryListener.NOOP,
+                DEFAULT,
                 newRecoveryState(),
                 newIndexMetadata(),
                 UUIDs.randomBase64UUID(),
@@ -1463,6 +1499,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
             service.enqueue(
                 ProjectId.DEFAULT,
                 RecoveryListener.NOOP,
+                DEFAULT,
                 newRecoveryState(),
                 newIndexMetadata(),
                 UUIDs.randomBase64UUID(),
@@ -1533,6 +1570,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
             service.enqueue(
                 ProjectId.DEFAULT,
                 RecoveryListener.NOOP,
+                DEFAULT,
                 newRecoveryState(),
                 newIndexMetadata(),
                 UUIDs.randomBase64UUID(),
@@ -1606,6 +1644,7 @@ public class ThrottlingRecoveryServiceTests extends ESTestCase {
                     service.enqueue(
                         ProjectId.DEFAULT,
                         RecoveryListener.NOOP,
+                        DEFAULT,
                         recoveryState,
                         newIndexMetadata(),
                         UUIDs.randomBase64UUID(),

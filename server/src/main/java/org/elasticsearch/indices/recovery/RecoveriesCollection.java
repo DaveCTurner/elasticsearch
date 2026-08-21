@@ -54,6 +54,7 @@ public class RecoveriesCollection {
         long clusterStateVersion,
         SnapshotFilesProvider snapshotFilesProvider,
         RecoveryListener listener,
+        FailureStrategySelector failureStrategySelector,
         @Nullable Releasable snapshotFileDownloadsPermit
     ) {
         RecoveryTarget recoveryTarget = new RecoveryTarget(
@@ -62,7 +63,8 @@ public class RecoveriesCollection {
             clusterStateVersion,
             snapshotFilesProvider,
             snapshotFileDownloadsPermit,
-            listener
+            listener,
+            failureStrategySelector
         );
         startRecoveryInternal(recoveryTarget);
         return recoveryTarget.recoveryId();
