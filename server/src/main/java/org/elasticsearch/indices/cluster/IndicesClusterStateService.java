@@ -1291,11 +1291,129 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
                     l
                 )
             );
+            if (failureStrategy.retryOnDataNode()) {
+                eventListener.beforeIndexShardRecoveryRetry(shardRouting.shardId());
+                logger.debug("{} retry recovery for shard", shardRouting.shardId());
+                // Fork onto cluster state applier thread to retry attempt to create shard
+                clusterService.getClusterApplierService()
+                    .runOnApplierThread(
+                        "retry recovery " + shardRouting.shardId(),
+                        Priority.NORMAL,
+                        currentState -> validateCreateShardRetry(shardRouting, currentState, new ActionListener<>() {
+                            @Override
+                            public void onResponse(ShardRouting currentRouting) {
+                                if (currentRouting != null) {
+                                    createShard(currentRouting, currentState);
+                                }
+                            }
+
+                            @Override
+                            public void onFailure(Exception e) {
+                                failAndRemoveShard(
+                                    shardRouting,
+                                    primaryTerm,
+                                    true,
+                                    "failed to retry create shard",
+                                    e,
+                                    state,
+                                    shardCloseExecutor,
+                                    ActionListener.noop() // did not create the shard, so don't need to wait for it to close
+                                );
+                            }
+                        }),
+                        ActionListener.noop()
+                    );
+            }
         } catch (Exception e) {
             // should not be possible
             final var wrappedException = new IllegalStateException("unexpected failure in handleRecoveryFailure on " + shardRouting, e);
             logger.error(wrappedException.getMessage(), e);
             assert false : e;
+        }
+    }
+
+    /// When we [createShard] during normal cluster state application ([applyClusterState]) we do that under synchronized lock.
+    /// That's why we also use synchronized here, to align as much as possible with standard application.
+    private synchronized void validateCreateShardRetry(
+        ShardRouting retryRouting,
+        ClusterState state,
+        ActionListener<ShardRouting> listener
+    ) {
+        try {
+            // Running on cluster state applier thread
+            assert ThreadPool.assertCurrentThreadPool(ClusterApplierService.CLUSTER_UPDATE_THREAD_NAME);
+            RoutingNode localNode = state.getRoutingNodes().node(state.nodes().getLocalNodeId());
+            ShardId shardId = retryRouting.shardId();
+            Index index = retryRouting.index();
+
+            // Ignore retry if shard is no longer allocated to this node or the allocation id has changed
+            ShardRouting currentRouting = localNode.getByShardId(shardId);
+            if (currentRouting == null
+                || currentRouting.isSameAllocation(retryRouting) == false
+                || currentRouting.initializing() == false) {
+                logger.debug(
+                    "{} gave up while retrying shard creation because the old routing [{}] is not same as new routing [{}]",
+                    shardId,
+                    retryRouting,
+                    currentRouting
+                );
+                listener.onResponse(null);
+                return;
+            }
+
+            // Ignore retry if shard has been marked as failed
+            if (failedShardsCache.containsKey(shardId)) {
+                logger.debug("{} gave up while retrying shard creation because shard has already been failed", shardId);
+                listener.onResponse(null);
+                return;
+            }
+
+            // Expect index metadata to be present
+            IndexMetadata indexMetadata = state.metadata().projectFor(index).index(index);
+            if (indexMetadata == null) {
+                final var message = "index metadata unexpectedly not found for " + retryRouting;
+                assert false : message;
+                listener.onFailure(new ElasticsearchException(message));
+                return;
+            }
+
+            // Expect index service to exist
+            final var indexService = indicesService.indexService(index);
+            if (indexService == null) {
+                final var message = "index service unexpectedly not found for " + retryRouting;
+                assert false : message;
+                listener.onFailure(new ElasticsearchException(message));
+                return;
+            }
+
+            // Ignore retry if someone else has already recreated the shard
+            if (indexService.getShardOrNull(shardId.id()) != null) {
+                logger.debug("{} gave up while retrying shard creation because shard has been recreated by someone else", shardId);
+                listener.onResponse(null);
+                return;
+            }
+
+            // The ShardRouting we pass to the listener will be used to createShard again (the retry recovery attempt).
+            // We pass currentRouting (the one present in current cluster state) here rather than retryRouting
+            // (the routing from the recently failed recovery attempt), which might be surprising. This is mostly
+            // a safety measure. If we were to retry the recovery through a full cluster state update, we would use
+            // the currentRouting. So using the currentRouting here is most similar to the "normal" apply cluster state
+            // path.
+            // A concrete example where this is relevant is after a failed replica relocation:
+            // - Shard routing for the replica relocation target is initialized with relocatingNodeId == source node id
+            // The peer recovery will still use the primary as the recovery source, but relocatingNodeId marks it as a relocation
+            // rather than an initialization from unassigned. It's bookkeeping.
+            // - If the source node (the relcating replica) fails, the relocatingNodeId of the target will be cleared, but
+            // shardRouting will keep its allocationId and initializing state.
+            // If we reuse the retryRouting in this case, it will look like we are still relocating the replica, when its in fact failed.
+            // Losing the bookkeeping is not the end of the world, but it highlights that using the currentRouting is safer.
+            listener.onResponse(currentRouting);
+        } catch (Exception e) {
+            // should not be possible
+            final var wrappedException = new IllegalStateException("unexpected failure in validateCreateShardRetry on " + retryRouting, e);
+            logger.error(wrappedException.getMessage(), e);
+            assert false : e;
+            listener.onFailure(e);
         }
     }
 
