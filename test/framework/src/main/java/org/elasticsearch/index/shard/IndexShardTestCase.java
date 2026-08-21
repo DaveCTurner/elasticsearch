@@ -75,6 +75,7 @@ import org.elasticsearch.indices.breaker.CircuitBreakerMetrics;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.indices.breaker.HierarchyCircuitBreakerService;
 import org.elasticsearch.indices.recovery.AsyncRecoveryTarget;
+import org.elasticsearch.indices.recovery.FailureStrategy;
 import org.elasticsearch.indices.recovery.PeerRecoveryTargetService;
 import org.elasticsearch.indices.recovery.RecoveryFailedException;
 import org.elasticsearch.indices.recovery.RecoveryListener;
@@ -120,6 +121,7 @@ import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 
 import static org.elasticsearch.cluster.routing.TestShardRouting.shardRoutingBuilder;
+import static org.elasticsearch.indices.recovery.FailureStrategy.FAIL_SILENT;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -153,7 +155,7 @@ public abstract class IndexShardTestCase extends ESTestCase {
         ) {}
 
         @Override
-        public void onRecoveryFailure(RecoveryFailedException e, boolean sendShardFailure) {
+        public void onRecoveryFailure(RecoveryFailedException e, FailureStrategy failureStrategy) {
             throw new AssertionError(e);
         }
 
@@ -1039,7 +1041,7 @@ public abstract class IndexShardTestCase extends ESTestCase {
             future.actionGet();
             recoveryTarget.markAsDone();
         } catch (Exception e) {
-            recoveryTarget.fail(new RecoveryFailedException(request, e), false);
+            recoveryTarget.fail(new RecoveryFailedException(request, e), FAIL_SILENT);
             throw e;
         }
     }

@@ -494,7 +494,7 @@ public class TransportCancelRecoveriesActionTests extends ESTestCase {
             }
 
             @Override
-            public void onRecoveryFailure(RecoveryFailedException e, boolean sendShardFailure) {
+            public void onRecoveryFailure(RecoveryFailedException e, FailureStrategy failureStrategy) {
                 cancelled.set(true);
             }
 
@@ -502,6 +502,7 @@ public class TransportCancelRecoveriesActionTests extends ESTestCase {
             public void onRecoveryAborted() {
                 fail("recovery should be cancelled");
             }
+
         },
             newRecoveryState(shardId),
             newIndexMetadata(),
