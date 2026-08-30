@@ -190,6 +190,7 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
         primary.updateLocalCheckpointForShard(recoveringReplicaAllocationId, maxSeqNo);
         primary.updateGlobalCheckpointForShard(recoveringReplicaAllocationId, maxSeqNo);
         primary.sync();
+        assertThat(indicesAdmin().prepareFlush(indexName).setForce(true).get().getFailedShards(), equalTo(0));
         final long retainFrom = maxSeqNo + 1L;
         primary.renewRetentionLease(
             ReplicationTracker.getPeerRecoveryRetentionLeaseId(primary.routingEntry()),
