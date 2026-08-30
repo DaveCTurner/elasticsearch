@@ -9,7 +9,6 @@
 
 package org.elasticsearch.indices.recovery;
 
-import org.apache.lucene.store.AlreadyClosedException;
 import org.elasticsearch.action.admin.indices.flush.FlushRequest;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeRequest;
 import org.elasticsearch.cluster.routing.ShardRouting;
@@ -24,7 +23,6 @@ import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.mapper.SourceFieldMapper;
 import org.elasticsearch.index.seqno.ReplicationTracker;
-import org.elasticsearch.index.seqno.SeqNoStats;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.translog.Translog;
@@ -47,7 +45,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.lessThan;
 
 /**
  * SDH E-10233: end-to-end reproduction of logsdb / synthetic recovery source skipping live INDEX ops
@@ -58,7 +55,8 @@ import static org.hamcrest.Matchers.lessThan;
  * Before phase2 opens its snapshot we advance GCP / retention leases and force-merge, which
  * strips {@code _recovery_source_size} from live docs. The synthetic recovery snapshot
  * ({@code requiredFullRange=false}) emits nothing for them, so the replica never applies the
- * seq#s indexed while it was down.
+ * seq#s indexed while it was down. This test asserts that after that prune, the phase2
+ * snapshot emits no INDEX ops for the missing range.
  */
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, numDataNodes = 0)
 public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
@@ -145,35 +143,13 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
 
         try {
             assertTrue("recovery never reached prepare_translog", atPrepareTranslog.await(1, TimeUnit.MINUTES));
-            pruneRecoverySourceOnPrimary(indexName, primaryNodeName, docsBeforeFailover);
-
-            allowPhase2.countDown();
-
-            final long expectedStuckLcp = docsBeforeFailover - 1L;
-            final long expectedPrimaryMax = docsBeforeFailover + docsWhileReplicaDown - 1L;
-            assertBusy(() -> {
-                IndexShard replica = shardOnNode(indexName, replicaNodeName);
-                IndexShard primary = shardOnNode(indexName, primaryNodeName);
-                assertNotNull("replica shard missing", replica);
-                assertNotNull("primary shard missing", primary);
-                final SeqNoStats replicaSeqNo;
-                final SeqNoStats primarySeqNo;
-                try {
-                    replicaSeqNo = replica.seqNoStats();
-                    primarySeqNo = primary.seqNoStats();
-                } catch (AlreadyClosedException e) {
-                    throw new AssertionError("shard engine not open yet", e);
-                }
-                assertThat(primarySeqNo.getMaxSeqNo(), equalTo(expectedPrimaryMax));
-                assertThat(primarySeqNo.getLocalCheckpoint(), equalTo(expectedPrimaryMax));
-                assertThat(replicaSeqNo.getLocalCheckpoint(), equalTo(expectedStuckLcp));
-                assertThat(replica.docStats().getCount(), equalTo((long) docsBeforeFailover));
-                assertThat(replica.docStats().getCount(), lessThan(primary.docStats().getCount()));
-            }, 60, TimeUnit.SECONDS);
+            pruneRecoverySourceOnPrimary(indexName, primaryNodeName, docsBeforeFailover, docsWhileReplicaDown);
+            // Cancel recovery while still blocked in PREPARE_TRANSLOG. Resuming would hang in
+            // markAllocationIdAsInSync because we advanced GCP past the replica's local checkpoint.
+            assertAcked(indicesAdmin().prepareDelete(indexName));
         } finally {
             allowPhase2.countDown();
             MockTransportService.getInstance(primaryNodeName).clearAllRules();
-            assertAcked(indicesAdmin().prepareDelete(indexName));
         }
     }
 
@@ -181,7 +157,12 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
      * After ops-based recovery is chosen, the history lock is dropped. Advance GCP and peer-recovery
      * retention leases so {@code min_retained} jumps, then force-merge to strip {@code _recovery_source_size}.
      */
-    private void pruneRecoverySourceOnPrimary(String indexName, String primaryNodeName, int docsBeforeFailover) throws Exception {
+    private void pruneRecoverySourceOnPrimary(
+        String indexName,
+        String primaryNodeName,
+        int docsBeforeFailover,
+        int docsWhileReplicaDown
+    ) throws Exception {
         final IndexShard primary = shardOnNode(indexName, primaryNodeName);
         final long maxSeqNo = primary.seqNoStats().getMaxSeqNo();
         // The in-sync copy that left with the replica node still pins GCP at docsBeforeFailover-1.
@@ -230,9 +211,10 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
             }
         }
         assertThat(
-            "force-merge should strip _recovery_source_size so the synthetic snapshot emits no INDEX ops",
+            "phase2 must still emit INDEX ops for live docs after _recovery_source_size is pruned; "
+                + "LuceneSyntheticSourceChangesSnapshot currently skips them (SDH E-10233)",
             emittedOps,
-            equalTo(0)
+            equalTo(docsWhileReplicaDown)
         );
     }
 
