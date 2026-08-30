@@ -2161,6 +2161,11 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 globalCheckpoint
             );
             recoveryState.getTranslog().totalLocal(0);
+            // SDH E-10233: startingSeqNo is GCP+1. Peer recovery then opens the last commit
+            // (openEngineAndSkipTranslogRecovery), which may already contain ops above GCP and a
+            // lucene-absent hole at GCP+1. Phase2 will not reconstruct that hole if the source
+            // snapshot skips it (requiredFullRange=false). This is the customer's 0-file recoveries:
+            // translog.recovered is only the seq# span near the tip, not a replay from 0.
             recoveryStartingSeqNoListener.onResponse(globalCheckpoint + 1);
             return;
         }
@@ -2393,6 +2398,11 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     /**
      * Opens the engine on top of the existing lucene engine and translog.
      * The translog is kept but its operations won't be replayed.
+     * <p>
+     * SDH E-10233: ops-based peer recovery uses this after recoverLocallyUpToGlobalCheckpoint chose
+     * a startingSeqNo. The engine is the last commit, not the safe commit used to compute startingSeqNo.
+     * A last commit with LCP stuck and max_seq_no already high is opened as-is; phase2 does not file-copy
+     * a complete primary.
      */
     public void openEngineAndSkipTranslogRecovery() throws IOException {
         assert routingEntry().recoverySource().getType() == RecoverySource.Type.PEER : "not a peer recovery [" + routingEntry() + "]";

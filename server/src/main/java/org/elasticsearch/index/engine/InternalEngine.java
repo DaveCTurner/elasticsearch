@@ -597,6 +597,11 @@ public class InternalEngine extends Engine {
             final long localCheckpoint = localCheckpointTracker.getProcessedCheckpoint();
             final long maxSeqNo = localCheckpointTracker.getMaxSeqNo();
             int numNoOpsAdded = 0;
+            // SDH E-10233: only unprocessed seq#s get no-ops. After a lucene-absent hole, reopen
+            // restoreVersionMapAndCheckpointTracker leaves those seq#s unprocessed so promotion
+            // would fill them. If this runs and flushes, the replica of that primary should see
+            // tombstones (deleted > 0). The customer replica had 0 deleted and the then-primary's
+            // later LCP==max was real docs, so these no-ops are not the 6827 missing ops.
             for (long seqNo = localCheckpoint + 1; seqNo <= maxSeqNo; seqNo = localCheckpointTracker.getProcessedCheckpoint()
                 + 1 /* leap-frog the local checkpoint */) {
                 innerNoOp(new NoOp(seqNo, primaryTerm, Operation.Origin.PRIMARY, System.nanoTime(), "filling gaps"));

@@ -335,6 +335,8 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
         ActionListener.completeWith(listener, () -> {
             state().getIndex().setFileDetailsComplete(); // ops-based recoveries don't send the file details
             state().getTranslog().totalOperations(totalTranslogOps);
+            // SDH E-10233: last commit is opened here; files are not replaced. A lucene-absent seq#
+            // already in that commit is only filled if phase2 sends it.
             indexShard().openEngineAndSkipTranslogRecovery();
             return null;
         });

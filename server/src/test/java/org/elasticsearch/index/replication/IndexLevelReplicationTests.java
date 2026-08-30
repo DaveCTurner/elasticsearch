@@ -712,6 +712,12 @@ public class IndexLevelReplicationTests extends ESIndexLevelReplicationTestCase 
      * once replica LCP >= GCP, and later replication advances max_seq_no while LCP/GCP stay at
      * the hole — the shape of the customer replica.
      * <p>
+     * Flushing after the hole matches production: the last commit can have max_seq_no &gt;&gt; LCP
+     * while an older commit remains safe (maxSeqNo &lt;= GCP). recoverLocallyUpToGlobalCheckpoint
+     * is still ops-based (0 files); {@code openEngineAndSkipTranslogRecovery} opens that last commit.
+     * The customer recoveries (4.88M then 548k ops, 0 files) started near the tip, so they could not
+     * have created the hole at 174037943 — they copied it.
+     * <p>
      * The hole is injected with {@link EngineTestCase#generateNewSeqNo}, which is <em>not</em> a
      * production exception. On the 9.5.2 single-op {@link InternalEngine#index} path, every
      * concrete throw after seq# generation either fails the engine, converts to a no-op tombstone
@@ -731,6 +737,7 @@ public class IndexLevelReplicationTests extends ESIndexLevelReplicationTestCase 
 
             final int docsAfterHole = randomIntBetween(5, 20);
             shards.indexDocs(docsAfterHole);
+            shards.flush();
 
             assertThat(shards.getPrimary().seqNoStats().getLocalCheckpoint(), equalTo(docsBeforeHole - 1L));
             assertThat(shards.getPrimary().seqNoStats().getMaxSeqNo(), equalTo(leakedSeqNo + docsAfterHole));
