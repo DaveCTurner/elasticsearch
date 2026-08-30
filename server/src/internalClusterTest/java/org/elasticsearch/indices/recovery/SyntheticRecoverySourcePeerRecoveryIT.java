@@ -30,6 +30,7 @@ import org.elasticsearch.indices.IndexingMemoryController;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
+import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.xcontent.XContentType;
 
@@ -119,24 +120,25 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
         MockTransportService.getInstance(primaryNodeName).addSendBehavior((connection, requestId, action, request, options) -> {
             if (PeerRecoveryTargetService.Actions.PREPARE_TRANSLOG.equals(action) && blockedOnce.compareAndSet(false, true)) {
                 atPrepareTranslog.onResponse(null);
-                safeAwait(allowPhase2);
+                allowPhase2.andThenAccept(ignored -> connection.sendRequest(requestId, action, request, options));
+                return;
             }
             connection.sendRequest(requestId, action, request, options);
         });
 
         final int docsWhileReplicaDown = between(20, 40);
-        final Settings replicaDataPathSettings = internalCluster().dataPathSettings(replicaNodeName);
-        internalCluster().stopNode(replicaNodeName);
-        setReplicaCount(0, indexName);
-        ensureGreen(indexName);
-        indexDocs(indexName, docsBeforeFailover, docsWhileReplicaDown);
-
-        internalCluster().startDataOnlyNode(replicaDataPathSettings);
-        ensureStableCluster(3);
+        internalCluster().restartNode(replicaNodeName, new InternalTestCluster.RestartCallback() {
+            @Override
+            public Settings onNodeStopped(String nodeName) {
+                setReplicaCount(0, indexName);
+                indexDocs(indexName, docsBeforeFailover, docsWhileReplicaDown);
+                return Settings.EMPTY;
+            }
+        });
         setReplicaCount(1, indexName);
 
         try {
-            safeAwait(atPrepareTranslog);
+            safeAwait(atPrepareTranslog, TimeValue.timeValueMinutes(1));
             pruneRecoverySourceFromOutside(indexName, docsBeforeFailover, docsWhileReplicaDown);
             // Cancel recovery while still blocked in PREPARE_TRANSLOG. Resuming would hang in
             // markAllocationIdAsInSync because GCP is already at the primary max.
