@@ -9,6 +9,7 @@
 
 package org.elasticsearch.indices.recovery;
 
+import org.apache.lucene.store.AlreadyClosedException;
 import org.elasticsearch.action.admin.indices.flush.FlushRequest;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeRequest;
 import org.elasticsearch.cluster.routing.ShardRouting;
@@ -153,9 +154,16 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
             assertBusy(() -> {
                 IndexShard replica = shardOnNode(indexName, replicaNodeName);
                 IndexShard primary = shardOnNode(indexName, primaryNodeName);
-                assertNotNull(replica);
-                SeqNoStats replicaSeqNo = replica.seqNoStats();
-                SeqNoStats primarySeqNo = primary.seqNoStats();
+                assertNotNull("replica shard missing", replica);
+                assertNotNull("primary shard missing", primary);
+                final SeqNoStats replicaSeqNo;
+                final SeqNoStats primarySeqNo;
+                try {
+                    replicaSeqNo = replica.seqNoStats();
+                    primarySeqNo = primary.seqNoStats();
+                } catch (AlreadyClosedException e) {
+                    throw new AssertionError("shard engine not open yet", e);
+                }
                 assertThat(primarySeqNo.getMaxSeqNo(), equalTo(expectedPrimaryMax));
                 assertThat(primarySeqNo.getLocalCheckpoint(), equalTo(expectedPrimaryMax));
                 assertThat(replicaSeqNo.getLocalCheckpoint(), equalTo(expectedStuckLcp));
