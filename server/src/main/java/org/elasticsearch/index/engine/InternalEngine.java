@@ -3379,6 +3379,9 @@ public class InternalEngine extends Engine {
         // sequence numbers are trimmed when doc values only are used
         final boolean pruneSeqNo = engineConfig.getIndexSettings().sequenceNumbersDisabled()
             && seqNoIndexOptions == SeqNoFieldMapper.SeqNoIndexOptions.DOC_VALUES_ONLY;
+        // SDH E-10233: synthetic recovery prunes _recovery_source_size (not stored _recovery_source).
+        // After that DV is gone, LuceneSyntheticSourceChangesSnapshot will not emit the live doc even
+        // though the document itself remains searchable.
         mergePolicy = new PruningMergePolicy(
             engineConfig.getIndexSettings().isRecoverySourceSyntheticEnabled() ? null : SourceFieldMapper.RECOVERY_SOURCE_NAME,
             engineConfig.getIndexSettings().isRecoverySourceSyntheticEnabled()
@@ -3934,6 +3937,11 @@ public class InternalEngine extends Engine {
         Searcher searcher = acquireSearcher(source, SearcherScope.INTERNAL);
         try {
             final Translog.Snapshot snapshot;
+            // SDH E-10233: logsdb / synthetic-source indices take LuceneSyntheticSourceChangesSnapshot.
+            // That path has no stored _source fallback; a missing _recovery_source_size DV silently
+            // omits the INDEX op from peer-recovery phase2 (requiredFullRange=false). Regular indices
+            // use LuceneChangesSnapshot, which still emits from stored _source after _recovery_source
+            // is pruned. See LuceneSyntheticSourceChangesSnapshot.createOperation.
             if (engineConfig.getIndexSettings().isRecoverySourceSyntheticEnabled()) {
                 snapshot = new LuceneSyntheticSourceChangesSnapshot(
                     engineConfig.getMapperService(),

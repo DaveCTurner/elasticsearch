@@ -246,6 +246,10 @@ public final class LuceneChangesSnapshot extends SearchBasedChangesSnapshot {
             return null;
         }
         final long version = parallelArray.version[docIndex];
+        // SDH E-10233: if _recovery_source was pruned, fall back to stored _source. That is why the
+        // long-standing LuceneChangesSnapshot path still emits INDEX ops for live docs. Logsdb
+        // synthetic recovery has no stored _source and cannot do this (see
+        // LuceneSyntheticSourceChangesSnapshot.createOperation).
         final String sourceField = parallelArray.hasRecoverySource[docIndex]
             ? SourceFieldMapper.RECOVERY_SOURCE_NAME
             : SourceFieldMapper.NAME;
@@ -313,9 +317,8 @@ public final class LuceneChangesSnapshot extends SearchBasedChangesSnapshot {
                 if (source == null) {
                     // TODO: Callers should ask for the range that source should be retained. Thus we should always
                     // check for the existence source once we make peer-recovery to send ops after the local checkpoint.
-                    // SDH E-10233: same silent skip as LuceneSyntheticSourceChangesSnapshot when
-                    // requiredFullRange is false. Not the logsdb path (that index uses synthetic
-                    // recovery source) but the same recovery contract.
+                    // SDH E-10233: same requiredFullRange=false skip as the synthetic snapshot, but this
+                    // branch is rare on regular indices because of the _source fallback above.
                     if (requiredFullRange) {
                         throw new MissingHistoryOperationsException(
                             "source not found for seqno=" + seqNo + " from_seqno=" + fromSeqNo + " to_seqno=" + toSeqNo

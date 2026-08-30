@@ -330,14 +330,14 @@ public class RecoverySourceHandler {
                     if (logger.isTraceEnabled()) {
                         logger.trace("snapshot for recovery; current size is [{}]", estimateNumberOfHistoryOperations(startingSeqNo));
                     }
-                    // requiredFullRange=false: LuceneChangesSnapshot / LuceneSyntheticSourceChangesSnapshot
-                    // silently skip seq#s that have no Lucene document (or no _recovery_source_size on
-                    // logsdb/synthetic-source indices). They do not fail recovery. Combined with
-                    // markAllocationIdAsInSync only waiting for GCP (not max_seq_no), a replica can be
-                    // marked in-sync with a permanent hole. Live replication never backfills skipped seq#s.
-                    // See LuceneChangesSnapshot TODO about requiring source once recovery sends ops after LCP.
-                    // SDH E-10233: this is how a lucene-absent seq# on the recovery *source* is
-                    // omitted from phase2. Not the origin of the first hole on a replica.
+                    // requiredFullRange=false: snapshots may omit seq#s without failing recovery.
+                    // Combined with markAllocationIdAsInSync only waiting for GCP (not max_seq_no),
+                    // a replica can be marked in-sync with a permanent hole. Live replication never
+                    // backfills skipped seq#s.
+                    // SDH E-10233: on logsdb (synthetic recovery source) the skip is a live Lucene
+                    // doc whose _recovery_source_size is gone — not a lucene-absent seq# on the
+                    // source. Regular indices still emit those from stored _source. Not the origin
+                    // of the first hole on a replica (that was never-applied replica bulks).
                     final Translog.Snapshot phase2Snapshot = shard.newChangesSnapshot(
                         "peer-recovery",
                         startingSeqNo,

@@ -190,8 +190,8 @@ public abstract class SearchBasedChangesSnapshot implements Translog.Snapshot, C
         }
         // SDH E-10233: when requiredFullRange is false (peer recovery phase2), a gap between
         // lastSeenSeqNo and op.seqNo() is not checked. next() just returns the next Lucene hit.
-        // That is why a single missing seq# (or a pruned recovery source) is never sent and never
-        // fails recovery.
+        // On logsdb the gap is often a live doc that LuceneSyntheticSourceChangesSnapshot dropped
+        // because _recovery_source_size was missing, not a seq# absent from Lucene.
         if (op != null) {
             // #region agent log
             if (requiredFullRange == false && op.seqNo() > lastSeenSeqNo + 1) {

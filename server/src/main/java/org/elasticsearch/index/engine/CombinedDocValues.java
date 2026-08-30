@@ -82,6 +82,12 @@ final class CombinedDocValues {
         return recoverySource.advanceExact(segmentDocId);
     }
 
+    /**
+     * Size of the original source for synthetic recovery, or {@code -1} if this doc (or this leaf)
+     * has no {@code _recovery_source_size}. SDH E-10233: {@code -1} is the skip signal in
+     * {@link LuceneSyntheticSourceChangesSnapshot}; a null DV iterator means every doc in the leaf
+     * looks like it has no recovery source.
+     */
     long recoverySourceSize(int segmentDocId) throws IOException {
         if (recoverySourceSize == null) {
             return -1;

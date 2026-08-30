@@ -478,8 +478,9 @@ public class SourceFieldMapper extends MetadataFieldMapper {
             assert isSynthetic() || isColumnarStored() : "Recovery source should not be disabled for non-synthetic sources";
             // Synthetic source recovery is enabled; omit the full recovery source.
             // Instead, store only the size of the uncompressed original source.
-            // This size is used by LuceneSyntheticSourceChangesSnapshot to manage memory usage
-            // when loading batches of synthetic sources during recovery.
+            // LuceneSyntheticSourceChangesSnapshot uses this both to bound batch memory and as the
+            // "this INDEX op is still in history" bit. SDH E-10233: once the DV is pruned, phase2
+            // cannot fall back to stored _source (there is none) and silently skips the op.
             context.doc().add(new NumericDocValuesField(RECOVERY_SOURCE_SIZE_NAME, originalSource.length()));
         } else if (stored() == false || adaptedStoredSource != storedSource) {
             // If the source is missing (due to synthetic source, columnar_stored, or disabled mode)
