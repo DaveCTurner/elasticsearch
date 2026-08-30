@@ -1319,17 +1319,17 @@ public class InternalEngine extends Engine {
                     // -Des.batch_indexing_feature_flag_enabled=true) that case has been ruled out:
                     // - Engine.Index construction / advanceMaxSeqNoOfUpdatesOnPrimary do not throw.
                     // - Primary Lucene document failures return IndexResult and innerNoOp writes a
-                    //   tombstone and marks the seq# processed (applyNoOpToLucene fails the engine
-                    //   on unexpected document-level no-op errors).
+                    // tombstone and marks the seq# processed (applyNoOpToLucene fails the engine
+                    // on unexpected document-level no-op errors).
                     // - Replica / PEER_RECOVERY / LOCAL_RESET document failures are tragic
-                    //   (treatDocumentFailureAsTragicError) and fail the engine.
+                    // (treatDocumentFailureAsTragicError) and fail the engine.
                     // - TranslogWriter disk I/O uses closeWithTragicEvent; maybeFailEngine then
-                    //   fails the engine.
+                    // fails the engine.
                     // - translog.add IOException / UncheckedIOException from Source.originalBytes()
-                    //   (EIRF reconstruct; only the batch replica path leaves originalBytes null)
-                    //   run after a successful indexIntoLucene, so restoreVersionMapAndCheckpointTracker
-                    //   would mark the seq# from Lucene. That cannot explain a hole that survives
-                    //   reopen / peer recovery of a copy whose Lucene has no document at that seq#.
+                    // (EIRF reconstruct; only the batch replica path leaves originalBytes null)
+                    // run after a successful indexIntoLucene, so restoreVersionMapAndCheckpointTracker
+                    // would mark the seq# from Lucene. That cannot explain a hole that survives
+                    // reopen / peer recovery of a copy whose Lucene has no document at that seq#.
                     // This incident's primary also had LCP == max_seq_no, so a leaked seq# on that
                     // primary is ruled out as the observed stuck state.
 
@@ -3696,7 +3696,13 @@ public class InternalEngine extends Engine {
                     "H0",
                     "InternalEngine.commitIndexWriter",
                     "flush with lcp behind max",
-                    "{\"lcp\":" + localCheckpoint + ",\"maxSeqNo\":" + maxSeqNoForDebug + ",\"gap\":" + (maxSeqNoForDebug - localCheckpoint) + "}"
+                    "{\"lcp\":"
+                        + localCheckpoint
+                        + ",\"maxSeqNo\":"
+                        + maxSeqNoForDebug
+                        + ",\"gap\":"
+                        + (maxSeqNoForDebug - localCheckpoint)
+                        + "}"
                 );
                 // #endregion
             }

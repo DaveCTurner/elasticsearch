@@ -245,11 +245,7 @@ public class RecoverySourceHandler {
                 "H4",
                 "RecoverySourceHandler.recoverToTarget",
                 "ops-based recovery startingSeqNo",
-                "{\"startingSeqNo\":"
-                    + startingSeqNo
-                    + ",\"requestStartingSeqNo\":"
-                    + request.startingSeqNo()
-                    + ",\"opsBased\":true}"
+                "{\"startingSeqNo\":" + startingSeqNo + ",\"requestStartingSeqNo\":" + request.startingSeqNo() + ",\"opsBased\":true}"
             );
             // #endregion
             if (retentionLease == null) {
