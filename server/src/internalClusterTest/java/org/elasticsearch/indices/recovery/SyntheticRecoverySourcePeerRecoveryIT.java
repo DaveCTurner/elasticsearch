@@ -9,7 +9,8 @@
 
 package org.elasticsearch.indices.recovery;
 
-import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.action.admin.indices.flush.FlushRequest;
+import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeRequest;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeUnit;
@@ -164,8 +165,7 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
         } finally {
             allowPhase2.countDown();
             MockTransportService.getInstance(primaryNodeName).clearAllRules();
-            updateIndexSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0), indexName);
-            ensureGreen(indexName);
+            assertAcked(indicesAdmin().prepareDelete(indexName));
         }
     }
 
@@ -190,7 +190,7 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
         primary.updateLocalCheckpointForShard(recoveringReplicaAllocationId, maxSeqNo);
         primary.updateGlobalCheckpointForShard(recoveringReplicaAllocationId, maxSeqNo);
         primary.sync();
-        assertThat(indicesAdmin().prepareFlush(indexName).setForce(true).get().getFailedShards(), equalTo(0));
+        primary.flush(new FlushRequest().force(true).waitIfOngoing(true));
         final long retainFrom = maxSeqNo + 1L;
         primary.renewRetentionLease(
             ReplicationTracker.getPeerRecoveryRetentionLeaseId(primary.routingEntry()),
@@ -204,7 +204,7 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
         );
         primary.syncRetentionLeases();
         assertBusy(() -> assertThat(primary.getMinRetainedSeqNo(), greaterThan((long) docsBeforeFailover)));
-        assertThat(indicesAdmin().prepareForceMerge(indexName).setMaxNumSegments(1).setFlush(true).get().getFailedShards(), equalTo(0));
+        primary.forceMerge(new ForceMergeRequest().maxNumSegments(1).flush(true));
         int emittedOps = 0;
         try (
             Translog.Snapshot snapshot = primary.newChangesSnapshot(
