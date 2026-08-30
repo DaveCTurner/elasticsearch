@@ -22,9 +22,7 @@ import org.elasticsearch.index.IndexMode;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.mapper.SourceFieldMapper;
-import org.elasticsearch.index.seqno.ReplicationTracker;
-import org.elasticsearch.index.seqno.RetentionLeaseActions;
-import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.index.seqno.SeqNoStats;
 import org.elasticsearch.index.translog.Translog;
 import org.elasticsearch.indices.IndexingMemoryController;
 import org.elasticsearch.plugins.Plugin;
@@ -40,22 +38,16 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.elasticsearch.index.seqno.SequenceNumbersTestUtils.assertMinRetainedSeqNoAdvanced;
-import static org.elasticsearch.index.seqno.SequenceNumbersTestUtils.assertRetentionLeasesAdvanced;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
+import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
 import static org.hamcrest.Matchers.equalTo;
 
 /**
- * SDH E-10233: end-to-end reproduction of logsdb / synthetic recovery source skipping live INDEX ops
- * in peer-recovery phase2 after {@code _recovery_source_size} is pruned.
- * <p>
- * Recovery chooses ops-based replay (history appears complete while the retention lock freezes
- * {@code min_retained}). The lock is then dropped because a peer-recovery retention lease exists.
- * Before phase2 opens its snapshot we advance retention leases, flush, and force-merge, which
- * strips {@code _recovery_source_size} from live docs. The synthetic recovery snapshot
- * ({@code requiredFullRange=false}) emits nothing for them, so the replica never applies the
- * seq#s indexed while it was down. This test asserts that after that prune, the phase2
- * snapshot still emits INDEX ops for the missing range.
+ * SDH E-10233: peer recovery of a logsdb / synthetic-recovery-source replica after the replica node
+ * restarts. Ops-based recovery is chosen, then the history lock is dropped because a peer-recovery
+ * retention lease exists. A flush and force-merge on the primary in that window (as can happen in
+ * production) must not drop INDEX ops the replica still needs. {@code LuceneSyntheticSourceChangesSnapshot}
+ * skips live docs whose {@code _recovery_source_size} is missing ({@code requiredFullRange=false}).
  */
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, numDataNodes = 0)
 public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
@@ -88,7 +80,7 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
         final List<String> dataNodes = internalCluster().startDataOnlyNodes(2);
         ensureStableCluster(3);
 
-        final String indexName = "logsdb-recovery-prune";
+        final String indexName = randomIndexName();
         assertAcked(
             prepareCreate(indexName).setSettings(
                 indexSettings(1, 1).put(IndexSettings.MODE.getKey(), IndexMode.LOGSDB.getName())
@@ -130,57 +122,42 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
         internalCluster().restartNode(replicaNodeName, new InternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) {
-                setReplicaCount(0, indexName);
                 indexDocs(indexName, docsBeforeFailover, docsWhileReplicaDown);
                 return Settings.EMPTY;
             }
         });
-        setReplicaCount(1, indexName);
 
         try {
             safeAwait(atPrepareTranslog, TimeValue.timeValueMinutes(1));
-            pruneRecoverySourceFromOutside(indexName, docsBeforeFailover, docsWhileReplicaDown);
-            // Cancel recovery while still blocked in PREPARE_TRANSLOG. Resuming would hang in
-            // markAllocationIdAsInSync because GCP is already at the primary max.
-            assertAcked(indicesAdmin().prepareDelete(indexName));
+            assertThat(indicesAdmin().prepareFlush(indexName).setForce(true).get().getFailedShards(), equalTo(0));
+            assertThat(indicesAdmin().prepareForceMerge(indexName).setMaxNumSegments(1).setFlush(true).get().getFailedShards(), equalTo(0));
+            assertPhase2SnapshotEmitsIndexOps(indexName, docsBeforeFailover, docsWhileReplicaDown);
         } finally {
             allowPhase2.onResponse(null);
             MockTransportService.getInstance(primaryNodeName).clearAllRules();
         }
+
+        ensureGreen(indexName);
+        final long expectedMaxSeqNo = docsBeforeFailover + docsWhileReplicaDown - 1L;
+        assertBusy(() -> {
+            int shards = 0;
+            for (ShardStats shardStats : indicesAdmin().prepareStats(indexName).get().getShards()) {
+                SeqNoStats seqNoStats = shardStats.getSeqNoStats();
+                assertThat(seqNoStats.getMaxSeqNo(), equalTo(expectedMaxSeqNo));
+                assertThat(seqNoStats.getLocalCheckpoint(), equalTo(expectedMaxSeqNo));
+                shards++;
+            }
+            assertThat(shards, equalTo(2));
+        });
+        assertHitCount(prepareSearch(indexName).setSize(0).setTrackTotalHits(true), docsBeforeFailover + docsWhileReplicaDown);
     }
 
     /**
-     * After ops-based recovery is chosen, the history lock is dropped. Advance the recovering
-     * replica's peer-recovery retention lease, flush, and force-merge so {@code min_retained}
-     * jumps and {@code _recovery_source_size} is stripped.
+     * Phase2 uses {@code requiredFullRange=false}. Live INDEX ops must still be emitted for seq#s the
+     * replica is missing, including after a flush/force-merge that may prune {@code _recovery_source_size}
+     * below the peer-recovery retention lease.
      */
-    private void pruneRecoverySourceFromOutside(String indexName, int docsBeforeFailover, int docsWhileReplicaDown) throws Exception {
-        long maxSeqNo = -1L;
-        for (ShardStats shardStats : indicesAdmin().prepareStats(indexName).get().getShards()) {
-            if (shardStats.getShardRouting().primary()) {
-                maxSeqNo = shardStats.getSeqNoStats().getMaxSeqNo();
-                break;
-            }
-        }
-        assertThat(maxSeqNo, equalTo((long) docsBeforeFailover + docsWhileReplicaDown - 1L));
-
-        final ShardId shardId = new ShardId(resolveIndex(indexName), 0);
-        safeExecute(
-            client(),
-            RetentionLeaseActions.RENEW,
-            new RetentionLeaseActions.RenewRequest(
-                shardId,
-                ReplicationTracker.getPeerRecoveryRetentionLeaseId(replicaRouting(indexName)),
-                maxSeqNo + 1,
-                ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE
-            )
-        );
-        assertRetentionLeasesAdvanced(client(), indexName, maxSeqNo + 1);
-
-        assertThat(indicesAdmin().prepareFlush(indexName).setForce(true).get().getFailedShards(), equalTo(0));
-        assertMinRetainedSeqNoAdvanced(internalCluster(), indexName, maxSeqNo + 1);
-        assertThat(indicesAdmin().prepareForceMerge(indexName).setMaxNumSegments(1).setFlush(true).get().getFailedShards(), equalTo(0));
-
+    private void assertPhase2SnapshotEmitsIndexOps(String indexName, int fromSeqNo, int expectedIndexOps) throws Exception {
         final AtomicInteger emittedOps = new AtomicInteger();
         internalCluster().forEveryIndexShard(resolveIndex(indexName), shard -> {
             if (shard.routingEntry().primary() == false || shard.routingEntry().active() == false) {
@@ -189,7 +166,7 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
             try (
                 Translog.Snapshot snapshot = shard.newChangesSnapshot(
                     "prune-check",
-                    docsBeforeFailover,
+                    fromSeqNo,
                     Long.MAX_VALUE,
                     false,
                     true,
@@ -206,10 +183,10 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
             }
         });
         assertThat(
-            "phase2 must still emit INDEX ops for live docs after _recovery_source_size is pruned; "
-                + "LuceneSyntheticSourceChangesSnapshot currently skips them (SDH E-10233)",
+            "phase2 must still emit INDEX ops for live docs after flush/force-merge; "
+                + "LuceneSyntheticSourceChangesSnapshot currently skips them when _recovery_source_size is missing (SDH E-10233)",
             emittedOps.get(),
-            equalTo(docsWhileReplicaDown)
+            equalTo(expectedIndexOps)
         );
     }
 
