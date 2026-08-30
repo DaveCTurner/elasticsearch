@@ -2161,21 +2161,6 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 globalCheckpoint
             );
             recoveryState.getTranslog().totalLocal(0);
-            // SDH E-10233: LCP==GCP skips local translog replay. Ops > GCP must come from phase2.
-            // #region agent log
-            org.elasticsearch.index.engine.Da2a06Debug.log(
-                "H3",
-                "IndexShard.doLocalRecovery",
-                "skip local translog replay LCP==GCP",
-                "{\"lcp\":"
-                    + safeCommit.get().localCheckpoint()
-                    + ",\"maxSeqNo\":"
-                    + safeCommit.get().maxSeqNo()
-                    + ",\"gcp\":"
-                    + globalCheckpoint
-                    + "}"
-            );
-            // #endregion
             recoveryStartingSeqNoListener.onResponse(globalCheckpoint + 1);
             return;
         }
@@ -2408,12 +2393,6 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     /**
      * Opens the engine on top of the existing lucene engine and translog.
      * The translog is kept but its operations won't be replayed.
-     * <p>
-     * SDH E-10233: ops-based peer recovery uses this after recoverLocallyUpToGlobalCheckpoint chose
-     * a startingSeqNo. The engine is the last commit, not the safe commit used to compute startingSeqNo.
-     * A last commit with LCP stuck and max_seq_no already high is opened as-is; phase2 does not file-copy
-     * a complete primary. Translog ops that would have filled a lucene-absent hole at LCP+1 are not
-     * replayed here; they are only applied if phase2 sends them.
      */
     public void openEngineAndSkipTranslogRecovery() throws IOException {
         assert routingEntry().recoverySource().getType() == RecoverySource.Type.PEER : "not a peer recovery [" + routingEntry() + "]";
@@ -4361,11 +4340,6 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                             currentGlobalCheckpoint,
                             maxSeqNo
                         );
-                        // SDH E-10233: this INFO line always fires before a possible rollback. ECH logs
-                        // for .ds-logs-system.syslog-pos-2026.08.26-000005 have none of these (2026-08-26
-                        // through 2026-08-30); other shards on the same cluster do. Replica primary-term
-                        // rollback is ruled out. Failover evidence is AllocationService "marking
-                        // unavailable shards as stale" plus primary-replica resync on the new primary.
                         if (currentGlobalCheckpoint < maxSeqNo) {
                             rollbackEngineToGlobalCheckpoint();
                         } else {

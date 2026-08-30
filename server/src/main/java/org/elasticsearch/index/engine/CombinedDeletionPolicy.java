@@ -283,11 +283,6 @@ public class CombinedDeletionPolicy extends ElasticsearchIndexDeletionPolicy {
     /**
      * Find the highest index position of a safe index commit whose max sequence number is not greater than the global checkpoint.
      * Index commits with different translog UUID will be filtered out as they don't belong to this engine.
-     * <p>
-     * SDH E-10233: walking from newest to oldest means a last commit with maxSeqNo &gt; GCP (LCP stuck
-     * at a hole, later ops already flushed) is skipped, and an older commit with maxSeqNo &lt;= GCP is
-     * kept. That older commit is enough for ops-based peer recovery even though the last commit already
-     * has the hole and the later seq#s.
      */
     private static int indexOfKeptCommits(List<? extends IndexCommit> commits, long globalCheckpoint) throws IOException {
         final String expectedTranslogUUID = commits.get(commits.size() - 1).getUserData().get(Translog.TRANSLOG_UUID_KEY);

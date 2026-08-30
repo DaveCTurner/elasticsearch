@@ -597,11 +597,6 @@ public class InternalEngine extends Engine {
             final long localCheckpoint = localCheckpointTracker.getProcessedCheckpoint();
             final long maxSeqNo = localCheckpointTracker.getMaxSeqNo();
             int numNoOpsAdded = 0;
-            // SDH E-10233: only unprocessed seq#s get no-ops. After a lucene-absent hole, reopen
-            // restoreVersionMapAndCheckpointTracker leaves those seq#s unprocessed so promotion
-            // would fill them. If this runs and flushes, the replica of that primary should see
-            // tombstones (deleted > 0). The customer replica had 0 deleted and the then-primary's
-            // later LCP==max was real docs, so these no-ops are not the 6827 missing ops.
             for (long seqNo = localCheckpoint + 1; seqNo <= maxSeqNo; seqNo = localCheckpointTracker.getProcessedCheckpoint()
                 + 1 /* leap-frog the local checkpoint */) {
                 innerNoOp(new NoOp(seqNo, primaryTerm, Operation.Origin.PRIMARY, System.nanoTime(), "filling gaps"));
@@ -678,10 +673,6 @@ public class InternalEngine extends Engine {
                     throw new EngineException(shardId, "failed to recover from translog", e);
                 }
             } else {
-                // SDH E-10233: LCP >= recoverUpToSeqNo (GCP on local peer recovery). Translog ops
-                // above GCP are not replayed here. They are in-flight only if still in translog *and*
-                // someone replays them (phase2). A lucene hole at LCP+1 whose ops were never added
-                // is not in this snapshot either.
                 opsRecovered = 0;
             }
             // flush if we recovered something or if we have references to older translogs
@@ -1306,32 +1297,8 @@ public class InternalEngine extends Engine {
                             advanceMaxSeqNoOfUpdatesOnPrimary(index.seqNo());
                         }
                     } else {
-                        // SDH E-10233: replica / peer-recovery / translog replay. This advances max_seq_no
-                        // to this op's seq# even when earlier seq#s were never applied. Combined with
-                        // commitIndexWriter, a later flush is what writes a commit whose user data has
-                        // LCP stuck and max_seq_no high. It does not skip Lucene for this op.
                         advanceMaxSeqNo(index.seqNo());
                     }
-                    // SDH E-10233: markSeqNoAsProcessed is below. A lucene-absent hole with a live
-                    // engine would need an exception in this window that does not fail the engine and
-                    // does not take the document-failure → innerNoOp path. On this single-op path
-                    // (batch_indexing is a snapshot-only feature flag; off in 9.5.2 release unless
-                    // -Des.batch_indexing_feature_flag_enabled=true) that case has been ruled out:
-                    // - Engine.Index construction / advanceMaxSeqNoOfUpdatesOnPrimary do not throw.
-                    // - Primary Lucene document failures return IndexResult and innerNoOp writes a
-                    // tombstone and marks the seq# processed (applyNoOpToLucene fails the engine
-                    // on unexpected document-level no-op errors).
-                    // - Replica / PEER_RECOVERY / LOCAL_RESET document failures are tragic
-                    // (treatDocumentFailureAsTragicError) and fail the engine.
-                    // - TranslogWriter disk I/O uses closeWithTragicEvent; maybeFailEngine then
-                    // fails the engine.
-                    // - translog.add IOException / UncheckedIOException from Source.originalBytes()
-                    // (EIRF reconstruct; only the batch replica path leaves originalBytes null)
-                    // run after a successful indexIntoLucene, so restoreVersionMapAndCheckpointTracker
-                    // would mark the seq# from Lucene. That cannot explain a hole that survives
-                    // reopen / peer recovery of a copy whose Lucene has no document at that seq#.
-                    // This incident's primary also had LCP == max_seq_no, so a leaked seq# on that
-                    // primary is ruled out as the observed stuck state.
 
                     assert index.seqNo() >= 0 : "ops should have an assigned seq no.; origin: " + index.origin();
 
@@ -1536,14 +1503,6 @@ public class InternalEngine extends Engine {
         try {
             // Create Indexing Operation — reserve all sequence numbers for primary ops atomically up
             // front (before any Lucene writes). Skipped when every op is a preflight error.
-            //
-            // SDH E-10233: seq#s reserved here are marked processed only in the loop after translog.add.
-            // Ruled out for the 9.5.2 customer cluster: processSubBatch is only reached from
-            // InternalEngine.indexBatch, which is only used when the batch_indexing feature flag is
-            // on (snapshot builds, or -Des.batch_indexing_feature_flag_enabled=true). Same concrete
-            // throw sites as index() are also ruled out: primary document failures return IndexResult
-            // (converted to no-ops below); tragic IW/translog I/O fails the engine; translog.add after
-            // the Lucene loop means any non-tragic throw still leaves the docs in Lucene for restore.
             long firstPrimarySeqNo = -1;
             long seqNoToBeMarkedSeen = SequenceNumbers.NO_OPS_PERFORMED;
             final int seqNoCount = subBatchSize - opsWithPreflightErrors;
@@ -1923,9 +1882,6 @@ public class InternalEngine extends Engine {
             // question may have been deleted in an out of order op that is not replayed.
             // See testRecoverFromStoreWithOutOfOrderDelete for an example of local recovery
             // See testRecoveryWithOutOfOrderDelete for an example of peer recovery
-            // SDH E-10233: ruled out as the way to *create* a lucene-absent hole. This branch only
-            // runs when the tracker already has the seq# processed. Unseen replica seq#s take
-            // optimizedAppendOnly or processNormally / processAsStaleOp, all of which write Lucene.
             plan = IndexingStrategy.processButSkipLucene(false, index.version());
         } else if (maxSeqNoOfUpdatesOrDeletes <= localCheckpointTracker.getProcessedCheckpoint()) {
             // see Engine#getMaxSeqNoOfUpdatesOrDeletes for the explanation of the optimization using sequence numbers
@@ -2113,8 +2069,6 @@ public class InternalEngine extends Engine {
         }
 
         public static IndexingStrategy processButSkipLucene(boolean currentNotFoundOrDeleted, long versionForIndexing) {
-            // SDH E-10233: indexIntoLucene=false. Only used when hasBeenProcessedBefore is true
-            // (seq# already in the tracker). Not a path that omits a never-seen syslog index/create.
             return new IndexingStrategy(currentNotFoundOrDeleted, false, false, false, versionForIndexing, 0, null);
         }
 
@@ -2818,8 +2772,6 @@ public class InternalEngine extends Engine {
          */
         final long translogGenerationOfNewCommit = translog.getMinGenerationForSeqNo(localCheckpointTracker.getProcessedCheckpoint() + 1)
             .translogFileGeneration();
-        // SDH E-10233: a stuck LCP does not disable periodic flush. Translog above the hole keeps
-        // growing; size/age still flushes. That flush is how an in-memory gap becomes commit user data.
         return translogGenerationOfLastCommit < translogGenerationOfNewCommit
             || localCheckpointTracker.getProcessedCheckpoint() == localCheckpointTracker.getMaxSeqNo();
     }
@@ -3379,9 +3331,6 @@ public class InternalEngine extends Engine {
         // sequence numbers are trimmed when doc values only are used
         final boolean pruneSeqNo = engineConfig.getIndexSettings().sequenceNumbersDisabled()
             && seqNoIndexOptions == SeqNoFieldMapper.SeqNoIndexOptions.DOC_VALUES_ONLY;
-        // SDH E-10233: synthetic recovery prunes _recovery_source_size (not stored _recovery_source).
-        // After that DV is gone, LuceneSyntheticSourceChangesSnapshot will not emit the live doc even
-        // though the document itself remains searchable.
         mergePolicy = new PruningMergePolicy(
             engineConfig.getIndexSettings().isRecoverySourceSyntheticEnabled() ? null : SourceFieldMapper.RECOVERY_SOURCE_NAME,
             engineConfig.getIndexSettings().isRecoverySourceSyntheticEnabled()
@@ -3676,37 +3625,7 @@ public class InternalEngine extends Engine {
         assert isFlushLockIsHeldByCurrentThread();
         ensureCanFlush();
         try {
-            // SDH E-10233: this is how a lucene-absent seq# hole becomes a durable commit *without*
-            // in-flight translog to fill it. translog.add runs only inside apply/index. If seq#s
-            // N+1..N+k were never applied, they are in neither Lucene nor translog; later applied
-            // seq#s are in both. Flush writes LCP=N, max>>N. getMinGenerationForSeqNo(N+1) keeps
-            // generations whose checkpoint maxEffectiveSeqNo >= N+1 (the later ops), not a file
-            // that contains seq# N+1. Replaying translog cannot invent those ops.
-            // Ruled out as the *origin* of the 6827 missing docs: capturing LCP before IW.commit
-            // can only persist a stale LCP while the docs are still in the commit; reopen then
-            // restoreVersionMapAndCheckpointTracker marks them processed. That race does not
-            // drop Lucene documents. Customer replica is short 6827 docs, so the docs were never
-            // on this copy when this commit ran.
             final long localCheckpoint = localCheckpointTracker.getProcessedCheckpoint();
-            // #region agent log
-            final long maxSeqNoForDebug = localCheckpointTracker.getMaxSeqNo();
-            if (localCheckpoint < maxSeqNoForDebug) {
-                // #region agent log
-                Da2a06Debug.log(
-                    "H0",
-                    "InternalEngine.commitIndexWriter",
-                    "flush with lcp behind max",
-                    "{\"lcp\":"
-                        + localCheckpoint
-                        + ",\"maxSeqNo\":"
-                        + maxSeqNoForDebug
-                        + ",\"gap\":"
-                        + (maxSeqNoForDebug - localCheckpoint)
-                        + "}"
-                );
-                // #endregion
-            }
-            // #endregion
             writer.setLiveCommitData(() -> {
                 /*
                  * The user data captured above (e.g. local checkpoint) contains data that must be evaluated *before* Lucene flushes
@@ -3943,11 +3862,6 @@ public class InternalEngine extends Engine {
         Searcher searcher = acquireSearcher(source, SearcherScope.INTERNAL);
         try {
             final Translog.Snapshot snapshot;
-            // SDH E-10233: logsdb / synthetic-source indices take LuceneSyntheticSourceChangesSnapshot.
-            // That path has no stored _source fallback; a missing _recovery_source_size DV silently
-            // omits the INDEX op from peer-recovery phase2 (requiredFullRange=false). Regular indices
-            // use LuceneChangesSnapshot, which still emits from stored _source after _recovery_source
-            // is pruned. See LuceneSyntheticSourceChangesSnapshot.createOperation.
             if (engineConfig.getIndexSettings().isRecoverySourceSyntheticEnabled()) {
                 snapshot = new LuceneSyntheticSourceChangesSnapshot(
                     engineConfig.getMapperService(),
@@ -4165,10 +4079,6 @@ public class InternalEngine extends Engine {
      * Restores the live version map and local checkpoint of this engine using documents (including soft-deleted)
      * after the local checkpoint in the safe commit. This step ensures the live version map and checkpoint tracker
      * are in sync with the Lucene commit.
-     * <p>
-     * SDH E-10233: this cannot create missing Lucene documents. It only {@code markSeqNoAsProcessed}
-     * for seq#s the seq_no query finds above the persisted LCP. If the commit already lacks those
-     * docs, LCP stays stuck and the next {@link #commitIndexWriter} writes that stuck LCP again.
      */
     private void restoreVersionMapAndCheckpointTracker(DirectoryReader directoryReader, IndexVersion indexVersionCreated, IdLoader idLoader)
         throws IOException {

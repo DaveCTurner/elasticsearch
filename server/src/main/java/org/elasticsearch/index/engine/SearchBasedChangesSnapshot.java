@@ -188,29 +188,7 @@ public abstract class SearchBasedChangesSnapshot implements Translog.Snapshot, C
         if (requiredFullRange) {
             verifyRange(op);
         }
-        // SDH E-10233: when requiredFullRange is false (peer recovery phase2), a gap between
-        // lastSeenSeqNo and op.seqNo() is not checked. next() just returns the next Lucene hit.
-        // On logsdb the gap is often a live doc that LuceneSyntheticSourceChangesSnapshot dropped
-        // because _recovery_source_size was missing, not a seq# absent from Lucene.
         if (op != null) {
-            // #region agent log
-            if (requiredFullRange == false && op.seqNo() > lastSeenSeqNo + 1) {
-                Da2a06Debug.log(
-                    "H1",
-                    "SearchBasedChangesSnapshot.next",
-                    "seqno gap in changes snapshot",
-                    "{\"lastSeenSeqNo\":"
-                        + lastSeenSeqNo
-                        + ",\"opSeqNo\":"
-                        + op.seqNo()
-                        + ",\"gap\":"
-                        + (op.seqNo() - lastSeenSeqNo - 1)
-                        + ",\"fromSeqNo\":"
-                        + fromSeqNo
-                        + "}"
-                );
-            }
-            // #endregion
             assert fromSeqNo <= op.seqNo() && op.seqNo() <= toSeqNo && lastSeenSeqNo < op.seqNo()
                 : "Unexpected operation; last_seen_seqno ["
                     + lastSeenSeqNo

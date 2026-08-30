@@ -46,10 +46,6 @@ import java.util.Set;
  *
  * The {@code maxMemorySizeInBytes} parameter limits the total size of uncompressed _sources
  * loaded into memory during batch retrieval.
- * <p>
- * SDH E-10233: unlike {@link LuceneChangesSnapshot}, this snapshot cannot fall back to stored
- * {@code _source}. INDEX ops are emitted only when {@code _recovery_source_size} is present;
- * if that DV is missing the seq# is skipped and peer recovery still succeeds.
  */
 public final class LuceneSyntheticSourceChangesSnapshot extends SearchBasedChangesSnapshot {
     private final long maxMemorySizeInBytes;
@@ -293,27 +289,12 @@ public final class LuceneSyntheticSourceChangesSnapshot extends SearchBasedChang
             if (docRecord.hasRecoverySourceSize() == false) {
                 // TODO: Callers should ask for the range that source should be retained. Thus we should always
                 // check for the existence source once we make peer-recovery to send ops after the local checkpoint.
-                // SDH E-10233: logsdb / synthetic recovery stores no _source and no _recovery_source,
-                // only _recovery_source_size. CombinedDocValues reports -1 when that DV is absent
-                // (pruned, never written, or the whole field missing on the leaf). Peer recovery uses
-                // requiredFullRange=false, so this returns null and phase2 continues. Deletes/noops
-                // above still emit. Result: primary keeps the live doc, replica never applies the
-                // INDEX op, LCP sticks at seqNo-1, later seq#s still replay. Regular indices instead
-                // fall back to stored _source in LuceneChangesSnapshot.
                 if (requiredFullRange) {
                     throw new MissingHistoryOperationsException(
                         "source not found for seqno=" + docRecord.seqNo() + " from_seqno=" + fromSeqNo + " to_seqno=" + toSeqNo
                     );
                 } else {
                     skippedOperations++;
-                    // #region agent log
-                    Da2a06Debug.log(
-                        "H1",
-                        "LuceneSyntheticSourceChangesSnapshot.createOperation",
-                        "skip missing recovery_source_size",
-                        "{\"seqNo\":" + docRecord.seqNo() + ",\"fromSeqNo\":" + fromSeqNo + "}"
-                    );
-                    // #endregion
                     return null;
                 }
             }

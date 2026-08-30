@@ -1415,14 +1415,6 @@ public abstract class TransportReplicationAction<
             String nodeId = replica.currentNodeId();
             final DiscoveryNode node = clusterService.state().nodes().get(nodeId);
             if (node == null) {
-                // #region agent log
-                org.elasticsearch.index.engine.Da2a06Debug.log(
-                    "H5",
-                    "TransportReplicationAction.ReplicasProxy.performOn",
-                    "unknown node replica send skipped",
-                    "{\"nodeId\":\"" + nodeId + "\",\"allocationId\":\"" + replica.allocationId().getId() + "\"}"
-                );
-                // #endregion
                 listener.onFailure(new NoNodeAvailableException("unknown node [" + nodeId + "]"));
                 return;
             }

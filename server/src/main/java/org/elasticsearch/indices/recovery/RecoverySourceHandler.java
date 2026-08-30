@@ -240,14 +240,6 @@ public class RecoverySourceHandler {
         if (isSequenceNumberBasedRecovery) {
             logger.trace("performing sequence numbers based recovery. starting at [{}]", request.startingSeqNo());
             startingSeqNo = request.startingSeqNo();
-            // #region agent log
-            org.elasticsearch.index.engine.Da2a06Debug.log(
-                "H4",
-                "RecoverySourceHandler.recoverToTarget",
-                "ops-based recovery startingSeqNo",
-                "{\"startingSeqNo\":" + startingSeqNo + ",\"requestStartingSeqNo\":" + request.startingSeqNo() + ",\"opsBased\":true}"
-            );
-            // #endregion
             if (retentionLease == null) {
                 createRetentionLease(startingSeqNo, sendFileStep.map(ignored -> SendFileResult.EMPTY));
             } else {
@@ -326,14 +318,6 @@ public class RecoverySourceHandler {
                     if (logger.isTraceEnabled()) {
                         logger.trace("snapshot for recovery; current size is [{}]", estimateNumberOfHistoryOperations(startingSeqNo));
                     }
-                    // requiredFullRange=false: snapshots may omit seq#s without failing recovery.
-                    // Combined with markAllocationIdAsInSync only waiting for GCP (not max_seq_no),
-                    // a replica can be marked in-sync with a permanent hole. Live replication never
-                    // backfills skipped seq#s.
-                    // SDH E-10233: on logsdb (synthetic recovery source) the skip is a live Lucene
-                    // doc whose _recovery_source_size is gone — not a lucene-absent seq# on the
-                    // source. Regular indices still emit those from stored _source. Not the origin
-                    // of the first hole on a replica (that was never-applied replica bulks).
                     final Translog.Snapshot phase2Snapshot = shard.newChangesSnapshot(
                         "peer-recovery",
                         startingSeqNo,
@@ -1153,9 +1137,6 @@ public class RecoverySourceHandler {
                     skippedOps.incrementAndGet();
                     continue;
                 }
-                // SDH E-10233: snapshot.next() already omitted lucene-absent / no-_recovery_source
-                // seq#s (requiredFullRange=false). Those ops are never sent, so the target never
-                // translog.add's them. After flush they are a gap with no in-flight translog.
                 ops.add(operation);
                 batchSizeInBytes += operation.estimateSize();
                 sentOps.incrementAndGet();

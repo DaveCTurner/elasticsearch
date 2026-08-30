@@ -310,10 +310,6 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
 
             location = new Translog.Location(generation, offset, operation.length());
             // TODO: operationListener needs batch-aware support
-            // SDH E-10233: ruled out as the cause of a missing Lucene document. nonFsyncedSequenceNumbers
-            // still drives persistedSequenceNumberConsumer on fsync, so this only delays persisted-LCP
-            // vs processed-LCP. Engine reopen restores processed LCP from Lucene seq#s; a hole that
-            // survives reopen means seq# 174037943 is absent from Lucene, not merely un-persisted.
             bufferedBytes = buffer.size();
         }
 
