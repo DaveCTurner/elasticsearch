@@ -12,7 +12,6 @@ package org.elasticsearch.indices.recovery;
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.cluster.routing.ShardRouting;
-import org.elasticsearch.cluster.routing.allocation.decider.ShardsLimitAllocationDecider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
@@ -34,7 +33,6 @@ import org.elasticsearch.xcontent.XContentType;
 
 import java.time.Instant;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -77,7 +75,7 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
 
     public void testPrunedSyntheticRecoverySourceIsNotReplayedOnReplica() throws Exception {
         internalCluster().startMasterOnlyNode();
-        final List<String> dataNodes = internalCluster().startDataOnlyNodes(2);
+        internalCluster().startDataOnlyNodes(2);
         ensureStableCluster(3);
 
         final String indexName = randomIndexName();
@@ -91,8 +89,6 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
                     .put(IndexSettings.INDEX_TRANSLOG_FLUSH_THRESHOLD_SIZE_SETTING.getKey(), ByteSizeValue.of(1, ByteSizeUnit.PB))
                     .put(IndexService.GLOBAL_CHECKPOINT_SYNC_INTERVAL_SETTING.getKey(), "24h")
                     .put(IndexService.RETENTION_LEASE_SYNC_INTERVAL_SETTING.getKey(), "24h")
-                    .put(ShardsLimitAllocationDecider.INDEX_TOTAL_SHARDS_PER_NODE_SETTING.getKey(), 1)
-                    .put("index.routing.allocation.include._name", String.join(",", dataNodes))
                     .build()
             ).setMapping("@timestamp", "type=date", "message", "type=keyword")
         );
