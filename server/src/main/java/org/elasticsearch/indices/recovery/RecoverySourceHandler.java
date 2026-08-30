@@ -324,8 +324,13 @@ public class RecoverySourceHandler {
                     // markAllocationIdAsInSync only waiting for GCP (not max_seq_no), a replica can be
                     // marked in-sync with a permanent hole. Live replication never backfills skipped seq#s.
                     // See LuceneChangesSnapshot TODO about requiring source once recovery sends ops after LCP.
-                    // SDH E-10233: this is how a single missing seq# on the primary (or a pruned recovery
-                    // source) becomes a replica stuck 15M+ ops behind after an otherwise successful peer recovery.
+                    // SDH E-10233: this is how a lucene-absent seq# (or a pruned recovery source) on
+                    // the recovery source becomes a replica stuck 15M+ ops behind. A leaked seq# on
+                    // the *current* primary is ruled out for this incident: that primary's LCP equalled
+                    // max_seq_no. The remaining source-side explanation is a document present enough
+                    // for seq_no LCP on the primary but omitted from the changes snapshot (synthetic
+                    // _recovery_source_size skip), or a replica whose ops-based recovery started after
+                    // the hole.
                     final Translog.Snapshot phase2Snapshot = shard.newChangesSnapshot(
                         "peer-recovery",
                         startingSeqNo,

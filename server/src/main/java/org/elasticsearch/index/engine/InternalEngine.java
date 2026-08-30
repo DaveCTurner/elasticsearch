@@ -1299,6 +1299,26 @@ public class InternalEngine extends Engine {
                     } else {
                         advanceMaxSeqNo(index.seqNo());
                     }
+                    // SDH E-10233: markSeqNoAsProcessed is below. A lucene-absent hole with a live
+                    // engine would need an exception in this window that does not fail the engine and
+                    // does not take the document-failure → innerNoOp path. On this single-op path
+                    // (batch_indexing is a snapshot-only feature flag; off in 9.5.2 release unless
+                    // -Des.batch_indexing_feature_flag_enabled=true) that case has been ruled out:
+                    // - Engine.Index construction / advanceMaxSeqNoOfUpdatesOnPrimary do not throw.
+                    // - Primary Lucene document failures return IndexResult and innerNoOp writes a
+                    //   tombstone and marks the seq# processed (applyNoOpToLucene fails the engine
+                    //   on unexpected document-level no-op errors).
+                    // - Replica / PEER_RECOVERY / LOCAL_RESET document failures are tragic
+                    //   (treatDocumentFailureAsTragicError) and fail the engine.
+                    // - TranslogWriter disk I/O uses closeWithTragicEvent; maybeFailEngine then
+                    //   fails the engine.
+                    // - translog.add IOException / UncheckedIOException from Source.originalBytes()
+                    //   (EIRF reconstruct; only the batch replica path leaves originalBytes null)
+                    //   run after a successful indexIntoLucene, so restoreVersionMapAndCheckpointTracker
+                    //   would mark the seq# from Lucene. That cannot explain a hole that survives
+                    //   reopen / peer recovery of a copy whose Lucene has no document at that seq#.
+                    // This incident's primary also had LCP == max_seq_no, so a leaked seq# on that
+                    // primary is ruled out as the observed stuck state.
 
                     assert index.seqNo() >= 0 : "ops should have an assigned seq no.; origin: " + index.origin();
 
@@ -1504,12 +1524,13 @@ public class InternalEngine extends Engine {
             // Create Indexing Operation — reserve all sequence numbers for primary ops atomically up
             // front (before any Lucene writes). Skipped when every op is a preflight error.
             //
-            // SDH E-10233: these seq#s are not marked processed until the loop at the end of this method.
-            // Any exception after doGenerateSeqNos that does not fail the engine (see failOnTragicEvent)
-            // therefore leaves a hole in the local checkpoint: later successful ops still advance
-            // max_seq_no, but LCP stays at firstReserved-1. The single-op index() path has the same
-            // window between generateSeqNoForOperationOnPrimary and markSeqNoAsProcessed. Document
-            // failures that return an IndexResult are converted to no-ops below and do NOT leak.
+            // SDH E-10233: seq#s reserved here are marked processed only in the loop after translog.add.
+            // Ruled out for the 9.5.2 customer cluster: processSubBatch is only reached from
+            // InternalEngine.indexBatch, which is only used when the batch_indexing feature flag is
+            // on (snapshot builds, or -Des.batch_indexing_feature_flag_enabled=true). Same concrete
+            // throw sites as index() are also ruled out: primary document failures return IndexResult
+            // (converted to no-ops below); tragic IW/translog I/O fails the engine; translog.add after
+            // the Lucene loop means any non-tragic throw still leaves the docs in Lucene for restore.
             long firstPrimarySeqNo = -1;
             long seqNoToBeMarkedSeen = SequenceNumbers.NO_OPS_PERFORMED;
             final int seqNoCount = subBatchSize - opsWithPreflightErrors;

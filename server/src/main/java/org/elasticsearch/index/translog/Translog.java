@@ -663,6 +663,12 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
                 readLock.unlock();
             }
         } catch (final AlreadyClosedException | IOException ex) {
+            // SDH E-10233: closeOnTragicEvent is a no-op unless tragedy is already set, so an
+            // IOException from Serialized.create / header serialization (before TranslogWriter.add)
+            // does not fail the engine by itself. InternalEngine.index still only reaches translog.add
+            // after indexIntoLucene succeeded (or innerNoOp wrote a tombstone), so this is not a
+            // lucene-absent seq# leak. TranslogWriter.writeBufferedOps / syncUpTo do call
+            // closeWithTragicEvent and are tragic.
             closeOnTragicEvent(ex);
             throw ex;
         } catch (final Exception ex) {

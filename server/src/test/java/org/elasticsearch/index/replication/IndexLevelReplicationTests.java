@@ -707,17 +707,17 @@ public class IndexLevelReplicationTests extends ESIndexLevelReplicationTestCase 
     }
 
     /**
-     * SDH E-10233: a seq# reserved on the primary but never indexed (and never converted to a no-op)
-     * is omitted from the peer-recovery changes snapshot ({@code requiredFullRange=false}). The
-     * replica is still marked in-sync because {@code markAllocationIdAsInSync} only waits for GCP.
-     * Subsequent replication applies later ops, so max_seq_no races ahead while LCP and GCP stay
-     * stuck at the hole — the shape of the customer replica.
+     * SDH E-10233: if the primary history has a seq# with no Lucene document, peer recovery
+     * ({@code requiredFullRange=false}) omits it, {@code markAllocationIdAsInSync} still succeeds
+     * once replica LCP >= GCP, and later replication advances max_seq_no while LCP/GCP stay at
+     * the hole — the shape of the customer replica.
      * <p>
-     * {@link EngineTestCase#generateNewSeqNo} is the same reservation {@link InternalEngine} makes
-     * in {@code processSubBatch} after {@code doGenerateSeqNos} (and in {@code index} after
-     * {@code generateSeqNoForOperationOnPrimary}). A non-tragic exception between that reservation
-     * and {@code markSeqNoAsProcessed} leaves exactly this hole; we do not fail the engine, matching
-     * {@code failOnTragicEvent} for a primary-origin document/IO failure that is not treated as tragic.
+     * The hole is injected with {@link EngineTestCase#generateNewSeqNo}, which is <em>not</em> a
+     * production exception. On the 9.5.2 single-op {@link InternalEngine#index} path, every
+     * concrete throw after seq# generation either fails the engine, converts to a no-op tombstone
+     * and marks the seq# processed, or happens after the Lucene write (so restore would close the
+     * gap). {@code processSubBatch} is also ruled out unless {@code batch_indexing} is enabled.
+     * This test only covers the recovery/in-sync half once a lucene-absent seq# already exists.
      */
     public void testLeakedPrimarySeqNoLeavesReplicaLocalCheckpointStuckAfterPeerRecovery() throws Exception {
         try (ReplicationGroup shards = createGroup(1)) {

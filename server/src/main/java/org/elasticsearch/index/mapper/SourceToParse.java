@@ -245,6 +245,12 @@ public class SourceToParse {
             return 0;
         }
 
+        // SDH E-10233: UncheckedIOException here is the only named production throw from reconstructing
+        // source. Translog.Index(Engine.Index, ...) calls this after indexIntoLucene succeeded.
+        // originalSourceBytes is null only for the EIRF SourceToParse(row) constructor, used by
+        // ShardBatchIndexer.performBatchIndexOnReplica (batch_indexing flag). The sequential bulk
+        // path and ShardBatchMapper materialize bytes first. Ruled out for a lucene-absent hole
+        // on 9.5.2 release (flag off) and because a later engine restore would see the Lucene doc.
         // Synchronized for now to be safe. Probably unnecessary.
         public synchronized BytesReference originalBytes() {
             if (originalSourceBytes == null) {
