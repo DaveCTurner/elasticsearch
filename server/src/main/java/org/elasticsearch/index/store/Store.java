@@ -1592,6 +1592,10 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
         final IndexCommit safeCommit = CombinedDeletionPolicy.findSafeCommitPoint(commits, globalCheckpoint);
         final SequenceNumbers.CommitInfo commitInfo = SequenceNumbers.loadSeqNoInfoFromLuceneCommit(safeCommit.getUserData().entrySet());
         // all operations of the safe commit must be at most the global checkpoint.
+        // SDH E-10233: this uses maxSeqNo, not localCheckpoint. A commit with LCP stuck at a hole
+        // but max_seq_no >> GCP is *not* a safe commit. That is why recoverLocallyUpToGlobalCheckpoint
+        // often returns UNASSIGNED (file-based) when the hole already exists — it is not how the hole
+        // is created, and it does not explain the customer's ops-based recoveries with 0 files.
         if (commitInfo.maxSeqNo() <= globalCheckpoint) {
             return Optional.of(commitInfo);
         } else {

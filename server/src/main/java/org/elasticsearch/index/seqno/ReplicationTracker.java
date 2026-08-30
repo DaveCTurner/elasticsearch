@@ -1268,6 +1268,9 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                 + cps.localCheckpoint
                 + " that's above the global checkpoint "
                 + getGlobalCheckpoint();
+        // Waits only until replica LCP >= GCP, not until replica LCP >= max_seq_no. If GCP is already
+        // stuck at a hole, a recovering replica whose LCP equals that hole is marked in-sync immediately
+        // even when millions of later seq#s are missing. SDH E-10233; not itself the source of the hole.
         if (cps.localCheckpoint < getGlobalCheckpoint()) {
             pendingInSync.add(allocationId);
             try {

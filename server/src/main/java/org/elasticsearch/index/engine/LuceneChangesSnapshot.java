@@ -313,6 +313,9 @@ public final class LuceneChangesSnapshot extends SearchBasedChangesSnapshot {
                 if (source == null) {
                     // TODO: Callers should ask for the range that source should be retained. Thus we should always
                     // check for the existence source once we make peer-recovery to send ops after the local checkpoint.
+                    // SDH E-10233: same silent skip as LuceneSyntheticSourceChangesSnapshot when
+                    // requiredFullRange is false. Not the logsdb path (that index uses synthetic
+                    // recovery source) but the same recovery contract.
                     if (requiredFullRange) {
                         throw new MissingHistoryOperationsException(
                             "source not found for seqno=" + seqNo + " from_seqno=" + fromSeqNo + " to_seqno=" + toSeqNo

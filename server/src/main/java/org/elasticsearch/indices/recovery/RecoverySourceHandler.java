@@ -318,6 +318,14 @@ public class RecoverySourceHandler {
                     if (logger.isTraceEnabled()) {
                         logger.trace("snapshot for recovery; current size is [{}]", estimateNumberOfHistoryOperations(startingSeqNo));
                     }
+                    // requiredFullRange=false: LuceneChangesSnapshot / LuceneSyntheticSourceChangesSnapshot
+                    // silently skip seq#s that have no Lucene document (or no _recovery_source_size on
+                    // logsdb/synthetic-source indices). They do not fail recovery. Combined with
+                    // markAllocationIdAsInSync only waiting for GCP (not max_seq_no), a replica can be
+                    // marked in-sync with a permanent hole. Live replication never backfills skipped seq#s.
+                    // See LuceneChangesSnapshot TODO about requiring source once recovery sends ops after LCP.
+                    // SDH E-10233: this is how a single missing seq# on the primary (or a pruned recovery
+                    // source) becomes a replica stuck 15M+ ops behind after an otherwise successful peer recovery.
                     final Translog.Snapshot phase2Snapshot = shard.newChangesSnapshot(
                         "peer-recovery",
                         startingSeqNo,

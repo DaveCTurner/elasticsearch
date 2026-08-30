@@ -1503,6 +1503,13 @@ public class InternalEngine extends Engine {
         try {
             // Create Indexing Operation — reserve all sequence numbers for primary ops atomically up
             // front (before any Lucene writes). Skipped when every op is a preflight error.
+            //
+            // SDH E-10233: these seq#s are not marked processed until the loop at the end of this method.
+            // Any exception after doGenerateSeqNos that does not fail the engine (see failOnTragicEvent)
+            // therefore leaves a hole in the local checkpoint: later successful ops still advance
+            // max_seq_no, but LCP stays at firstReserved-1. The single-op index() path has the same
+            // window between generateSeqNoForOperationOnPrimary and markSeqNoAsProcessed. Document
+            // failures that return an IndexResult are converted to no-ops below and do NOT leak.
             long firstPrimarySeqNo = -1;
             long seqNoToBeMarkedSeen = SequenceNumbers.NO_OPS_PERFORMED;
             final int seqNoCount = subBatchSize - opsWithPreflightErrors;

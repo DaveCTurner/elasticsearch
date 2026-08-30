@@ -652,6 +652,16 @@ public abstract class EngineTestCase extends ESTestCase {
     /**
      * Generate a new sequence number and return it. Only works on InternalEngines
      */
+    /**
+     * Reserves a sequence number without indexing or writing a no-op.
+     * <p>
+     * This is what {@link InternalEngine} does in {@code processSubBatch} / {@code index} when
+     * {@code doGenerateSeqNos} / {@code generateSeqNoForOperationOnPrimary} has run and then an
+     * exception aborts the method before {@code markSeqNoAsProcessed} (for example a non-tragic
+     * {@link java.io.IOException} from {@code translog.add} after the seq# was assigned). The
+     * engine stays open, later operations still get seq#s, and the local checkpoint never advances
+     * through the reserved seq#.
+     */
     public static long generateNewSeqNo(final Engine engine) {
         assert engine instanceof InternalEngine : "expected InternalEngine, got: " + engine.getClass();
         InternalEngine internalEngine = (InternalEngine) engine;

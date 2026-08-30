@@ -188,6 +188,10 @@ public abstract class SearchBasedChangesSnapshot implements Translog.Snapshot, C
         if (requiredFullRange) {
             verifyRange(op);
         }
+        // SDH E-10233: when requiredFullRange is false (peer recovery phase2), a gap between
+        // lastSeenSeqNo and op.seqNo() is not checked. next() just returns the next Lucene hit.
+        // That is why a single missing seq# (or a pruned recovery source) is never sent and never
+        // fails recovery.
         if (op != null) {
             assert fromSeqNo <= op.seqNo() && op.seqNo() <= toSeqNo && lastSeenSeqNo < op.seqNo()
                 : "Unexpected operation; last_seen_seqno ["

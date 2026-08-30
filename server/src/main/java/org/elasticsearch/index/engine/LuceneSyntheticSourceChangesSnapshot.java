@@ -289,6 +289,10 @@ public final class LuceneSyntheticSourceChangesSnapshot extends SearchBasedChang
             if (docRecord.hasRecoverySourceSize() == false) {
                 // TODO: Callers should ask for the range that source should be retained. Thus we should always
                 // check for the existence source once we make peer-recovery to send ops after the local checkpoint.
+                // SDH E-10233: peer recovery uses requiredFullRange=false, so this skip is silent. The
+                // affected customer index is logsdb (synthetic recovery source). A doc whose
+                // _recovery_source_size was pruned, or never written, is omitted from phase2; the replica
+                // LCP sticks at seqNo-1 while later ops are still applied.
                 if (requiredFullRange) {
                     throw new MissingHistoryOperationsException(
                         "source not found for seqno=" + docRecord.seqNo() + " from_seqno=" + fromSeqNo + " to_seqno=" + toSeqNo

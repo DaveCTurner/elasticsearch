@@ -706,6 +706,50 @@ public class IndexLevelReplicationTests extends ESIndexLevelReplicationTestCase 
         }
     }
 
+    /**
+     * SDH E-10233: a seq# reserved on the primary but never indexed (and never converted to a no-op)
+     * is omitted from the peer-recovery changes snapshot ({@code requiredFullRange=false}). The
+     * replica is still marked in-sync because {@code markAllocationIdAsInSync} only waits for GCP.
+     * Subsequent replication applies later ops, so max_seq_no races ahead while LCP and GCP stay
+     * stuck at the hole — the shape of the customer replica.
+     * <p>
+     * {@link EngineTestCase#generateNewSeqNo} is the same reservation {@link InternalEngine} makes
+     * in {@code processSubBatch} after {@code doGenerateSeqNos} (and in {@code index} after
+     * {@code generateSeqNoForOperationOnPrimary}). A non-tragic exception between that reservation
+     * and {@code markSeqNoAsProcessed} leaves exactly this hole; we do not fail the engine, matching
+     * {@code failOnTragicEvent} for a primary-origin document/IO failure that is not treated as tragic.
+     */
+    public void testLeakedPrimarySeqNoLeavesReplicaLocalCheckpointStuckAfterPeerRecovery() throws Exception {
+        try (ReplicationGroup shards = createGroup(1)) {
+            shards.startPrimary();
+            final int docsBeforeHole = randomIntBetween(5, 20);
+            shards.indexDocs(docsBeforeHole);
+
+            final long leakedSeqNo = EngineTestCase.generateNewSeqNo(getEngine(shards.getPrimary()));
+            assertThat(leakedSeqNo, equalTo((long) docsBeforeHole));
+            assertThat(shards.getPrimary().seqNoStats().getLocalCheckpoint(), equalTo(docsBeforeHole - 1L));
+
+            final int docsAfterHole = randomIntBetween(5, 20);
+            shards.indexDocs(docsAfterHole);
+
+            assertThat(shards.getPrimary().seqNoStats().getLocalCheckpoint(), equalTo(docsBeforeHole - 1L));
+            assertThat(shards.getPrimary().seqNoStats().getMaxSeqNo(), equalTo(leakedSeqNo + docsAfterHole));
+            assertThat(shards.getPrimary().seqNoStats().getGlobalCheckpoint(), equalTo(docsBeforeHole - 1L));
+
+            shards.addReplica();
+            shards.startReplicas(1);
+
+            final IndexShard replica = shards.getReplicas().get(0);
+            assertThat(replica.seqNoStats().getLocalCheckpoint(), equalTo(docsBeforeHole - 1L));
+            assertThat(replica.seqNoStats().getMaxSeqNo(), equalTo(leakedSeqNo + docsAfterHole));
+            assertThat(replica.seqNoStats().getGlobalCheckpoint(), equalTo(docsBeforeHole - 1L));
+
+            shards.indexDocs(randomIntBetween(1, 10));
+            assertThat(replica.seqNoStats().getLocalCheckpoint(), equalTo(docsBeforeHole - 1L));
+            assertThat(replica.seqNoStats().getMaxSeqNo(), equalTo(shards.getPrimary().seqNoStats().getMaxSeqNo()));
+        }
+    }
+
     public void testIndexingOptimizationUsingSequenceNumbers() throws Exception {
         final Set<String> liveDocs = new HashSet<>();
         try (ReplicationGroup group = createGroup(2)) {
