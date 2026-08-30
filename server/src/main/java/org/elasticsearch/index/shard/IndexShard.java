@@ -4340,6 +4340,11 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                             currentGlobalCheckpoint,
                             maxSeqNo
                         );
+                        // SDH E-10233: this INFO line always fires before a possible rollback. ECH logs
+                        // for .ds-logs-system.syslog-pos-2026.08.26-000005 have none of these (2026-08-26
+                        // through 2026-08-30); other shards on the same cluster do. Replica primary-term
+                        // rollback is ruled out. Failover evidence is AllocationService "marking
+                        // unavailable shards as stale" plus primary-replica resync on the new primary.
                         if (currentGlobalCheckpoint < maxSeqNo) {
                             rollbackEngineToGlobalCheckpoint();
                         } else {
