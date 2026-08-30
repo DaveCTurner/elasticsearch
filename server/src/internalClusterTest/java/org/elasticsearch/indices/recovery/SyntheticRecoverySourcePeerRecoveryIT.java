@@ -9,42 +9,40 @@
 
 package org.elasticsearch.indices.recovery;
 
-import org.elasticsearch.action.admin.indices.flush.FlushRequest;
-import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeRequest;
+import org.elasticsearch.action.admin.indices.stats.ShardStats;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.cluster.routing.ShardRouting;
+import org.elasticsearch.cluster.routing.allocation.decider.ShardsLimitAllocationDecider;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexMode;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.mapper.SourceFieldMapper;
 import org.elasticsearch.index.seqno.ReplicationTracker;
-import org.elasticsearch.index.shard.IndexShard;
+import org.elasticsearch.index.seqno.RetentionLeaseActions;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.translog.Translog;
-import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.IndexingMemoryController;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.xcontent.XContentType;
 
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.elasticsearch.index.seqno.SequenceNumbersTestUtils.assertMinRetainedSeqNoAdvanced;
+import static org.elasticsearch.index.seqno.SequenceNumbersTestUtils.assertRetentionLeasesAdvanced;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
 
 /**
  * SDH E-10233: end-to-end reproduction of logsdb / synthetic recovery source skipping live INDEX ops
@@ -52,11 +50,11 @@ import static org.hamcrest.Matchers.greaterThan;
  * <p>
  * Recovery chooses ops-based replay (history appears complete while the retention lock freezes
  * {@code min_retained}). The lock is then dropped because a peer-recovery retention lease exists.
- * Before phase2 opens its snapshot we advance GCP / retention leases and force-merge, which
+ * Before phase2 opens its snapshot we advance retention leases, flush, and force-merge, which
  * strips {@code _recovery_source_size} from live docs. The synthetic recovery snapshot
  * ({@code requiredFullRange=false}) emits nothing for them, so the replica never applies the
  * seq#s indexed while it was down. This test asserts that after that prune, the phase2
- * snapshot emits no INDEX ops for the missing range.
+ * snapshot still emits INDEX ops for the missing range.
  */
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, numDataNodes = 0)
 public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
@@ -100,6 +98,7 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
                     .put(IndexSettings.INDEX_TRANSLOG_FLUSH_THRESHOLD_SIZE_SETTING.getKey(), ByteSizeValue.of(1, ByteSizeUnit.PB))
                     .put(IndexService.GLOBAL_CHECKPOINT_SYNC_INTERVAL_SETTING.getKey(), "24h")
                     .put(IndexService.RETENTION_LEASE_SYNC_INTERVAL_SETTING.getKey(), "24h")
+                    .put(ShardsLimitAllocationDecider.INDEX_TOTAL_SHARDS_PER_NODE_SETTING.getKey(), 1)
                     .put("index.routing.allocation.include._name", String.join(",", dataNodes))
                     .build()
             ).setMapping("@timestamp", "type=date", "message", "type=keyword")
@@ -107,122 +106,115 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
         ensureGreen(indexName);
 
         final int docsBeforeFailover = between(20, 40);
-        indexDocs(null, indexName, 0, docsBeforeFailover);
+        indexDocs(indexName, 0, docsBeforeFailover);
         indicesAdmin().prepareFlush(indexName).setForce(true).get();
         ensureGreen(indexName);
 
         final String replicaNodeName = clusterService().state().nodes().get(replicaRouting(indexName).currentNodeId()).getName();
         final String primaryNodeName = clusterService().state().nodes().get(primaryRouting(indexName).currentNodeId()).getName();
 
-        final CountDownLatch atPrepareTranslog = new CountDownLatch(1);
-        final CountDownLatch allowPhase2 = new CountDownLatch(1);
+        final SubscribableListener<Void> atPrepareTranslog = new SubscribableListener<>();
+        final SubscribableListener<Void> allowPhase2 = new SubscribableListener<>();
         final AtomicBoolean blockedOnce = new AtomicBoolean();
         MockTransportService.getInstance(primaryNodeName).addSendBehavior((connection, requestId, action, request, options) -> {
             if (PeerRecoveryTargetService.Actions.PREPARE_TRANSLOG.equals(action) && blockedOnce.compareAndSet(false, true)) {
-                atPrepareTranslog.countDown();
-                try {
-                    if (allowPhase2.await(2, TimeUnit.MINUTES) == false) {
-                        throw new AssertionError("timed out waiting to resume phase2");
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new AssertionError(e);
-                }
+                atPrepareTranslog.onResponse(null);
+                safeAwait(allowPhase2);
             }
             connection.sendRequest(requestId, action, request, options);
         });
 
         final int docsWhileReplicaDown = between(20, 40);
-        internalCluster().restartNode(replicaNodeName, new InternalTestCluster.RestartCallback() {
-            @Override
-            public Settings onNodeStopped(String nodeName) throws Exception {
-                indexDocs(primaryNodeName, indexName, docsBeforeFailover, docsWhileReplicaDown);
-                return Settings.EMPTY;
-            }
-        });
+        final Settings replicaDataPathSettings = internalCluster().dataPathSettings(replicaNodeName);
+        internalCluster().stopNode(replicaNodeName);
+        setReplicaCount(0, indexName);
+        ensureGreen(indexName);
+        indexDocs(indexName, docsBeforeFailover, docsWhileReplicaDown);
+
+        internalCluster().startDataOnlyNode(replicaDataPathSettings);
+        ensureStableCluster(3);
+        setReplicaCount(1, indexName);
 
         try {
-            assertTrue("recovery never reached prepare_translog", atPrepareTranslog.await(1, TimeUnit.MINUTES));
-            pruneRecoverySourceOnPrimary(indexName, primaryNodeName, docsBeforeFailover, docsWhileReplicaDown);
+            safeAwait(atPrepareTranslog);
+            pruneRecoverySourceFromOutside(indexName, docsBeforeFailover, docsWhileReplicaDown);
             // Cancel recovery while still blocked in PREPARE_TRANSLOG. Resuming would hang in
-            // markAllocationIdAsInSync because we advanced GCP past the replica's local checkpoint.
+            // markAllocationIdAsInSync because GCP is already at the primary max.
             assertAcked(indicesAdmin().prepareDelete(indexName));
         } finally {
-            allowPhase2.countDown();
+            allowPhase2.onResponse(null);
             MockTransportService.getInstance(primaryNodeName).clearAllRules();
         }
     }
 
     /**
-     * After ops-based recovery is chosen, the history lock is dropped. Advance GCP and peer-recovery
-     * retention leases so {@code min_retained} jumps, then force-merge to strip {@code _recovery_source_size}.
+     * After ops-based recovery is chosen, the history lock is dropped. Advance the recovering
+     * replica's peer-recovery retention lease, flush, and force-merge so {@code min_retained}
+     * jumps and {@code _recovery_source_size} is stripped.
      */
-    private void pruneRecoverySourceOnPrimary(
-        String indexName,
-        String primaryNodeName,
-        int docsBeforeFailover,
-        int docsWhileReplicaDown
-    ) throws Exception {
-        final IndexShard primary = shardOnNode(indexName, primaryNodeName);
-        final long maxSeqNo = primary.seqNoStats().getMaxSeqNo();
-        // The in-sync copy that left with the replica node still pins GCP at docsBeforeFailover-1.
-        // Its allocation id may differ from the initializing replica's. Bump every non-primary
-        // in-sync copy plus the recovering replica so lastSynced GCP and PRRLs can advance.
-        final String primaryAllocationId = primary.routingEntry().allocationId().getId();
-        for (String allocationId : clusterService().state().metadata().getProject().index(indexName).inSyncAllocationIds(0)) {
-            if (allocationId.equals(primaryAllocationId) == false) {
-                primary.updateLocalCheckpointForShard(allocationId, maxSeqNo);
-                primary.updateGlobalCheckpointForShard(allocationId, maxSeqNo);
+    private void pruneRecoverySourceFromOutside(String indexName, int docsBeforeFailover, int docsWhileReplicaDown) throws Exception {
+        long maxSeqNo = -1L;
+        for (ShardStats shardStats : indicesAdmin().prepareStats(indexName).get().getShards()) {
+            if (shardStats.getShardRouting().primary()) {
+                maxSeqNo = shardStats.getSeqNoStats().getMaxSeqNo();
+                break;
             }
         }
-        final String recoveringReplicaAllocationId = replicaRouting(indexName).allocationId().getId();
-        primary.updateLocalCheckpointForShard(recoveringReplicaAllocationId, maxSeqNo);
-        primary.updateGlobalCheckpointForShard(recoveringReplicaAllocationId, maxSeqNo);
-        primary.sync();
-        primary.flush(new FlushRequest().force(true).waitIfOngoing(true));
-        final long retainFrom = maxSeqNo + 1L;
-        primary.renewRetentionLease(
-            ReplicationTracker.getPeerRecoveryRetentionLeaseId(primary.routingEntry()),
-            retainFrom,
-            ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE
-        );
-        primary.renewRetentionLease(
-            ReplicationTracker.getPeerRecoveryRetentionLeaseId(replicaRouting(indexName)),
-            retainFrom,
-            ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE
-        );
-        primary.syncRetentionLeases();
-        assertBusy(() -> assertThat(primary.getMinRetainedSeqNo(), greaterThan((long) docsBeforeFailover)));
-        primary.forceMerge(new ForceMergeRequest().maxNumSegments(1).flush(true));
-        int emittedOps = 0;
-        try (
-            Translog.Snapshot snapshot = primary.newChangesSnapshot(
-                "prune-check",
-                docsBeforeFailover,
-                Long.MAX_VALUE,
-                false,
-                true,
-                true,
-                1 << 20
+        assertThat(maxSeqNo, equalTo((long) docsBeforeFailover + docsWhileReplicaDown - 1L));
+
+        final ShardId shardId = new ShardId(resolveIndex(indexName), 0);
+        safeExecute(
+            client(),
+            RetentionLeaseActions.RENEW,
+            new RetentionLeaseActions.RenewRequest(
+                shardId,
+                ReplicationTracker.getPeerRecoveryRetentionLeaseId(replicaRouting(indexName)),
+                maxSeqNo + 1,
+                ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE
             )
-        ) {
-            while (snapshot.next() != null) {
-                emittedOps++;
+        );
+        assertRetentionLeasesAdvanced(client(), indexName, maxSeqNo + 1);
+
+        assertThat(indicesAdmin().prepareFlush(indexName).setForce(true).get().getFailedShards(), equalTo(0));
+        assertMinRetainedSeqNoAdvanced(internalCluster(), indexName, maxSeqNo + 1);
+        assertThat(indicesAdmin().prepareForceMerge(indexName).setMaxNumSegments(1).setFlush(true).get().getFailedShards(), equalTo(0));
+
+        final AtomicInteger emittedOps = new AtomicInteger();
+        internalCluster().forEveryIndexShard(resolveIndex(indexName), shard -> {
+            if (shard.routingEntry().primary() == false || shard.routingEntry().active() == false) {
+                return;
             }
-        }
+            try (
+                Translog.Snapshot snapshot = shard.newChangesSnapshot(
+                    "prune-check",
+                    docsBeforeFailover,
+                    Long.MAX_VALUE,
+                    false,
+                    true,
+                    true,
+                    1 << 20
+                )
+            ) {
+                Translog.Operation op;
+                while ((op = snapshot.next()) != null) {
+                    if (op.opType() == Translog.Operation.Type.INDEX) {
+                        emittedOps.incrementAndGet();
+                    }
+                }
+            }
+        });
         assertThat(
             "phase2 must still emit INDEX ops for live docs after _recovery_source_size is pruned; "
                 + "LuceneSyntheticSourceChangesSnapshot currently skips them (SDH E-10233)",
-            emittedOps,
+            emittedOps.get(),
             equalTo(docsWhileReplicaDown)
         );
     }
 
-    private void indexDocs(String nodeName, String indexName, int startId, int count) {
+    private void indexDocs(String indexName, int startId, int count) {
         Instant timestamp = Instant.parse("2026-08-26T16:16:40Z");
-        var indexClient = nodeName == null ? client() : internalCluster().client(nodeName);
         for (int i = 0; i < count; i++) {
-            indexClient.prepareIndex(indexName)
+            client().prepareIndex(indexName)
                 .setId(Integer.toString(startId + i))
                 .setSource(
                     "{\"@timestamp\":\"" + timestamp.plusSeconds(i) + "\",\"message\":\"m" + (startId + i) + "\"}",
@@ -238,10 +230,5 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
 
     private ShardRouting replicaRouting(String indexName) {
         return clusterService().state().routingTable().index(indexName).shard(0).replicaShards().getFirst();
-    }
-
-    private IndexShard shardOnNode(String indexName, String nodeName) {
-        Index index = resolveIndex(indexName);
-        return internalCluster().getInstance(IndicesService.class, nodeName).getShardOrNull(new ShardId(index, 0));
     }
 }
