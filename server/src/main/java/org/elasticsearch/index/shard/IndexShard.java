@@ -2161,15 +2161,21 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 globalCheckpoint
             );
             recoveryState.getTranslog().totalLocal(0);
-            // SDH E-10233: LCP==GCP means we do *not* replay local translog at all (see also
-            // openEngineAndSkipTranslogRecovery). Ops with seq# > GCP are supposed to come from
-            // phase2. That is safe only if phase2 is a dense history. If the changes snapshot
-            // omits seq#s, those ops are not in the last commit and are never taken from translog;
-            // finalizeRecovery then trimOperationOfPreviousPrimaryTerms(GCP) drops previous-term
-            // translog ops above GCP. That is how in-flight translog work above GCP can disappear.
-            // A hole *inside* the last commit (later lucene docs, missing seq#s, LCP==GCP) is
-            // different: those missing seq#s were never translog.add'd, so there was already no
-            // in-flight work at flush time (see testFlushPersistsLuceneAbsentSeqNoHoleInCommitUserData).
+            // SDH E-10233: LCP==GCP skips local translog replay. Ops > GCP must come from phase2.
+            // #region agent log
+            org.elasticsearch.index.engine.Da2a06Debug.log(
+                "H3",
+                "IndexShard.doLocalRecovery",
+                "skip local translog replay LCP==GCP",
+                "{\"lcp\":"
+                    + safeCommit.get().localCheckpoint()
+                    + ",\"maxSeqNo\":"
+                    + safeCommit.get().maxSeqNo()
+                    + ",\"gcp\":"
+                    + globalCheckpoint
+                    + "}"
+            );
+            // #endregion
             recoveryStartingSeqNoListener.onResponse(globalCheckpoint + 1);
             return;
         }

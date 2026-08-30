@@ -1271,6 +1271,20 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         // Waits only until replica LCP >= GCP, not until replica LCP >= max_seq_no. If GCP is already
         // stuck at a hole, a recovering replica whose LCP equals that hole is marked in-sync immediately
         // even when millions of later seq#s are missing. SDH E-10233; not itself the source of the hole.
+        // #region agent log
+        org.elasticsearch.index.engine.Da2a06Debug.log(
+            "H2",
+            "ReplicationTracker.markAllocationIdAsInSync",
+            "in-sync wait decision",
+            "{\"replicaLcp\":"
+                + localCheckpoint
+                + ",\"gcp\":"
+                + getGlobalCheckpoint()
+                + ",\"waitForGcp\":"
+                + (cps.localCheckpoint < getGlobalCheckpoint())
+                + "}"
+        );
+        // #endregion
         if (cps.localCheckpoint < getGlobalCheckpoint()) {
             pendingInSync.add(allocationId);
             try {

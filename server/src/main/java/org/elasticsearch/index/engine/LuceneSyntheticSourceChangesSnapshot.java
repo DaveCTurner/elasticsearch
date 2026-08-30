@@ -299,6 +299,14 @@ public final class LuceneSyntheticSourceChangesSnapshot extends SearchBasedChang
                     );
                 } else {
                     skippedOperations++;
+                    // #region agent log
+                    Da2a06Debug.log(
+                        "H1",
+                        "LuceneSyntheticSourceChangesSnapshot.createOperation",
+                        "skip missing recovery_source_size",
+                        "{\"seqNo\":" + docRecord.seqNo() + ",\"fromSeqNo\":" + fromSeqNo + "}"
+                    );
+                    // #endregion
                     return null;
                 }
             }

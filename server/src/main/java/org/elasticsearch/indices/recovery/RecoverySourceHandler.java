@@ -240,6 +240,18 @@ public class RecoverySourceHandler {
         if (isSequenceNumberBasedRecovery) {
             logger.trace("performing sequence numbers based recovery. starting at [{}]", request.startingSeqNo());
             startingSeqNo = request.startingSeqNo();
+            // #region agent log
+            org.elasticsearch.index.engine.Da2a06Debug.log(
+                "H4",
+                "RecoverySourceHandler.recoverToTarget",
+                "ops-based recovery startingSeqNo",
+                "{\"startingSeqNo\":"
+                    + startingSeqNo
+                    + ",\"requestStartingSeqNo\":"
+                    + request.startingSeqNo()
+                    + ",\"opsBased\":true}"
+            );
+            // #endregion
             if (retentionLease == null) {
                 createRetentionLease(startingSeqNo, sendFileStep.map(ignored -> SendFileResult.EMPTY));
             } else {

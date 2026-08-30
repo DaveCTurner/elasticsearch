@@ -3685,6 +3685,19 @@ public class InternalEngine extends Engine {
             // drop Lucene documents. Customer replica is short 6827 docs, so the docs were never
             // on this copy when this commit ran.
             final long localCheckpoint = localCheckpointTracker.getProcessedCheckpoint();
+            // #region agent log
+            final long maxSeqNoForDebug = localCheckpointTracker.getMaxSeqNo();
+            if (localCheckpoint < maxSeqNoForDebug) {
+                // #region agent log
+                Da2a06Debug.log(
+                    "H0",
+                    "InternalEngine.commitIndexWriter",
+                    "flush with lcp behind max",
+                    "{\"lcp\":" + localCheckpoint + ",\"maxSeqNo\":" + maxSeqNoForDebug + ",\"gap\":" + (maxSeqNoForDebug - localCheckpoint) + "}"
+                );
+                // #endregion
+            }
+            // #endregion
             writer.setLiveCommitData(() -> {
                 /*
                  * The user data captured above (e.g. local checkpoint) contains data that must be evaluated *before* Lucene flushes

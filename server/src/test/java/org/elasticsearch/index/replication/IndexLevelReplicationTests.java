@@ -760,6 +760,44 @@ public class IndexLevelReplicationTests extends ESIndexLevelReplicationTestCase 
         }
     }
 
+    /**
+     * SDH E-10233: the replica never applies one seq# (failed replica bulk analogue), later ops
+     * apply, flush persists LCP at the hole. The primary is complete. Recovering the replica from
+     * that primary should send the missing seq# in phase2 (startingSeqNo is GCP+1 = the hole).
+     * If LCP catches up, customer copies needed a recovery whose source was the complete primary;
+     * their recorded recoveries were between two replicas.
+     */
+    public void testNeverAppliedReplicaSeqNoIsRepairedByRecoveryFromCompletePrimary() throws Exception {
+        try (ReplicationGroup shards = createGroup(1)) {
+            shards.startAll();
+            final int docsBeforeHole = randomIntBetween(5, 20);
+            shards.indexDocs(docsBeforeHole);
+
+            IndexRequest skipped = new IndexRequest(index.getName()).id("skipped").source("{}", XContentType.JSON);
+            indexOnPrimary(skipped, shards.getPrimary());
+
+            final int docsAfterHole = randomIntBetween(5, 20);
+            shards.indexDocs(docsAfterHole);
+            shards.flush();
+            shards.syncGlobalCheckpoint();
+
+            IndexShard replica = shards.getReplicas().get(0);
+            assertThat(shards.getPrimary().seqNoStats().getLocalCheckpoint(), equalTo(shards.getPrimary().seqNoStats().getMaxSeqNo()));
+            assertThat(replica.seqNoStats().getLocalCheckpoint(), equalTo(docsBeforeHole - 1L));
+            assertThat(replica.seqNoStats().getMaxSeqNo(), equalTo(shards.getPrimary().seqNoStats().getMaxSeqNo()));
+            assertThat(replica.seqNoStats().getGlobalCheckpoint(), equalTo(docsBeforeHole - 1L));
+
+            shards.removeReplica(replica);
+            closeShardNoCheck(replica);
+            replica.store().close();
+            IndexShard newReplica = shards.addReplicaWithExistingPath(replica.shardPath(), replica.routingEntry().currentNodeId());
+            shards.recoverReplica(newReplica);
+
+            assertThat(newReplica.seqNoStats().getLocalCheckpoint(), equalTo(shards.getPrimary().seqNoStats().getMaxSeqNo()));
+            assertThat(newReplica.seqNoStats().getMaxSeqNo(), equalTo(shards.getPrimary().seqNoStats().getMaxSeqNo()));
+        }
+    }
+
     public void testIndexingOptimizationUsingSequenceNumbers() throws Exception {
         final Set<String> liveDocs = new HashSet<>();
         try (ReplicationGroup group = createGroup(2)) {

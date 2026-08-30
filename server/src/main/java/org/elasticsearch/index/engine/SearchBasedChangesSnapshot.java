@@ -193,6 +193,24 @@ public abstract class SearchBasedChangesSnapshot implements Translog.Snapshot, C
         // That is why a single missing seq# (or a pruned recovery source) is never sent and never
         // fails recovery.
         if (op != null) {
+            // #region agent log
+            if (requiredFullRange == false && op.seqNo() > lastSeenSeqNo + 1) {
+                Da2a06Debug.log(
+                    "H1",
+                    "SearchBasedChangesSnapshot.next",
+                    "seqno gap in changes snapshot",
+                    "{\"lastSeenSeqNo\":"
+                        + lastSeenSeqNo
+                        + ",\"opSeqNo\":"
+                        + op.seqNo()
+                        + ",\"gap\":"
+                        + (op.seqNo() - lastSeenSeqNo - 1)
+                        + ",\"fromSeqNo\":"
+                        + fromSeqNo
+                        + "}"
+                );
+            }
+            // #endregion
             assert fromSeqNo <= op.seqNo() && op.seqNo() <= toSeqNo && lastSeenSeqNo < op.seqNo()
                 : "Unexpected operation; last_seen_seqno ["
                     + lastSeenSeqNo
