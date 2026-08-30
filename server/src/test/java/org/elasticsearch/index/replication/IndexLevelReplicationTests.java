@@ -798,6 +798,34 @@ public class IndexLevelReplicationTests extends ESIndexLevelReplicationTestCase 
         }
     }
 
+    /**
+     * SDH E-10233: ECH 2026-08-27T10:52:56Z shows {@code instance-0000000094} completed
+     * primary-replica resync after {@code NoNodeAvailableException: unknown node [3lHIhznS]}
+     * replica bulk failures. Promotion must {@code fillSeqNoGaps}. If LCP catches up here, the
+     * diagnostics hole on that node was re-copied by the later 11:48 ops-based recovery, not left
+     * by promotion.
+     */
+    public void testPromoteReplicaWithNeverAppliedSeqNoFillsGaps() throws Exception {
+        try (ReplicationGroup shards = createGroup(1)) {
+            shards.startAll();
+            final int docsBeforeHole = randomIntBetween(5, 20);
+            shards.indexDocs(docsBeforeHole);
+
+            IndexRequest skipped = new IndexRequest(index.getName()).id("skipped").source("{}", XContentType.JSON);
+            indexOnPrimary(skipped, shards.getPrimary());
+
+            shards.indexDocs(randomIntBetween(5, 20));
+            shards.flush();
+
+            IndexShard replica = shards.getReplicas().get(0);
+            assertThat(replica.seqNoStats().getLocalCheckpoint(), equalTo(docsBeforeHole - 1L));
+            assertThat(replica.seqNoStats().getMaxSeqNo(), equalTo(shards.getPrimary().seqNoStats().getMaxSeqNo()));
+
+            shards.promoteReplicaToPrimary(replica).get();
+            assertThat(replica.seqNoStats().getLocalCheckpoint(), equalTo(replica.seqNoStats().getMaxSeqNo()));
+        }
+    }
+
     public void testIndexingOptimizationUsingSequenceNumbers() throws Exception {
         final Set<String> liveDocs = new HashSet<>();
         try (ReplicationGroup group = createGroup(2)) {
