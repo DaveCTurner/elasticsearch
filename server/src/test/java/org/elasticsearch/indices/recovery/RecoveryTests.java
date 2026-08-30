@@ -162,6 +162,9 @@ public class RecoveryTests extends ESIndexLevelReplicationTestCase {
                 new SourceToParse("id-3", new BytesArray("{}"), XContentType.JSON)
             );
             // Flushing a new commit with local checkpoint=1 allows to delete the translog gen #1.
+            // SDH E-10233: LCP=1, max>=3, seq# 2 not in Lucene. Same commit shape as the customer
+            // replica. See InternalEngine.commitIndexWriter and
+            // testFlushPersistsLuceneAbsentSeqNoHoleInCommitUserData.
             orgReplica.flush(new FlushRequest().force(true).waitIfOngoing(true));
             // index #2
             orgReplica.applyIndexOperationOnReplica(

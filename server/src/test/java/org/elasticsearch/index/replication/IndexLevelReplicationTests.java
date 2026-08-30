@@ -719,7 +719,10 @@ public class IndexLevelReplicationTests extends ESIndexLevelReplicationTestCase 
      * have created the hole at 174037943 — they copied it.
      * <p>
      * The hole is injected with {@link EngineTestCase#generateNewSeqNo}, which is <em>not</em> a
-     * production exception. On the 9.5.2 single-op {@link InternalEngine#index} path, every
+     * production exception. How a production engine gets a lucene-absent gap into a commit is
+     * {@link InternalEngineTests#testFlushPersistsLuceneAbsentSeqNoHoleInCommitUserData} (flush of
+     * replica-origin ops with a skip) plus {@link InternalEngine#commitIndexWriter}. On the 9.5.2
+     * single-op {@link InternalEngine#index} path, every
      * concrete throw after seq# generation either fails the engine, converts to a no-op tombstone
      * and marks the seq# processed, or happens after the Lucene write (so restore would close the
      * gap). {@code processSubBatch} is also ruled out unless {@code batch_indexing} is enabled.

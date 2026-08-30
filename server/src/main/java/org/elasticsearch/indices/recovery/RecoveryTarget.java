@@ -358,6 +358,10 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
                 indexShard.rollTranslogGeneration();
                 // the flush or translog generation threshold can be reached after we roll a new translog
                 indexShard.afterWriteOperation();
+                // SDH E-10233: trimAboveSeqNo is startingSeqNo-1, i.e. GCP when local recovery was
+                // skipped. Previous-term translog ops with seq# > GCP are made invisible. Combined
+                // with skipTranslogRecovery, this is how in-flight translog above GCP is discarded
+                // after phase2. If phase2 omitted seq#s, they are gone from both lucene and translog.
                 indexShard.trimOperationOfPreviousPrimaryTerms(trimAboveSeqNo);
             }
             if (hasUncommittedOperations()) {
@@ -370,6 +374,8 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
 
     private boolean hasUncommittedOperations() throws IOException {
         long localCheckpointOfCommit = Long.parseLong(indexShard.commitStats().getUserData().get(SequenceNumbers.LOCAL_CHECKPOINT_KEY));
+        // SDH E-10233: this is a lucene changes count, not a translog scan. A lucene-absent hole
+        // does not show up here; later lucene docs do, which forces a flush of the gapped commit.
         return indexShard.countChanges("peer-recovery", localCheckpointOfCommit + 1, Long.MAX_VALUE) > 0;
     }
 

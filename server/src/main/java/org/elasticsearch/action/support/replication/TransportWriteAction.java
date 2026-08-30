@@ -504,6 +504,8 @@ public abstract class TransportWriteAction<
             if (TransportActions.isShardNotAvailableException(exception) == false) {
                 logger.warn(() -> format("[%s] %s", replica.shardId(), message), exception);
             }
+            // SDH E-10233: replica write failures including disconnect after retries still mark the
+            // copy failed. Not a path that leaves an in-sync replica with a lucene-absent hole.
             shardStateAction.remoteShardFailed(
                 replica.shardId(),
                 replica.allocationId().getId(),

@@ -634,6 +634,46 @@ public class InternalEngineTests extends EngineTestCase {
         engine.flush();
     }
 
+    /**
+     * SDH E-10233: a replica-origin apply does not require consecutive seq#s. Indexing seq#s after a
+     * never-applied seq# and then flushing is sufficient to persist a commit whose user data has
+     * local_checkpoint at the hole and max_seq_no at the later op, with no Lucene document for the
+     * skipped seq#.
+     * <p>
+     * Those skipped seq#s were never {@code translog.add}'d, so retention of generations from LCP+1
+     * cannot fill them. Reopening and replaying translog to max_seq_no leaves the hole. That is a
+     * gap without in-flight work — not a commit that is still waiting on translog.
+     */
+    public void testFlushPersistsLuceneAbsentSeqNoHoleInCommitUserData() throws IOException {
+        try (
+            Store store = createStore();
+            Engine replicaEngine = createEngine(defaultSettings, store, createTempDir(), NoMergePolicy.INSTANCE)
+        ) {
+            final int docsBeforeHole = randomIntBetween(1, 8);
+            for (int i = 0; i < docsBeforeHole; i++) {
+                ParsedDocument doc = testParsedDocument(Integer.toString(i), null, testDocumentWithTextField(), SOURCE);
+                replicaEngine.index(appendOnlyReplica(doc, false, -1, i));
+            }
+            final long afterSeqNo = docsBeforeHole + randomIntBetween(1, 5);
+            ParsedDocument after = testParsedDocument("after-hole", null, testDocumentWithTextField(), SOURCE);
+            replicaEngine.index(appendOnlyReplica(after, false, -1, afterSeqNo));
+            replicaEngine.flush(true, true);
+
+            final Map<String, String> userData = replicaEngine.getLastCommittedSegmentInfos().getUserData();
+            assertThat(Long.parseLong(userData.get(SequenceNumbers.LOCAL_CHECKPOINT_KEY)), equalTo((long) docsBeforeHole - 1));
+            assertThat(Long.parseLong(userData.get(SequenceNumbers.MAX_SEQ_NO)), equalTo(afterSeqNo));
+            assertThat(replicaEngine.getProcessedLocalCheckpoint(), equalTo((long) docsBeforeHole - 1));
+            assertThat(replicaEngine.getSeqNoStats(NO_OPS_PERFORMED).getMaxSeqNo(), equalTo(afterSeqNo));
+
+            replicaEngine.close();
+            try (Engine recoveringEngine = new InternalEngine(replicaEngine.config())) {
+                recoverFromTranslog(recoveringEngine, translogHandler, Long.MAX_VALUE);
+                assertThat(recoveringEngine.getProcessedLocalCheckpoint(), equalTo((long) docsBeforeHole - 1));
+                assertThat(recoveringEngine.getSeqNoStats(NO_OPS_PERFORMED).getMaxSeqNo(), equalTo(afterSeqNo));
+            }
+        }
+    }
+
     public void testTranslogMultipleOperationsSameDocument() throws IOException {
         final int ops = randomIntBetween(1, 32);
         Engine initialEngine;

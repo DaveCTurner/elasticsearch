@@ -1150,6 +1150,9 @@ public class RecoverySourceHandler {
                     skippedOps.incrementAndGet();
                     continue;
                 }
+                // SDH E-10233: snapshot.next() already omitted lucene-absent / no-_recovery_source
+                // seq#s (requiredFullRange=false). Those ops are never sent, so the target never
+                // translog.add's them. After flush they are a gap with no in-flight translog.
                 ops.add(operation);
                 batchSizeInBytes += operation.estimateSize();
                 sentOps.incrementAndGet();

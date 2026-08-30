@@ -2161,11 +2161,15 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 globalCheckpoint
             );
             recoveryState.getTranslog().totalLocal(0);
-            // SDH E-10233: startingSeqNo is GCP+1. Peer recovery then opens the last commit
-            // (openEngineAndSkipTranslogRecovery), which may already contain ops above GCP and a
-            // lucene-absent hole at GCP+1. Phase2 will not reconstruct that hole if the source
-            // snapshot skips it (requiredFullRange=false). This is the customer's 0-file recoveries:
-            // translog.recovered is only the seq# span near the tip, not a replay from 0.
+            // SDH E-10233: LCP==GCP means we do *not* replay local translog at all (see also
+            // openEngineAndSkipTranslogRecovery). Ops with seq# > GCP are supposed to come from
+            // phase2. That is safe only if phase2 is a dense history. If the changes snapshot
+            // omits seq#s, those ops are not in the last commit and are never taken from translog;
+            // finalizeRecovery then trimOperationOfPreviousPrimaryTerms(GCP) drops previous-term
+            // translog ops above GCP. That is how in-flight translog work above GCP can disappear.
+            // A hole *inside* the last commit (later lucene docs, missing seq#s, LCP==GCP) is
+            // different: those missing seq#s were never translog.add'd, so there was already no
+            // in-flight work at flush time (see testFlushPersistsLuceneAbsentSeqNoHoleInCommitUserData).
             recoveryStartingSeqNoListener.onResponse(globalCheckpoint + 1);
             return;
         }
@@ -2402,7 +2406,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      * SDH E-10233: ops-based peer recovery uses this after recoverLocallyUpToGlobalCheckpoint chose
      * a startingSeqNo. The engine is the last commit, not the safe commit used to compute startingSeqNo.
      * A last commit with LCP stuck and max_seq_no already high is opened as-is; phase2 does not file-copy
-     * a complete primary.
+     * a complete primary. Translog ops that would have filled a lucene-absent hole at LCP+1 are not
+     * replayed here; they are only applied if phase2 sends them.
      */
     public void openEngineAndSkipTranslogRecovery() throws IOException {
         assert routingEntry().recoverySource().getType() == RecoverySource.Type.PEER : "not a peer recovery [" + routingEntry() + "]";

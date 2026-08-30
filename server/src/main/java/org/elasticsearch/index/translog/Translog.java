@@ -978,6 +978,10 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
     /**
      * Trims translog for terms of files below <code>belowTerm</code> and seq# above <code>aboveSeqNo</code>.
      * Effectively it moves max visible seq# {@link Checkpoint#trimmedAboveSeqNo} therefore {@link TranslogSnapshot} skips those operations.
+     * <p>
+     * SDH E-10233: peer recovery finalizeRecovery calls this with aboveSeqNo = startingSeqNo-1 (GCP
+     * when local translog replay was skipped). Previous-term ops above GCP become invisible. They
+     * are not a backup if phase2 omitted the same seq#s.
      */
     public void trimOperations(long belowTerm, long aboveSeqNo) throws IOException {
         assert aboveSeqNo >= SequenceNumbers.NO_OPS_PERFORMED : "aboveSeqNo has to a valid sequence number";
@@ -2209,6 +2213,10 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
     /**
      * Gets the minimum generation that could contain any sequence number after the specified sequence number, or the current generation if
      * there is no generation that could any such sequence number.
+     * <p>
+     * SDH E-10233: "could contain" is checkpoint maxEffectiveSeqNo >= seqNo, not "does contain this
+     * seq#". Keeping gens from LCP+1 does not mean seq# LCP+1 exists in translog. A lucene-absent
+     * hole whose ops were never applied has no in-flight translog work even while later gens are retained.
      *
      * @param seqNo the sequence number
      * @return the minimum generation for the sequence number

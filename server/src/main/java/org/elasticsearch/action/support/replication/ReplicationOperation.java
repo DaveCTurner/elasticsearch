@@ -365,6 +365,14 @@ public class ReplicationOperation<
                 @Override
                 public boolean shouldRetry(Exception e) {
                     final Throwable cause = ExceptionsHelper.unwrapCause(e);
+                    // SDH E-10233: ConnectTransportException retries this replica request while other
+                    // ReplicationOperations for later bulks run concurrently (no per-replica queue).
+                    // If those later bulks apply on the replica first, the replica engine has a
+                    // lucene-absent gap; commitIndexWriter then persists it. If this request later
+                    // succeeds, the gap is filled. If it fails, failShardIfNeeded still runs — recovery
+                    // from a primary that still has the docs should repair unless the changes snapshot
+                    // skips them. Ruled out as a silent "drop the bulk and stay in-sync" path: retry
+                    // exhaustion still fails the replica copy.
                     return cause instanceof CircuitBreakingException
                         || cause instanceof EsRejectedExecutionException
                         || cause instanceof ConnectTransportException;

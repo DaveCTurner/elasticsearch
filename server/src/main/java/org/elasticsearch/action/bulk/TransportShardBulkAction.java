@@ -813,6 +813,9 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
             final BulkItemRequest item = request.items()[i];
             final BulkItemResponse response = item.getPrimaryResponse();
             final Engine.Result operationResult;
+            // SDH E-10233: translog.add happens only inside applyIndexOperationOnReplica / markSeqNoAsNoop.
+            // An item that never reaches those calls is a lucene-absent seq# with no in-flight translog
+            // on this copy. Index/create do not take the Result.NOOP continue below.
             if (item.getPrimaryResponse().isFailed()) {
                 if (response.getFailure().getSeqNo() == SequenceNumbers.UNASSIGNED_SEQ_NO) {
                     continue; // ignore replication as we didn't generate a sequence number for this request.
