@@ -10,6 +10,7 @@
 package org.elasticsearch.indices.recovery;
 
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
+import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
@@ -154,6 +155,7 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
                     "{\"@timestamp\":\"" + timestamp.plusSeconds(i) + "\",\"message\":\"m" + (startId + i) + "\"}",
                     XContentType.JSON
                 )
+                .setRefreshPolicy(between(1, 10) == 1 ? WriteRequest.RefreshPolicy.IMMEDIATE : WriteRequest.RefreshPolicy.NONE)
                 .get();
         }
     }
