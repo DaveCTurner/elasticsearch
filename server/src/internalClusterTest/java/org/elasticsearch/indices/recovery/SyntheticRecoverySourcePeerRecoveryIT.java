@@ -126,6 +126,9 @@ public class SyntheticRecoverySourcePeerRecoveryIT extends ESIntegTestCase {
 
         ensureGreen(indexName);
         final long expectedMaxSeqNo = docsBeforeFailover + docsWhileReplicaDown + concurrentDocs - 1L;
+        indicesAdmin().prepareFlush(indexName).setForce(true).get();
+        indicesAdmin().prepareForceMerge(indexName).setMaxNumSegments(1).setFlush(true).get();
+        indicesAdmin().prepareRefresh(indexName).get();
         assertBusy(() -> {
             int shards = 0;
             for (ShardStats shardStats : indicesAdmin().prepareStats(indexName).get().getShards()) {
