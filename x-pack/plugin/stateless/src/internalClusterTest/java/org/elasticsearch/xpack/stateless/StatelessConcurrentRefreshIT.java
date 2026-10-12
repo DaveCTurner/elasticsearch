@@ -13,6 +13,8 @@ import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.metadata.ProjectId;
 import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
@@ -22,6 +24,7 @@ import org.elasticsearch.index.engine.EngineException;
 import org.elasticsearch.index.translog.Translog;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.internal.DocumentParsingProvider;
+import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.xpack.stateless.cache.SharedBlobCacheWarmingService;
 import org.elasticsearch.xpack.stateless.commits.HollowShardsService;
@@ -387,11 +390,27 @@ public class StatelessConcurrentRefreshIT extends AbstractStatelessPluginIntegTe
      */
     public void testRefreshTrueDocumentIsSearchableBeforeIndexIsGreen() {
         startMasterOnlyNode();
-        startIndexNode();
-        final String searchNode = startSearchNode();
-        ensureStableCluster(3);
+        final var indexNode1 = startIndexNode();
+        final var indexNode2 = startIndexNode();
+        final var searchNode = startSearchNode();
+        ensureStableCluster(4);
 
-        final String indexName = "index";
+        final var indexName = randomIndexName();
+
+        final var updatedSettingsListener = ClusterServiceUtils
+
+            .addMasterTemporaryStateListener(cs -> cs.projectState(ProjectId.DEFAULT).metadata().index(indexName) != null)
+            .andThen(
+                l -> client().admin()
+                    .indices()
+                    .prepareUpdateSettings(indexName)
+                    .setSettings(
+                        Settings.builder()
+                            .put(IndexMetadata.INDEX_ROUTING_INCLUDE_GROUP_PREFIX + "._name", randomFrom(indexNode1, indexNode2))
+                    )
+                    .execute(l.map(ignored -> null))
+            );
+
         createIndex(
             indexName,
             indexSettings(10, 1).put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), TimeValue.MINUS_ONE).build()
@@ -404,22 +423,16 @@ public class StatelessConcurrentRefreshIT extends AbstractStatelessPluginIntegTe
         assertThat(indexResponse.getResult(), equalTo(DocWriteResponse.Result.CREATED));
 
         assertResponse(client(searchNode).prepareSearch(indexName).setSize(0).setTrackTotalHits(true), response -> {
-            assertThat(
-                "search after refresh=true saw no shards: " + searchSummary(response),
-                response.getTotalShards(),
-                greaterThan(0)
-            );
-            assertThat(
-                "search after refresh=true had shard failures: " + searchSummary(response),
-                response.getFailedShards(),
-                equalTo(0)
-            );
+            assertThat("search after refresh=true saw no shards: " + searchSummary(response), response.getTotalShards(), greaterThan(0));
+            assertThat("search after refresh=true had shard failures: " + searchSummary(response), response.getFailedShards(), equalTo(0));
             assertThat(
                 "refresh=true returned but the document is not searchable: " + searchSummary(response),
                 response.getHits().getTotalHits().value(),
                 equalTo(1L)
             );
         });
+
+        safeAwait(updatedSettingsListener);
     }
 
     private static String searchSummary(SearchResponse response) {
