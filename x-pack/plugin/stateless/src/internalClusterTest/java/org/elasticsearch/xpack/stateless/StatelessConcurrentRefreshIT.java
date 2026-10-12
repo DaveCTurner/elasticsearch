@@ -10,11 +10,11 @@ package org.elasticsearch.xpack.stateless;
 import org.apache.lucene.index.IndexWriter;
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.DocWriteResponse;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.ProjectId;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
@@ -423,29 +423,24 @@ public class StatelessConcurrentRefreshIT extends AbstractStatelessPluginIntegTe
         assertThat(indexResponse.getResult(), equalTo(DocWriteResponse.Result.CREATED));
 
         assertResponse(client(searchNode).prepareSearch(indexName).setSize(0).setTrackTotalHits(true), response -> {
-            assertThat("search after refresh=true saw no shards: " + searchSummary(response), response.getTotalShards(), greaterThan(0));
-            assertThat("search after refresh=true had shard failures: " + searchSummary(response), response.getFailedShards(), equalTo(0));
+            final var responseSummary = Strings.format(
+                "hits=%s total=%d successful=%d skipped=%d failed=%d",
+                response.getHits().getTotalHits(),
+                response.getTotalShards(),
+                response.getSuccessfulShards(),
+                response.getSkippedShards(),
+                response.getFailedShards()
+            );
+            assertThat("search after refresh=true saw no shards: " + responseSummary, response.getTotalShards(), greaterThan(0));
+            assertThat("search after refresh=true had shard failures: " + responseSummary, response.getFailedShards(), equalTo(0));
             assertThat(
-                "refresh=true returned but the document is not searchable: " + searchSummary(response),
+                "refresh=true returned but the document is not searchable: " + responseSummary,
                 response.getHits().getTotalHits().value(),
                 equalTo(1L)
             );
         });
 
         safeAwait(updatedSettingsListener);
-    }
-
-    private static String searchSummary(SearchResponse response) {
-        return "hits="
-            + response.getHits().getTotalHits()
-            + " total="
-            + response.getTotalShards()
-            + " successful="
-            + response.getSuccessfulShards()
-            + " skipped="
-            + response.getSkippedShards()
-            + " failed="
-            + response.getFailedShards();
     }
 
     private void bulkIndexDocsWithRefresh(String indexName, int numDocs, WriteRequest.RefreshPolicy refreshPolicy) {
