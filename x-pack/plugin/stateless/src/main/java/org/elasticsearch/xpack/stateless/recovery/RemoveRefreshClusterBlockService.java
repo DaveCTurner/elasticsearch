@@ -84,7 +84,7 @@ public class RemoveRefreshClusterBlockService implements ClusterStateListener {
         this.expireAfter = EXPIRE_AFTER_SETTING.get(settings);
         this.updateClusterStateTaskQueue = clusterService.createTaskQueue(
             "remove-refresh-blocks-cluster-state-update",
-            Priority.LOW,
+            Priority.HIGH,
             CLUSTER_STATE_EXECUTOR
         );
         this.threadPool = threadPool;
