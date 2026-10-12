@@ -15,6 +15,7 @@ import com.carrotsearch.hppc.ObjectLongMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.ArrayUtil;
+import org.elasticsearch.action.support.replication.RefreshRaceDelays;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.MetadataIndexStateService;
 import org.elasticsearch.cluster.metadata.ProjectMetadata;
@@ -40,6 +41,9 @@ import org.elasticsearch.index.shard.ShardId;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -54,6 +58,29 @@ import static org.elasticsearch.cluster.routing.ExpectedShardSizeEstimator.getEx
 public class DesiredBalanceReconciler {
 
     private static final Logger logger = LogManager.getLogger(DesiredBalanceReconciler.class);
+
+    // TEMPORARY 7911 repro: leave non-system search copies unassigned until a later master-service task assigns them.
+    private static final ConcurrentHashMap<ShardId, Long> searchReplicaHoldUntilNanos = new ConcurrentHashMap<>();
+    static final AtomicBoolean delayedSearchReplica = new AtomicBoolean();
+
+    static boolean delaySearchReplica(ShardRouting shard) {
+        if (RefreshRaceDelays.ready == false || shard.primary() || shard.role() != ShardRouting.Role.SEARCH_ONLY) {
+            return false;
+        }
+        if (shard.shardId().getIndexName().startsWith(".")) {
+            return false;
+        }
+        long now = System.nanoTime();
+        long until = searchReplicaHoldUntilNanos.computeIfAbsent(shard.shardId(), shardId -> {
+            logger.info("TEMPORARY leaving search copy {} unassigned; assignment will be submitted in 13s", shardId);
+            return now + TimeUnit.SECONDS.toNanos(12);
+        });
+        if (now < until) {
+            delayedSearchReplica.set(true);
+            return true;
+        }
+        return false;
+    }
 
     /**
      * The minimum interval that log messages will be written if the number of undesired shard allocations reaches the percentage of total
@@ -303,6 +330,10 @@ public class DesiredBalanceReconciler {
             do {
                 nextShard: for (int i = 0; i < orderedShardAllocationListLength; i++) {
                     final var shard = orderedShardAllocationList[i];
+                    if (delaySearchReplica(shard)) {
+                        unassigned.ignoreShard(shard, AllocationStatus.DECIDERS_THROTTLED, allocation.changes());
+                        continue nextShard;
+                    }
                     final var assignment = desiredBalance.getAssignment(shard.shardId());
                     // An ignored shard copy is one that has no desired balance assignment.
                     final boolean ignored = assignment == null || isIgnored(routingNodes, shard, assignment);

@@ -9,6 +9,7 @@ package org.elasticsearch.xpack.stateless.recovery;
 
 import org.apache.lucene.store.IOContext;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.replication.RefreshRaceDelays;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.cluster.project.ProjectResolver;
 import org.elasticsearch.cluster.routing.ShardRoutingState;
@@ -96,6 +97,16 @@ public class StatelessSearchNodeRecoveryListener extends AbstractStatelessRecove
         throws IOException {
         assert indexShard.store().refCount() > 0 : indexShard.shardId();
         assert blobContainer != null : indexShard.routingEntry();
+
+        // TEMPORARY 7911 repro: one second before this copy chooses the commit it will open.
+        if (RefreshRaceDelays.ready && indexShard.shardId().getIndexName().startsWith(".") == false) {
+            logger.info("TEMPORARY {} recovering; choosing a commit in 1s", indexShard.shardId());
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
 
         final var searchDirectory = SearchDirectory.unwrapDirectory(indexShard.store().directory());
         final boolean timestampBackfillEnabled = useInternalFilesReplicatedContentForSearchShards

@@ -35,6 +35,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.metrics.CounterMetric;
 import org.elasticsearch.common.metrics.MeanMetric;
 import org.elasticsearch.common.settings.ClusterSettings;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.ArrayList;
@@ -45,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -87,6 +89,8 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
     private final ConcurrentLinkedQueue<List<MoveAllocationCommand>> pendingDesiredBalanceMoves = new ConcurrentLinkedQueue<>();
     private final MasterServiceTaskQueue<ReconcileDesiredBalanceTask> masterServiceTaskQueue;
     private final AtomicReference<DesiredBalance> currentDesiredBalanceRef = new AtomicReference<>(DesiredBalance.NOT_MASTER);
+    // TEMPORARY 7911 repro.
+    private final AtomicBoolean temporarySearchReplicaAssignmentPending = new AtomicBoolean();
     private volatile boolean resetCurrentDesiredBalance = false;
     private final Set<String> processedNodeShutdowns = new HashSet<>();
 
@@ -416,6 +420,18 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
             final var desiredBalanceStats = getStats();
             updateDesiredBalanceMetrics(desiredBalance, allocation, allocationStats, desiredBalanceStats);
         });
+        // TEMPORARY 7911 repro: submit the search-copy assignment later, instead of holding this cluster-state update.
+        if (DesiredBalanceReconciler.delayedSearchReplica.compareAndSet(true, false)
+            && temporarySearchReplicaAssignmentPending.compareAndSet(false, true)) {
+            threadPool.schedule(() -> {
+                temporarySearchReplicaAssignmentPending.set(false);
+                logger.info("TEMPORARY submitting search-copy assignment");
+                var balance = currentDesiredBalanceRef.get();
+                if (balance != DesiredBalance.NOT_MASTER) {
+                    submitReconcileTask(balance);
+                }
+            }, TimeValue.timeValueSeconds(13), threadPool.generic());
+        }
 
         if (logger.isTraceEnabled()) {
             logger.trace("Reconciled desired balance: {}", desiredBalance);

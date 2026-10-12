@@ -9,10 +9,13 @@
 
 package org.elasticsearch.action.admin.indices.refresh;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.replication.RefreshRaceDelays;
 import org.elasticsearch.action.support.broadcast.unpromotable.TransportBroadcastUnpromotableAction;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateObserver;
@@ -41,6 +44,8 @@ import static org.elasticsearch.cluster.metadata.IndexMetadata.INDEX_REFRESH_BLO
 public class TransportUnpromotableShardRefreshAction extends TransportBroadcastUnpromotableAction<
     UnpromotableShardRefreshRequest,
     ActionResponse.Empty> {
+
+    private static final Logger logger = LogManager.getLogger(TransportUnpromotableShardRefreshAction.class);
 
     public static final String NAME = "indices:admin/refresh/unpromotable";
 
@@ -95,10 +100,25 @@ public class TransportUnpromotableShardRefreshAction extends TransportBroadcastU
             return;
         }
 
+        // TEMPORARY 7911 repro: the refresh stays parked on the block for one second before it starts waiting.
+        if (RefreshRaceDelays.ready && index.getName().startsWith(".") == false) {
+            temporaryStep("unpromotable refresh of " + request.shardId() + " is waiting for the refresh block");
+        }
+
         clusterStateObserver.waitForNextChange(new ClusterStateObserver.Listener() {
             @Override
             public void onNewClusterState(ClusterState state) {
-                listener.onResponse(null);
+                // TEMPORARY 7911 repro: dispatch a second after the block clears, off the cluster-applier thread.
+                if (RefreshRaceDelays.ready && index.getName().startsWith(".") == false) {
+                    logger.info("TEMPORARY refresh block cleared for {}; dispatching the captured request in 1s", request.shardId());
+                    threadPool.schedule(
+                        () -> listener.onResponse(null),
+                        TimeValue.timeValueSeconds(1),
+                        threadPool.executor(ThreadPool.Names.REFRESH)
+                    );
+                } else {
+                    listener.onResponse(null);
+                }
             }
 
             @Override
@@ -116,6 +136,16 @@ public class TransportUnpromotableShardRefreshAction extends TransportBroadcastU
                 );
             }
         }, clusterState -> isIndexBlockedForRefresh(projectMetadata, index, clusterState) == false);
+    }
+
+    // TEMPORARY 7911 repro.
+    private static void temporaryStep(String step) {
+        logger.info("TEMPORARY {}", step);
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static boolean isIndexBlockedForRefresh(@Nullable ProjectMetadata projectMetadata, Index index, ClusterState state) {

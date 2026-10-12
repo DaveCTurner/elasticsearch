@@ -9,6 +9,8 @@
 
 package org.elasticsearch.action.support.replication;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
@@ -29,6 +31,8 @@ import org.elasticsearch.transport.TransportService;
 import java.util.concurrent.Executor;
 
 public class PostWriteRefresh {
+
+    private static final Logger logger = LogManager.getLogger(PostWriteRefresh.class);
 
     public static final String POST_WRITE_REFRESH_ORIGIN = "post_write_refresh";
     public static final String FORCED_REFRESH_AFTER_INDEX = "refresh_flag_index";
@@ -90,6 +94,12 @@ public class PostWriteRefresh {
     }
 
     private static void immediate(IndexShard indexShard, ActionListener<Engine.RefreshResult> listener) {
+        // TEMPORARY 7911 repro: one second between the write and the flush that creates the document commit.
+        if (RefreshRaceDelays.ready
+            && indexShard.shardId().getIndexName().startsWith(".") == false
+            && indexShard.getReplicationGroup().getRoutingTable().unpromotableShards().isEmpty() == false) {
+            temporaryStep("flush " + indexShard.shardId() + " (document commit) in 1s");
+        }
         indexShard.externalRefresh(FORCED_REFRESH_AFTER_INDEX, listener);
     }
 
@@ -132,8 +142,19 @@ public class PostWriteRefresh {
         ActionListener<Boolean> listener,
         @Nullable TimeValue postWriteRefreshTimeout
     ) {
+        var routingTable = indexShard.getReplicationGroup().getRoutingTable();
+        // TEMPORARY 7911 repro: this snapshot is what the later dispatch uses. Search copies assigned after this stay out of it.
+        if (RefreshRaceDelays.ready && indexShard.shardId().getIndexName().startsWith(".") == false) {
+            temporaryStep(
+                "captured routing table for "
+                    + indexShard.shardId()
+                    + " assignedSearchCopies="
+                    + routingTable.assignedUnpromotableShards().size()
+                    + "; send refresh in 1s"
+            );
+        }
         UnpromotableShardRefreshRequest unpromotableReplicaRequest = new UnpromotableShardRefreshRequest(
-            indexShard.getReplicationGroup().getRoutingTable(),
+            routingTable,
             indexShard.getOperationPrimaryTerm(),
             generation,
             true,
@@ -155,6 +176,16 @@ public class PostWriteRefresh {
                 refreshExecutor
             )
         );
+    }
+
+    // TEMPORARY 7911 repro.
+    private static void temporaryStep(String step) {
+        logger.info("TEMPORARY {}", step);
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
 }

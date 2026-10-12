@@ -9,6 +9,7 @@ package org.elasticsearch.xpack.stateless.recovery;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.support.replication.RefreshRaceDelays;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateListener;
@@ -175,6 +176,7 @@ public class RemoveRefreshClusterBlockService implements ClusterStateListener {
 
         if (event.routingTableChanged()) {
             Map<ProjectId, Set<Index>> searchReadyBlocks = new HashMap<>();
+            Map<ProjectId, Set<Index>> delayedSearchReadyBlocks = new HashMap<>();
             for (var projectId : event.state().metadata().projects().keySet()) {
                 var blockedIndices = getIndicesWithRefreshBlock(event.state(), projectId);
                 if (blockedIndices.isEmpty()) {
@@ -185,7 +187,14 @@ public class RemoveRefreshClusterBlockService implements ClusterStateListener {
                     if (event.indexRoutingTableChanged(index)) {
                         var indexRoutingTable = event.state().routingTable(projectId).index(blockedIndex);
                         if (indexRoutingTable.readyForSearch()) {
-                            searchReadyBlocks.computeIfAbsent(projectId, k -> new HashSet<>()).add(indexRoutingTable.getIndex());
+                            // TEMPORARY 7911 repro: submit the block removal later, instead of delaying this cluster-state update.
+                            var target = RefreshRaceDelays.ready && blockedIndex.startsWith(".") == false
+                                ? delayedSearchReadyBlocks
+                                : searchReadyBlocks;
+                            if (target == delayedSearchReadyBlocks) {
+                                logger.info("TEMPORARY [{}] is readyForSearch; submitting refresh-block removal in 1s", blockedIndex);
+                            }
+                            target.computeIfAbsent(projectId, k -> new HashSet<>()).add(indexRoutingTable.getIndex());
                         }
                     }
                 }
@@ -195,6 +204,20 @@ public class RemoveRefreshClusterBlockService implements ClusterStateListener {
                     "remove-refresh-blocks-for-indices-ready-for-search",
                     new RemoveRefreshBlockClusterStateUpdateTask(Map.copyOf(searchReadyBlocks)),
                     null
+                );
+            }
+            if (delayedSearchReadyBlocks.isEmpty() == false) {
+                Map<ProjectId, Set<Index>> frozen = new HashMap<>();
+                delayedSearchReadyBlocks.forEach((projectId, indices) -> frozen.put(projectId, Set.copyOf(indices)));
+                var task = new RemoveRefreshBlockClusterStateUpdateTask(Map.copyOf(frozen));
+                threadPool.schedule(
+                    () -> updateClusterStateTaskQueue.submitTask(
+                        "remove-refresh-blocks-for-indices-ready-for-search",
+                        task,
+                        null
+                    ),
+                    TimeValue.timeValueSeconds(1),
+                    executor
                 );
             }
         }

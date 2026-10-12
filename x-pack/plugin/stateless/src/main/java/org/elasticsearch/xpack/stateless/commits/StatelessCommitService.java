@@ -13,6 +13,7 @@ import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.replication.RefreshRaceDelays;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.NoShardAvailableActionException;
 import org.elasticsearch.action.UnavailableShardsException;
@@ -103,6 +104,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -241,6 +243,8 @@ public class StatelessCommitService extends AbstractLifecycleComponent implement
     private final Supplier<String> ephemeralNodeIdSupplier;
     private final Function<ShardId, Optional<IndexShardRoutingTable>> shardRoutingFinder;
     private final ThreadPool threadPool;
+    // TEMPORARY 7911 repro: user-document commits already registered locally, whose VBCC stays hidden from search recovery.
+    private final Set<String> temporaryDeferredDocumentCommits = ConcurrentHashMap.newKeySet();
     private final StatelessCommitNotificationPublisher statelessCommitNotificationPublisher;
     // We don't do null checks when reading from this sub-map because we hold a commit reference while files are being uploaded. This will
     // prevent commit deletion in the interim.
@@ -720,6 +724,16 @@ public class StatelessCommitService extends AbstractLifecycleComponent implement
             }
 
             assert reference.getPrimaryTerm() == commitState.allocationPrimaryTerm;
+            // TEMPORARY 7911 repro: register this commit locally (so reader tracking can resolve it) but keep the VBCC
+            // out of search recovery, and delay its upload, until the search copy has opened the previous one.
+            if (deferDocumentCommit(reference)) {
+                commitState.temporaryHideDocumentVbccUntilNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+                logger.info(
+                    "TEMPORARY document commit {} generation {} is registered locally but hidden from search recovery for 30s",
+                    shardId,
+                    generation
+                );
+            }
             logger.trace(
                 () -> format("%s created commit %s", shardId, new PrimaryTermAndGeneration(reference.getPrimaryTerm(), generation))
             );
@@ -816,7 +830,20 @@ public class StatelessCommitService extends AbstractLifecycleComponent implement
             }
 
             if (commitState.shouldUploadVirtualBcc(virtualBcc)) {
-                commitState.maybeFreezeAndUploadCurrentVirtualBcc(virtualBcc);
+                if (System.nanoTime() < commitState.temporaryHideDocumentVbccUntilNanos) {
+                    logger.info(
+                        "TEMPORARY delaying upload of {} generation {} for 30s so search recovery still sees the previous commit",
+                        shardId,
+                        generation
+                    );
+                    threadPool.schedule(
+                        () -> commitState.maybeFreezeAndUploadCurrentVirtualBcc(virtualBcc),
+                        TimeValue.timeValueSeconds(30),
+                        threadPool.generic()
+                    );
+                } else {
+                    commitState.maybeFreezeAndUploadCurrentVirtualBcc(virtualBcc);
+                }
             }
 
             if (reference.isHollow()) {
@@ -833,6 +860,27 @@ public class StatelessCommitService extends AbstractLifecycleComponent implement
                 IOUtils.closeWhileHandlingException(reference);
             }
         }
+    }
+
+    // TEMPORARY 7911 repro. True only the first time a user-document commit is seen.
+    private boolean deferDocumentCommit(StatelessCommitRef reference) {
+        if (RefreshRaceDelays.ready == false || reference.getShardId().getIndexName().startsWith(".")) {
+            return false;
+        }
+        final long maxSeqNo;
+        try {
+            String raw = reference.getUserData().get(SequenceNumbers.MAX_SEQ_NO);
+            if (raw == null) {
+                return false;
+            }
+            maxSeqNo = Long.parseLong(raw);
+        } catch (Exception e) {
+            return false;
+        }
+        if (maxSeqNo < 0) {
+            return false;
+        }
+        return temporaryDeferredDocumentCommits.add(reference.getShardId() + ":" + reference.getGeneration());
     }
 
     // VBCC uploads are retried indefinitely unless the shard has been closed or it has experienced too many IO errors
@@ -1454,6 +1502,8 @@ public class StatelessCommitService extends AbstractLifecycleComponent implement
         // This ensures search nodes can still fetch VBCC chunks from the indexing node during the notification window. See
         // scheduleNotificationCleanup and STATELESS_UPLOAD_RELEASE_FILES_AFTER_NOTIFICATION_TIMEOUT.
         private volatile VirtualBatchedCompoundCommit currentVirtualBcc = null;
+        // TEMPORARY 7911 repro. While this deadline is in the future, search recovery must not observe currentVirtualBcc.
+        private volatile long temporaryHideDocumentVbccUntilNanos;
         private final Map<Long, PendingUploadVirtualBatchCompoundCommit> pendingUploadBccGenerations = new ConcurrentHashMap<>();
         // Tracks the time when the oldest pending upload commit was submitted for upload.
         // We use this to apply backpressure when there is too much upload work.
@@ -3215,6 +3265,10 @@ public class StatelessCommitService extends AbstractLifecycleComponent implement
         /// seen, so the bound it pins covers it, including anything appended to that VBCC in the meantime.
         @Nullable
         private VirtualBatchedCompoundCommit getLatestVirtualBccForUnpromotableRecovery() {
+            // TEMPORARY 7911 repro: the document commit is already in currentVirtualBcc, but recovery should open the previous one.
+            if (System.nanoTime() < temporaryHideDocumentVbccUntilNanos) {
+                return null;
+            }
             final var virtualBcc = getCurrentVirtualBcc();
             if (virtualBcc != null && relocationUploadBoundListener == null) {
                 return virtualBcc;

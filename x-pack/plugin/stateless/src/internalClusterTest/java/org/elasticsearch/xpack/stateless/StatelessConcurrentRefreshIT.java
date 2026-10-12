@@ -9,8 +9,12 @@ package org.elasticsearch.xpack.stateless;
 
 import org.apache.lucene.index.IndexWriter;
 import org.elasticsearch.action.ActionFuture;
+import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
+import org.elasticsearch.action.support.replication.RefreshRaceDelays;
 import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
@@ -40,8 +44,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import static org.elasticsearch.index.IndexSettings.INDEX_TRANSLOG_FLUSH_THRESHOLD_AGE_SETTING;
+import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertNoFailures;
+import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertResponse;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 
 public class StatelessConcurrentRefreshIT extends AbstractStatelessPluginIntegTestCase {
@@ -372,6 +379,80 @@ public class StatelessConcurrentRefreshIT extends AbstractStatelessPluginIntegTe
 
         // 7. The relocation should be successful after indexing request completes
         ensureGreen(indexName);
+    }
+
+    /**
+     * elasticsearch-serverless#7911: one {@code refresh=true} write on a new index returned, and the query that ran
+     * immediately afterwards found no documents. Every shard answered. This is a single iteration of that sequence,
+     * with no barriers, so it can be repeated until the write returns before the search copy can see the document.
+     * The index is not waited on to become green first: that wait finishes search-copy startup, which is the window
+     * in which the failure was observed.
+     */
+    public void testRefreshTrueDocumentIsSearchableBeforeIndexIsGreen() throws Exception {
+        startMasterOnlyNode();
+        startIndexNode();
+        final String searchNode = startSearchNode();
+        ensureStableCluster(3);
+        RefreshRaceDelays.ready = true;
+        try {
+            final String indexName = "index";
+            // More shards than node_initial_primaries_recoveries (4), so the update that starts the primaries cannot also
+            // initialize every search copy. Indexing does not wait for a search copy: the stateless default of 1 does.
+            final int shards = 6;
+            assertAcked(
+                prepareCreate(indexName).setSettings(
+                    indexSettings(shards, 1).put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), TimeValue.MINUS_ONE)
+                ).setWaitForActiveShards(ActiveShardCount.NONE)
+            );
+            assertBusy(() -> {
+                var indexRouting = clusterAdmin().prepareState(TEST_REQUEST_TIMEOUT).get().getState().routingTable().index(indexName);
+                assertNotNull(indexRouting);
+                assertThat(indexRouting.primaryShardsActive(), equalTo(shards));
+                for (int i = 0; i < shards; i++) {
+                    assertThat(indexRouting.shard(i).assignedUnpromotableShards().size(), equalTo(0));
+                }
+            });
+
+            final var indexResponse = prepareIndex(indexName).setId("1")
+                .setSource("field", "value")
+                .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+                .setWaitForActiveShards(ActiveShardCount.NONE)
+                .get(TEST_REQUEST_TIMEOUT);
+            assertThat(indexResponse.getResult(), equalTo(DocWriteResponse.Result.CREATED));
+
+            assertResponse(client(searchNode).prepareSearch(indexName).setSize(0).setTrackTotalHits(true), response -> {
+                assertThat(
+                    "search after refresh=true saw no shards: " + searchSummary(response),
+                    response.getTotalShards(),
+                    greaterThan(0)
+                );
+                assertThat(
+                    "search after refresh=true had shard failures: " + searchSummary(response),
+                    response.getFailedShards(),
+                    equalTo(0)
+                );
+                assertThat(
+                    "refresh=true returned but the document is not searchable: " + searchSummary(response),
+                    response.getHits().getTotalHits().value(),
+                    equalTo(1L)
+                );
+            });
+        } finally {
+            RefreshRaceDelays.ready = false;
+        }
+    }
+
+    private static String searchSummary(SearchResponse response) {
+        return "hits="
+            + response.getHits().getTotalHits()
+            + " total="
+            + response.getTotalShards()
+            + " successful="
+            + response.getSuccessfulShards()
+            + " skipped="
+            + response.getSkippedShards()
+            + " failed="
+            + response.getFailedShards();
     }
 
     private void bulkIndexDocsWithRefresh(String indexName, int numDocs, WriteRequest.RefreshPolicy refreshPolicy) {
