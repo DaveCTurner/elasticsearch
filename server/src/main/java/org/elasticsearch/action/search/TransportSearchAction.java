@@ -2684,6 +2684,10 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
         return Arrays.asList(list);
     }
 
+    // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
+    // Dropping a refresh-blocked index here yields zero shards. ES|QL uses this via EsqlSearchShardsAction.
+    // That can make STATS null, but it is not "every shard answered". The 7911 response had shards answering
+    // with documents_found 0 and nothing failed or partial.
     static String[] ignoreBlockedIndices(ProjectState projectState, String[] concreteIndices) {
         // optimization: mostly we do not have any blocks so there's no point in the expensive per-index checking
         boolean hasIndexBlocks = projectState.blocks().indices(projectState.projectId()).isEmpty() == false;

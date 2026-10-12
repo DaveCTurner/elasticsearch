@@ -461,6 +461,11 @@ public abstract class TransportWriteAction<
                     }
                 };
                 // If the post refresh action is null, this is just the replica and we only call the static method
+                // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
+                // The write response is not sent before refreshListener completes. A bulk that returned
+                // successfully has finished PostWriteRefresh; the HTTP response is not racing ahead of it.
+                // A refresh timeout fails this listener (refreshFailure), so the bulk errors rather than
+                // returning success while a search copy is still behind.
                 if (postWriteRefresh != null) {
                     postWriteRefresh.refreshShard(
                         request.getRefreshPolicy(),

@@ -621,6 +621,10 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
             );
             eventListener.indexShardStateChanged(indexShard, null, indexShard.state(), "shard created");
             eventListener.afterIndexShardCreated(indexShard);
+            // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
+            // Delaying this map put delays startRecovery with it: IndicesService enqueues recovery only after
+            // createShard returns. The sleep produces the early-OK ack in TransportUnpromotableShardRefreshAction,
+            // and the search copy still registers after appendCommit. It does not open the initial empty commit.
             // TEMPORARY — do not commit. Keeps the search shard invisible to refresh=true (getShardOrNull == null)
             // until after the indexing node has acknowledged the write. elasticsearch-serverless#7911.
             if (routing.isPromotableToPrimary() == false) {

@@ -82,6 +82,15 @@ public class PostWriteRefresh {
                     routingTable.unpromotableShards(),
                     routingTable.assignedUnpromotableShards()
                 );
+                // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
+                // This does not bypass INDEX_REFRESH_BLOCK on a new index with replicas. unpromotableShards()
+                // includes unassigned SEARCH_ONLY copies, which IndexRoutingTable.Builder.initializeEmpty puts
+                // in the master's routing table at index creation, before any search node has started the shard.
+                // The primary applies that table in ReplicationTracker.updateFromMaster before it accepts writes,
+                // so the first refresh=true takes this branch and waits in TransportUnpromotableShardRefreshAction.
+                // The else branch is only when this routing table has no search copy at all. The mixed-cluster
+                // old node for 7911 (current_dev, 2026-10-10) is after #120642, which made this list include
+                // unassigned copies; the older assigned-only check is not what that job ran.
                 if (routingTable.unpromotableShards().size() > 0) {
                     sendUnpromotableRequests(indexShard, r.generation(), true, l, postWriteRefreshTimeout);
                 } else {

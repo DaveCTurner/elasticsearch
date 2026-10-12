@@ -744,6 +744,12 @@ public class StatelessCommitService extends AbstractLifecycleComponent implement
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
+            // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
+            // A search copy that registers during the sleep below is already in the replication group when
+            // PostWriteRefresh runs. register waits until the indexing node has applied that cluster state,
+            // and the applier updates ReplicationTracker before the state is visible. refresh=true therefore
+            // waits for the new generation and hangs if this pre-append recipient snapshot missed the copy
+            // (elasticsearch#159479). That is not 7911, where the bulk returned successfully.
             if (noAssignedSearchShards && commitMaxSeqNo >= 0) {
                 logger.info(
                     "{} TEMPORARY delaying visibility of commit generation [{}] for 8s after capturing notification recipients {}",
@@ -1492,6 +1498,10 @@ public class StatelessCommitService extends AbstractLifecycleComponent implement
         // `handleUploadedBcc`.
         // The order must be reversed when reading a BCC based on its generation, i.e. we must first check `currentVirtualBcc`,
         // then `pendingUploadBccGenerations` and lastly `latestUploadedBcc`, to have full coverage _without_ using synchronization.
+        // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
+        // A register that runs after appendCommit cannot miss the document VBCC by reading current then pending:
+        // writers publish into pendingUploadBccGenerations before nulling currentVirtualBcc. The fallback to the
+        // last uploaded BCC (often the initial empty commit) runs only when no VBCC exists yet.
 
         /**
          * References on the Lucene commits acquired on the engines and maintained across engine resets.
@@ -3348,6 +3358,12 @@ public class StatelessCommitService extends AbstractLifecycleComponent implement
                 }
                 final var virtualPrimaryTermAndGeneration = virtual.getPrimaryTermAndGeneration();
                 final var virtualPendingCompoundCommit = virtual.getLastPendingCompoundCommit();
+                // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
+                // Snapshotting this compound commit before appendCommit of the document, then delivering it
+                // afterwards, still does not make refresh=true return. The search shard is already in the
+                // replication group (see onCommitCreation), so the refresh waits on the new generation. An
+                // empty reader cannot satisfy that wait (SearchEngine#addOrExecuteSegmentGenerationListener).
+                // The write hangs instead of succeeding.
                 final var virtualCompoundCommit = virtualPendingCompoundCommit.getStatelessCompoundCommit();
 
                 // See getLatestVirtualBccForUnpromotableRecovery
@@ -3948,6 +3964,11 @@ public class StatelessCommitService extends AbstractLifecycleComponent implement
         ActionListener<RegisterCommitResponse> listener
     ) {
         // todo: assert clusterStateVersion <= clusterService.state().version();
+        // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
+        // This wait returns only after the indexing node has applied the search shard's cluster state.
+        // IndicesClusterStateService updates ReplicationTracker before that state is visible, so the search
+        // copy is in the primary's replication group before this registration reads a commit. A copy that
+        // recovers the pre-document commit is therefore visible to PostWriteRefresh, which waits.
         waitForClusterStateProcessed(state.version(), ActionRunnable.wrap(listener, (l) -> {
             var shardCommitsState = getSafe(shardsCommitsStates, shardId);
             shardCommitsState.registerCommitForUnpromotableRecovery(

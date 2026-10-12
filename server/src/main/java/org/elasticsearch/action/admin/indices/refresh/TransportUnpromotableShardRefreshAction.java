@@ -84,6 +84,11 @@ public class TransportUnpromotableShardRefreshAction extends TransportBroadcastU
         }));
     }
 
+    // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
+    // Waiting for the block and then dispatching the routing table frozen in the request is not the failure.
+    // If the search copy was still unassigned when the request was built, assignedUnpromotableShards() is empty
+    // and the fan-out acks with zero targets once the block clears. That copy's recovery starts after this
+    // flush's appendCommit, so register hands it the document commit, not the initial empty one.
     private void beforeDispatchingRequestToUnpromotableShards(UnpromotableShardRefreshRequest request, ActionListener<Void> listener) {
         var clusterStateObserver = new ClusterStateObserver(clusterService, request.getTimeout(), logger, threadPool.getThreadContext());
         var state = clusterStateObserver.setAndGetObservedState();
@@ -137,6 +142,12 @@ public class TransportUnpromotableShardRefreshAction extends TransportBroadcastU
         final var indexService = indicesService.indexService(request.shardId().getIndex());
         final var shard = indexService == null ? null : indexService.getShardOrNull(request.shardId().id());
         if (shard == null) {
+            // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
+            // This early OK cannot leave a STARTED search copy on the pre-document commit. createShard publishes
+            // the IndexShard before IndicesService starts recovery, so register cannot be in flight while
+            // getShardOrNull is still null. Recovery after this ack runs after appendCommit and is handed the
+            // new VBCC. Holding the shard out of the map (IndexService.createShard) still opened the document
+            // commit: an internal-cluster run saw generation 4 and hits=1.
             // TEMPORARY — do not commit. elasticsearch-serverless#7911: this ack is what lets refresh=true return
             // while the search copy is still being created.
             logger.info(

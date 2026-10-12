@@ -1501,6 +1501,11 @@ public class SearchEngine extends Engine {
         try {
             ensureOpen();
             // check current state first - not strictly necessary, but a little more efficient than what happens next
+            // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
+            // An engine opened on the initial empty commit does not satisfy a wait for the document's
+            // (primaryTerm, generation). Comparison is primary term, then generation. An empty store reports
+            // UNKNOWN_PRIMARY_TERM (-1); a real initial commit is an earlier generation at the same term.
+            // Hollow commits keep the old generation. lastRefreshDeferred does not complete these listeners.
             final PrimaryTermAndGeneration preFlightTermGeneration = getCurrentPrimaryTermAndGeneration();
             if (preFlightTermGeneration.compareTo(minPrimaryTermGeneration) >= 0) {
                 listener.onResponse(preFlightTermGeneration.generation());
