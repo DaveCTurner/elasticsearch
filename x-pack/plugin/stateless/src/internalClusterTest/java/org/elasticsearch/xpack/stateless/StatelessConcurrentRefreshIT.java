@@ -13,7 +13,6 @@ import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.cluster.metadata.ProjectId;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.settings.Settings;
@@ -24,7 +23,6 @@ import org.elasticsearch.index.engine.EngineException;
 import org.elasticsearch.index.translog.Translog;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.internal.DocumentParsingProvider;
-import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.xpack.stateless.cache.SharedBlobCacheWarmingService;
@@ -390,13 +388,11 @@ public class StatelessConcurrentRefreshIT extends AbstractStatelessPluginIntegTe
      * The index is not waited on to become green first: that wait finishes search-copy startup, which is the window
      * in which the failure was observed.
      */
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE")
     public void testRefreshTrueDocumentIsSearchableBeforeIndexIsGreen() {
-        final var masterNode = startMasterOnlyNode();
-        final var indexNode1 = startIndexNode();
-        final var indexNode2 = startIndexNode();
+        startMasterOnlyNode();
+        final var indexNode = startIndexNode();
         final var searchNode = startSearchNode();
-        ensureStableCluster(4);
+        ensureStableCluster(3);
 
         MockTransportService.getInstance(searchNode)
             .addRequestHandlingBehavior(COMMIT_STATE_ACTION_NAME, (handler, request, channel, task) -> {
@@ -405,45 +401,6 @@ public class StatelessConcurrentRefreshIT extends AbstractStatelessPluginIntegTe
             });
 
         final var indexName = randomIndexName();
-        //
-        // for (var clusterService : internalCluster().getInstances(ClusterService.class)) {
-        // ClusterServiceUtils
-        //
-        // .addTemporaryStateListener(
-        // clusterService,
-        // cs -> cs.projectState(ProjectId.DEFAULT).blocks().hasIndexBlock(ProjectId.DEFAULT, indexName, INDEX_REFRESH_BLOCK)
-        // )
-        // .andThen(
-        // l -> ClusterServiceUtils.addTemporaryStateListener(
-        // clusterService,
-        // cs -> cs.projectState(ProjectId.DEFAULT)
-        // .blocks()
-        // .hasIndexBlock(ProjectId.DEFAULT, indexName, INDEX_REFRESH_BLOCK) == false
-        // ).addListener(l.map(ignored -> null))
-        // )
-        // .addListener(
-        // ActionListener.running(
-        // () -> logger.info("--> index refresh block removed on [{}]", clusterService.localNode().getName())
-        // )
-        // );
-        // }
-
-        final var updatedSettingsListener = ClusterServiceUtils
-
-            .addMasterTemporaryStateListener(cs -> cs.projectState(ProjectId.DEFAULT).metadata().index(indexName) != null)
-            .andThen(
-                l -> client(masterNode).admin()
-                    .indices()
-                    .prepareUpdateSettings(indexName)
-                    .setSettings(
-                        Settings.builder()
-                            .put(
-                                IndexMetadata.INDEX_ROUTING_INCLUDE_GROUP_PREFIX + "._name",
-                                randomFrom(indexNode1, indexNode2) + "," + searchNode
-                            )
-                    )
-                    .execute(l.map(ignored -> null))
-            );
 
         createIndex(
             indexName,
@@ -453,7 +410,7 @@ public class StatelessConcurrentRefreshIT extends AbstractStatelessPluginIntegTe
         );
         logger.info("--> index [{}] created", indexName);
 
-        final var indexResponse = client(randomFrom(indexNode1, indexNode2)).prepareIndex(indexName)
+        final var indexResponse = client(indexNode).prepareIndex(indexName)
             .setId("1")
             .setSource("field", "value")
             .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
@@ -481,8 +438,6 @@ public class StatelessConcurrentRefreshIT extends AbstractStatelessPluginIntegTe
         });
 
         logger.info("--> search response checked");
-        safeAwait(updatedSettingsListener);
-        logger.info("--> settings updated");
     }
 
     private void bulkIndexDocsWithRefresh(String indexName, int numDocs, WriteRequest.RefreshPolicy refreshPolicy) {
