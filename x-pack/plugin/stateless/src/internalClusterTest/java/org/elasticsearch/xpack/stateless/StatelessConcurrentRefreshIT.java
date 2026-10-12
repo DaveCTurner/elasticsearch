@@ -406,7 +406,10 @@ public class StatelessConcurrentRefreshIT extends AbstractStatelessPluginIntegTe
                     .prepareUpdateSettings(indexName)
                     .setSettings(
                         Settings.builder()
-                            .put(IndexMetadata.INDEX_ROUTING_INCLUDE_GROUP_PREFIX + "._name", randomFrom(indexNode1, indexNode2))
+                            .put(
+                                IndexMetadata.INDEX_ROUTING_INCLUDE_GROUP_PREFIX + "._name",
+                                randomFrom(indexNode1, indexNode2) + "," + searchNode
+                            )
                     )
                     .execute(l.map(ignored -> null))
             );
@@ -415,14 +418,17 @@ public class StatelessConcurrentRefreshIT extends AbstractStatelessPluginIntegTe
             indexName,
             indexSettings(10, 1).put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), TimeValue.MINUS_ONE).build()
         );
+        logger.info("--> index [{}] created", indexName);
 
         final var indexResponse = prepareIndex(indexName).setId("1")
             .setSource("field", "value")
             .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
             .get(TEST_REQUEST_TIMEOUT);
+        logger.info("--> document indexed");
         assertThat(indexResponse.getResult(), equalTo(DocWriteResponse.Result.CREATED));
 
         assertResponse(client(searchNode).prepareSearch(indexName).setSize(0).setTrackTotalHits(true), response -> {
+            logger.info("--> search response received");
             final var responseSummary = Strings.format(
                 "hits=%s total=%d successful=%d skipped=%d failed=%d",
                 response.getHits().getTotalHits(),
@@ -440,7 +446,9 @@ public class StatelessConcurrentRefreshIT extends AbstractStatelessPluginIntegTe
             );
         });
 
+        logger.info("--> search response checked");
         safeAwait(updatedSettingsListener);
+        logger.info("--> settings updated");
     }
 
     private void bulkIndexDocsWithRefresh(String indexName, int numDocs, WriteRequest.RefreshPolicy refreshPolicy) {
