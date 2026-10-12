@@ -746,12 +746,13 @@ public class StatelessCommitService extends AbstractLifecycleComponent implement
             }
             if (noAssignedSearchShards && commitMaxSeqNo >= 0) {
                 logger.info(
-                    "{} delaying visibility of commit generation [{}] for 30s after capturing notification recipients",
+                    "{} TEMPORARY delaying visibility of commit generation [{}] for 8s after capturing notification recipients {}",
                     shardId,
-                    generation
+                    generation,
+                    shardRoutingTable.map(table -> table.assignedUnpromotableShards()).orElse(List.of())
                 );
                 try {
-                    Thread.sleep(30_000);
+                    Thread.sleep(8_000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     throw new RuntimeException(e);
@@ -2518,6 +2519,13 @@ public class StatelessCommitService extends AbstractLifecycleComponent implement
                     + state;
 
             lastNewCommitNotificationSentTimestamp = threadPool.relativeTimeInMillis();
+            // TEMPORARY — do not commit.
+            logger.info(
+                "{} TEMPORARY sending new commit notification for generation [{}] to snapshot recipients {}",
+                shardId,
+                lastCompoundCommit.generation(),
+                shardRoutingTable.assignedUnpromotableShards()
+            );
             statelessCommitNotificationPublisher.sendNewCommitNotification(
                 shardRoutingTable,
                 lastCompoundCommit,

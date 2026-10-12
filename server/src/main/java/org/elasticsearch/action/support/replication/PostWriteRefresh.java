@@ -9,6 +9,8 @@
 
 package org.elasticsearch.action.support.replication;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
@@ -29,6 +31,9 @@ import org.elasticsearch.transport.TransportService;
 import java.util.concurrent.Executor;
 
 public class PostWriteRefresh {
+
+    // TEMPORARY — do not commit. Traces elasticsearch-serverless#7911.
+    private static final Logger logger = LogManager.getLogger(PostWriteRefresh.class);
 
     public static final String POST_WRITE_REFRESH_ORIGIN = "post_write_refresh";
     public static final String FORCED_REFRESH_AFTER_INDEX = "refresh_flag_index";
@@ -65,9 +70,25 @@ public class PostWriteRefresh {
                 }
             });
             case IMMEDIATE -> immediate(indexShard, listener.delegateFailureAndWrap((l, r) -> {
-                if (indexShard.getReplicationGroup().getRoutingTable().unpromotableShards().size() > 0) {
+                var routingTable = indexShard.getReplicationGroup().getRoutingTable();
+                // TEMPORARY — do not commit.
+                logger.info(
+                    "TEMPORARY refresh=true local refresh finished shard={} refreshed={} generation={} primaryTerm={} "
+                        + "unpromotable={} assignedUnpromotable={}",
+                    indexShard.shardId(),
+                    r.refreshed(),
+                    r.generation(),
+                    r.primaryTerm(),
+                    routingTable.unpromotableShards(),
+                    routingTable.assignedUnpromotableShards()
+                );
+                if (routingTable.unpromotableShards().size() > 0) {
                     sendUnpromotableRequests(indexShard, r.generation(), true, l, postWriteRefreshTimeout);
                 } else {
+                    logger.info(
+                        "TEMPORARY refresh=true acknowledging without waiting for a search copy shard={}",
+                        indexShard.shardId()
+                    );
                     l.onResponse(true);
                 }
             }));

@@ -137,12 +137,25 @@ public class TransportUnpromotableShardRefreshAction extends TransportBroadcastU
         final var indexService = indicesService.indexService(request.shardId().getIndex());
         final var shard = indexService == null ? null : indexService.getShardOrNull(request.shardId().id());
         if (shard == null) {
-            if (logger.isTraceEnabled()) {
-                logger.trace("unpromotable shard {} not yet created, responding OK to refresh request", request.shardId());
-            }
+            // TEMPORARY — do not commit. elasticsearch-serverless#7911: this ack is what lets refresh=true return
+            // while the search copy is still being created.
+            logger.info(
+                "TEMPORARY unpromotable shard {} not yet created, responding OK to refresh for primary term {} generation {}",
+                request.shardId(),
+                request.getPrimaryTerm(),
+                request.getSegmentGeneration()
+            );
             responseListener.onResponse(ActionResponse.Empty.INSTANCE);
             return;
         }
+        logger.info(
+            "TEMPORARY unpromotable shard {} exists state={} routing={}, waiting for primary term {} generation {}",
+            request.shardId(),
+            shard.state(),
+            shard.routingEntry(),
+            request.getPrimaryTerm(),
+            request.getSegmentGeneration()
+        );
 
         var primaryTerm = request.getPrimaryTerm();
         assert Engine.UNKNOWN_PRIMARY_TERM < primaryTerm : primaryTerm;

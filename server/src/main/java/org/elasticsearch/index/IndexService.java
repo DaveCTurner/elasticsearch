@@ -621,6 +621,20 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
             );
             eventListener.indexShardStateChanged(indexShard, null, indexShard.state(), "shard created");
             eventListener.afterIndexShardCreated(indexShard);
+            // TEMPORARY — do not commit. Keeps the search shard invisible to refresh=true (getShardOrNull == null)
+            // until after the indexing node has acknowledged the write. elasticsearch-serverless#7911.
+            if (routing.isPromotableToPrimary() == false) {
+                logger.info(
+                    "{} TEMPORARY delaying publication of search shard for 20s so refresh can be acknowledged first",
+                    shardId
+                );
+                try {
+                    Thread.sleep(20_000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(e);
+                }
+            }
             shards = Maps.copyMapWithAddedEntry(shards, shardId.id(), indexShard);
             success = true;
             return indexShard;
