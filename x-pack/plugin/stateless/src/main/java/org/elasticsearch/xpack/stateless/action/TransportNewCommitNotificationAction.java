@@ -105,12 +105,6 @@ public class TransportNewCommitNotificationAction extends TransportBroadcastUnpr
 
             // Step 1: wait to ensure the shard is no longer in the process of starting up: when this step completes the shard either now
             // has an engine, or it closed without ever creating an engine.
-            // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
-            // This cannot apply before beforeRecoveryOnSearchShard has chosen the directory: the engine wait
-            // completes in postRecovery, after that. SearchDirectory.updateCommit will not move to an older
-            // generation, so recovery cannot afterwards replace a newer reader with the empty commit and leave
-            // a refresh listener that already fired. If getShard throws because the IndexShard does not exist,
-            // the notification is dropped and not retried; a register that then runs sees the appended VBCC.
             .newForked(shard::waitForEngineOrClosedShard)
 
             // Step 2: grab the shard's SearchEngine engine, failing if the engine is absent or closed instead

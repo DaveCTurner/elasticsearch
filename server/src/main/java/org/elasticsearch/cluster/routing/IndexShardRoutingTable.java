@@ -98,10 +98,6 @@ public class IndexShardRoutingTable {
             if (shard.initializing()) {
                 allInitializingShards.add(shard);
             }
-            // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
-            // Unassigned SEARCH_ONLY copies are included. A search shard that has not started is still in
-            // unpromotableShards(), which is what PostWriteRefresh IMMEDIATE checks. assignedUnpromotableShards()
-            // below is the narrower list used when the refresh is fanned out.
             if (shard.isPromotableToPrimary() == false) {
                 unpromotableShards.add(shard);
             }

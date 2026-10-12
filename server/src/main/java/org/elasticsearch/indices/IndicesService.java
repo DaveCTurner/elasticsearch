@@ -1021,9 +1021,6 @@ public class IndicesService extends AbstractLifecycleComponent
         IndexService indexService = indexService(shardRouting.index());
         assert indexService != null;
         IndexShard indexShard = indexService.createShard(shardRouting, localNode, sourceNode, globalCheckpointSyncer, retentionLeaseSyncer);
-        // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
-        // Recovery is enqueued only after createShard has published the shard. getShardOrNull == null
-        // (the refresh early-OK) and registerCommitForUnpromotableRecovery cannot overlap.
         indexShard.addShardFailureCallback(onShardFailure);
 
         throttlingRecoveryService.enqueue(projectId, recoveryListener, indexShard, indexService.getMetadata(), listener -> {

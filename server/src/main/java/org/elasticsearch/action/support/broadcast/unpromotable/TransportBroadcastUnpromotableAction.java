@@ -76,11 +76,6 @@ public abstract class TransportBroadcastUnpromotableAction<Request extends Broad
 
     @Override
     protected void doExecute(Task task, Request request, ActionListener<Response> listener) {
-        // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
-        // Fan-out uses the routing table frozen in the request, and only assigned search copies. An empty list
-        // completes successfully. That ack does not produce a STARTED copy on the empty commit: the copy that
-        // later starts registers after the document commit was appended. See
-        // TransportUnpromotableShardRefreshAction#beforeDispatchingRequestToUnpromotableShards.
         final var unpromotableShards = request.indexShardRoutingTable.assignedUnpromotableShards();
         final var responses = new ArrayList<Response>(unpromotableShards.size());
 

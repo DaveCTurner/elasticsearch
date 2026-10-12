@@ -5224,10 +5224,6 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      * Registers a listener for an event when the shard advances to the provided primary term and segment generation.
      * Completes the listener with a {@link IndexShardClosedException} if the shard is closed.
      */
-    // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
-    // This is the wait refresh=true uses once the search IndexShard exists. It cannot complete successfully
-    // while that engine is still on the pre-document commit; see SearchEngine#addOrExecuteSegmentGenerationListener.
-    // A successful refresh together with a STARTED copy on the empty commit means this wait was skipped.
     public void waitForPrimaryTermAndGeneration(long primaryTerm, long segmentGeneration, ActionListener<Long> listener) {
         waitForEngineOrClosedShard(listener.delegateFailureAndWrap((l, ignored) -> {
             if (state == IndexShardState.CLOSED) {

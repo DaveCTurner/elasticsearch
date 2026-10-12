@@ -806,11 +806,6 @@ final class DataNodeComputeHandler implements TransportRequestHandler<DataNodeRe
                         );
                         // TODO: `searchService.createSearchContext` allows opening search contexts without limits,
                         // we need to limit the number of active search contexts here or in SearchService
-                        // INVESTIGATION elasticsearch-serverless#7911 — do not commit.
-                        // This does not call waitForSearchReady, so a STARTED search copy on the empty commit
-                        // answers with documents_found 0 and every shard successful. An INITIALIZING copy does
-                        // not: readAllowed throws IllegalIndexShardStateException and the response is partial
-                        // or failed. The 7911 response was all-successful, so the copy had reached STARTED.
                         context = searchService.createSearchContext(shardRequest, SearchService.NO_TIMEOUT);
                         // The slices the plan reads, for the field mappers that build its queries. A plan that selects none
                         // says so: unlike a search request, it does not read every slice by default.
