@@ -729,6 +729,34 @@ public class StatelessCommitService extends AbstractLifecycleComponent implement
             final VirtualBatchedCompoundCommit virtualBcc;
             final boolean commitAfterRelocationStarted;
             final Optional<IndexShardRoutingTable> shardRoutingTable = shardRoutingFinder.apply(shardId);
+            // TEMPORARY — do not commit. Widens the race in https://github.com/elastic/elasticsearch/issues/159479
+            // (elasticsearch-serverless#7911): notification recipients are captured above, but recovery cannot see this
+            // commit until appendCommit below. A search shard that starts during the sleep recovers the previous commit
+            // and is then left out of the already-captured recipient list.
+            final boolean noAssignedSearchShards = shardRoutingTable.map(table -> table.assignedUnpromotableShards().isEmpty())
+                .orElse(false);
+            long commitMaxSeqNo = SequenceNumbers.NO_OPS_PERFORMED;
+            try {
+                var maxSeqNoUserData = reference.getIndexCommit().getUserData().get(SequenceNumbers.MAX_SEQ_NO);
+                if (maxSeqNoUserData != null) {
+                    commitMaxSeqNo = Long.parseLong(maxSeqNoUserData);
+                }
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            if (noAssignedSearchShards && commitMaxSeqNo >= 0) {
+                logger.info(
+                    "{} delaying visibility of commit generation [{}] for 30s after capturing notification recipients",
+                    shardId,
+                    generation
+                );
+                try {
+                    Thread.sleep(30_000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(e);
+                }
+            }
             // reads the timestamp field value range outside the commit state synchronized block (because this does blocking IO)
             var timestampFieldValueRange = readTimestampFieldValueRange(commitState, reference);
             synchronized (commitState) {
