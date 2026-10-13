@@ -174,6 +174,17 @@ final class S3ClientSettings {
         key -> Setting.boolSetting(key, false, Property.NodeScope, Property.Deprecated)
     );
 
+    /**
+     * Whether to enable the AWS SDK {@code LegacyMd5Plugin} (Default is false). This restores MD5 checksum headers that older
+     * S3-compatible storage may require. It is a temporary workaround and is deprecated on introduction.
+     */
+    @UpdateForV10(owner = UpdateForV10.Owner.DISTRIBUTED) // workaround, should be removed in v10
+    static final Setting.AffixSetting<Boolean> LEGACY_MD5_PLUGIN = Setting.affixKeySetting(
+        PREFIX,
+        "legacy_md5_plugin",
+        key -> Setting.boolSetting(key, false, Property.NodeScope, Property.Deprecated)
+    );
+
     /** An override for the s3 region to use for signing requests. */
     static final Setting.AffixSetting<String> REGION = Setting.affixKeySetting(
         PREFIX,
@@ -293,6 +304,9 @@ final class S3ClientSettings {
     /** Whether to include the request body in the V4 signature even when unnecessary because HTTPS is in use. */
     final boolean alwaysSignRequests;
 
+    /** Whether to enable the AWS SDK {@code LegacyMd5Plugin}. */
+    final boolean legacyMd5Plugin;
+
     private S3ClientSettings(
         AwsCredentials credentials,
         HttpScheme protocol,
@@ -313,7 +327,8 @@ final class S3ClientSettings {
         String region,
         ByteSizeValue maxCopySizeBeforeMultipart,
         boolean tenaciousRetriesEnabled,
-        boolean alwaysSignRequests
+        boolean alwaysSignRequests,
+        boolean legacyMd5Plugin
     ) {
         this.credentials = credentials;
         this.protocol = protocol;
@@ -335,6 +350,7 @@ final class S3ClientSettings {
         this.maxCopySizeBeforeMultipart = maxCopySizeBeforeMultipart;
         this.tenaciousRetriesEnabled = tenaciousRetriesEnabled;
         this.alwaysSignRequests = alwaysSignRequests;
+        this.legacyMd5Plugin = legacyMd5Plugin;
     }
 
     /**
@@ -392,6 +408,7 @@ final class S3ClientSettings {
             tenaciousRetriesEnabled
         );
         final boolean newAlwaysSignRequests = getRepoSettingOrDefault(ALWAYS_SIGN_REQUESTS, normalizedSettings, alwaysSignRequests);
+        final boolean newLegacyMd5Plugin = getRepoSettingOrDefault(LEGACY_MD5_PLUGIN, normalizedSettings, legacyMd5Plugin);
 
         // Read unused settings too so repository registration emits deprecation warnings for explicit values.
         getRepoSettingOrDefault(UNUSED_USE_THROTTLE_RETRIES_SETTING, normalizedSettings, true);
@@ -414,7 +431,8 @@ final class S3ClientSettings {
             && Objects.equals(region, newRegion)
             && Objects.equals(maxCopySizeBeforeMultipart, newMaxCopySizeBeforeMultipart)
             && tenaciousRetriesEnabled == newTenaciousRetriesEnabled
-            && newAlwaysSignRequests == alwaysSignRequests) {
+            && newAlwaysSignRequests == alwaysSignRequests
+            && newLegacyMd5Plugin == legacyMd5Plugin) {
             return this;
         }
         return new S3ClientSettings(
@@ -437,7 +455,8 @@ final class S3ClientSettings {
             newRegion,
             newMaxCopySizeBeforeMultipart,
             newTenaciousRetriesEnabled,
-            newAlwaysSignRequests
+            newAlwaysSignRequests,
+            newLegacyMd5Plugin
         );
     }
 
@@ -550,7 +569,8 @@ final class S3ClientSettings {
                 getConfigValue(settings, clientName, REGION),
                 getConfigValue(settings, clientName, MAX_COPY_SIZE_BEFORE_MULTIPART),
                 getConfigValue(settings, clientName, S3_TENACIOUS_RETRIES_ENABLED_SETTING),
-                getConfigValue(settings, clientName, ALWAYS_SIGN_REQUESTS)
+                getConfigValue(settings, clientName, ALWAYS_SIGN_REQUESTS),
+                getConfigValue(settings, clientName, LEGACY_MD5_PLUGIN)
             );
         }
     }
@@ -582,7 +602,8 @@ final class S3ClientSettings {
             && Objects.equals(region, that.region)
             && Objects.equals(maxCopySizeBeforeMultipart, that.maxCopySizeBeforeMultipart)
             && tenaciousRetriesEnabled == that.tenaciousRetriesEnabled
-            && alwaysSignRequests == that.alwaysSignRequests;
+            && alwaysSignRequests == that.alwaysSignRequests
+            && legacyMd5Plugin == that.legacyMd5Plugin;
     }
 
     @Override
@@ -606,7 +627,8 @@ final class S3ClientSettings {
             region,
             maxCopySizeBeforeMultipart,
             tenaciousRetriesEnabled,
-            alwaysSignRequests
+            alwaysSignRequests,
+            legacyMd5Plugin
         );
     }
 

@@ -65,10 +65,13 @@ public class RepositoryS3ContentIntegrityRestIT extends AbstractRepositoryS3Rest
 
     static {
         final var testConfigs = new ArrayList<TestConfig>();
-        for (final boolean https : new boolean[] { false, true }) {
-            for (final boolean chunkedEncoding : new boolean[] { false, true }) {
-                for (final boolean alwaysSignRequests : new boolean[] { false, true }) {
-                    testConfigs.add(new TestConfig(https, chunkedEncoding, alwaysSignRequests));
+        final var boolValues = new boolean[] { false, true };
+        for (final boolean https : boolValues) {
+            for (final boolean chunkedEncoding : boolValues) {
+                for (final boolean alwaysSignRequests : boolValues) {
+                    for (final boolean legacyMd5Plugin : boolValues) {
+                        testConfigs.add(new TestConfig(https, chunkedEncoding, alwaysSignRequests, legacyMd5Plugin));
+                    }
                 }
             }
         }
@@ -134,6 +137,11 @@ public class RepositoryS3ContentIntegrityRestIT extends AbstractRepositoryS3Rest
                         )
                     );
                 }
+                if (testConfig.legacyMd5Plugin && request.isMultiObjectDeleteRequest()) {
+                    assertNotNull(exchange.getRequestHeaders().getFirst("content-md5"));
+                } else {
+                    assertFalse(exchange.getRequestHeaders().containsKey("content-md5"));
+                }
                 delegate.handle(exchange);
             };
         }
@@ -198,20 +206,23 @@ public class RepositoryS3ContentIntegrityRestIT extends AbstractRepositoryS3Rest
         private final boolean https;
         private final boolean chunkedEncoding;
         private final boolean alwaysSignRequests;
+        private final boolean legacyMd5Plugin;
 
-        TestConfig(boolean https, boolean chunkedEncoding, boolean alwaysSignRequests) {
+        TestConfig(boolean https, boolean chunkedEncoding, boolean alwaysSignRequests, boolean legacyMd5Plugin) {
             this.https = https;
             this.chunkedEncoding = chunkedEncoding;
             this.alwaysSignRequests = alwaysSignRequests;
+            this.legacyMd5Plugin = legacyMd5Plugin;
         }
 
         @Override
         public String toString() {
             return Strings.format(
-                "{scheme=%s,chunkedEncoding=%s,alwaysSignRequests=%s}",
+                "{scheme=%s,chunkedEncoding=%s,alwaysSignRequests=%s,legacyMd5Plugin=%s}",
                 https ? "https" : "http",
                 chunkedEncoding,
-                alwaysSignRequests
+                alwaysSignRequests,
+                legacyMd5Plugin
             );
         }
 
@@ -219,6 +230,7 @@ public class RepositoryS3ContentIntegrityRestIT extends AbstractRepositoryS3Rest
             final var builder = Settings.builder();
             addBooleanSettingDefaultFalse(builder, "disable_chunked_encoding", chunkedEncoding == false);
             addBooleanSettingDefaultFalse(builder, "always_sign_requests", alwaysSignRequests);
+            addBooleanSettingDefaultFalse(builder, "legacy_md5_plugin", legacyMd5Plugin);
             return builder.build();
         }
 
@@ -254,7 +266,9 @@ public class RepositoryS3ContentIntegrityRestIT extends AbstractRepositoryS3Rest
                 + "_chunked_encoding_"
                 + chunkedEncoding
                 + "_always_sign_requests_"
-                + alwaysSignRequests;
+                + alwaysSignRequests
+                + "_legacy_md5_plugin_"
+                + legacyMd5Plugin;
         }
 
         String getRepositoryBasePath() {
@@ -264,11 +278,13 @@ public class RepositoryS3ContentIntegrityRestIT extends AbstractRepositoryS3Rest
                 + "_chunked_encoding_"
                 + chunkedEncoding
                 + "_always_sign_requests_"
-                + alwaysSignRequests;
+                + alwaysSignRequests
+                + "_legacy_md5_plugin_"
+                + legacyMd5Plugin;
         }
 
         String getAccessKey() {
-            return ACCESS_KEY + "-" + (https ? "https" : "http") + "-" + chunkedEncoding + "-" + alwaysSignRequests;
+            return ACCESS_KEY + "-" + (https ? "https" : "http") + "-" + chunkedEncoding + "-" + alwaysSignRequests + "-" + legacyMd5Plugin;
         }
 
         static TestConfig fromAuthorizationHeader(String authorizationHeader) {

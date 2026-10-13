@@ -53,6 +53,7 @@ public class S3ClientSettingsTests extends ESTestCase {
         assertThat(defaultSettings.connectionMaxIdleTimeMillis, is(S3ClientSettings.Defaults.CONNECTION_MAX_IDLE_TIME.millis()));
         assertThat(defaultSettings.apiCallTimeout, is(TimeValue.MINUS_ONE));
         assertFalse(defaultSettings.alwaysSignRequests);
+        assertFalse(defaultSettings.legacyMd5Plugin);
     }
 
     public void testDefaultClientSettingsCanBeSet() {
@@ -163,6 +164,18 @@ public class S3ClientSettingsTests extends ESTestCase {
             assertThat(credentials.secretAccessKey(), is("secret_key"));
             assertThat(credentials.sessionToken(), is("session_token"));
         }
+
+        {
+            final S3ClientSettings refinedSettings = baseSettings.refine(Settings.builder().put("legacy_md5_plugin", true).build());
+            assertThat(refinedSettings.legacyMd5Plugin, is(true));
+            AwsSessionCredentials credentials = (AwsSessionCredentials) refinedSettings.credentials;
+            assertThat(credentials.accessKeyId(), is("access_key"));
+            assertThat(credentials.secretAccessKey(), is("secret_key"));
+            assertThat(credentials.sessionToken(), is("session_token"));
+            assertWarnings("""
+                [s3.client.placeholder.legacy_md5_plugin] setting was deprecated in Elasticsearch and will be removed in a future \
+                release. See the breaking changes documentation for the next major version.""");
+        }
     }
 
     public void testPathStyleAccessCanBeSet() {
@@ -181,6 +194,17 @@ public class S3ClientSettingsTests extends ESTestCase {
         assertThat(settings.get("other").disableChunkedEncoding, is(true));
         assertWarnings("""
             [s3.client.other.disable_chunked_encoding] setting was deprecated in Elasticsearch and will be removed in a future release. \
+            See the breaking changes documentation for the next major version.""");
+    }
+
+    public void testLegacyMd5PluginCanBeSet() {
+        final Map<String, S3ClientSettings> settings = S3ClientSettings.load(
+            Settings.builder().put("s3.client.other.legacy_md5_plugin", true).build()
+        );
+        assertThat(settings.get("default").legacyMd5Plugin, is(false));
+        assertThat(settings.get("other").legacyMd5Plugin, is(true));
+        assertWarnings("""
+            [s3.client.other.legacy_md5_plugin] setting was deprecated in Elasticsearch and will be removed in a future release. \
             See the breaking changes documentation for the next major version.""");
     }
 
