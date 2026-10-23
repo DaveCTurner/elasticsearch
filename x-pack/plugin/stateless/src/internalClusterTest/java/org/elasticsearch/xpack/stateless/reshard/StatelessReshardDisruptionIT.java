@@ -22,6 +22,7 @@ import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.util.Collection;
 import java.util.List;
@@ -38,6 +39,8 @@ import static org.hamcrest.Matchers.equalTo;
  * Tests that resharding operations are resilient in presence of failures.
  */
 public class StatelessReshardDisruptionIT extends StatelessReshardDisruptionBaseIT {
+
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE")
     public void testReshardWithDisruption() throws InterruptedException, ExecutionException {
         var masterNode = startMasterOnlyNode();
 
