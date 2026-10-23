@@ -332,7 +332,7 @@ public class ReshardIndexService {
     }
 
     public void deleteUnownedDocuments(ShardId shardId, ActionListener<Void> listener) {
-        logger.debug("deleting unowned documents from shard {}", shardId);
+        logger.info("deleting unowned documents from shard {}", shardId);
         // may throw if the index is deleted
         var indexService = indicesService.indexServiceSafe(shardId.getIndex());
         // may throw if the shard id is invalid
@@ -348,7 +348,7 @@ public class ReshardIndexService {
             ActionListener.run(l, runListener -> {
                 if (engine instanceof IndexEngine indexEngine) {
                     indexEngine.deleteUnownedDocuments(unownedQuery);
-                    logger.debug("deleted unowned documents from shard {}, flushing", shardId);
+                    logger.info("deleted unowned documents from shard {}, flushing", shardId);
                     // Ensure that the deletion is flushed to the object store before returning, so that the caller knows that it
                     // will not need to retry this and can move a splitting shard to DONE.
                     // It would also be fine to just wait for the next flush after delete completes, but assuming we don't split often
@@ -359,7 +359,7 @@ public class ReshardIndexService {
                         // when it sees the shard is DONE, and this will cause it to return unowned documents if it doesn't see
                         // the delete operation first.
                         // If the refresh fails, this operation will fail and higher level retry will restart at the delete step.
-                        logger.debug("flushed unowned document delete for shard {}, waiting for refresh", shardId);
+                        logger.info("flushed unowned document delete for shard {}, waiting for refresh", shardId);
                         final var splitShardCountSummary = SplitShardCountSummary.forIndexing(
                             indexShard.indexSettings().getIndexMetadata(),
                             shardId.getId()
@@ -370,7 +370,13 @@ public class ReshardIndexService {
                             refreshRequest,
                             refreshListener.delegateFailure((inner, response) -> {
                                 if (response.getShardInfo().getSuccessful() < response.getShardInfo().getTotal()) {
-                                    logger.debug("refresh after delete unowned failed for shard {}", shardId);
+                                    logger.info(
+                                        "refresh after delete unowned failed for shard {}: {}",
+                                        shardId,
+                                        response.getShardInfo().getFailures().length > 0
+                                            ? response.getShardInfo().getFailures()[0]
+                                            : "no shard failure details, successful=" + response.getShardInfo().getSuccessful()
+                                    );
                                     if (response.getShardInfo().getFailures().length > 0) {
                                         inner.onFailure(response.getShardInfo().getFailures()[0]);
                                     } else {
@@ -382,7 +388,7 @@ public class ReshardIndexService {
                                         inner.onFailure(new NoShardAvailableActionException(shardId));
                                     }
                                 } else {
-                                    logger.debug("refresh after delete unowned succeeded for shard {}", shardId);
+                                    logger.info("refresh after delete unowned succeeded for shard {}", shardId);
                                     inner.onResponse(null);
                                 }
                             })
@@ -426,7 +432,7 @@ public class ReshardIndexService {
             currentTargetPrimaryTerm,
             startingTargetPrimaryTerm
         );
-        logger.debug(message);
+        logger.info(message);
         assert currentTargetPrimaryTerm > startingTargetPrimaryTerm;
         throw new IllegalStateException(message);
     }
@@ -687,7 +693,7 @@ public class ReshardIndexService {
                         currentSourcePrimaryTerm,
                         requestSourcePrimaryTerm
                     );
-                    logger.debug(message);
+                    logger.info(message);
                     assert currentSourcePrimaryTerm > requestSourcePrimaryTerm;
                     throw new IllegalStateException(message);
                 }
@@ -811,6 +817,7 @@ public class ReshardIndexService {
                 // We don't want to apply it so that the state doesn't change underneath the new instance of the shard
                 // that is potentially already started.
                 // That new instance will retry applying this request.
+                logger.info("rejecting split source state update for {} to {}: allocation id is not current", shardId, targetState);
                 throw new StaleStateChangeRequestException("Can't change split source shard state - allocation id is not current.");
             }
 

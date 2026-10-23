@@ -880,9 +880,18 @@ public class SplitTargetService {
             /// [SplitSourceService#setupTargetShard(CancellableTask, ShardId, long, long, ActionListener)].
             Throwable cause = ExceptionsHelper.unwrapCause(e);
 
-            return (cause instanceof IndexShardNotStartedException
+            boolean retry = cause instanceof IndexShardNotStartedException
                 || cause instanceof IndexNotFoundException
-                || cause instanceof ShardNotFoundException);
+                || cause instanceof ShardNotFoundException;
+            if (retry) {
+                logger.info(
+                    "retrying start split for {} after [{}: {}]",
+                    split.shardId(),
+                    cause.getClass().getSimpleName(),
+                    cause.getMessage()
+                );
+            }
+            return retry;
         }
     }
 
@@ -931,8 +940,17 @@ public class SplitTargetService {
             // Retry forever unless canceled (shard is closed).
             // TODO consider not retrying IllegalStateException or introducing a specific exception for cases
             // when we know that split needs to be restarted
-            boolean isCancelled = cancelled.get();
-            return isCancelled == false;
+            if (cancelled.get()) {
+                return false;
+            }
+            logger.info(
+                "retrying split target state update for {} to {} after [{}: {}]",
+                split.shardId(),
+                state,
+                e.getClass().getSimpleName(),
+                e.getMessage()
+            );
+            return true;
         }
     }
 
@@ -1071,11 +1089,20 @@ public class SplitTargetService {
             }
 
             // No reason to retry if the shard/engine is closed.
-            return switch (e) {
+            boolean retry = switch (e) {
                 case AlreadyClosedException ignored -> false;
                 case IndexShardClosedException ignored -> false;
                 default -> true;
             };
+            if (retry) {
+                logger.info(
+                    "retrying delete unowned documents for {} after [{}: {}]",
+                    shardId,
+                    e.getClass().getSimpleName(),
+                    e.getMessage()
+                );
+            }
+            return retry;
         }
     }
 

@@ -23,6 +23,7 @@ import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexReshardingMetadata;
 import org.elasticsearch.cluster.metadata.IndexReshardingState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
@@ -388,7 +389,7 @@ public class SplitSourceService {
         // must be set by setupTargetShard, the only caller
         assert currentSplit != null;
 
-        logger.debug("preparing for handoff to {}", targetShardId);
+        logger.info("preparing for handoff from {} to {}", sourceShard.shardId(), targetShardId);
         SubscribableListener<Releasable> withPermits = SubscribableListener.<Void>newForked(
             afterMutable -> sourceShard.ensureMutable(afterMutable, false, EsExecutors.DIRECT_EXECUTOR_SERVICE)
         ).<Engine.FlushResult>andThen(afterFirstFlush -> sourceShard.withEngine(engine -> {
@@ -551,7 +552,7 @@ public class SplitSourceService {
                                     decision.currentSourcePrimaryTerm,
                                     expectedSourcePrimaryTerm
                                 );
-                                logger.debug(message);
+                                logger.info(message);
                                 listener.onFailure(new StaleSplitRequestException(message));
                             }
                             case TARGET_PRIMARY_ADVANCED -> {
@@ -561,7 +562,7 @@ public class SplitSourceService {
                                     decision.currentTargetPrimaryTerm,
                                     expectedTargetPrimaryTerm
                                 );
-                                logger.debug(message);
+                                logger.info(message);
                                 listener.onFailure(new StaleSplitRequestException(message));
                             }
                             case INDEX_DELETED -> {
@@ -989,6 +990,14 @@ public class SplitSourceService {
         }
 
         private void monitorTargetShardsState() {
+            ShardRouting routing = indexShard.routingEntry();
+            logger.info(
+                "waiting for target shards of {} to reach DONE; local state [{}], relocating [{}], split [{}]",
+                indexShard.shardId(),
+                indexShard.state(),
+                routing != null && routing.relocating(),
+                getSplit(clusterService.state(), indexShard.shardId().getIndex())
+            );
             var allTargetsAreDonePredicate = new Predicate<ClusterState>() {
                 @Override
                 public boolean test(ClusterState state) {
