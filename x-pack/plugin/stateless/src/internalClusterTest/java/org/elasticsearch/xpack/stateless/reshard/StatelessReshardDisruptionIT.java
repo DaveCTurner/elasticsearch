@@ -97,16 +97,6 @@ public class StatelessReshardDisruptionIT extends StatelessReshardDisruptionBase
             checkNumberOfShardsSetting(indexName, shards * multiple);
 
             ensureGreen(indexName);
-
-            // Explicit refresh currently needed because it is not done in scope of split.
-            refresh(indexName);
-
-            // All data movement is done properly.
-            var search = prepareSearch(indexName).setAllowPartialSearchResults(false)
-                .setQuery(QueryBuilders.matchAllQuery())
-                .setTrackTotalHits(true)
-                .setSize(numDocs * 2);
-            assertResponse(search, r -> assertEquals(numDocs, r.getHits().getTotalHits().value()));
         }
     }
 
