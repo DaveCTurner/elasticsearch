@@ -334,7 +334,13 @@ public class SplitSourceService {
             commitService.markSplitting(sourceShardId, targetShardId);
             l.onResponse(null);
         })
-            .<Releasable>andThen(l -> sourceShard.acquirePrimaryOperationPermit(l, clusterService.threadPool().generic()))
+            .<Releasable>andThen(l -> {
+                // nocommit: hold the source here so a disruption can close it before the permit acquisition.
+                // The resulting IndexShardClosedException belongs to the source shard, and the target recovery
+                // treats any such exception as an abort and does not tell the master.
+                Thread.sleep(2_000);
+                sourceShard.acquirePrimaryOperationPermit(l, clusterService.threadPool().generic());
+            })
             .<Releasable>andThen((l, permit) -> {
                 try (Releasable ignore = permit) {
                     objectStoreService.copyShard(task, sourceShardId, targetShardId, sourcePrimaryTerm);

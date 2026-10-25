@@ -86,13 +86,20 @@ public class StatelessReshardDisruptionBaseIT extends AbstractStatelessPluginInt
                 ensureGreen(index.getName());
             }
             case LOCAL_FAIL_SHARD -> {
-                int shardIdToFail = randomIntBetween(0, indexMetadata.getNumberOfShards());
-                boolean isIndexShard = randomBoolean();
-                IndexShard shard;
-                if (isIndexShard) {
-                    shard = findIndexShard(index, shardIdToFail);
-                } else {
-                    shard = findSearchShard(index, shardIdToFail);
+                final int shardIdToFail = randomIntBetween(0, indexMetadata.getNumberOfShards());
+                final boolean isIndexShard = randomBoolean();
+                final IndexShard shard;
+                try {
+                    if (isIndexShard) {
+                        shard = findIndexShard(index, shardIdToFail);
+                    } else {
+                        shard = findSearchShard(index, shardIdToFail);
+                    }
+                } catch (AssertionError e) {
+                    logger.atWarn()
+                        .withThrowable(e)
+                        .log("failed to find {} shard [{}][{}]", isIndexShard ? "index" : "search", index, shardIdToFail);
+                    return;
                 }
                 try {
                     var listener = ClusterServiceUtils.addTemporaryStateListener(cs -> {
