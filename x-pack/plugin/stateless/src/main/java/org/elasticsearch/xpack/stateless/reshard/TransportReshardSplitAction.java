@@ -182,11 +182,7 @@ public class TransportReshardSplitAction extends TransportAction<TransportReshar
 
                 @Override
                 public boolean shouldRetry(Exception e) {
-                    if (shouldRetry.get()) {
-                        logger.info("retrying HANDOFF to {} after [{}: {}]", request.shardId, e.getClass().getSimpleName(), e.getMessage());
-                        return true;
-                    }
-                    return false;
+                    return shouldRetry.get();
                 }
 
                 @Override

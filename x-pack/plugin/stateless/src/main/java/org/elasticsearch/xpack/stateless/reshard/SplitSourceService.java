@@ -23,7 +23,6 @@ import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexReshardingMetadata;
 import org.elasticsearch.cluster.metadata.IndexReshardingState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
@@ -334,11 +333,9 @@ public class SplitSourceService {
             commitService.markSplitting(sourceShardId, targetShardId);
             l.onResponse(null);
         })
+            // delay next step to reproduce #161494
             .<Releasable>andThen(l -> {
-                // nocommit: hold the source here so a disruption can close it before the permit acquisition.
-                // The resulting IndexShardClosedException belongs to the source shard, and the target recovery
-                // treats any such exception as an abort and does not tell the master.
-                Thread.sleep(2_000);
+                Thread.sleep(400);
                 sourceShard.acquirePrimaryOperationPermit(l, clusterService.threadPool().generic());
             })
             .<Releasable>andThen((l, permit) -> {
@@ -395,7 +392,7 @@ public class SplitSourceService {
         // must be set by setupTargetShard, the only caller
         assert currentSplit != null;
 
-        logger.info("preparing for handoff from {} to {}", sourceShard.shardId(), targetShardId);
+        logger.debug("preparing for handoff to {}", targetShardId);
         SubscribableListener<Releasable> withPermits = SubscribableListener.<Void>newForked(
             afterMutable -> sourceShard.ensureMutable(afterMutable, false, EsExecutors.DIRECT_EXECUTOR_SERVICE)
         ).<Engine.FlushResult>andThen(afterFirstFlush -> sourceShard.withEngine(engine -> {
@@ -470,9 +467,9 @@ public class SplitSourceService {
             if (stateMachine == null) {
                 /// `stateMachine` is `null` in two cases:
                 /// 1. Source shard is STARTED and hasn't recovered since the beginning of the split.
-                ///    This is the first time a target shard contacts the source shard.
+                /// This is the first time a target shard contacts the source shard.
                 /// 2. Source shard did some work previously but now is closed and [#cancelSplits(IndexShard)] removed
-                ///    the entry already.
+                /// the entry already.
                 /// We should specifically handle the latter case to not create a state machine for an already closed shard.
                 /// To do that we perform the state check below.
                 /// If this function runs first and observes `CLOSED`, `cancelSplits` may or may not have been called.
@@ -558,7 +555,7 @@ public class SplitSourceService {
                                     decision.currentSourcePrimaryTerm,
                                     expectedSourcePrimaryTerm
                                 );
-                                logger.info(message);
+                                logger.debug(message);
                                 listener.onFailure(new StaleSplitRequestException(message));
                             }
                             case TARGET_PRIMARY_ADVANCED -> {
@@ -568,7 +565,7 @@ public class SplitSourceService {
                                     decision.currentTargetPrimaryTerm,
                                     expectedTargetPrimaryTerm
                                 );
-                                logger.info(message);
+                                logger.debug(message);
                                 listener.onFailure(new StaleSplitRequestException(message));
                             }
                             case INDEX_DELETED -> {
@@ -996,14 +993,6 @@ public class SplitSourceService {
         }
 
         private void monitorTargetShardsState() {
-            ShardRouting routing = indexShard.routingEntry();
-            logger.info(
-                "waiting for target shards of {} to reach DONE; local state [{}], relocating [{}], split [{}]",
-                indexShard.shardId(),
-                indexShard.state(),
-                routing != null && routing.relocating(),
-                getSplit(clusterService.state(), indexShard.shardId().getIndex())
-            );
             var allTargetsAreDonePredicate = new Predicate<ClusterState>() {
                 @Override
                 public boolean test(ClusterState state) {

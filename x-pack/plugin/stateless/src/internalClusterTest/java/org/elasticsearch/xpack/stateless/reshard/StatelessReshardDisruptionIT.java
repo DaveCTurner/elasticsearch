@@ -7,22 +7,14 @@
 
 package org.elasticsearch.xpack.stateless.reshard;
 
-import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.cluster.metadata.ProjectMetadata;
-import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.cluster.routing.IndexRoutingTable;
-import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
-import org.elasticsearch.cluster.routing.ShardRouting;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.cluster.service.PendingClusterTask;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.Index;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.util.Collection;
 import java.util.List;
@@ -30,8 +22,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
+import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertResponse;
 import static org.elasticsearch.xpack.stateless.reshard.SplitSourceService.RESHARD_SPLIT_DELETE_UNOWNED_GRACE_PERIOD;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -39,8 +31,6 @@ import static org.hamcrest.Matchers.equalTo;
  * Tests that resharding operations are resilient in presence of failures.
  */
 public class StatelessReshardDisruptionIT extends StatelessReshardDisruptionBaseIT {
-
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE")
     public void testReshardWithDisruption() throws InterruptedException, ExecutionException {
         var masterNode = startMasterOnlyNode();
 
@@ -107,6 +97,16 @@ public class StatelessReshardDisruptionIT extends StatelessReshardDisruptionBase
             checkNumberOfShardsSetting(indexName, shards * multiple);
 
             ensureGreen(indexName);
+
+            // Explicit refresh currently needed because it is not done in scope of split.
+            refresh(indexName);
+
+            // All data movement is done properly.
+            var search = prepareSearch(indexName).setAllowPartialSearchResults(false)
+                .setQuery(QueryBuilders.matchAllQuery())
+                .setTrackTotalHits(true)
+                .setSize(numDocs * 2);
+            assertResponse(search, r -> assertEquals(numDocs, r.getHits().getTotalHits().value()));
         }
     }
 
@@ -154,94 +154,6 @@ public class StatelessReshardDisruptionIT extends StatelessReshardDisruptionBase
     }
 
     private void waitForReshardCompletion(Index index) {
-        try {
-            awaitClusterState(state -> state.metadata().findIndex(index).get().getReshardingMetadata() == null);
-        } catch (AssertionError e) {
-            try {
-                logReshardStillInProgress(index);
-            } catch (Exception logFailure) {
-                logger.info("failed to log reshard timeout state for [{}]", index, logFailure);
-            }
-            throw e;
-        }
-    }
-
-    private void logReshardStillInProgress(Index index) {
-        String masterName = internalCluster().getMasterName();
-        ClusterService clusterService = internalCluster().clusterService(masterName);
-        ClusterState state = clusterService.state();
-        List<PendingClusterTask> pendingTasks = clusterService.getMasterService().pendingTasks();
-        logger.info(
-            "reshard still in progress for [{}] after [{}], master [{}], version [{}], pending tasks {}",
-            index,
-            TimeValue.THIRTY_SECONDS,
-            masterName,
-            state.version(),
-            pendingTasks.stream()
-                .map(task -> task.getSource() + " queued=" + task.getTimeInQueue() + (task.isExecuting() ? " executing" : ""))
-                .toList()
-        );
-
-        ProjectMetadata project = state.metadata().lookupProject(index).orElse(null);
-        IndexMetadata indexMetadata = project == null ? null : project.index(index);
-        if (indexMetadata == null || indexMetadata.getReshardingMetadata() == null) {
-            logger.info("resharding metadata for [{}] is absent", index);
-            return;
-        }
-        var split = indexMetadata.getReshardingMetadata().getSplit();
-        IndexRoutingTable routingTable = state.routingTable(project.id()).index(index.getName());
-        for (int shardId = 0; shardId < split.shardCountAfter(); shardId++) {
-            String roleState = split.isSourceShard(shardId)
-                ? "source " + split.getSourceShardState(shardId)
-                : "target " + split.getTargetShardState(shardId);
-            logger.info(
-                "reshard [{}][{}] {} primary [{}] search [{}]",
-                index.getName(),
-                shardId,
-                roleState,
-                describeCopies(state, routingTable, shardId, true),
-                describeCopies(state, routingTable, shardId, false)
-            );
-        }
-    }
-
-    private static String describeCopies(ClusterState state, IndexRoutingTable routingTable, int shardId, boolean primary) {
-        if (routingTable == null) {
-            return "no routing table";
-        }
-        IndexShardRoutingTable shard = routingTable.shard(shardId);
-        if (shard == null) {
-            return "missing";
-        }
-        if (primary) {
-            return describeShardRouting(state, shard.primaryShard());
-        }
-        List<ShardRouting> copies = shard.unpromotableShards();
-        if (copies.isEmpty()) {
-            return "none";
-        }
-        return copies.stream().map(copy -> describeShardRouting(state, copy)).collect(Collectors.joining(", "));
-    }
-
-    private static String describeShardRouting(ClusterState state, ShardRouting routing) {
-        if (routing == null) {
-            return "missing";
-        }
-        StringBuilder description = new StringBuilder().append(routing.state());
-        if (routing.currentNodeId() != null) {
-            description.append(" on ").append(nodeName(state, routing.currentNodeId()));
-        }
-        if (routing.relocating()) {
-            description.append(" relocating to ").append(nodeName(state, routing.relocatingNodeId()));
-        }
-        return description.toString();
-    }
-
-    private static String nodeName(ClusterState state, String nodeId) {
-        if (nodeId == null) {
-            return "null";
-        }
-        DiscoveryNode node = state.nodes().get(nodeId);
-        return node == null ? nodeId : node.getName();
+        awaitClusterState((state) -> state.metadata().findIndex(index).get().getReshardingMetadata() == null);
     }
 }

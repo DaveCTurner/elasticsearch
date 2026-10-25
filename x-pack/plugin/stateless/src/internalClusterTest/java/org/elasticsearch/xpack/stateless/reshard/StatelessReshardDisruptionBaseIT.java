@@ -86,10 +86,10 @@ public class StatelessReshardDisruptionBaseIT extends AbstractStatelessPluginInt
                 ensureGreen(index.getName());
             }
             case LOCAL_FAIL_SHARD -> {
-                final int shardIdToFail = randomIntBetween(0, indexMetadata.getNumberOfShards());
-                final boolean isIndexShard = randomBoolean();
                 try {
-                    final IndexShard shard;
+                    int shardIdToFail = randomIntBetween(0, indexMetadata.getNumberOfShards());
+                    boolean isIndexShard = randomBoolean();
+                    IndexShard shard;
                     if (isIndexShard) {
                         shard = findIndexShard(index, shardIdToFail);
                     } else {
@@ -108,9 +108,6 @@ public class StatelessReshardDisruptionBaseIT extends AbstractStatelessPluginInt
                     safeAwait(listener);
                     ensureGreen(index.getName());
                 } catch (AssertionError | AlreadyClosedException e) {
-                    logger.atWarn()
-                        .withThrowable(e)
-                        .log("failed to fail {} shard [{}][{}]", isIndexShard ? "index" : "search", index, shardIdToFail);
                     // Unlucky, shard does not exist yet or is already closed.
                 }
             }
