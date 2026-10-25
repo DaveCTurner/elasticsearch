@@ -467,9 +467,9 @@ public class SplitSourceService {
             if (stateMachine == null) {
                 /// `stateMachine` is `null` in two cases:
                 /// 1. Source shard is STARTED and hasn't recovered since the beginning of the split.
-                /// This is the first time a target shard contacts the source shard.
+                ///    This is the first time a target shard contacts the source shard.
                 /// 2. Source shard did some work previously but now is closed and [#cancelSplits(IndexShard)] removed
-                /// the entry already.
+                ///    the entry already.
                 /// We should specifically handle the latter case to not create a state machine for an already closed shard.
                 /// To do that we perform the state check below.
                 /// If this function runs first and observes `CLOSED`, `cancelSplits` may or may not have been called.
