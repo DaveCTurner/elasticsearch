@@ -146,9 +146,9 @@ class ShardSyncState {
     public boolean markSyncFinished(SyncMarker syncMarker) {
         // TEMP repro aid for https://github.com/elastic/elasticsearch/issues/163242 — do not commit.
         // Upload validation and the cluster-state apply that bumps the primary term raced within a millisecond.
-        // Pause before the comparison so an in-flight term bump is visible and the sync listener is dropped.
+        // A short pause before the comparison lets an in-flight term bump drop the sync listener.
         try {
-            Thread.sleep(500);
+            Thread.sleep(20);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
