@@ -508,8 +508,9 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
     }
 
     @TestLogging(
-        value = "org.elasticsearch.xpack.stateless.engine.translog.TranslogReplicator:debug,"
-            + "org.elasticsearch.xpack.stateless.engine.translog.TranslogReplicatorReader:debug",
+        value = "org.elasticsearch.xpack.stateless.engine.translog.TranslogReplicator:debug"
+            + ",org.elasticsearch.xpack.stateless.engine.translog.TranslogReplicatorReader:debug"
+            + ",org.elasticsearch.cluster.service.MasterService:TRACE",
         reason = "to ensure we translog events on DEBUG level"
     )
     public void testTranslogMasterFailureOnlyStressRecoveryTest() throws Exception {
