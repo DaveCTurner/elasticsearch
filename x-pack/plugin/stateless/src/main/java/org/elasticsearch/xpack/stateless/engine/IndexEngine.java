@@ -861,9 +861,24 @@ public class IndexEngine extends InternalEngine {
     public void syncTranslog() throws IOException {
         assert Thread.currentThread().getName().contains("[" + ThreadPool.Names.WRITE + "]") == false
             : "Expected current thread [" + Thread.currentThread() + "] to not be on a write thread. Reason: [syncTranslog]";
+        // TEMP repro aid for https://github.com/elastic/elasticsearch/issues/163242 — do not commit.
+        // fillSeqNoGaps holds an ensure-open ref across this call. Stay there long enough for a master
+        // failover to publish a newer primary term before the remote sync is even requested.
+        try {
+            Thread.sleep(3_000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         super.syncTranslog();
         PlainActionFuture<Void> future = new PlainActionFuture<>();
         translogReplicator.syncAll(shardId, future);
+        // TEMP repro aid for #163242 — do not commit. Stay in this method (ref still held) while
+        // markSyncFinished's delay lets a concurrent term bump drop the listener.
+        try {
+            Thread.sleep(1_000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         try {
             future.actionGet();
         } catch (Exception e) {
