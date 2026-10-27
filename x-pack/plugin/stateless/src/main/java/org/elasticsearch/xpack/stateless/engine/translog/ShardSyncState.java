@@ -44,7 +44,7 @@ class ShardSyncState {
     private volatile boolean isClosed = false;
     // Set once the live primary term moves past startingPrimaryTerm. Every marker this state produces carries
     // startingPrimaryTerm, so a sync queued after this can never be completed by notifyListeners.
-    private boolean primaryTermAdvanced = false;
+    private volatile boolean primaryTermAdvanced = false;
 
     ShardSyncState(
         ShardId shardId,
@@ -137,8 +137,8 @@ class ShardSyncState {
                     final var syncedLocationCopy2 = syncedLocation;
                     if (location.compareTo(syncedLocationCopy2) > 0) {
                         if (primaryTermAdvanced || startingPrimaryTerm != currentPrimaryTerm()) {
-                            // Same lock that failListenersOnNewPrimaryTerm uses to publish primaryTermAdvanced, so a listener
-                            // cannot be queued after the primary term has moved and then wait for a notification that will never arrive.
+                            // primaryTermAdvanced is volatile, so this sees a concurrent failListenersOnNewPrimaryTerm. The queue
+                            // update stays under this lock, so a listener added before that drain is still failed with the others.
                             primaryTermAdvanced = true;
                             termAdvanced = true;
                             supersededListeners = new ArrayList<>(listeners);
@@ -305,9 +305,7 @@ class ShardSyncState {
     // Fails every queued sync listener and rejects syncs registered later. Called when an upload's primary term no longer matches
     // the live term, which means notifyListeners will not complete those listeners.
     void failListenersOnNewPrimaryTerm() {
-        synchronized (listeners) {
-            primaryTermAdvanced = true;
-        }
+        primaryTermAdvanced = true;
         failPendingListeners(primaryTermAdvancedException(shardId));
     }
 
