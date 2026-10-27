@@ -19,7 +19,6 @@ import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.NavigableMap;
 import java.util.PriorityQueue;
 import java.util.TreeMap;
@@ -125,7 +124,6 @@ class ShardSyncState {
         boolean completeListener = true;
         boolean alreadyClosed = false;
         boolean termAdvanced = false;
-        List<ActionListener<Void>> supersededListeners = null;
         final var syncedLocationCopy1 = syncedLocation;
         if (location.compareTo(syncedLocationCopy1) > 0) {
             synchronized (listeners) {
@@ -135,12 +133,8 @@ class ShardSyncState {
                     final var syncedLocationCopy2 = syncedLocation;
                     if (location.compareTo(syncedLocationCopy2) > 0) {
                         if (primaryTermIsStale || startingPrimaryTerm != currentPrimaryTerm()) {
-                            // primaryTermAdvanced is volatile, so this sees a concurrent failListenersOnNewPrimaryTerm. The queue
-                            // update stays under this lock, so a listener added before that drain is still failed with the others.
                             primaryTermIsStale = true;
                             termAdvanced = true;
-                            supersededListeners = new ArrayList<>(listeners);
-                            listeners.clear();
                         } else {
                             logger.info(
                                 "TEMP #163242 ensureSynced[{}]: location[{}] syncedLocation[{}][{}] registering listener",
@@ -169,11 +163,7 @@ class ShardSyncState {
                 );
                 listener.onFailure(alreadyClosedException(shardId));
             } else if (termAdvanced) {
-                try {
-                    listener.onFailure(stalePrimaryTermException(shardId));
-                } finally {
-                    ActionListener.onFailure(supersededListeners, stalePrimaryTermException(shardId));
-                }
+                listener.onFailure(stalePrimaryTermException(shardId));
             } else {
                 logger.info(
                     "TEMP #163242 ensureSynced[{}]: location[{}] syncedLocation[{}] already synced",
