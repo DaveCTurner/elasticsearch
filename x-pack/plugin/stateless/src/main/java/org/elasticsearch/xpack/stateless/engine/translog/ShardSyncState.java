@@ -297,7 +297,7 @@ class ShardSyncState {
 
     // Fails every queued sync listener and rejects syncs registered later. Called when an upload's primary term no longer matches
     // the live term, which means notifyListeners will not complete those listeners.
-    void failListenersOnPrimaryTermAdvance() {
+    void failListenersOnNewPrimaryTerm() {
         failPendingListeners(primaryTermAdvancedException(shardId), true);
     }
 
