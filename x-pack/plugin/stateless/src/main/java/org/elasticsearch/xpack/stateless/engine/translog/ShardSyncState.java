@@ -200,7 +200,7 @@ class ShardSyncState {
         // Upload validation and the cluster-state apply that bumps the primary term raced within a millisecond.
         // A short pause before the comparison lets an in-flight term bump drop the sync listener.
         try {
-            Thread.sleep(200);
+            Thread.sleep(20);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

@@ -866,7 +866,7 @@ public class IndexEngine extends InternalEngine {
         // which a master failover can publish a newer primary term before the remote sync is requested.
         logger.info("TEMP #163242 syncTranslog[{}] before sleep 1", shardId);
         try {
-            Thread.sleep(500);
+            Thread.sleep(50);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -879,7 +879,7 @@ public class IndexEngine extends InternalEngine {
         // markSyncFinished's pause lets a concurrent term bump drop the listener.
         logger.info("TEMP #163242 syncTranslog[{}] before sleep 2", shardId);
         try {
-            Thread.sleep(200);
+            Thread.sleep(20);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
