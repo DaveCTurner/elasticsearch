@@ -919,13 +919,25 @@ public class TranslogReplicator extends AbstractLifecycleComponent {
                                         boolean syncFinishedAccepted = shardSyncState.markSyncFinished(syncMarker);
                                         if (syncFinishedAccepted) {
                                             modifiedShardSyncedLocations.add(shardSyncState);
-                                        } else {
+                                        } else if (shardSyncState.isPrimaryTermStale()) {
                                             assert syncMarker.primaryTerm() < shardSyncState.currentPrimaryTerm();
                                             shardsWithNewPrimaryTerm.add(shardSyncState);
                                             logger.debug(
                                                 () -> format(
                                                     "skipped shard %s sync notification after translog file [%s] upload "
                                                         + "because primary term advanced [syncPrimaryTerm=%s, currentPrimaryTerm=%s]",
+                                                    entry.getKey(),
+                                                    upload.blobName(),
+                                                    syncMarker.primaryTerm(),
+                                                    shardSyncState.currentPrimaryTerm()
+                                                )
+                                            );
+                                        } else {
+                                            logger.debug(
+                                                () -> format(
+                                                    "skipped shard %s sync notification after translog file [%s] upload "
+                                                        + "because the marker belongs to an earlier registration "
+                                                        + "[syncPrimaryTerm=%s, currentPrimaryTerm=%s]",
                                                     entry.getKey(),
                                                     upload.blobName(),
                                                     syncMarker.primaryTerm(),

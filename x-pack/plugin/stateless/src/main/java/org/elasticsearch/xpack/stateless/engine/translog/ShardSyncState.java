@@ -151,7 +151,8 @@ class ShardSyncState {
     }
 
     public boolean markSyncFinished(SyncMarker syncMarker) {
-        if (syncMarker.primaryTerm() == currentPrimaryTerm()) {
+        final long currentTerm = currentPrimaryTerm();
+        if (syncMarker.primaryTerm() == currentTerm) {
             assert syncMarker.location().compareTo(syncedLocation) > 0;
             // We mark the seqNos of persisted before exposing the synced location. This matches what we do in the TranlogWriter.
             // Some assertions in TransportVerifyShardBeforeCloseAction depend on the seqNos marked as persisted before the sync is exposed.
@@ -160,10 +161,16 @@ class ShardSyncState {
             syncedLocation = syncMarker.location();
             return true;
         } else {
-            // If the primary term changed the caller will fail all pending listeners (after releasing a lock) so we can ignore them here.
-            primaryTermIsStale = true;
+            if (startingPrimaryTerm < currentTerm) {
+                // This state's own term is no longer current. The caller fails pending listeners after releasing a lock.
+                primaryTermIsStale = true;
+            } // else syncMarker relates to an earlier incarnation of this shard with an older term, so there are no listeners to fail.
             return false;
         }
+    }
+
+    boolean isPrimaryTermStale() {
+        return primaryTermIsStale;
     }
 
     public void markCommitUploaded(long translogReleaseEndFile) {

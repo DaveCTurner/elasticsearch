@@ -355,6 +355,33 @@ public class ShardSyncStateTests extends ESTestCase {
         assertStalePrimaryTerm(listenerBeforeRejection);
     }
 
+    public void testMarkerFromEarlierRegistrationDoesNotMakeCurrentTermStale() {
+        final var shardId = new ShardId(new Index(randomIndexName(), UUIDs.randomBase64UUID()), between(0, 5));
+        final var currentTerm = randomLongBetween(2, 20);
+        ShardSyncState shardSyncState = getShardSyncState(shardId, currentTerm, () -> currentTerm, longsRef -> {});
+
+        final var queuedLocation = new Translog.Location(0, between(1, 100), 0);
+        shardSyncState.updateProcessedLocation(queuedLocation);
+        PlainActionFuture<Void> queuedListener = new PlainActionFuture<>();
+        assertFalse(shardSyncState.ensureSynced(queuedLocation, queuedListener));
+
+        final var earlierTerm = randomLongBetween(0, currentTerm - 1);
+        assertFalse(shardSyncState.markSyncFinished(new ShardSyncState.SyncMarker(earlierTerm, queuedLocation, longArrayListOf(0L))));
+        shardSyncState.notifyListeners();
+        assertFalse(queuedListener.isDone());
+        assertFalse(shardSyncState.isPrimaryTermStale());
+
+        final var laterLocation = new Translog.Location(0, queuedLocation.translogLocation() + between(1, 100), 0);
+        shardSyncState.updateProcessedLocation(laterLocation);
+        PlainActionFuture<Void> laterListener = new PlainActionFuture<>();
+        assertFalse(shardSyncState.ensureSynced(laterLocation, laterListener));
+
+        assertTrue(shardSyncState.markSyncFinished(new ShardSyncState.SyncMarker(currentTerm, laterLocation, longArrayListOf(1L))));
+        shardSyncState.notifyListeners();
+        assertNull(queuedListener.actionGet());
+        assertNull(laterListener.actionGet());
+    }
+
     public void testCoveredListenersCompleteAfterPrimaryTermBecomesStale() {
         final var shardId = new ShardId(new Index(randomIndexName(), UUIDs.randomBase64UUID()), between(0, 5));
         final var primaryTerm = randomLongBetween(1, 20);
