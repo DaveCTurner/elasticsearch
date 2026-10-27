@@ -159,7 +159,6 @@ class ShardSyncState {
     }
 
     public boolean markSyncFinished(SyncMarker syncMarker) {
-        // If the primary term changed the caller will fail all pending listeners (after releasing a lock) so we can ignore them here.
         if (syncMarker.primaryTerm() == currentPrimaryTerm()) {
             assert syncMarker.location().compareTo(syncedLocation) > 0;
             // We mark the seqNos of persisted before exposing the synced location. This matches what we do in the TranlogWriter.
@@ -169,6 +168,7 @@ class ShardSyncState {
             syncedLocation = syncMarker.location();
             return true;
         } else {
+            // If the primary term changed the caller will fail all pending listeners (after releasing a lock) so we can ignore them here.
             primaryTermIsStale = true;
             return false;
         }
