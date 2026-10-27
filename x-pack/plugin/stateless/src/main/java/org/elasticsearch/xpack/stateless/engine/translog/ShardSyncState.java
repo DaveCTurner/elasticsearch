@@ -66,9 +66,7 @@ class ShardSyncState {
     }
 
     static AlreadyClosedException stalePrimaryTermException(ShardId shardId) {
-        return new AlreadyClosedException(
-            "The translog for shard [" + shardId + "] need not be synced because its primary term is stale"
-        );
+        return new AlreadyClosedException("The translog for shard [" + shardId + "] need not be synced because its primary term is stale");
     }
 
     boolean syncNeeded() {

@@ -8,8 +8,10 @@
 package org.elasticsearch.xpack.stateless.engine.translog;
 
 import org.apache.lucene.internal.hppc.LongArrayList;
+import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.util.LongsRef;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.index.Index;
@@ -27,6 +29,7 @@ import java.util.function.LongConsumer;
 import java.util.function.LongSupplier;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
@@ -310,6 +313,87 @@ public class ShardSyncStateTests extends ESTestCase {
         shardSyncState.notifyListeners();
 
         assertThat(seqNos, contains(0L));
+    }
+
+    public void testQueuedSyncRemainsPendingWhenPrimaryTermBecomesStale() {
+        ShardId shardId = new ShardId(new Index("name", "uuid"), 0);
+        long primaryTerm = randomLongBetween(1, 20);
+        AtomicLong currentPrimaryTerm = new AtomicLong(primaryTerm);
+        ShardSyncState shardSyncState = getShardSyncState(shardId, primaryTerm, currentPrimaryTerm::get, longsRef -> {});
+
+        Translog.Location queuedLocation = new Translog.Location(0, 10, 0);
+        shardSyncState.updateProcessedLocation(queuedLocation);
+        PlainActionFuture<Void> queuedListener = new PlainActionFuture<>();
+        assertFalse(shardSyncState.ensureSynced(queuedLocation, queuedListener));
+
+        // The live term has moved, but no upload has been rejected yet, so this sync is still queued.
+        currentPrimaryTerm.incrementAndGet();
+        Translog.Location locationBeforeRejection = new Translog.Location(0, 20, 0);
+        shardSyncState.updateProcessedLocation(locationBeforeRejection);
+        PlainActionFuture<Void> listenerBeforeRejection = new PlainActionFuture<>();
+        assertFalse(shardSyncState.ensureSynced(locationBeforeRejection, listenerBeforeRejection));
+
+        assertFalse(
+            shardSyncState.markSyncFinished(new ShardSyncState.SyncMarker(primaryTerm, locationBeforeRejection, longArrayListOf(1L)))
+        );
+        shardSyncState.notifyListeners();
+        assertFalse(queuedListener.isDone());
+        assertFalse(listenerBeforeRejection.isDone());
+
+        // A sync registered after the rejected upload fails on its own and leaves the queued listeners pending.
+        Translog.Location locationAfterRejection = new Translog.Location(0, 30, 0);
+        shardSyncState.updateProcessedLocation(locationAfterRejection);
+        PlainActionFuture<Void> listenerAfterRejection = new PlainActionFuture<>();
+        assertTrue(shardSyncState.ensureSynced(locationAfterRejection, listenerAfterRejection));
+        assertStalePrimaryTerm(listenerAfterRejection);
+        assertFalse(queuedListener.isDone());
+        assertFalse(listenerBeforeRejection.isDone());
+
+        shardSyncState.failPendingListeners(ShardSyncState.stalePrimaryTermException(shardId));
+        assertStalePrimaryTerm(queuedListener);
+        assertStalePrimaryTerm(listenerBeforeRejection);
+    }
+
+    public void testCoveredListenersCompleteAfterPrimaryTermBecomesStale() {
+        ShardId shardId = new ShardId(new Index("name", "uuid"), 0);
+        long primaryTerm = randomLongBetween(1, 20);
+        AtomicLong currentPrimaryTerm = new AtomicLong(primaryTerm);
+        ShardSyncState shardSyncState = getShardSyncState(shardId, primaryTerm, currentPrimaryTerm::get, longsRef -> {});
+
+        Translog.Location coveredLocation = new Translog.Location(0, 10, 0);
+        Translog.Location beyondLocation = new Translog.Location(0, 30, 0);
+        shardSyncState.updateProcessedLocation(beyondLocation);
+        PlainActionFuture<Void> coveredListener = new PlainActionFuture<>();
+        PlainActionFuture<Void> beyondListener = new PlainActionFuture<>();
+        assertFalse(shardSyncState.ensureSynced(coveredLocation, coveredListener));
+        assertFalse(shardSyncState.ensureSynced(beyondLocation, beyondListener));
+
+        assertTrue(shardSyncState.markSyncFinished(new ShardSyncState.SyncMarker(primaryTerm, coveredLocation, longArrayListOf(0L))));
+        currentPrimaryTerm.incrementAndGet();
+        assertFalse(shardSyncState.markSyncFinished(new ShardSyncState.SyncMarker(primaryTerm, beyondLocation, longArrayListOf(1L))));
+        shardSyncState.notifyListeners();
+
+        assertNull(coveredListener.actionGet());
+        assertFalse(beyondListener.isDone());
+
+        // The location already reached is still synced. A later location is rejected without failing the listener left queued.
+        PlainActionFuture<Void> alreadySyncedListener = new PlainActionFuture<>();
+        assertTrue(shardSyncState.ensureSynced(coveredLocation, alreadySyncedListener));
+        assertNull(alreadySyncedListener.actionGet());
+        Translog.Location laterLocation = new Translog.Location(0, 40, 0);
+        shardSyncState.updateProcessedLocation(laterLocation);
+        PlainActionFuture<Void> laterListener = new PlainActionFuture<>();
+        assertTrue(shardSyncState.ensureSynced(laterLocation, laterListener));
+        assertStalePrimaryTerm(laterListener);
+        assertFalse(beyondListener.isDone());
+
+        shardSyncState.failPendingListeners(ShardSyncState.stalePrimaryTermException(shardId));
+        assertStalePrimaryTerm(beyondListener);
+    }
+
+    private static void assertStalePrimaryTerm(PlainActionFuture<Void> listener) {
+        AlreadyClosedException exception = expectThrows(AlreadyClosedException.class, listener::actionGet);
+        assertThat(exception.getMessage(), containsString("primary term is stale"));
     }
 
     private static ShardSyncState getShardSyncState(ShardId shardId, long primaryTerm) {
