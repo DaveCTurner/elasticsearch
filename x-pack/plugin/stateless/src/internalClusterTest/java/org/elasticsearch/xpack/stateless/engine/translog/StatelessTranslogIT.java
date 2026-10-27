@@ -102,8 +102,6 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
 
     @Override
     protected boolean addMockFsRepository() {
-        // This suite blocks individual translog uploads through StatelessMockRepositoryStrategy. That repository is registered for the
-        // mock object-store type, so it cannot be combined with the multipart mock repository that also registers that type.
         return false;
     }
 
@@ -613,7 +611,6 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
                 boolean failIfAlreadyExists
             ) throws IOException {
                 if (purpose == OperationPurpose.TRANSLOG) {
-                    logger.info("--> blocking translog upload [{}] on [{}]", blobName, nodeA);
                     safeAwait(uploadBarrier);
                     safeAwait(uploadBarrier);
                 }
@@ -637,8 +634,6 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
                 )
             );
 
-            // removeShard drops the shard from the index service before engine close finishes, so the close listener is what shows that
-            // drainForClose is still waiting on the recovery thread. That thread holds an ensure-open reference across the blocked upload.
             final var shardClosed = new CountDownLatch(1);
             internalCluster().getInstance(IndicesClusterStateService.class, nodeA).onClusterStateShardsClosed(shardClosed::countDown);
             assertFalse("shard close finished while its recovery translog sync was still blocked", shardClosed.await(2, TimeUnit.SECONDS));
