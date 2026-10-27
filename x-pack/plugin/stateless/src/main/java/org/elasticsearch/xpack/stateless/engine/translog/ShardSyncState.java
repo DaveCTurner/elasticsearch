@@ -42,9 +42,7 @@ class ShardSyncState {
     private volatile Translog.Location processedLocation = new Translog.Location(0, 0, 0);
     private volatile Translog.Location syncedLocation = new Translog.Location(0, 0, 0);
     private volatile boolean isClosed = false;
-    // Set once the live primary term moves past startingPrimaryTerm. Every marker this state produces carries
-    // startingPrimaryTerm, so a sync queued after this can never be completed by notifyListeners.
-    private volatile boolean primaryTermAdvanced = false;
+    private volatile boolean primaryTermIsStale = false;
 
     ShardSyncState(
         ShardId shardId,
@@ -72,7 +70,7 @@ class ShardSyncState {
         return new AlreadyClosedException("The translog for shard [" + shardId + "] is already closed.");
     }
 
-    static AlreadyClosedException primaryTermAdvancedException(ShardId shardId) {
+    static AlreadyClosedException stalePrimaryTermException(ShardId shardId) {
         return new AlreadyClosedException(
             "The translog for shard [" + shardId + "] can no longer be synced because its primary term is stale"
         );
@@ -136,10 +134,10 @@ class ShardSyncState {
                 } else {
                     final var syncedLocationCopy2 = syncedLocation;
                     if (location.compareTo(syncedLocationCopy2) > 0) {
-                        if (primaryTermAdvanced || startingPrimaryTerm != currentPrimaryTerm()) {
+                        if (primaryTermIsStale || startingPrimaryTerm != currentPrimaryTerm()) {
                             // primaryTermAdvanced is volatile, so this sees a concurrent failListenersOnNewPrimaryTerm. The queue
                             // update stays under this lock, so a listener added before that drain is still failed with the others.
-                            primaryTermAdvanced = true;
+                            primaryTermIsStale = true;
                             termAdvanced = true;
                             supersededListeners = new ArrayList<>(listeners);
                             listeners.clear();
@@ -172,9 +170,9 @@ class ShardSyncState {
                 listener.onFailure(alreadyClosedException(shardId));
             } else if (termAdvanced) {
                 try {
-                    listener.onFailure(primaryTermAdvancedException(shardId));
+                    listener.onFailure(stalePrimaryTermException(shardId));
                 } finally {
-                    ActionListener.onFailure(supersededListeners, primaryTermAdvancedException(shardId));
+                    ActionListener.onFailure(supersededListeners, stalePrimaryTermException(shardId));
                 }
             } else {
                 logger.info(
@@ -192,8 +190,8 @@ class ShardSyncState {
     }
 
     public void markSyncStarting(long primaryTerm, TranslogReplicator.BlobTranslogFile translogFile) {
-        // A marker from an older primary term cannot satisfy sync listeners. They are failed when cluster-state validation
-        // finishes; see failListenersOnNewPrimaryTerm.
+        // If the primary term changed this shard will eventually be closed and the listeners will be failed at that point, so we can
+        // ignore them here.
         if (primaryTerm == currentPrimaryTerm.getAsLong()) {
             synchronized (translogFiles) {
                 // Since this is call before initiating an upload, the marked translog release end file should never be less than the
@@ -223,8 +221,7 @@ class ShardSyncState {
     }
 
     public boolean markSyncFinished(SyncMarker syncMarker) {
-        // Every marker this state produces carries startingPrimaryTerm, so once the live term has moved on, notifyListeners
-        // will not run for the queued syncs. The caller fails them via failListenersOnNewPrimaryTerm.
+        // If the primary term changed the caller will fail all pending listeners (after releasing a lock) so we can ignore them here.
         if (syncMarker.primaryTerm() == currentPrimaryTerm()) {
             assert syncMarker.location().compareTo(syncedLocation) > 0;
             // We mark the seqNos of persisted before exposing the synced location. This matches what we do in the TranlogWriter.
@@ -302,11 +299,9 @@ class ShardSyncState {
         ActionListener.onFailure(toFail, e);
     }
 
-    // Fails every queued sync listener and rejects syncs registered later. Called when an upload's primary term no longer matches
-    // the live term, which means notifyListeners will not complete those listeners.
-    void failListenersOnNewPrimaryTerm() {
-        primaryTermAdvanced = true;
-        failPendingListeners(primaryTermAdvancedException(shardId));
+    void failPendingListenersOnNewPrimaryTerm() {
+        primaryTermIsStale = true;
+        failPendingListeners(stalePrimaryTermException(shardId));
     }
 
     public void updateProcessedLocation(Translog.Location newProcessedLocation) {

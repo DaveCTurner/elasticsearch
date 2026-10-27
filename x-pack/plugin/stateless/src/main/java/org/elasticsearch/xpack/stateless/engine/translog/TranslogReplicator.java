@@ -957,7 +957,7 @@ public class TranslogReplicator extends AbstractLifecycleComponent {
                 );
             }
             for (ShardSyncState shardSyncState : shardsWithNewPrimaryTerm) {
-                shardSyncState.failListenersOnNewPrimaryTerm();
+                shardSyncState.failPendingListenersOnNewPrimaryTerm();
             }
         }
 
