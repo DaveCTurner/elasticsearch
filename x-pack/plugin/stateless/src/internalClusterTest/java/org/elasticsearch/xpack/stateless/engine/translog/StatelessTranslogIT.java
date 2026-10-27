@@ -566,6 +566,8 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
     /**
      * Recovery fills sequence-number gaps while holding an ensure-open reference across the remote translog sync. If the primary term
      * advances before that upload is validated, the sync can no longer succeed, and the shard must still finish closing.
+     *
+     * @see <a href="https://github.com/elastic/elasticsearch/issues/163242">#163242</a>.
      */
     public void testShardClosesWhenPrimaryTermAdvancesDuringRecoveryTranslogSync() throws Exception {
         final var extraNodeSettings = Settings.builder()
