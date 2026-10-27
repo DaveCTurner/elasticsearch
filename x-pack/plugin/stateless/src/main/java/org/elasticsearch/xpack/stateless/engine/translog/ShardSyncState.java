@@ -111,9 +111,6 @@ class ShardSyncState {
                     result = Result.STALE_PRIMARY_TERM;
                 } else if (location.compareTo(syncedLocation) <= 0) {
                     result = Result.ALREADY_SYNCED;
-                } else if (startingPrimaryTerm != currentPrimaryTerm()) {
-                    primaryTermIsStale = true;
-                    result = Result.STALE_PRIMARY_TERM;
                 } else {
                     ContextPreservingActionListener<Void> contextPreservingActionListener = ContextPreservingActionListener
                         .wrapPreservingContext(listener, threadContext);
