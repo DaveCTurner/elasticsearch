@@ -920,7 +920,7 @@ public class TranslogReplicator extends AbstractLifecycleComponent {
                                         if (syncFinishedAccepted) {
                                             modifiedShardSyncedLocations.add(shardSyncState);
                                         } else {
-                                            assert syncMarker.primaryTerm() != shardSyncState.currentPrimaryTerm();
+                                            assert syncMarker.primaryTerm() < shardSyncState.currentPrimaryTerm();
                                             shardsWithNewPrimaryTerm.add(shardSyncState);
                                             logger.debug(
                                                 () -> format(
