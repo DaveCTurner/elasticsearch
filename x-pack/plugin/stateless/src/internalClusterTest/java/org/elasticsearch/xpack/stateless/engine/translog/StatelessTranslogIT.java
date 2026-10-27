@@ -21,7 +21,6 @@ import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.coordination.stateless.StoreHeartbeatService;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.allocation.command.CancelAllocationCommand;
@@ -54,6 +53,7 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.telemetry.InstrumentType;
 import org.elasticsearch.telemetry.Measurement;
 import org.elasticsearch.telemetry.RecordingMeterRegistry;
+import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.xcontent.XContentType;
@@ -570,7 +570,7 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
      * advances before that upload is validated, the sync can no longer succeed, and the shard must still finish closing.
      */
     public void testShardClosesWhenPrimaryTermAdvancesDuringRecoveryTranslogSync() throws Exception {
-        Settings extraNodeSettings = Settings.builder()
+        final var extraNodeSettings = Settings.builder()
             .put(disableIndexingDiskAndMemoryControllersNodeSettings())
             .put(ObjectStoreService.TYPE_SETTING.getKey(), ObjectStoreService.ObjectStoreType.MOCK)
             .put(STATELESS_HOLLOW_INDEX_SHARDS_ENABLED.getKey(), false)
@@ -593,7 +593,8 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
         // Persist a sequence-number gap. A non-forced flush skips the commit when Lucene has nothing new to write, and closing the index
         // rejects the gap, so force a commit and then fail the shard. Recovery has to write no-ops and sync them remotely while it still
         // holds an ensure-open reference.
-        IndexShard primary = findIndexShard(resolveIndex(indexName), 0, nodeA);
+        final var index = resolveIndex(indexName);
+        final var primary = findIndexShard(index, 0, nodeA);
         primary.withEngine(engine -> {
             generateNewSeqNo(engine);
             return null;
@@ -601,7 +602,6 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
         assertThat(primary.seqNoStats().getMaxSeqNo(), greaterThan(primary.seqNoStats().getLocalCheckpoint()));
         assertNoFailures(indicesAdmin().prepareFlush(indexName).setForce(true).get());
 
-        // Meet the translog thread once the recovery upload is blocked, and again after the primary term has advanced.
         final CyclicBarrier uploadBarrier = new CyclicBarrier(2);
         setNodeRepositoryStrategy(nodeA, new StatelessMockRepositoryStrategy() {
             @Override
@@ -630,11 +630,12 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
             // new primary is initialized there, which advances the primary term and removes the recovering shard from node A.
             updateIndexSettings(Settings.builder().put("index.routing.allocation.include._name", nodeB), indexName);
             ClusterRerouteUtils.reroute(client(), new CancelAllocationCommand(indexName, 0, nodeA, true));
-            final var index = resolveIndex(indexName);
-            assertBusy(() -> {
-                IndexMetadata indexMetadata = nodeAClusterService.state().metadata().indexMetadata(index);
-                assertThat(indexMetadata.primaryTerm(0), greaterThan(termDuringRecovery));
-            });
+            safeAwait(
+                ClusterServiceUtils.addTemporaryStateListener(
+                    nodeAClusterService,
+                    cs -> cs.metadata().indexMetadata(index).primaryTerm(0) > termDuringRecovery
+                )
+            );
 
             // removeShard drops the shard from the index service before engine close finishes, so the close listener is what shows that
             // drainForClose is still waiting on the recovery thread. That thread holds an ensure-open reference across the blocked upload.
@@ -643,7 +644,7 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
             assertFalse("shard close finished while its recovery translog sync was still blocked", shardClosed.await(2, TimeUnit.SECONDS));
 
             safeAwait(uploadBarrier);
-            assertTrue("shard close did not finish after the stale translog sync was released", shardClosed.await(30, TimeUnit.SECONDS));
+            safeAwait(shardClosed);
             ensureGreen(indexName);
         } finally {
             setNodeRepositoryStrategy(nodeA, StatelessMockRepositoryStrategy.DEFAULT);
