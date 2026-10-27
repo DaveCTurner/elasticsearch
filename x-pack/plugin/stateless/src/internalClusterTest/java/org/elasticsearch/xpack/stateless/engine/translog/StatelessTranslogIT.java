@@ -625,7 +625,7 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
             safeAwait(uploadBarrier);
 
             final var nodeAClusterService = internalCluster().getInstance(ClusterService.class, nodeA);
-            final long termDuringRecovery = nodeAClusterService.state().metadata().indexMetadata(resolveIndex(indexName)).primaryTerm(0);
+            final long termDuringRecovery = nodeAClusterService.state().metadata().indexMetadata(index).primaryTerm(0);
             // An initializing primary is not relocated by an allocation filter alone. Cancel it after pinning the index to node B so a
             // new primary is initialized there, which advances the primary term and removes the recovering shard from node A.
             updateIndexSettings(Settings.builder().put("index.routing.allocation.include._name", nodeB), indexName);
