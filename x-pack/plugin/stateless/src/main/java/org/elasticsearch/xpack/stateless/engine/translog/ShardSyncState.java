@@ -101,13 +101,17 @@ class ShardSyncState {
         }
 
         final Result result;
-        if (location.compareTo(syncedLocation) > 0) {
+        if (location.compareTo(syncedLocation) <= 0) {
+            result = Result.ALREADY_SYNCED;
+        } else {
             synchronized (listeners) {
                 if (isClosed) {
                     result = Result.ALREADY_CLOSED;
+                } else if (primaryTermIsStale) {
+                    result = Result.STALE_PRIMARY_TERM;
                 } else if (location.compareTo(syncedLocation) <= 0) {
                     result = Result.ALREADY_SYNCED;
-                } else if (primaryTermIsStale || startingPrimaryTerm != currentPrimaryTerm()) {
+                } else if (startingPrimaryTerm != currentPrimaryTerm()) {
                     primaryTermIsStale = true;
                     result = Result.STALE_PRIMARY_TERM;
                 } else {
@@ -117,8 +121,6 @@ class ShardSyncState {
                     result = Result.WAIT_FOR_SYNC;
                 }
             }
-        } else {
-            result = Result.ALREADY_SYNCED;
         }
 
         switch (result) {
