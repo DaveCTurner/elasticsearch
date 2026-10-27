@@ -575,11 +575,11 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
             .put(ObjectStoreService.TYPE_SETTING.getKey(), ObjectStoreService.ObjectStoreType.MOCK)
             .put(STATELESS_HOLLOW_INDEX_SHARDS_ENABLED.getKey(), false)
             .build();
-        final String nodeA = startMasterAndIndexNode(extraNodeSettings);
-        final String nodeB = startMasterAndIndexNode(extraNodeSettings);
+        final var nodeA = startMasterAndIndexNode(extraNodeSettings);
+        final var nodeB = startMasterAndIndexNode(extraNodeSettings);
         ensureStableCluster(2);
 
-        final String indexName = randomIndexName();
+        final var indexName = randomIndexName();
         createIndex(
             indexName,
             indexSettings(1, 0).put("index.routing.allocation.include._name", nodeA)
@@ -602,7 +602,7 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
         assertThat(primary.seqNoStats().getMaxSeqNo(), greaterThan(primary.seqNoStats().getLocalCheckpoint()));
         assertNoFailures(indicesAdmin().prepareFlush(indexName).setForce(true).get());
 
-        final CyclicBarrier uploadBarrier = new CyclicBarrier(2);
+        final var uploadBarrier = new CyclicBarrier(2);
         setNodeRepositoryStrategy(nodeA, new StatelessMockRepositoryStrategy() {
             @Override
             public void blobContainerWriteBlob(
@@ -639,7 +639,7 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
 
             // removeShard drops the shard from the index service before engine close finishes, so the close listener is what shows that
             // drainForClose is still waiting on the recovery thread. That thread holds an ensure-open reference across the blocked upload.
-            CountDownLatch shardClosed = new CountDownLatch(1);
+            final var shardClosed = new CountDownLatch(1);
             internalCluster().getInstance(IndicesClusterStateService.class, nodeA).onClusterStateShardsClosed(shardClosed::countDown);
             assertFalse("shard close finished while its recovery translog sync was still blocked", shardClosed.await(2, TimeUnit.SECONDS));
 
