@@ -578,7 +578,7 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
         final String nodeB = startMasterAndIndexNode(extraNodeSettings);
         ensureStableCluster(2);
 
-        final String indexName = randomIdentifier();
+        final String indexName = randomIndexName();
         createIndex(
             indexName,
             indexSettings(1, 0).put("index.routing.allocation.include._name", nodeA)
@@ -614,14 +614,7 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
                 if (purpose == OperationPurpose.TRANSLOG) {
                     logger.info("--> blocking translog upload [{}] on [{}]", blobName, nodeA);
                     uploadBlocked.countDown();
-                    try {
-                        if (releaseUpload.await(2, TimeUnit.MINUTES) == false) {
-                            throw new IOException("timed out waiting to release translog upload [" + blobName + "]");
-                        }
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        throw new IOException("interrupted while blocking translog upload [" + blobName + "]", e);
-                    }
+                    safeAwait(releaseUpload);
                 }
                 originalRunnable.run();
             }
