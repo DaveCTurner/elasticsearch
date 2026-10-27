@@ -877,6 +877,7 @@ public class TranslogReplicator extends AbstractLifecycleComponent {
         private void markClusterStateValidateFinished(long validateGeneration) {
             HashSet<ShardSyncState> modifiedShardSyncedLocations = new HashSet<>();
             HashSet<ShardSyncState> shardsUnderProjectDeletion = new HashSet<>();
+            HashSet<ShardSyncState> shardsWithAdvancedPrimaryTerm = new HashSet<>();
             final var clusterState = consistencyService.state();
             final var clusterStateMetadata = clusterState.metadata();
             final var projectStateRegistry = ProjectStateRegistry.get(clusterState);
@@ -920,6 +921,7 @@ public class TranslogReplicator extends AbstractLifecycleComponent {
                                             modifiedShardSyncedLocations.add(shardSyncState);
                                         } else {
                                             assert syncMarker.primaryTerm() != shardSyncState.currentPrimaryTerm();
+                                            shardsWithAdvancedPrimaryTerm.add(shardSyncState);
                                             logger.debug(
                                                 () -> format(
                                                     "skipped shard %s sync notification after translog file [%s] upload "
@@ -953,6 +955,11 @@ public class TranslogReplicator extends AbstractLifecycleComponent {
                         "The project containing shard [" + shardSyncState.getShardId() + "] is marked for deletion"
                     )
                 );
+            }
+            // After notifyListeners, so a marker that did advance syncedLocation in this batch still completes the listeners it covers.
+            // The rest cannot be completed by a later upload and must not keep the shard from closing.
+            for (ShardSyncState shardSyncState : shardsWithAdvancedPrimaryTerm) {
+                shardSyncState.failListenersOnPrimaryTermAdvance();
             }
         }
 

@@ -19,6 +19,7 @@ import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.NavigableMap;
 import java.util.PriorityQueue;
 import java.util.TreeMap;
@@ -41,6 +42,9 @@ class ShardSyncState {
     private volatile Translog.Location processedLocation = new Translog.Location(0, 0, 0);
     private volatile Translog.Location syncedLocation = new Translog.Location(0, 0, 0);
     private volatile boolean isClosed = false;
+    // Set once the live primary term moves past startingPrimaryTerm. Every marker this state produces carries
+    // startingPrimaryTerm, so a sync queued after this can never be completed by notifyListeners.
+    private boolean primaryTermAdvanced = false;
 
     ShardSyncState(
         ShardId shardId,
@@ -66,6 +70,12 @@ class ShardSyncState {
 
     static AlreadyClosedException alreadyClosedException(ShardId shardId) {
         return new AlreadyClosedException("The translog for shard [" + shardId + "] is already closed.");
+    }
+
+    static AlreadyClosedException primaryTermAdvancedException(ShardId shardId) {
+        return new AlreadyClosedException(
+            "The translog for shard [" + shardId + "] can no longer be synced because its primary term has advanced"
+        );
     }
 
     boolean syncNeeded() {
@@ -116,6 +126,8 @@ class ShardSyncState {
         assert location.compareTo(processedLocation) <= 0;
         boolean completeListener = true;
         boolean alreadyClosed = false;
+        boolean termAdvanced = false;
+        List<ActionListener<Void>> supersededListeners = null;
         final var syncedLocationCopy1 = syncedLocation;
         if (location.compareTo(syncedLocationCopy1) > 0) {
             synchronized (listeners) {
@@ -124,17 +136,26 @@ class ShardSyncState {
                 } else {
                     final var syncedLocationCopy2 = syncedLocation;
                     if (location.compareTo(syncedLocationCopy2) > 0) {
-                        logger.info(
-                            "TEMP #163242 ensureSynced[{}]: location[{}] syncedLocation[{}][{}] registering listener",
-                            shardId,
-                            location,
-                            syncedLocationCopy1,
-                            syncedLocationCopy2
-                        );
-                        ContextPreservingActionListener<Void> contextPreservingActionListener = ContextPreservingActionListener
-                            .wrapPreservingContext(listener, threadContext);
-                        listeners.add(new SyncListener(location, contextPreservingActionListener));
-                        completeListener = false;
+                        if (primaryTermAdvanced || startingPrimaryTerm != currentPrimaryTerm()) {
+                            // Same lock as failListenersOnPrimaryTermAdvance, so a listener cannot be queued after the
+                            // primary term has moved and then wait for a notification that will never arrive.
+                            primaryTermAdvanced = true;
+                            termAdvanced = true;
+                            supersededListeners = new ArrayList<>(listeners);
+                            listeners.clear();
+                        } else {
+                            logger.info(
+                                "TEMP #163242 ensureSynced[{}]: location[{}] syncedLocation[{}][{}] registering listener",
+                                shardId,
+                                location,
+                                syncedLocationCopy1,
+                                syncedLocationCopy2
+                            );
+                            ContextPreservingActionListener<Void> contextPreservingActionListener = ContextPreservingActionListener
+                                .wrapPreservingContext(listener, threadContext);
+                            listeners.add(new SyncListener(location, contextPreservingActionListener));
+                            completeListener = false;
+                        }
                     }
                 }
             }
@@ -149,6 +170,12 @@ class ShardSyncState {
                     syncedLocationCopy1
                 );
                 listener.onFailure(alreadyClosedException(shardId));
+            } else if (termAdvanced) {
+                try {
+                    listener.onFailure(primaryTermAdvancedException(shardId));
+                } finally {
+                    ActionListener.onFailure(supersededListeners, primaryTermAdvancedException(shardId));
+                }
             } else {
                 logger.info(
                     "TEMP #163242 ensureSynced[{}]: location[{}] syncedLocation[{}] already synced",
@@ -165,8 +192,8 @@ class ShardSyncState {
     }
 
     public void markSyncStarting(long primaryTerm, TranslogReplicator.BlobTranslogFile translogFile) {
-        // If the primary term changed this shard will eventually be closed and the listeners will be failed at that point, so we can
-        // ignore them here.
+        // A marker from an older primary term cannot satisfy sync listeners. They are failed when cluster-state validation
+        // finishes; see failListenersOnPrimaryTermAdvance.
         if (primaryTerm == currentPrimaryTerm.getAsLong()) {
             synchronized (translogFiles) {
                 // Since this is call before initiating an upload, the marked translog release end file should never be less than the
@@ -196,16 +223,8 @@ class ShardSyncState {
     }
 
     public boolean markSyncFinished(SyncMarker syncMarker) {
-        // TEMP repro aid for https://github.com/elastic/elasticsearch/issues/163242 — do not commit.
-        // Upload validation and the cluster-state apply that bumps the primary term raced within a millisecond.
-        // A short pause before the comparison lets an in-flight term bump drop the sync listener.
-        try {
-            Thread.sleep(20);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        // If the primary term changed this shard will eventually be closed and the listeners will be failed at that point, so we can
-        // ignore them here.
+        // Every marker this state produces carries startingPrimaryTerm, so once the live term has moved on, notifyListeners
+        // will not run for the queued syncs. The caller fails them via failListenersOnPrimaryTermAdvance.
         if (syncMarker.primaryTerm() == currentPrimaryTerm()) {
             assert syncMarker.location().compareTo(syncedLocation) > 0;
             // We mark the seqNos of persisted before exposing the synced location. This matches what we do in the TranlogWriter.
@@ -273,9 +292,22 @@ class ShardSyncState {
     }
 
     void failPendingListeners(Exception e) {
+        failPendingListeners(e, false);
+    }
+
+    // Fails every queued sync listener and rejects syncs registered later. Called when an upload's primary term no longer matches
+    // the live term, which means notifyListeners will not complete those listeners.
+    void failListenersOnPrimaryTermAdvance() {
+        failPendingListeners(primaryTermAdvancedException(shardId), true);
+    }
+
+    private void failPendingListeners(Exception e, boolean dueToPrimaryTermAdvance) {
         logger.info("TEMP #163242 failPendingListeners[{}] start", shardId);
         var toFail = new ArrayList<ActionListener<Void>>();
         synchronized (listeners) {
+            if (dueToPrimaryTermAdvance) {
+                primaryTermAdvanced = true;
+            }
             toFail.addAll(listeners);
             listeners.clear();
         }
