@@ -73,6 +73,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -600,8 +601,8 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
         assertThat(primary.seqNoStats().getMaxSeqNo(), greaterThan(primary.seqNoStats().getLocalCheckpoint()));
         assertNoFailures(indicesAdmin().prepareFlush(indexName).setForce(true).get());
 
-        CountDownLatch uploadBlocked = new CountDownLatch(1);
-        CountDownLatch releaseUpload = new CountDownLatch(1);
+        // Meet the translog thread once the recovery upload is blocked, and again after the primary term has advanced.
+        final CyclicBarrier uploadBarrier = new CyclicBarrier(2);
         setNodeRepositoryStrategy(nodeA, new StatelessMockRepositoryStrategy() {
             @Override
             public void blobContainerWriteBlob(
@@ -613,31 +614,25 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
             ) throws IOException {
                 if (purpose == OperationPurpose.TRANSLOG) {
                     logger.info("--> blocking translog upload [{}] on [{}]", blobName, nodeA);
-                    uploadBlocked.countDown();
-                    safeAwait(releaseUpload);
+                    safeAwait(uploadBarrier);
+                    safeAwait(uploadBarrier);
                 }
                 originalRunnable.run();
             }
         });
         try {
             primary.failShard("recover with a sequence-number gap", new Exception("boom"));
-            safeAwait(uploadBlocked);
+            safeAwait(uploadBarrier);
 
-            final long termDuringRecovery = internalCluster().getInstance(ClusterService.class, nodeA)
-                .state()
-                .metadata()
-                .indexMetadata(resolveIndex(indexName))
-                .primaryTerm(0);
+            final var nodeAClusterService = internalCluster().getInstance(ClusterService.class, nodeA);
+            final long termDuringRecovery = nodeAClusterService.state().metadata().indexMetadata(resolveIndex(indexName)).primaryTerm(0);
             // An initializing primary is not relocated by an allocation filter alone. Cancel it after pinning the index to node B so a
             // new primary is initialized there, which advances the primary term and removes the recovering shard from node A.
             updateIndexSettings(Settings.builder().put("index.routing.allocation.include._name", nodeB), indexName);
             ClusterRerouteUtils.reroute(client(), new CancelAllocationCommand(indexName, 0, nodeA, true));
-            var index = resolveIndex(indexName);
+            final var index = resolveIndex(indexName);
             assertBusy(() -> {
-                IndexMetadata indexMetadata = internalCluster().getInstance(ClusterService.class, nodeA)
-                    .state()
-                    .metadata()
-                    .indexMetadata(index);
+                IndexMetadata indexMetadata = nodeAClusterService.state().metadata().indexMetadata(index);
                 assertThat(indexMetadata.primaryTerm(0), greaterThan(termDuringRecovery));
             });
 
@@ -647,11 +642,10 @@ public class StatelessTranslogIT extends AbstractStatelessPluginIntegTestCase {
             internalCluster().getInstance(IndicesClusterStateService.class, nodeA).onClusterStateShardsClosed(shardClosed::countDown);
             assertFalse("shard close finished while its recovery translog sync was still blocked", shardClosed.await(2, TimeUnit.SECONDS));
 
-            releaseUpload.countDown();
+            safeAwait(uploadBarrier);
             assertTrue("shard close did not finish after the stale translog sync was released", shardClosed.await(30, TimeUnit.SECONDS));
             ensureGreen(indexName);
         } finally {
-            releaseUpload.countDown();
             setNodeRepositoryStrategy(nodeA, StatelessMockRepositoryStrategy.DEFAULT);
         }
     }
