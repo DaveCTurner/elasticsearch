@@ -15,6 +15,8 @@ import org.elasticsearch.action.support.ContextPreservingActionListener;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.translog.Translog;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 
 import java.util.ArrayList;
 import java.util.NavigableMap;
@@ -24,6 +26,8 @@ import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 
 class ShardSyncState {
+
+    private static final Logger logger = LogManager.getLogger(ShardSyncState.class);
 
     private final ShardId shardId;
     private final long startingPrimaryTerm;
@@ -71,12 +75,37 @@ class ShardSyncState {
     boolean waitForAllSynced(ActionListener<Void> listener) {
         // Single volatile read
         Translog.Location processedLocationCopy = processedLocation;
-        if (processedLocationCopy.compareTo(syncedLocation) > 0) {
+        Translog.Location syncedLocationCopy = syncedLocation;
+        logger.info(
+            "TEMP #163242 waitForAllSynced[{}]: processedLocation[{}] syncedLocation[{}]",
+            shardId,
+            processedLocationCopy,
+            syncedLocationCopy
+        );
+        if (processedLocationCopy.compareTo(syncedLocationCopy) > 0) {
+            logger.info(
+                "TEMP #163242 waitForAllSynced[{}]: processedLocation[{}] syncedLocation[{}] calling ensureSynced",
+                shardId,
+                processedLocationCopy,
+                syncedLocationCopy
+            );
             return ensureSynced(processedLocationCopy, listener);
         } else {
             if (isClosed) {
+                logger.info(
+                    "TEMP #163242 waitForAllSynced[{}]: processedLocation[{}] syncedLocation[{}] already closed",
+                    shardId,
+                    processedLocationCopy,
+                    syncedLocationCopy
+                );
                 listener.onFailure(alreadyClosedException(shardId));
             } else {
+                logger.info(
+                    "TEMP #163242 waitForAllSynced[{}]: processedLocation[{}] syncedLocation[{}] already synced",
+                    shardId,
+                    processedLocationCopy,
+                    syncedLocationCopy
+                );
                 listener.onResponse(null);
             }
             return true;
@@ -87,23 +116,46 @@ class ShardSyncState {
         assert location.compareTo(processedLocation) <= 0;
         boolean completeListener = true;
         boolean alreadyClosed = false;
-        if (location.compareTo(syncedLocation) > 0) {
+        final var syncedLocationCopy1 = syncedLocation;
+        if (location.compareTo(syncedLocationCopy1) > 0) {
             synchronized (listeners) {
                 if (isClosed) {
                     alreadyClosed = true;
-                } else if (location.compareTo(syncedLocation) > 0) {
-                    ContextPreservingActionListener<Void> contextPreservingActionListener = ContextPreservingActionListener
-                        .wrapPreservingContext(listener, threadContext);
-                    listeners.add(new SyncListener(location, contextPreservingActionListener));
-                    completeListener = false;
+                } else {
+                    final var syncedLocationCopy2 = syncedLocation;
+                    if (location.compareTo(syncedLocationCopy2) > 0) {
+                        logger.info(
+                            "TEMP #163242 ensureSynced[{}]: location[{}] syncedLocation[{}][{}] registering listener",
+                            shardId,
+                            location,
+                            syncedLocationCopy1,
+                            syncedLocationCopy2
+                        );
+                        ContextPreservingActionListener<Void> contextPreservingActionListener = ContextPreservingActionListener
+                            .wrapPreservingContext(listener, threadContext);
+                        listeners.add(new SyncListener(location, contextPreservingActionListener));
+                        completeListener = false;
+                    }
                 }
             }
         }
 
         if (completeListener) {
             if (alreadyClosed) {
+                logger.info(
+                    "TEMP #163242 ensureSynced[{}]: location[{}] syncedLocation[{}] already closed",
+                    shardId,
+                    location,
+                    syncedLocationCopy1
+                );
                 listener.onFailure(alreadyClosedException(shardId));
             } else {
+                logger.info(
+                    "TEMP #163242 ensureSynced[{}]: location[{}] syncedLocation[{}] already synced",
+                    shardId,
+                    location,
+                    syncedLocationCopy1
+                );
                 listener.onResponse(null);
             }
             return true;
@@ -208,9 +260,11 @@ class ShardSyncState {
 
     void notifyListeners() {
         var toComplete = new ArrayList<ActionListener<Void>>();
+        logger.info("TEMP #163242 notifyListeners[{}] up to [{}]", shardId, syncedLocation);
         synchronized (listeners) {
             SyncListener listener;
             while ((listener = listeners.peek()) != null && syncedLocation.compareTo(listener.location) >= 0) {
+                logger.info("TEMP #163242 notifyListeners[{}] completing listener at [{}]", shardId, listener.location);
                 toComplete.add(listener);
                 listeners.poll();
             }
@@ -219,11 +273,13 @@ class ShardSyncState {
     }
 
     void failPendingListeners(Exception e) {
+        logger.info("TEMP #163242 failPendingListeners[{}] start", shardId);
         var toFail = new ArrayList<ActionListener<Void>>();
         synchronized (listeners) {
             toFail.addAll(listeners);
             listeners.clear();
         }
+        logger.info("TEMP #163242 failPendingListeners[{}] after clearing listeners", shardId);
         ActionListener.onFailure(toFail, e);
     }
 
