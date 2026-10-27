@@ -231,6 +231,7 @@ class ShardSyncState {
             syncedLocation = syncMarker.location();
             return true;
         } else {
+            primaryTermIsStale = true;
             return false;
         }
     }
@@ -297,11 +298,6 @@ class ShardSyncState {
         }
         logger.info("TEMP #163242 failPendingListeners[{}] after clearing listeners", shardId);
         ActionListener.onFailure(toFail, e);
-    }
-
-    void failPendingListenersOnNewPrimaryTerm() {
-        primaryTermIsStale = true;
-        failPendingListeners(stalePrimaryTermException(shardId));
     }
 
     public void updateProcessedLocation(Translog.Location newProcessedLocation) {

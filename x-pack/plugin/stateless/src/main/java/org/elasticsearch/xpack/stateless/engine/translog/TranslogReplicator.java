@@ -957,7 +957,11 @@ public class TranslogReplicator extends AbstractLifecycleComponent {
                 );
             }
             for (ShardSyncState shardSyncState : shardsWithNewPrimaryTerm) {
-                shardSyncState.failPendingListenersOnNewPrimaryTerm();
+                shardSyncState.failPendingListeners(
+                    new AlreadyClosedException(
+                        "The translog for shard [" + shardSyncState.getShardId() + "] cannot be synced because its primary term is stale"
+                    )
+                );
             }
         }
 
