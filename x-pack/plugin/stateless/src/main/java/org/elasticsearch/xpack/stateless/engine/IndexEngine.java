@@ -865,7 +865,7 @@ public class IndexEngine extends InternalEngine {
         // fillSeqNoGaps holds an ensure-open ref across this call. A short pause widens the window in
         // which a master failover can publish a newer primary term before the remote sync is requested.
         try {
-            Thread.sleep(50);
+            Thread.sleep(500);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -875,7 +875,7 @@ public class IndexEngine extends InternalEngine {
         // TEMP repro aid for #163242 — do not commit. Stay in this method (ref still held) briefly while
         // markSyncFinished's pause lets a concurrent term bump drop the listener.
         try {
-            Thread.sleep(20);
+            Thread.sleep(200);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
