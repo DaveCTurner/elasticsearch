@@ -12,6 +12,7 @@ import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.util.LongsRef;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.index.Index;
@@ -316,19 +317,19 @@ public class ShardSyncStateTests extends ESTestCase {
     }
 
     public void testQueuedSyncRemainsPendingWhenPrimaryTermBecomesStale() {
-        ShardId shardId = new ShardId(new Index("name", "uuid"), 0);
-        long primaryTerm = randomLongBetween(1, 20);
+        final var shardId = new ShardId(new Index(randomIndexName(), UUIDs.randomBase64UUID()), between(0, 5));
+        final var primaryTerm = randomLongBetween(1, 20);
         AtomicLong currentPrimaryTerm = new AtomicLong(primaryTerm);
         ShardSyncState shardSyncState = getShardSyncState(shardId, primaryTerm, currentPrimaryTerm::get, longsRef -> {});
 
-        Translog.Location queuedLocation = new Translog.Location(0, 10, 0);
+        Translog.Location queuedLocation = new Translog.Location(0, between(1, 100), 0);
         shardSyncState.updateProcessedLocation(queuedLocation);
         PlainActionFuture<Void> queuedListener = new PlainActionFuture<>();
         assertFalse(shardSyncState.ensureSynced(queuedLocation, queuedListener));
 
         // The live term has moved, but no upload has been rejected yet, so this sync is still queued.
-        currentPrimaryTerm.incrementAndGet();
-        Translog.Location locationBeforeRejection = new Translog.Location(0, 20, 0);
+        currentPrimaryTerm.addAndGet(between(1, 100));
+        final var locationBeforeRejection = new Translog.Location(0, queuedLocation.translogLocation() + between(1, 100), 0);
         shardSyncState.updateProcessedLocation(locationBeforeRejection);
         PlainActionFuture<Void> listenerBeforeRejection = new PlainActionFuture<>();
         assertFalse(shardSyncState.ensureSynced(locationBeforeRejection, listenerBeforeRejection));
@@ -341,7 +342,7 @@ public class ShardSyncStateTests extends ESTestCase {
         assertFalse(listenerBeforeRejection.isDone());
 
         // A sync registered after the rejected upload fails on its own and leaves the queued listeners pending.
-        Translog.Location locationAfterRejection = new Translog.Location(0, 30, 0);
+        final var locationAfterRejection = new Translog.Location(0, locationBeforeRejection.translogLocation() + between(1, 100), 0);
         shardSyncState.updateProcessedLocation(locationAfterRejection);
         PlainActionFuture<Void> listenerAfterRejection = new PlainActionFuture<>();
         assertTrue(shardSyncState.ensureSynced(locationAfterRejection, listenerAfterRejection));
@@ -355,13 +356,13 @@ public class ShardSyncStateTests extends ESTestCase {
     }
 
     public void testCoveredListenersCompleteAfterPrimaryTermBecomesStale() {
-        ShardId shardId = new ShardId(new Index("name", "uuid"), 0);
-        long primaryTerm = randomLongBetween(1, 20);
+        final var shardId = new ShardId(new Index(randomIndexName(), UUIDs.randomBase64UUID()), between(0, 5));
+        final var primaryTerm = randomLongBetween(1, 20);
         AtomicLong currentPrimaryTerm = new AtomicLong(primaryTerm);
         ShardSyncState shardSyncState = getShardSyncState(shardId, primaryTerm, currentPrimaryTerm::get, longsRef -> {});
 
-        Translog.Location coveredLocation = new Translog.Location(0, 10, 0);
-        Translog.Location beyondLocation = new Translog.Location(0, 30, 0);
+        final var coveredLocation = new Translog.Location(0, between(1, 100), 0);
+        final var beyondLocation = new Translog.Location(0, coveredLocation.translogLocation() + between(1, 100), 0);
         shardSyncState.updateProcessedLocation(beyondLocation);
         PlainActionFuture<Void> coveredListener = new PlainActionFuture<>();
         PlainActionFuture<Void> beyondListener = new PlainActionFuture<>();
@@ -369,10 +370,11 @@ public class ShardSyncStateTests extends ESTestCase {
         assertFalse(shardSyncState.ensureSynced(beyondLocation, beyondListener));
 
         assertTrue(shardSyncState.markSyncFinished(new ShardSyncState.SyncMarker(primaryTerm, coveredLocation, longArrayListOf(0L))));
-        currentPrimaryTerm.incrementAndGet();
+        currentPrimaryTerm.addAndGet(between(1, 100));
         assertFalse(shardSyncState.markSyncFinished(new ShardSyncState.SyncMarker(primaryTerm, beyondLocation, longArrayListOf(1L))));
         shardSyncState.notifyListeners();
 
+        assertTrue(coveredListener.isDone());
         assertNull(coveredListener.actionGet());
         assertFalse(beyondListener.isDone());
 
@@ -380,7 +382,7 @@ public class ShardSyncStateTests extends ESTestCase {
         PlainActionFuture<Void> alreadySyncedListener = new PlainActionFuture<>();
         assertTrue(shardSyncState.ensureSynced(coveredLocation, alreadySyncedListener));
         assertNull(alreadySyncedListener.actionGet());
-        Translog.Location laterLocation = new Translog.Location(0, 40, 0);
+        final var laterLocation = new Translog.Location(0, beyondLocation.translogLocation() + between(1, 100), 0);
         shardSyncState.updateProcessedLocation(laterLocation);
         PlainActionFuture<Void> laterListener = new PlainActionFuture<>();
         assertTrue(shardSyncState.ensureSynced(laterLocation, laterListener));
@@ -392,8 +394,8 @@ public class ShardSyncStateTests extends ESTestCase {
     }
 
     private static void assertStalePrimaryTerm(PlainActionFuture<Void> listener) {
-        AlreadyClosedException exception = expectThrows(AlreadyClosedException.class, listener::actionGet);
-        assertThat(exception.getMessage(), containsString("primary term is stale"));
+        assertTrue(listener.isDone());
+        assertThat(expectThrows(AlreadyClosedException.class, listener::actionGet).getMessage(), containsString("primary term is stale"));
     }
 
     private static ShardSyncState getShardSyncState(ShardId shardId, long primaryTerm) {
