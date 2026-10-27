@@ -93,50 +93,32 @@ class ShardSyncState {
     boolean ensureSynced(Translog.Location location, ActionListener<Void> listener) {
         assert location.compareTo(processedLocation) <= 0;
 
-        enum Result {
-            ALREADY_SYNCED,
-            WAIT_FOR_SYNC,
-            ALREADY_CLOSED,
-            STALE_PRIMARY_TERM
-        }
-
-        final Result result;
+        final Exception exception;
         if (location.compareTo(syncedLocation) <= 0) {
-            result = Result.ALREADY_SYNCED;
+            exception = null;
         } else {
             synchronized (listeners) {
                 if (isClosed) {
-                    result = Result.ALREADY_CLOSED;
+                    exception = alreadyClosedException(shardId);
                 } else if (primaryTermIsStale) {
-                    result = Result.STALE_PRIMARY_TERM;
+                    exception = stalePrimaryTermException(shardId);
                 } else if (location.compareTo(syncedLocation) <= 0) {
-                    result = Result.ALREADY_SYNCED;
+                    exception = null;
                 } else {
                     ContextPreservingActionListener<Void> contextPreservingActionListener = ContextPreservingActionListener
                         .wrapPreservingContext(listener, threadContext);
                     listeners.add(new SyncListener(location, contextPreservingActionListener));
-                    result = Result.WAIT_FOR_SYNC;
+                    return false;
                 }
             }
         }
 
-        switch (result) {
-            case ALREADY_SYNCED -> {
-                listener.onResponse(null);
-                return true;
-            }
-            case WAIT_FOR_SYNC -> {
-                return false;
-            }
-            case ALREADY_CLOSED -> {
-                listener.onFailure(alreadyClosedException(shardId));
-                return true;
-            }
-            case STALE_PRIMARY_TERM -> {
-                listener.onFailure(stalePrimaryTermException(shardId));
-                return true;
-            }
+        if (exception == null) {
+            listener.onResponse(null);
+        } else {
+            listener.onFailure(exception);
         }
+        return true;
     }
 
     public void markSyncStarting(long primaryTerm, TranslogReplicator.BlobTranslogFile translogFile) {
