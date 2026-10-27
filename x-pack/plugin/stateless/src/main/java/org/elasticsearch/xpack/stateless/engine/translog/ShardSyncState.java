@@ -92,38 +92,51 @@ class ShardSyncState {
 
     boolean ensureSynced(Translog.Location location, ActionListener<Void> listener) {
         assert location.compareTo(processedLocation) <= 0;
-        boolean completeListener = true;
-        boolean alreadyClosed = false;
-        boolean termAdvanced = false;
+
+        enum Result {
+            ALREADY_SYNCED,
+            WAIT_FOR_SYNC,
+            ALREADY_CLOSED,
+            STALE_PRIMARY_TERM
+        }
+
+        final Result result;
         if (location.compareTo(syncedLocation) > 0) {
             synchronized (listeners) {
                 if (isClosed) {
-                    alreadyClosed = true;
-                } else if (location.compareTo(syncedLocation) > 0) {
-                    if (primaryTermIsStale || startingPrimaryTerm != currentPrimaryTerm()) {
-                        primaryTermIsStale = true;
-                        termAdvanced = true;
-                    } else {
-                        ContextPreservingActionListener<Void> contextPreservingActionListener = ContextPreservingActionListener
-                            .wrapPreservingContext(listener, threadContext);
-                        listeners.add(new SyncListener(location, contextPreservingActionListener));
-                        completeListener = false;
-                    }
+                    result = Result.ALREADY_CLOSED;
+                } else if (location.compareTo(syncedLocation) <= 0) {
+                    result = Result.ALREADY_SYNCED;
+                } else if (primaryTermIsStale || startingPrimaryTerm != currentPrimaryTerm()) {
+                    primaryTermIsStale = true;
+                    result = Result.STALE_PRIMARY_TERM;
+                } else {
+                    ContextPreservingActionListener<Void> contextPreservingActionListener = ContextPreservingActionListener
+                        .wrapPreservingContext(listener, threadContext);
+                    listeners.add(new SyncListener(location, contextPreservingActionListener));
+                    result = Result.WAIT_FOR_SYNC;
                 }
             }
+        } else {
+            result = Result.ALREADY_SYNCED;
         }
 
-        if (completeListener) {
-            if (alreadyClosed) {
-                listener.onFailure(alreadyClosedException(shardId));
-            } else if (termAdvanced) {
-                listener.onFailure(stalePrimaryTermException(shardId));
-            } else {
+        switch (result) {
+            case ALREADY_SYNCED -> {
                 listener.onResponse(null);
+                return true;
             }
-            return true;
-        } else {
-            return false;
+            case WAIT_FOR_SYNC -> {
+                return false;
+            }
+            case ALREADY_CLOSED -> {
+                listener.onFailure(alreadyClosedException(shardId));
+                return true;
+            }
+            case STALE_PRIMARY_TERM -> {
+                listener.onFailure(stalePrimaryTermException(shardId));
+                return true;
+            }
         }
     }
 
