@@ -861,36 +861,14 @@ public class IndexEngine extends InternalEngine {
     public void syncTranslog() throws IOException {
         assert Thread.currentThread().getName().contains("[" + ThreadPool.Names.WRITE + "]") == false
             : "Expected current thread [" + Thread.currentThread() + "] to not be on a write thread. Reason: [syncTranslog]";
-        // TEMP repro aid for https://github.com/elastic/elasticsearch/issues/163242 — do not commit.
-        // fillSeqNoGaps holds an ensure-open ref across this call. A short pause widens the window in
-        // which a master failover can publish a newer primary term before the remote sync is requested.
-        logger.info("TEMP #163242 syncTranslog[{}] before sleep 1", shardId);
-        try {
-            Thread.sleep(50);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        logger.info("TEMP #163242 syncTranslog[{}] before super.syncTranslog()", shardId);
         super.syncTranslog();
         PlainActionFuture<Void> future = new PlainActionFuture<>();
-        logger.info("TEMP #163242 syncTranslog[{}] before translogReplicator.syncAll()", shardId);
         translogReplicator.syncAll(shardId, future);
-        // TEMP repro aid for #163242 — do not commit. Stay in this method (ref still held) briefly while
-        // markSyncFinished's pause lets a concurrent term bump drop the listener.
-        logger.info("TEMP #163242 syncTranslog[{}] before sleep 2", shardId);
-        try {
-            Thread.sleep(20);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        logger.info("TEMP #163242 syncTranslog[{}] before future.actionGet()", shardId);
         try {
             future.actionGet();
         } catch (Exception e) {
-            logger.info("TEMP #163242 syncTranslog[" + shardId + "] future.actionGet() threw exception", e);
             throw new IOException("Exception while syncing translog remotely", e);
         }
-        logger.info("TEMP #163242 syncTranslog[{}] returning", shardId);
     }
 
     public void syncTranslogReplicator(ActionListener<Void> listener) {
