@@ -1219,9 +1219,17 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
             }
             // resolve listeners outside mutex
             handleListeners(deleteListeners);
+
             // This task still holds the repository's RepositoryData write slot, even if the entry was already removed (for example by
             // another master while this deletion was writing to the repository). Choose the next task from the current cluster state.
-            runNextRepositoryDataWriteTask(deleteEntry.projectId(), deleteEntry.repository(), repositoryData);
+            runNextRepositoryDataWriteTask(
+                deleteEntry.projectId(),
+                deleteEntry.repository(),
+                // NB could have failed over to a different master node which already completed the deletion and then failed over back to
+                // this node, in which case the captured `repositoryData` is stale and must be reloaded.
+                oldState == newState ? null : repositoryData
+            );
+
             // TODO: be more efficient here, we could collect newly ready shard clones as we compute them and then directly start them
             // instead of looping over all possible clones to execute
             runReadyShardClonesInProject(SnapshotsInProgress.get(newState), deleteEntry.projectId());
@@ -2772,6 +2780,8 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
             );
             failAllListenersOnMasterFailOver(e);
             endRepositoryDataWriteTask(snapshot.getProjectId(), snapshot.getRepository());
+            // Doesn't quite work: S3Repository.wrapWithWeakConsistencyProtection might delay this notification past the re-election of this
+            // node. If the node has been re-elected then we should carry on. TODO NOCOMMIT
         } else {
             logger.warn(() -> "[" + snapshot + "] failed to finalize snapshot", e);
             removeFailedSnapshotFromClusterState(snapshot, e, repositoryData, updatedShardGenerations);
@@ -2884,6 +2894,9 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
     /// are ready-to-run, mark the repository idle.
     private void runNextRepositoryDataWriteTask(ProjectId projectId, String repository, @Nullable RepositoryData repositoryData) {
         assert MasterService.assertMasterUpdateOrTestThread();
+        // Ugh this actually isn't true today, a legacy-format S3 repository uses `S3Repository#wrapWithWeakConsistencyProtection` to delay
+        // the completion, which eventually lands here on a different thread. TODO NOCOMMIT
+
         assert repositoriesRunningRepositoryDataWriteTasks.contains(new ProjectRepo(projectId, repository))
             : "repository [" + projectRepoString(projectId, repository) + "] is not running a RepositoryData write";
         final var clusterState = clusterService.state();
