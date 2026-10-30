@@ -1222,13 +1222,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
 
             // This task still holds the repository's RepositoryData write slot, even if the entry was already removed (for example by
             // another master while this deletion was writing to the repository). Choose the next task from the current cluster state.
-            runNextRepositoryDataWriteTask(
-                deleteEntry.projectId(),
-                deleteEntry.repository(),
-                // NB could have failed over to a different master node which already completed the deletion and then failed over back to
-                // this node, in which case the captured `repositoryData` is stale and must be reloaded.
-                oldState == newState ? null : repositoryData
-            );
+            runNextRepositoryDataWriteTask(deleteEntry.projectId(), deleteEntry.repository(), repositoryData);
 
             // TODO: be more efficient here, we could collect newly ready shard clones as we compute them and then directly start them
             // instead of looping over all possible clones to execute
@@ -2892,7 +2886,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
 
     /// Pick and start the next ready-to-run [RepositoryData] write for a repository that is already marked running. If no more writes
     /// are ready-to-run, mark the repository idle.
-    private void runNextRepositoryDataWriteTask(ProjectId projectId, String repository, @Nullable RepositoryData repositoryData) {
+    private void runNextRepositoryDataWriteTask(ProjectId projectId, String repository, @Nullable RepositoryData lastKnownRepositoryData) {
         assert MasterService.assertMasterUpdateOrTestThread();
         // Ugh this actually isn't true today, a legacy-format S3 repository uses `S3Repository#wrapWithWeakConsistencyProtection` to delay
         // the completion, which eventually lands here on a different thread. TODO NOCOMMIT
@@ -2900,6 +2894,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
         assert repositoriesRunningRepositoryDataWriteTasks.contains(new ProjectRepo(projectId, repository))
             : "repository [" + projectRepoString(projectId, repository) + "] is not running a RepositoryData write";
         final var clusterState = clusterService.state();
+        final var repositoryData = getSafeRepositoryData(projectId, repository, lastKnownRepositoryData, clusterState);
 
         // Check for `STARTED` delete operations _before_ `complete()` snapshots. It is possible for a repository to have both: a delete
         // operation moves to `STARTED` only if there are no snapshots in progress in that repository, but once the delete operation is
@@ -2927,6 +2922,25 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
         }
 
         endRepositoryDataWriteTask(projectId, repository);
+    }
+
+    /// @return a [RepositoryData] which is known to be safe, i.e. hasn't been overwritten by a different master while this node was busy
+    /// doing something else. Returns `null` if the provided repository data is not safe, indicating that it should be reloaded.
+    private static @Nullable RepositoryData getSafeRepositoryData(
+        ProjectId projectId,
+        String repository,
+        @Nullable RepositoryData repositoryData,
+        ClusterState clusterState
+    ) {
+        if (repositoryData != null) {
+            final var repositoryMetadata = RepositoriesMetadata.get(clusterState.projectState(projectId).metadata()).repository(repository);
+            if (repositoryData.getGenId() == repositoryMetadata.generation()
+                && repositoryData.getGenId() == repositoryMetadata.pendingGeneration()) {
+                return repositoryData;
+            }
+        }
+
+        return null;
     }
 
     private void beginFinalizeSnapshot(SnapshotsInProgress.Entry entry, Metadata metadata, @Nullable RepositoryData repositoryData) {
