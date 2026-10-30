@@ -2890,6 +2890,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
             // Check for STARTED because if we're shutting down we might not be on the master-service thread here, it could be that the
             // task was rejected on the submitting thread. But in that case there's no need to run any more tasks.
             // TODO NOCOMMIT do we need to check local master?
+            // TODO NOCOMMIT should we check our own lifecycle state instead?
             ensureRepositoryDataWriteTaskRunning(projectId, repository, null);
         }
     }
