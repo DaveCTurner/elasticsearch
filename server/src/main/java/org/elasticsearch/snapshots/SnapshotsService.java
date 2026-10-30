@@ -1204,7 +1204,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
             assert MasterService.isPublishFailureException(e) : e;
             logger.warn(() -> format("%s failed to remove snapshot deletion metadata", deleteEntry), e);
             failAllListenersOnMasterFailOver(e);
-            onRepositoryDataWriteTaskMasterLoss(deleteEntry.projectId(), deleteEntry.repository());
+            endRepositoryDataWriteTask(deleteEntry.projectId(), deleteEntry.repository());
         }
 
         protected SnapshotDeletionsInProgress filterDeletions(SnapshotDeletionsInProgress deletions) {
@@ -2771,7 +2771,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                 Runnable::run
             );
             failAllListenersOnMasterFailOver(e);
-            onRepositoryDataWriteTaskMasterLoss(snapshot.getProjectId(), snapshot.getRepository());
+            endRepositoryDataWriteTask(snapshot.getProjectId(), snapshot.getRepository());
         } else {
             logger.warn(() -> "[" + snapshot + "] failed to finalize snapshot", e);
             removeFailedSnapshotFromClusterState(snapshot, e, repositoryData, updatedShardGenerations);
@@ -2838,7 +2838,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                 failAllListenersOnMasterFailOver(e);
                 if (repositoryData != null) {
                     // This finalization held the repository's write slot. A clone that never started does not (repositoryData == null).
-                    onRepositoryDataWriteTaskMasterLoss(snapshot.getProjectId(), snapshot.getRepository());
+                    endRepositoryDataWriteTask(snapshot.getProjectId(), snapshot.getRepository());
                 }
             }
 
@@ -2878,13 +2878,6 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
     private void endRepositoryDataWriteTask(ProjectId projectId, String repository) {
         final boolean removed = repositoriesRunningRepositoryDataWriteTasks.remove(new ProjectRepo(projectId, repository));
         assert removed : "repository [" + projectRepoString(projectId, repository) + "] was not running a RepositoryData write";
-    }
-
-    /// A [RepositoryData] write failed because this node could not commit cluster state. Release only this repository's slot. Other
-    /// repositories' tasks keep running. If this node is already master again, look for ready work immediately; otherwise the
-    /// external-changes task submitted from [#applyClusterState] when this node is re-elected does that.
-    private void onRepositoryDataWriteTaskMasterLoss(ProjectId projectId, String repository) {
-        endRepositoryDataWriteTask(projectId, repository);
     }
 
     /// Pick and start the next ready-to-run [RepositoryData] write for a repository that is already marked running. If no more writes
@@ -3077,7 +3070,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                 e
             );
             failAllListenersOnMasterFailOver(e);
-            onRepositoryDataWriteTaskMasterLoss(projectId, repository);
+            endRepositoryDataWriteTask(projectId, repository);
         }
 
         @Override
