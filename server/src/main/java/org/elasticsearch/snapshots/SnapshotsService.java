@@ -2887,56 +2887,33 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
         assert repositoriesRunningRepositoryDataWriteTasks.contains(new ProjectRepo(projectId, repository))
             : "repository [" + projectRepoString(projectId, repository) + "] is not running a RepositoryData write";
         final var clusterState = clusterService.state();
-        final var snapshotToFinalize = firstCompletedSnapshot(clusterState, projectId, repository);
-        if (snapshotToFinalize != null) {
-            assert assertNoStartedDeletions(projectId, repository, clusterState, snapshotToFinalize);
-            logger.trace("finalizing next snapshot [{}]", snapshotToFinalize.snapshot());
-            beginFinalizeSnapshot(snapshotToFinalize, clusterState.metadata(), repositoryData);
-            return;
-        }
-        final var startedDelete = startedDeletion(clusterState, projectId, repository);
-        if (startedDelete != null) {
-            logger.trace("running snapshot deletion [{}]", startedDelete);
-            beginDeleteSnapshots(startedDelete, repositoryData, clusterState.nodes().getMaxDataNodeCompatibleIndexVersion());
-            return;
-        }
-        endRepositoryDataWriteTask(projectId, repository);
-    }
 
-    private static boolean assertNoStartedDeletions(
-        ProjectId projectId,
-        String repository,
-        ClusterState state,
-        SnapshotsInProgress.Entry snapshotToFinalize
-    ) {
-        final var startedDelete = startedDeletion(state, projectId, repository);
-        assert startedDelete == null
-            : "completed snapshot [" + snapshotToFinalize.snapshot() + "] coexists with STARTED deletion [" + startedDelete + "]";
-        return true;
-    }
+        // Check for `STARTED` delete operations _before_ `complete()` snapshots. It is possible for a repository to have both: a delete
+        // operation moves to `STARTED` only if there are no snapshots in progress in that repository, but once the delete operation is
+        // running another snapshot creation may be enqueued for that repository and may then become `complete()` without interacting with
+        // the repository (e.g. because all its shards failed). The existence of the `STARTED` delete operation means that we should not
+        // start any finalization operations yet.
 
-    /// @return the first snapshot entry for the repository whose state is completed, in cluster-state order, or `null` if none is ready
-    @Nullable
-    private static SnapshotsInProgress.Entry firstCompletedSnapshot(ClusterState state, ProjectId projectId, String repository) {
-        for (var entry : SnapshotsInProgress.get(state).forRepo(projectId, repository)) {
-            if (entry.state().completed()) {
-                return entry;
-            }
-        }
-        return null;
-    }
-
-    /// @return a [SnapshotDeletionsInProgress.State#STARTED] deletion for the repository, or `null` if none is executing
-    @Nullable
-    private static SnapshotDeletionsInProgress.Entry startedDeletion(ClusterState state, ProjectId projectId, String repository) {
-        for (var entry : SnapshotDeletionsInProgress.get(state).getEntries()) {
+        for (var entry : SnapshotDeletionsInProgress.get(clusterState).getEntries()) {
             if (entry.state() == SnapshotDeletionsInProgress.State.STARTED
                 && entry.projectId().equals(projectId)
                 && entry.repository().equals(repository)) {
-                return entry;
+
+                logger.trace("running snapshot deletion [{}]", entry);
+                beginDeleteSnapshots(entry, repositoryData, clusterState.nodes().getMaxDataNodeCompatibleIndexVersion());
+                return;
             }
         }
-        return null;
+
+        for (var entry : SnapshotsInProgress.get(clusterState).forRepo(projectId, repository)) {
+            if (entry.state().completed()) {
+                logger.trace("finalizing next snapshot [{}]", entry.snapshot());
+                beginFinalizeSnapshot(entry, clusterState.metadata(), repositoryData);
+                return;
+            }
+        }
+
+        endRepositoryDataWriteTask(projectId, repository);
     }
 
     private void beginFinalizeSnapshot(SnapshotsInProgress.Entry entry, Metadata metadata, @Nullable RepositoryData repositoryData) {
