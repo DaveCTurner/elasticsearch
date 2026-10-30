@@ -2889,9 +2889,6 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
     /// are ready-to-run, mark the repository idle.
     private void runNextRepositoryDataWriteTask(ProjectId projectId, String repository, @Nullable RepositoryData lastKnownRepositoryData) {
         assert MasterService.assertMasterUpdateOrTestThread();
-        // Ugh this actually isn't true today, a legacy-format S3 repository uses `S3Repository#wrapWithWeakConsistencyProtection` to delay
-        // the completion, which eventually lands here on a different thread. TODO NOCOMMIT
-
         assert repositoriesRunningRepositoryDataWriteTasks.contains(new ProjectRepo(projectId, repository))
             : "repository [" + projectRepoString(projectId, repository) + "] is not running a RepositoryData write";
         final var clusterState = clusterService.state();
