@@ -1187,8 +1187,9 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                 return currentState;
             }
             final SnapshotDeletionsInProgress newDeletions = filterDeletions(updatedDeletions);
-            // May move a WAITING delete to STARTED now that this delete no longer blocks it. The follow-up task is chosen from the
-            // resulting cluster state, not from a side channel.
+            // May move a WAITING delete to STARTED now that the removed delete no longer blocks it. `readyDeletions()` checks all
+            // repositories in the target project for ready-to-start deletions, but in fact can only change the state of the repository of
+            // deleteEntry since any other ready-to-start deletion would have been moved to `STARTED` when it became ready.
             return SnapshotsServiceUtils.readyDeletions(
                 SnapshotsServiceUtils.updateWithSnapshots(
                     currentState,
