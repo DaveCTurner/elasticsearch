@@ -2775,8 +2775,8 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
             );
             failAllListenersOnMasterFailOver(e);
             endRepositoryDataWriteTask(snapshot.getProjectId(), snapshot.getRepository());
-            // Doesn't quite work: S3Repository.wrapWithWeakConsistencyProtection might delay this notification past the re-election of this
-            // node. If the node has been re-elected then we should carry on. TODO NOCOMMIT
+            // BUG?? S3Repository.wrapWithWeakConsistencyProtection might delay this notification past the re-election of this node, in
+            // which case we should carry on rather than ending the queue processor. It's been like this for ages.
         } else {
             logger.warn(() -> "[" + snapshot + "] failed to finalize snapshot", e);
             removeFailedSnapshotFromClusterState(snapshot, e, repositoryData, updatedShardGenerations);
