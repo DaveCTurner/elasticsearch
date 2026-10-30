@@ -336,6 +336,8 @@ final class SnapshotExternalChangesBatcher {
             if (finishedSnapshots.isEmpty() == false) {
                 // Skip finalization for repos with an active delete, because it will trigger finalization
                 // for any completed snapshots when it removes itself from the cluster state.
+                // TODO should be impossible to get a repository with both STARTED deletions and finished snapshots
+                // TODO this keys repositories by name not by ProjectRepo
                 final Set<String> reposWithRunningDeletes = snapshotDeletionsInProgress.getEntries()
                     .stream()
                     .filter(entry -> entry.state() == SnapshotDeletionsInProgress.State.STARTED)
