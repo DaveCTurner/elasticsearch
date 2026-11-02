@@ -105,6 +105,11 @@ Plugins can set `deploymentTarget` in `build.gradle`. That value tells the node 
 - REST classes expose routes via `RestHandler#routes`; when adding endpoints ensure naming matches existing REST/Transport patterns to aid discoverability.
 - Transport `ActionType` strings encode scope (`indices:data/read/...`, `cluster:admin/...`, etc.); align new names with these conventions to integrate with privilege resolution.
 
+## Liveness
+- Listeners must be completed eventually.
+- Resources (memory buffers, file handles, etc) must be released eventually.
+- If liveness is not obvious, consult `docs/internal/Liveness.md` for guidance.
+
 ## Logging & Error Handling
 - Elasticsearch should prefer its own logger `org.elasticsearch.logging.LogManager` & `org.elasticsearch.logging.Logger`; declare `private static final Logger logger = LogManager.getLogger(Class.class)`.
 - Always use parameterized logging (`logger.debug("operation [{}]", value)`); never build strings via concatenation.
