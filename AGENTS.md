@@ -107,8 +107,8 @@ Plugins can set `deploymentTarget` in `build.gradle`. That value tells the node 
 
 ## Liveness
 - Listeners must be completed eventually.
-- Resources (memory buffers, file handles, etc) must be released eventually.
-- If liveness is not obvious, consult `docs/internal/Liveness.md` for guidance.
+- Resources (file handles, reference-count increments, circuit-breaker reservations, pooled memory allocations, etc) must be released eventually.
+- Consult `docs/internal/Liveness.md` for more detailed guidance; use a sub-agent to focus on liveness concerns.
 
 ## Logging & Error Handling
 - Elasticsearch should prefer its own logger `org.elasticsearch.logging.LogManager` & `org.elasticsearch.logging.Logger`; declare `private static final Logger logger = LogManager.getLogger(Class.class)`.

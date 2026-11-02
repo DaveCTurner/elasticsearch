@@ -1,29 +1,45 @@
 # Liveness
 
 Listeners must be completed eventually.
-Resources (memory buffers, file handles, etc) must be released eventually.
+Resources (file handles, reference-count increments, circuit-breaker reservations, pooled memory allocations, etc) must be released eventually.
+Write code so that its liveness properties are clear to the reader.
 Rely on the tools, frameworks and infrastructure within Elasticsearch to ensure liveness wherever possible.
-Use comments to explain situations whose liveness properties are not clear.
+Avoid liveness conditions which require complex reasoning across many pages of code as they often harbor (present or future) bugs.
+If complex reasoning is unavoidable, document the liveness argument within the code.
 
 ## Local reasoning
 
-Write code so that its liveness properties are clear to the reader.
-Code which calls asynchronous methods may assume that the called method will eventually complete the provided listener, unless its documentation indicates otherwise.
-Code which acquires a resource should make it clear to the reader how that resource is released. This often means either closing the resource in a `finally` block, or attaching the release of the resource to the completion of a listener, or transferring the ownership of the resource into another resource whose eventual release is guaranteed.
+Code which calls an asynchronous method may usually assume that the called method will either eventually complete the provided listener, or it throws an exception.
+
+Code which acquires a resource should make it clear to the reader how that resource is released.
+This often means one of:
+* closing the resource in a `finally` block,
+* attaching the release of the resource to the completion of a listener using `ActionListener.releasing` or `ActionListener.releaseBefore` or `ActionListener.releaseAfter` or similar
+* transferring the ownership of the resource into another resource whose eventual release is guaranteed.
+
+### Node shutdown
+
+For the sake of simplicity, ignore liveness issues that only occur when the node shuts down.
 
 ## Principles
 
-Methods which do not work with `ActionListener` or equivalent, and do not block a thread, have no liveness issues.
+Methods which do not work with `ActionListener` or equivalent, do not acquire a resource, and do not block a thread, have no liveness issues. Ignore blocking on disk I/O when considering liveness.
 
-Asynchronous methods which accept an `ActionListener` must on every path either complete the listener directly or pass the listener on to another asynchronous method (whose liveness properties may be assumed by the caller). Such methods may instead throw an exception, if they are only ever called in a situation where such exceptions are caught and passed to all waiting listeners without leaking any attached resources.
+Asynchronous methods which accept an `ActionListener` must on every path either complete the listener directly or pass the listener on to another asynchronous method.
+Many such methods may throw an exception instead of completing the listener.
+If the method also acquires resources, it must either ensure that those resources are released on exception or else justify why no exception is possible.
 
 Methods which create a `GroupedActionListener` must ensure that it is eventually completed the correct number of times.
 
-Methods which create a `RefCountedListener` must ensure that it is eventually closed, and that every acquired listener is eventually completed.
+Methods which create a `RefCountingRunnable` must ensure that it is eventually closed, and that every acquired listener is eventually completed.
 
-Methods which create a `RefCountedRunnable` must ensure that it is eventually closed, and that every acquired reference is eventually closed.
+Methods which create a `RefCountingRunnable` must ensure that it is eventually closed, and that every acquired reference is eventually closed.
 
 Subsystems which accumulate a collection (e.g. a queue) of listeners, or of resources, must ensure that the collection is eventually drained.
+
+## Reasoning heuristics
+
+Assume that utilities which decorate an `ActionListener` with extra behavior (such as the static methods on `ActionListener` itself) generally complete the decorated listener.
 
 Assume that `AbstractRunnable` tasks submitted to a threadpool eventually execute.
 
@@ -31,4 +47,3 @@ Assume that tasks submitted for execution by the `MasterService` eventually comp
 
 Assume that actions invoked via the `TransportService` eventually complete.
 
-Liveness conditions which require complex reasoning across many pages of code often harbor (present or future) bugs and are best avoided. Where unavoidable, the liveness argument must be documented within the code.
