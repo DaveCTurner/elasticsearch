@@ -26,7 +26,7 @@ For the sake of simplicity, ignore liveness issues that only occur when the node
 
 ## Principles
 
-Methods which do not work with `ActionListener` or equivalent, do not acquire a resource, and do not block a thread, have no liveness issues. Ignore blocking on disk I/O when considering liveness.
+Methods which do not work with `ActionListener` or equivalent, do not acquire a resource, and do not block a thread, have no liveness issues. Ignore blocking on disk I/O when considering liveness: disk I/O always eventually completes, and our focus here is on liveness and not performance.
 
 Asynchronous methods which accept an `ActionListener` must on every path either complete the listener directly or pass the listener on to another asynchronous method.
 Many such methods may throw an exception instead of completing the listener.
