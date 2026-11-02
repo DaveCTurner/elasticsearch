@@ -37,6 +37,9 @@ Methods which create a `RefCountingRunnable` must ensure that it is eventually c
 
 Subsystems which accumulate a collection (e.g. a queue) of listeners, or of resources, must ensure that the collection is eventually drained.
 
+A common pattern is for an asynchronous method to partially modify the behavior of its listener using utilities such as `ActionListener#delegateFailure` and `ActionListener#delegateResponse`, passing
+the modified listener on to other asynchronous code. The modifying callback must complete its listener argument on all paths.
+
 ## Reasoning heuristics
 
 Assume that utilities which decorate an `ActionListener` with extra behavior (such as the static methods on `ActionListener` itself) generally complete the decorated listener.
