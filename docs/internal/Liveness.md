@@ -24,6 +24,10 @@ This often means one of:
 
 For the sake of simplicity, ignore liveness issues that only occur when the node shuts down.
 
+### Timeouts
+
+Do not use timeouts to patch over liveness bugs. Liveness properties must hold even if timeouts are removed.
+
 ## Principles
 
 Methods which do not work with `ActionListener` or equivalent, do not acquire a resource, and do not block a thread, have no liveness issues. Ignore blocking on disk I/O when considering liveness: disk I/O always eventually completes, and our focus here is on liveness and not performance.
