@@ -31,20 +31,21 @@ If the method also acquires resources, it must either ensure that those resource
 
 Methods which create a `GroupedActionListener` must ensure that it is eventually completed the correct number of times.
 
-Methods which create a `RefCountingRunnable` must ensure that it is eventually closed, and that every acquired listener is eventually completed.
+Methods which create a `RefCountingListener` must ensure that it is eventually closed, and that every acquired listener is eventually completed.
 
 Methods which create a `RefCountingRunnable` must ensure that it is eventually closed, and that every acquired reference is eventually closed.
 
 Subsystems which accumulate a collection (e.g. a queue) of listeners, or of resources, must ensure that the collection is eventually drained.
 
 A common pattern is for an asynchronous method to partially modify the behavior of its listener using utilities such as `ActionListener#delegateFailure` and `ActionListener#delegateResponse`, passing
-the modified listener on to other asynchronous code. The modifying callback must complete its listener argument on all paths.
+the modified listener on to other asynchronous code. The modifying callback must complete its listener argument on all paths. Use `ActionListener#delegateFailureAndWrap` if the callback might throw an
+exception.
 
 ## Reasoning heuristics
 
 Assume that utilities which decorate an `ActionListener` with extra behavior (such as the static methods on `ActionListener` itself) generally complete the decorated listener.
 
-Assume that `AbstractRunnable` tasks submitted to a threadpool eventually execute.
+Assume that `AbstractRunnable` tasks submitted to a threadpool eventually execute, or are eventually notified of failure or rejection.
 
 Assume that tasks submitted for execution by the `MasterService` eventually complete.
 
