@@ -9,6 +9,8 @@ If complex reasoning is unavoidable, document the liveness argument within the c
 
 ## Local reasoning
 
+Not all liveness properties can be established with purely local reasoning, but the smaller the size of the liveness argument the better.
+
 Code which calls an asynchronous method may usually assume that the called method will either eventually complete the provided listener, or it throws an exception.
 
 Code which acquires a resource should make it clear to the reader how that resource is released.
