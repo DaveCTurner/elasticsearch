@@ -72,5 +72,4 @@ Assume that `AbstractRunnable` tasks submitted to a threadpool eventually execut
 
 Assume that tasks submitted for execution by the `MasterService` eventually complete.
 
-Assume that actions invoked via the `TransportService` eventually complete.
-
+Assume that actions invoked via the `TransportService` eventually complete. The lifecycle of requests submitted to the `TransportService` is described in the Javadoc for `TransportService#sendMessage`, and the lifecycle of the eventually-received response object is described in the Javadoc on `TransportResponseHandler`.
