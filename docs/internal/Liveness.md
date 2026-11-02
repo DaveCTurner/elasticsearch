@@ -31,8 +31,9 @@ Methods which do not work with `ActionListener` or equivalent, do not acquire a 
 Asynchronous methods which accept an `ActionListener` must on every path either complete the listener directly or pass the listener on to another asynchronous method.
 Many such methods may throw an exception instead of completing the listener.
 If the method also acquires resources, it must either ensure that those resources are released on exception or else justify why no exception is possible.
+It is confusing to pass the listener elsewhere for asynchronous completion and then synchronously throw an exception: if this is deliberate, it deserves a comment.
 
-Methods which create a `GroupedActionListener` must ensure that it is eventually completed the correct number of times.
+Methods which create a `GroupedActionListener` must ensure that it is eventually completed the correct number of times, which must not be zero.
 
 Methods which create a `RefCountingListener` must ensure that it is eventually closed, and that every acquired listener is eventually completed.
 
