@@ -16,7 +16,8 @@ Code which calls an asynchronous method may usually assume that the called metho
 Code which acquires a resource should make it clear to the reader how that resource is released.
 This often means one of:
 * closing the resource in a `finally` block,
-* attaching the release of the resource to the completion of a listener using `ActionListener.releasing` or `ActionListener.releaseBefore` or `ActionListener.releaseAfter` or similar
+* attaching the release of the resource to the completion of an existing listener using `ActionListener.releaseBefore` or `ActionListener.releaseAfter` or similar,
+* converting the release of the resource to the completion of a new listener using `ActionListener.releasing` or similar, if there is no existing listener in scope,
 * transferring the ownership of the resource into another resource whose eventual release is guaranteed.
 
 ### Node shutdown
