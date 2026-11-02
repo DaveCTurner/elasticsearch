@@ -1,11 +1,26 @@
 # Liveness
 
+Resources must be released eventually.
 Listeners must be completed eventually.
-Resources (file handles, reference-count increments, circuit-breaker reservations, pooled memory allocations, etc) must be released eventually.
 Write code so that its liveness properties are clear to the reader.
-Rely on the tools, frameworks and infrastructure within Elasticsearch to ensure liveness wherever possible.
+Rely on the tools, frameworks and infrastructure within Elasticsearch to ensure clear liveness guarantees wherever possible.
 Avoid liveness conditions which require complex reasoning across many pages of code as they often harbor (present or future) bugs.
 If complex reasoning is unavoidable, document the liveness argument within the code.
+
+## Resources
+
+A resource is a conceptual entity which requires some kind of active cleanup at the end of its life.
+This includes:
+
+* file handles (must be closed)
+* pooled memory allocations (must be released back to the pool)
+* circuit-breaker reservations (must be freed)
+* each increment on a ref-counted object (must have a corresponding decrement)
+* objects that take ownership of one or more other resources (must clean up all owned resources)
+
+Plain Java heap allocations are not resources because the JVM GC automatically cleans them up.
+
+If the lifecycle of a resource is unclear, or its ownership is transferred in a way that is hard to understand, then there is a risk of a liveness bug.
 
 ## Local reasoning
 
