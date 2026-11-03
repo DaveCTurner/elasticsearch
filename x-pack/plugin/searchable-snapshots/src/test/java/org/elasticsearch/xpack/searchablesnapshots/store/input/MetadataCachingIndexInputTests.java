@@ -7,199 +7,290 @@
 
 package org.elasticsearch.xpack.searchablesnapshots.store.input;
 
-import org.apache.logging.log4j.LogManager;
 import org.apache.lucene.store.IOContext;
-import org.apache.lucene.util.Version;
-import org.elasticsearch.blobcache.common.BlobCacheBufferedIndexInput;
-import org.elasticsearch.blobcache.common.ByteRange;
+import org.apache.lucene.store.IndexInput;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.common.blobstore.BlobContainer;
+import org.elasticsearch.common.blobstore.OperationPurpose;
+import org.elasticsearch.common.blobstore.support.FilterBlobContainer;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
+import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.Releasable;
+import org.elasticsearch.index.IndexNotFoundException;
+import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.index.shard.ShardPath;
+import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot.FileInfo;
 import org.elasticsearch.index.store.StoreFileMetadata;
-import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.repositories.IndexId;
+import org.elasticsearch.snapshots.SearchableSnapshotsSettings;
+import org.elasticsearch.snapshots.SnapshotId;
+import org.elasticsearch.xpack.searchablesnapshots.AbstractSearchableSnapshotsTestCase;
+import org.elasticsearch.xpack.searchablesnapshots.SearchableSnapshots;
+import org.elasticsearch.xpack.searchablesnapshots.cache.blob.BlobStoreCacheService;
 import org.elasticsearch.xpack.searchablesnapshots.cache.common.CacheFile;
-import org.elasticsearch.xpack.searchablesnapshots.cache.common.CacheKey;
+import org.elasticsearch.xpack.searchablesnapshots.cache.common.TestUtils;
+import org.elasticsearch.xpack.searchablesnapshots.cache.full.CacheService;
 import org.elasticsearch.xpack.searchablesnapshots.store.IndexInputStats;
 import org.elasticsearch.xpack.searchablesnapshots.store.SearchableSnapshotDirectory;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.TreeSet;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
+import static org.elasticsearch.xpack.searchablesnapshots.SearchableSnapshots.SNAPSHOT_BLOB_CACHE_INDEX;
+import static org.elasticsearch.xpack.searchablesnapshots.cache.full.CacheService.resolveSnapshotCache;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.mockito.Mockito.mock;
 
 /**
- * Tests that {@link MetadataCachingIndexInput#fillIndexCache} releases the {@link IndexInputStats#addIndexCacheFill()} releasable on every
- * path, including when the cache file cannot be read and the blob is never stored.
+ * {@link IndexInput#readByte()} on a searchable snapshot reaches {@code MetadataCachingIndexInput#fillIndexCache} when the bytes fall in
+ * the blob-cache header and the blob cache misses. These tests fail the fetch after that fill has been opened.
  */
-public class MetadataCachingIndexInputTests extends ESTestCase {
+public class MetadataCachingIndexInputTests extends AbstractSearchableSnapshotsTestCase {
 
     private static final long LENGTH = 64L;
-
-    private static final CacheKey CACHE_KEY = new CacheKey("_snap_uuid", "_snap_index", new ShardId("_name", "_uuid", 0), "_filename");
-
-    private static final CacheFile.ModificationListener NOOP_LISTENER = new CacheFile.ModificationListener() {
-        @Override
-        public void onCacheFileNeedsFsync(CacheFile cacheFile) {}
-
-        @Override
-        public void onCacheFileDelete(CacheFile cacheFile) {}
-    };
+    private static final String FILE_NAME = "cachefill.si";
+    private static final String BLOB_NAME = "blob";
 
     /**
-     * {@code readIfAvailableOrPending} fails before the reader runs (the cache file is already evicted) and returns a failed future.
-     * {@code fillIndexCache} only closes the fill when that future is null.
+     * The cache file is evicted on the fetch thread before {@code readIfAvailableOrPending} runs, so that call fails before the reader and
+     * returns a non-null future.
      */
-    public void testFillReleasedWhenCacheFileAlreadyEvicted() throws Exception {
-        final TrackingIndexInputStats stats = new TrackingIndexInputStats();
-        final MetadataCachingIndexInput input = newIndexInput(stats);
-        final CacheFile cacheFile = newCacheFile(LENGTH);
-        final CacheFile.EvictionListener listener = ignored -> {};
-        cacheFile.acquire(listener);
-        cacheFile.startEviction();
-        cacheFile.release(listener);
-
-        input.fillIndexCache(cacheFile, ByteRange.of(0L, LENGTH));
-
-        assertFillOpenedAndReleased(stats);
+    public void testReadReleasesIndexCacheFillWhenCacheFileEvictedDuringFetch() throws Exception {
+        assertFillReleasedWhenBlobReadFails(true);
     }
 
     /**
-     * The range is pending when the fill is registered, then the pending population fails. The reader, which is what hands the releasable
-     * to {@code putCachedBlob}, is only invoked when the range becomes readable.
+     * The header range is still pending when the fill is registered. The blob read then fails, so the reader that would pass the releasable
+     * to {@code putCachedBlob} never runs.
      */
-    public void testFillReleasedWhenPendingRangeFails() throws Exception {
-        final TrackingIndexInputStats stats = new TrackingIndexInputStats();
-        final MetadataCachingIndexInput input = newIndexInput(stats);
-        final CacheFile cacheFile = newCacheFile(LENGTH);
-        final CacheFile.EvictionListener listener = ignored -> {};
-        cacheFile.acquire(listener);
-        try {
-            final ByteRange range = ByteRange.of(0L, LENGTH);
-            final DeterministicTaskQueue taskQueue = new DeterministicTaskQueue();
-            final Future<Integer> populateFuture = cacheFile.populateAndRead(
-                range,
-                range,
-                channel -> Math.toIntExact(LENGTH),
-                (channel, from, to, progressUpdater) -> {
-                    throw new IOException("failed to read blob");
-                },
-                taskQueue.getThreadPool().generic()
-            );
-
-            input.fillIndexCache(cacheFile, range);
-            assertThat("fill must be open while the range is still pending", stats.getCurrentIndexCacheFills(), equalTo(1L));
-
-            taskQueue.runAllTasks();
-            final ExecutionException failure = expectThrows(ExecutionException.class, populateFuture::get);
-            assertThat(failure.getCause(), instanceOf(IOException.class));
-
-            assertFillOpenedAndReleased(stats);
-        } finally {
-            cacheFile.release(listener);
-        }
+    public void testReadReleasesIndexCacheFillWhenPendingBlobReadFails() throws Exception {
+        assertFillReleasedWhenBlobReadFails(false);
     }
 
-    /**
-     * The range is already present, so the reader runs, but reading the cache file fails before {@code putCachedBlob}. That exception is
-     * captured by the range listener and never closes the fill.
-     */
-    public void testFillReleasedWhenReadFailsBeforeCachingBlob() throws Exception {
-        final TrackingIndexInputStats stats = new TrackingIndexInputStats();
-        final MetadataCachingIndexInput input = newIndexInput(stats);
-        final ByteRange range = ByteRange.of(0L, LENGTH);
-        // The tracker considers the range present, but the file on disk is empty, so the reader hits EOF.
-        final CacheFile cacheFile = newCacheFile(LENGTH, range);
-        final CacheFile.EvictionListener listener = ignored -> {};
-        cacheFile.acquire(listener);
-        try {
-            input.fillIndexCache(cacheFile, range);
-            assertFillOpenedAndReleased(stats);
-        } finally {
-            cacheFile.release(listener);
-        }
-    }
-
-    private static void assertFillOpenedAndReleased(TrackingIndexInputStats stats) {
-        assertThat(stats.fillsStarted, equalTo(1));
-        assertThat(
-            "onCacheFillComplete must be released even though the blob was not cached",
-            stats.getCurrentIndexCacheFills(),
-            equalTo(0L)
-        );
-    }
-
-    private static MetadataCachingIndexInput newIndexInput(IndexInputStats stats) {
-        final FileInfo fileInfo = new FileInfo(
-            "blob",
-            new StoreFileMetadata("test.si", LENGTH, "0", Version.LATEST.toString()),
-            ByteSizeValue.ofBytes(LENGTH)
-        );
-        return new MetadataCachingIndexInput(
-            LogManager.getLogger(MetadataCachingIndexInputTests.class),
-            "test.si",
-            mock(SearchableSnapshotDirectory.class),
-            fileInfo,
-            IOContext.DEFAULT,
-            stats,
-            0L,
-            0L,
-            LENGTH,
-            null,
-            BlobCacheBufferedIndexInput.BUFFER_SIZE,
-            BlobCacheBufferedIndexInput.BUFFER_SIZE,
-            ByteRange.EMPTY,
-            ByteRange.EMPTY
-        ) {
+    private void assertFillReleasedWhenBlobReadFails(boolean evictCacheFile) throws Exception {
+        final SnapshotId snapshotId = new SnapshotId("_name", "_uuid");
+        final IndexId indexId = new IndexId("_name", "_uuid");
+        final ShardId shardId = new ShardId("_name", "_uuid", 0);
+        final AtomicReference<TestDirectory> directoryRef = new AtomicReference<>();
+        // Released once the read is blocked in Future.get() with the index-cache fill already registered.
+        final CountDownLatch failFetch = new CountDownLatch(1);
+        final BlobContainer blobContainer = new FilterBlobContainer(TestUtils.singleBlobContainer(BLOB_NAME, new byte[(int) LENGTH])) {
             @Override
-            protected void readWithoutBlobCache(ByteBuffer b, long position) {
-                throw new AssertionError("not used");
+            protected BlobContainer wrapChild(BlobContainer child) {
+                return child;
             }
 
             @Override
-            protected MetadataCachingIndexInput doSlice(
-                String sliceName,
-                long sliceOffset,
-                long sliceLength,
-                ByteRange sliceHeaderByteRange,
-                ByteRange sliceFooterByteRange,
-                long sliceCompoundFileOffset
-            ) {
-                throw new AssertionError("not used");
+            public InputStream readBlob(OperationPurpose purpose, String name, long position, long length) throws IOException {
+                if (evictCacheFile) {
+                    evict(directoryRef.get());
+                } else {
+                    try {
+                        if (failFetch.await(10, TimeUnit.SECONDS) == false) {
+                            throw new IOException("timed out waiting to fail the blob read");
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("interrupted waiting to fail the blob read", e);
+                    }
+                }
+                throw new IOException("failed to read blob [" + name + "]");
             }
         };
-    }
 
-    private static CacheFile newCacheFile(long length) throws IOException {
-        return newCacheFile(length, null);
-    }
+        final CacheService cacheService = defaultCacheService();
+        TestDirectory directory = null;
+        try {
+            final Path shardDir = randomShardPath(shardId);
+            final ShardPath shardPath = new ShardPath(false, shardDir, shardDir, shardId);
+            final Path cacheDir = Files.createDirectories(resolveSnapshotCache(shardDir).resolve(snapshotId.getUUID()));
+            final Executor cacheFetchExecutor = evictCacheFile
+                ? Runnable::run
+                : threadPool.executor(SearchableSnapshots.CACHE_FETCH_ASYNC_THREAD_POOL_NAME);
+            directory = new TestDirectory(
+                () -> blobContainer,
+                snapshotId,
+                indexId,
+                shardId,
+                cacheService,
+                cacheDir,
+                shardPath,
+                cacheFetchExecutor
+            );
+            directoryRef.set(directory);
+            cacheService.start();
 
-    private static CacheFile newCacheFile(long length, ByteRange alreadyPresent) throws IOException {
-        final Path file = createTempDir().resolve("cache");
-        if (alreadyPresent == null) {
-            // The file is created on acquire. This constructor requires that it does not exist yet.
-            return new CacheFile(CACHE_KEY, length, file, NOOP_LISTENER);
+            final PlainActionFuture<Void> prewarm = new PlainActionFuture<>();
+            assertTrue(directory.loadSnapshot(createRecoveryState(false), () -> false, prewarm));
+            prewarm.actionGet();
+
+            try (IndexInput input = directory.openInput(FILE_NAME, IOContext.DEFAULT)) {
+                assertThat(input, instanceOf(CachedBlobContainerIndexInput.class));
+                final AtomicReference<Exception> readFailure = new AtomicReference<>();
+                // Named as a test thread so cache-fetch assertions accept the direct executor used when evicting.
+                final Thread readerThread = new Thread(() -> {
+                    try {
+                        input.readByte();
+                    } catch (Exception e) {
+                        readFailure.set(e);
+                    }
+                }, "TEST-metadata-caching-index-input");
+                readerThread.start();
+                try {
+                    if (evictCacheFile == false) {
+                        final TestDirectory openDirectory = directory;
+                        assertBusy(() -> {
+                            assertThat(openDirectory.stats.getCurrentIndexCacheFills(), equalTo(1L));
+                            assertThat(isWaiting(readerThread), equalTo(true));
+                        });
+                    }
+                    failFetch.countDown();
+                    readerThread.join(TimeUnit.SECONDS.toMillis(10));
+                    assertThat(readFailure.get(), instanceOf(IOException.class));
+                } finally {
+                    failFetch.countDown();
+                    readerThread.join(TimeUnit.SECONDS.toMillis(10));
+                }
+            }
+
+            assertThat(directory.stats.fillsStarted, equalTo(1));
+            assertThat(
+                "onCacheFillComplete must be released even though the blob was not cached",
+                directory.stats.getCurrentIndexCacheFills(),
+                equalTo(0L)
+            );
+        } finally {
+            failFetch.countDown();
+            IOUtils.close(directory, cacheService);
+            assertThreadPoolNotBusy(threadPool);
         }
-        Files.createFile(file);
-        final TreeSet<ByteRange> ranges = new TreeSet<>();
-        ranges.add(alreadyPresent);
-        return new CacheFile(CACHE_KEY, length, file, ranges, NOOP_LISTENER);
     }
 
-    private static class TrackingIndexInputStats extends IndexInputStats {
+    private static void evict(TestDirectory directory) throws IOException {
+        try {
+            final CacheFile cacheFile = directory.getCacheFile(directory.createCacheKey(FILE_NAME), LENGTH);
+            cacheFile.startEviction();
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException(e);
+        }
+    }
+
+    private static boolean isWaiting(Thread thread) {
+        final Thread.State state = thread.getState();
+        return state == Thread.State.WAITING || state == Thread.State.TIMED_WAITING;
+    }
+
+    private final class TestDirectory extends SearchableSnapshotDirectory {
+
+        private final Executor cacheFetchExecutor;
+        private final TrackingIndexInputStats stats = new TrackingIndexInputStats(() -> 0L);
+
+        TestDirectory(
+            Supplier<BlobContainer> blobContainer,
+            SnapshotId snapshotId,
+            IndexId indexId,
+            ShardId shardId,
+            CacheService cacheService,
+            Path cacheDir,
+            ShardPath shardPath,
+            Executor cacheFetchExecutor
+        ) {
+            super(
+                blobContainer,
+                () -> new BlobStoreIndexShardSnapshot(
+                    snapshotId.getName(),
+                    List.of(
+                        new FileInfo(
+                            BLOB_NAME,
+                            new StoreFileMetadata(FILE_NAME, LENGTH, "_checksum", IndexVersion.current().luceneVersion().toString()),
+                            ByteSizeValue.ofBytes(LENGTH)
+                        )
+                    ),
+                    0L,
+                    0L,
+                    0,
+                    0L
+                ),
+                new MissBlobStoreCacheService(),
+                "_repo",
+                snapshotId,
+                indexId,
+                shardId,
+                Settings.builder()
+                    .put(SearchableSnapshots.SNAPSHOT_CACHE_ENABLED_SETTING.getKey(), true)
+                    .put(SearchableSnapshots.SNAPSHOT_CACHE_PREWARM_ENABLED_SETTING.getKey(), false)
+                    .put(SearchableSnapshotsSettings.SNAPSHOT_PARTIAL_SETTING.getKey(), false)
+                    .build(),
+                () -> 0L,
+                cacheService,
+                cacheDir,
+                shardPath,
+                threadPool,
+                null
+            );
+            this.cacheFetchExecutor = cacheFetchExecutor;
+        }
+
+        @Override
+        public Executor cacheFetchAsyncExecutor() {
+            return cacheFetchExecutor;
+        }
+
+        @Override
+        protected IndexInputStats createIndexInputStats(long numFiles, long totalSize, long minSize, long maxSize) {
+            return stats;
+        }
+    }
+
+    /**
+     * Keeps the real header-range calculation. A cache get fails as an index miss, which {@code fillBlobCacheIndex} still treats as a miss.
+     */
+    private static final class MissBlobStoreCacheService extends BlobStoreCacheService {
+
+        MissBlobStoreCacheService() {
+            super(mock(Client.class), SNAPSHOT_BLOB_CACHE_INDEX);
+        }
+
+        @Override
+        protected void innerGet(
+            org.elasticsearch.action.get.GetRequest request,
+            ActionListener<org.elasticsearch.action.get.GetResponse> listener
+        ) {
+            listener.onFailure(new IndexNotFoundException(request.index()));
+        }
+
+        @Override
+        protected void innerPut(
+            org.elasticsearch.action.index.IndexRequest request,
+            ActionListener<org.elasticsearch.action.DocWriteResponse> listener
+        ) {
+            listener.onFailure(new IndexNotFoundException(request.index()));
+        }
+    }
+
+    private static final class TrackingIndexInputStats extends IndexInputStats {
 
         private int fillsStarted;
 
-        TrackingIndexInputStats() {
-            super(1L, LENGTH, LENGTH, LENGTH, () -> 0L);
+        TrackingIndexInputStats(LongSupplier currentTimeNanos) {
+            super(1L, LENGTH, LENGTH, LENGTH, currentTimeNanos);
         }
 
         @Override

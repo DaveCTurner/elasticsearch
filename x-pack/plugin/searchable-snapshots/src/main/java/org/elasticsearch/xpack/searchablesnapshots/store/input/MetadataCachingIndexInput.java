@@ -449,7 +449,7 @@ public abstract class MetadataCachingIndexInput extends BlobCacheBufferedIndexIn
         return bytesRead;
     }
 
-    void fillIndexCache(CacheFile cacheFile, ByteRange indexCacheMiss) {
+    private void fillIndexCache(CacheFile cacheFile, ByteRange indexCacheMiss) {
         final Releasable onCacheFillComplete = stats.addIndexCacheFill();
         final Future<Integer> readFuture = cacheFile.readIfAvailableOrPending(indexCacheMiss, channel -> {
             final int indexCacheMissLength = toIntBytes(indexCacheMiss.length());
