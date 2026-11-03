@@ -74,7 +74,7 @@ exception.
 
 Assume that utilities which decorate an `ActionListener` with extra behavior (such as the static methods on `ActionListener` itself) generally complete the decorated listener.
 
-Assume that `AbstractRunnable` tasks submitted to a threadpool eventually execute, or are eventually notified of failure or rejection.
+Assume that `AbstractRunnable` tasks submitted to a threadpool eventually execute, or are eventually notified of failure or rejection. Submitting an `AbstractRunnable` to a threadpool never throws an exception.
 
 Assume that tasks submitted for execution by the `MasterService` eventually complete.
 
