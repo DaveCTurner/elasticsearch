@@ -41,7 +41,13 @@ For the sake of simplicity, ignore liveness issues that only occur when the node
 
 ### Timeouts
 
-Do not use timeouts to patch over liveness bugs. Liveness properties must hold even if timeouts are removed.
+A timeout, keep-alive, or reaper does not discharge a release that some other owner is supposed to perform. Judge the obligation with that timer removed.
+
+A single-session search reader context is released by the search that opened it, when that search finishes, on success and on failure. `SearchService`'s keep-alive reaper frees a context only if that release never happens. A path that leaves the context to the reaper is a liveness bug.
+
+A PIT or scroll context is released by the client that holds its id. Assume the client closes it. The keep-alive covers a client that never does. Returning the id, and releasing the context on the client's close, are the obligations. A context the client still holds is not a leak. A context left only for the reaper, because the id was dropped or the close was not honored, is a liveness bug. A transient thread-pool rejection on a scroll continuation keeps the context so the client can retry; that is the release path for the retry.
+
+The same rule applies to any other timeout whose only effect is to finish a listener or free a resource that an earlier path failed to finish or free.
 
 ## Principles
 
