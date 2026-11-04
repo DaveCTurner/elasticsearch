@@ -748,7 +748,7 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
         final var transportService = MockTransportService.getInstance(newMaster);
         final var startJoinRequest = new StartJoinRequest(transportService.getLocalNode(), newTerm);
         for (String masterNode : masterNodes) {
-            ESTestCase.<Void>safeAwait(
+            CloneSnapshotIT.<Void>safeAwait(
                 listener -> transportService.sendRequest(
                     MockTransportService.getInstance(masterNode).getLocalNode(),
                     JoinHelper.START_JOIN_ACTION_NAME,
