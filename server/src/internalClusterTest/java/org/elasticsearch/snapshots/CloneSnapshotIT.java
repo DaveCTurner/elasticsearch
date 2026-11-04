@@ -12,20 +12,23 @@ import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotIndexStatus;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotStatus;
+import org.elasticsearch.action.support.ChannelActionListener;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.SnapshotDeletionsInProgress;
 import org.elasticsearch.cluster.SnapshotsInProgress;
+import org.elasticsearch.cluster.coordination.ApplyCommitRequest;
+import org.elasticsearch.cluster.coordination.Coordinator;
 import org.elasticsearch.cluster.coordination.JoinHelper;
-import org.elasticsearch.cluster.coordination.PublicationTransportHandler;
 import org.elasticsearch.cluster.coordination.StartJoinRequest;
 import org.elasticsearch.cluster.metadata.ProjectId;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.IndexVersion;
@@ -44,6 +47,8 @@ import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.transport.ConnectTransportException;
+import org.elasticsearch.transport.TestTransportChannel;
+import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import java.io.IOException;
@@ -53,6 +58,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
@@ -583,9 +589,9 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
     }
 
     /**
-     * Keeps the original master alive across failover and deletion so that stale shard-clone callbacks can race with the abort.
+     * Delays the original master's local commit response until it has applied the clone's deletion by a new master, so that its
+     * successful publication callback starts shard clones using stale state.
      * Failing back and cloning the same shards again checks that the original service did not retain any shard-clone deduplication markers.
-     * The race is deliberately timing-dependent, rather than injecting a synchronous repository failure.
      */
     public void testAbortCloneAfterMasterFailoverAndFailback() throws Exception {
         final List<String> masterNodes = internalCluster().startMasterOnlyNodes(3, LARGE_SNAPSHOT_POOL_SETTINGS);
@@ -604,19 +610,48 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
         final String newMaster = randomFrom(masterNodes.stream().filter(node -> node.equals(originalMaster) == false).toList());
         final AtomicReference<String> preferredMaster = new AtomicReference<>(originalMaster);
         for (String masterNode : masterNodes) {
-            AbstractSnapshotIntegTestCase.<MockRepository>getRepositoryOnNode(repoName, masterNode).setBlockOnWriteShardLevelMeta();
+            if (masterNode.equals(originalMaster) == false) {
+                AbstractSnapshotIntegTestCase.<MockRepository>getRepositoryOnNode(repoName, masterNode).setBlockOnWriteShardLevelMeta();
+            }
             MockTransportService.getInstance(masterNode).addSendBehavior((connection, requestId, action, request, options) -> {
-                if ((action.equals(PublicationTransportHandler.PUBLISH_STATE_ACTION_NAME)
-                    && masterNode.equals(preferredMaster.get()) == false)
-                    || (action.equals(JoinHelper.START_JOIN_ACTION_NAME)
-                        && request instanceof StartJoinRequest startJoinRequest
-                        && startJoinRequest.getMasterCandidateNode().getName().equals(preferredMaster.get()) == false)) {
+                if (action.equals(JoinHelper.START_JOIN_ACTION_NAME)
+                    && request instanceof StartJoinRequest startJoinRequest
+                    && startJoinRequest.getMasterCandidateNode().getName().equals(preferredMaster.get()) == false) {
                     throw new ConnectTransportException(connection.getNode(), "simulated failure of " + action);
                 }
                 connection.sendRequest(requestId, action, request, options);
             });
         }
         final String targetSnapshot = "target-snapshot";
+        final Coordinator originalCoordinator = internalCluster().getInstance(Coordinator.class, originalMaster);
+        final CountDownLatch commitResponseHeld = new CountDownLatch(1);
+        final SubscribableListener<Void> releaseCommitResponse = new SubscribableListener<>();
+        final AtomicBoolean holdCommitResponse = new AtomicBoolean(true);
+        MockTransportService.getInstance(originalMaster)
+            .<ApplyCommitRequest>addRequestHandlingBehavior(Coordinator.COMMIT_STATE_ACTION_NAME, (handler, request, channel, task) -> {
+                final ClusterState acceptedState = originalCoordinator.getLastAcceptedState();
+                if (request.getSourceNode().getName().equals(originalMaster)
+                    && SnapshotsInProgress.get(acceptedState)
+                        .asStream()
+                        .anyMatch(
+                            entry -> entry.snapshot().getSnapshotId().getName().equals(targetSnapshot)
+                                && entry.shardSnapshotStatusByRepoShardId().isEmpty() == false
+                        )
+                    && holdCommitResponse.compareAndSet(true, false)) {
+                    // Process the commit in its original term, but hold its successful response. Cancelling a committed publication
+                    // on failover still waits for this local acknowledgement before notifying the master service of success.
+                    handler.messageReceived(
+                        request,
+                        new TestTransportChannel(new ChannelActionListener<>(channel).delegateFailure((l, response) -> {
+                            releaseCommitResponse.addListener(l.safeMap(ignored -> response));
+                            commitResponseHeld.countDown();
+                        })),
+                        task
+                    );
+                } else {
+                    handler.messageReceived(request, channel, task);
+                }
+            });
         final ActionFuture<AcknowledgedResponse> cloneFuture = startClone(
             client(originalMaster),
             repoName,
@@ -625,8 +660,8 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
             indexName
         );
         try {
-            waitForBlock(originalMaster, repoName);
-            failOverToMaster(originalMaster, newMaster, preferredMaster);
+            safeAwait(commitResponseHeld);
+            failOverToMaster(masterNodes, newMaster, preferredMaster);
             awaitClusterState(
                 dataNode,
                 state -> state.nodes().getMasterNode() != null && state.nodes().getMasterNode().getName().equals(newMaster)
@@ -645,11 +680,37 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
                 }
             }
             assertAcked(safeGet(deleteFuture));
+            awaitClusterState(
+                originalMaster,
+                state -> state.nodes().getMasterNode() != null
+                    && state.nodes().getMasterNode().getName().equals(newMaster)
+                    && SnapshotsInProgress.get(state).isEmpty()
+                    && SnapshotDeletionsInProgress.get(state).getEntries().isEmpty()
+            );
 
             expectThrows(SnapshotException.class, cloneFuture);
-            unblockNode(repoName, originalMaster);
+            releaseCommitResponse.onResponse(null);
+            // Wait for the stale publication callback to finish before electing this node master again.
+            safeAwait(
+                listener -> internalCluster().getInstance(ClusterService.class, originalMaster)
+                    .submitUnbatchedStateUpdateTask("after stale clone publication", new ClusterStateUpdateTask() {
+                        @Override
+                        public ClusterState execute(ClusterState currentState) {
+                            return currentState;
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            if (e instanceof org.elasticsearch.cluster.NotMasterException) {
+                                listener.onResponse(null);
+                            } else {
+                                listener.onFailure(e);
+                            }
+                        }
+                    })
+            );
             logger.info("--> returning leadership to original master [{}]", originalMaster);
-            failOverToMaster(newMaster, originalMaster, preferredMaster);
+            failOverToMaster(masterNodes, originalMaster, preferredMaster);
             awaitClusterState(
                 dataNode,
                 state -> state.nodes().getMasterNode() != null && state.nodes().getMasterNode().getName().equals(originalMaster)
@@ -661,6 +722,9 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
             awaitNoMoreRunningOperations();
             assertAllSnapshotsSuccessful(getRepositoryData(repoName), 2);
         } finally {
+            if (releaseCommitResponse.isDone() == false) {
+                releaseCommitResponse.onResponse(null);
+            }
             for (String masterNode : masterNodes) {
                 MockTransportService.getInstance(masterNode).clearAllRules();
                 unblockNode(repoName, masterNode);
@@ -668,33 +732,30 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
         }
     }
 
-    private void failOverToMaster(String currentMaster, String newMaster, AtomicReference<String> preferredMaster) {
+    private void failOverToMaster(List<String> masterNodes, String newMaster, AtomicReference<String> preferredMaster) {
         preferredMaster.set(newMaster);
-        // Force a publication, which the transport rules will fail, making the current master stand down. Only the preferred master
-        // can send start-join requests successfully, so it must win the subsequent election without restarting or isolating any nodes.
-        safeAwait(
-            listener -> internalCluster().getInstance(ClusterService.class, currentMaster)
-                .submitUnbatchedStateUpdateTask("fail over to " + newMaster, new ClusterStateUpdateTask() {
-                    @Override
-                    public ClusterState execute(ClusterState currentState) {
-                        return ClusterState.builder(currentState).build();
-                    }
-
-                    @Override
-                    public void onFailure(Exception e) {
-                        if (MasterService.isPublishFailureException(e)) {
-                            listener.onResponse(null);
-                        } else {
-                            listener.onFailure(e);
-                        }
-                    }
-
-                    @Override
-                    public void clusterStateProcessed(ClusterState oldState, ClusterState newState) {
-                        listener.onFailure(new IllegalStateException("publication unexpectedly succeeded"));
-                    }
-                })
-        );
+        // Initiate the election independently of the old master's task queue, which may be waiting for its local commit response.
+        final long newTerm = masterNodes.stream()
+            .mapToLong(
+                node -> internalCluster().getInstance(Coordinator.class, node)
+                    .getClusterFormationState()
+                    .clusterFormationClusterStateView()
+                    .currentTerm()
+            )
+            .max()
+            .orElseThrow() + 1;
+        final var transportService = MockTransportService.getInstance(newMaster);
+        final var startJoinRequest = new StartJoinRequest(transportService.getLocalNode(), newTerm);
+        for (String masterNode : masterNodes) {
+            safeAwait(
+                listener -> transportService.sendRequest(
+                    MockTransportService.getInstance(masterNode).getLocalNode(),
+                    JoinHelper.START_JOIN_ACTION_NAME,
+                    startJoinRequest,
+                    TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, listener)
+                )
+            );
+        }
     }
 
     public void testExceptionDuringShardClone() throws Exception {
