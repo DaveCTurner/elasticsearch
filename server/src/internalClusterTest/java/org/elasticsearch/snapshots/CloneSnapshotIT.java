@@ -18,6 +18,7 @@ import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
+import org.elasticsearch.cluster.NotMasterException;
 import org.elasticsearch.cluster.SnapshotDeletionsInProgress;
 import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.cluster.coordination.ApplyCommitRequest;
@@ -701,7 +702,7 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
 
                         @Override
                         public void onFailure(Exception e) {
-                            if (e instanceof org.elasticsearch.cluster.NotMasterException) {
+                            if (e instanceof NotMasterException) {
                                 listener.onResponse(null);
                             } else {
                                 listener.onFailure(e);
@@ -747,7 +748,7 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
         final var transportService = MockTransportService.getInstance(newMaster);
         final var startJoinRequest = new StartJoinRequest(transportService.getLocalNode(), newTerm);
         for (String masterNode : masterNodes) {
-            safeAwait(
+            ESTestCase.<Void>safeAwait(
                 listener -> transportService.sendRequest(
                     MockTransportService.getInstance(masterNode).getLocalNode(),
                     JoinHelper.START_JOIN_ACTION_NAME,
