@@ -18,8 +18,12 @@ import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.SnapshotDeletionsInProgress;
 import org.elasticsearch.cluster.SnapshotsInProgress;
+import org.elasticsearch.cluster.coordination.JoinHelper;
+import org.elasticsearch.cluster.coordination.PublicationTransportHandler;
+import org.elasticsearch.cluster.coordination.StartJoinRequest;
 import org.elasticsearch.cluster.metadata.ProjectId;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
@@ -38,8 +42,8 @@ import org.elasticsearch.repositories.blobstore.BlobStoreRepository;
 import org.elasticsearch.snapshots.mockstore.MockRepository;
 import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.disruption.NetworkDisruption;
 import org.elasticsearch.test.transport.MockTransportService;
+import org.elasticsearch.transport.ConnectTransportException;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import java.io.IOException;
@@ -49,8 +53,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static org.elasticsearch.action.support.ActionTestUtils.assertNoFailureListener;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -597,22 +601,22 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
 
         final String originalMaster = internalCluster().getMasterName();
         final SnapshotsService originalSnapshotsService = internalCluster().getInstance(SnapshotsService.class, originalMaster);
+        final String newMaster = randomFrom(masterNodes.stream().filter(node -> node.equals(originalMaster) == false).toList());
+        final AtomicReference<String> preferredMaster = new AtomicReference<>(originalMaster);
         for (String masterNode : masterNodes) {
             AbstractSnapshotIntegTestCase.<MockRepository>getRepositoryOnNode(repoName, masterNode).setBlockOnWriteShardLevelMeta();
+            MockTransportService.getInstance(masterNode).addSendBehavior((connection, requestId, action, request, options) -> {
+                if ((action.equals(PublicationTransportHandler.PUBLISH_STATE_ACTION_NAME)
+                    && masterNode.equals(preferredMaster.get()) == false)
+                    || (action.equals(JoinHelper.START_JOIN_ACTION_NAME)
+                        && request instanceof StartJoinRequest startJoinRequest
+                        && startJoinRequest.getMasterCandidateNode().getName().equals(preferredMaster.get()) == false)) {
+                    throw new ConnectTransportException(connection.getNode(), "simulated failure of " + action);
+                }
+                connection.sendRequest(requestId, action, request, options);
+            });
         }
-        final NetworkDisruption networkDisruption = isolateMasterDisruption(NetworkDisruption.DISCONNECT);
-        internalCluster().setDisruptionScheme(networkDisruption);
         final String targetSnapshot = "target-snapshot";
-        final var cloneStarted = ClusterServiceUtils.addTemporaryStateListener(
-            internalCluster().getInstance(ClusterService.class, originalMaster),
-            state -> SnapshotsInProgress.get(state)
-                .forRepo(ProjectId.DEFAULT, repoName)
-                .stream()
-                .anyMatch(entry -> entry.isClone() && entry.shardSnapshotStatusByRepoShardId().isEmpty() == false)
-        );
-        // Partition as the shard-clone work is applied, without waiting for its publication callbacks to finish.
-        cloneStarted.addListener(assertNoFailureListener(ignored -> networkDisruption.startDisrupting()));
-
         final ActionFuture<AcknowledgedResponse> cloneFuture = startClone(
             client(originalMaster),
             repoName,
@@ -621,10 +625,13 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
             indexName
         );
         try {
-            safeAwait(cloneStarted);
-            ensureStableCluster(3, dataNode);
-            final String newMaster = internalCluster().getMasterName(dataNode);
-            assertNotEquals(originalMaster, newMaster);
+            waitForBlock(originalMaster, repoName);
+            failOverToMaster(originalMaster, newMaster, preferredMaster);
+            awaitClusterState(
+                dataNode,
+                state -> state.nodes().getMasterNode() != null && state.nodes().getMasterNode().getName().equals(newMaster)
+            );
+            ensureStableCluster(4, dataNode);
 
             logger.info("--> aborting clone on new master [{}]", newMaster);
             final ActionFuture<AcknowledgedResponse> deleteFuture = client(newMaster).admin()
@@ -638,31 +645,56 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
                 }
             }
             assertAcked(safeGet(deleteFuture));
+
+            expectThrows(SnapshotException.class, cloneFuture);
+            unblockNode(repoName, originalMaster);
+            logger.info("--> returning leadership to original master [{}]", originalMaster);
+            failOverToMaster(newMaster, originalMaster, preferredMaster);
+            awaitClusterState(
+                dataNode,
+                state -> state.nodes().getMasterNode() != null && state.nodes().getMasterNode().getName().equals(originalMaster)
+            );
+            ensureStableCluster(4, dataNode);
+            assertSame(originalSnapshotsService, internalCluster().getInstance(SnapshotsService.class, originalMaster));
+
+            assertAcked(safeGet(startClone(repoName, sourceSnapshot, "another-clone", indexName)));
+            awaitNoMoreRunningOperations();
+            assertAllSnapshotsSuccessful(getRepositoryData(repoName), 2);
         } finally {
-            try {
-                internalCluster().clearDisruptionScheme(true);
-            } finally {
-                for (String masterNode : masterNodes) {
-                    unblockNode(repoName, masterNode);
-                }
+            for (String masterNode : masterNodes) {
+                MockTransportService.getInstance(masterNode).clearAllRules();
+                unblockNode(repoName, masterNode);
             }
         }
+    }
 
-        expectThrows(SnapshotException.class, cloneFuture);
-        awaitNoMoreRunningOperations();
-        logger.info("--> returning leadership to original master [{}]", originalMaster);
-        for (String masterNode : masterNodes) {
-            if (masterNode.equals(originalMaster) == false) {
-                internalCluster().stopNode(masterNode);
-            }
-        }
-        ensureStableCluster(2, dataNode);
-        assertEquals(originalMaster, internalCluster().getMasterName());
-        assertSame(originalSnapshotsService, internalCluster().getInstance(SnapshotsService.class, originalMaster));
+    private void failOverToMaster(String currentMaster, String newMaster, AtomicReference<String> preferredMaster) {
+        preferredMaster.set(newMaster);
+        // Force a publication, which the transport rules will fail, making the current master stand down. Only the preferred master
+        // can send start-join requests successfully, so it must win the subsequent election without restarting or isolating any nodes.
+        safeAwait(
+            listener -> internalCluster().getInstance(ClusterService.class, currentMaster)
+                .submitUnbatchedStateUpdateTask("fail over to " + newMaster, new ClusterStateUpdateTask() {
+                    @Override
+                    public ClusterState execute(ClusterState currentState) {
+                        return ClusterState.builder(currentState).build();
+                    }
 
-        assertAcked(safeGet(startClone(repoName, sourceSnapshot, "another-clone", indexName)));
-        awaitNoMoreRunningOperations();
-        assertAllSnapshotsSuccessful(getRepositoryData(repoName), 2);
+                    @Override
+                    public void onFailure(Exception e) {
+                        if (MasterService.isPublishFailureException(e)) {
+                            listener.onResponse(null);
+                        } else {
+                            listener.onFailure(e);
+                        }
+                    }
+
+                    @Override
+                    public void clusterStateProcessed(ClusterState oldState, ClusterState newState) {
+                        listener.onFailure(new IllegalStateException("publication unexpectedly succeeded"));
+                    }
+                })
+        );
     }
 
     public void testExceptionDuringShardClone() throws Exception {
