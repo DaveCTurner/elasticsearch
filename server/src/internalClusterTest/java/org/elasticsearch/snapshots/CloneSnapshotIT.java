@@ -8,6 +8,7 @@
  */
 package org.elasticsearch.snapshots;
 
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotIndexStatus;
@@ -22,6 +23,7 @@ import org.elasticsearch.cluster.NotMasterException;
 import org.elasticsearch.cluster.SnapshotDeletionsInProgress;
 import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.cluster.coordination.ApplyCommitRequest;
+import org.elasticsearch.cluster.coordination.CoordinationStateRejectedException;
 import org.elasticsearch.cluster.coordination.Coordinator;
 import org.elasticsearch.cluster.coordination.JoinHelper;
 import org.elasticsearch.cluster.coordination.StartJoinRequest;
@@ -753,7 +755,18 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
                     MockTransportService.getInstance(masterNode).getLocalNode(),
                     JoinHelper.START_JOIN_ACTION_NAME,
                     startJoinRequest,
-                    TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, listener)
+                    TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, listener.delegateResponse((l, e) -> {
+                        // Other votes or publications may have already advanced this node to the requested term.
+                        if (ExceptionsHelper.unwrap(e, CoordinationStateRejectedException.class) != null
+                            && internalCluster().getInstance(Coordinator.class, masterNode)
+                                .getClusterFormationState()
+                                .clusterFormationClusterStateView()
+                                .currentTerm() >= newTerm) {
+                            l.onResponse(null);
+                        } else {
+                            l.onFailure(e);
+                        }
+                    }))
                 )
             );
         }
