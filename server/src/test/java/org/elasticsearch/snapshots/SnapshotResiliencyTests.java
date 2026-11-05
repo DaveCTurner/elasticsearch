@@ -440,25 +440,15 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     .addListener(l);
             })
 
-            // Once the cluster has stabilised after the first failover, elect the original master again. Other nodes may still win a
-            // competing election, so keep going until the original master is stable in its new term.
+            // Elect the original master again and wait for it to take over. The whole election happens without the clock advancing, so
+            // there is no chance of a competing election.
             .<Void>andThen(l -> {
                 final long termBeforeElection = observerClusterService.state().term();
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        if (clusterIsStable()) {
-                            final var observedState = observerClusterService.state();
-                            if (observedState.term() > termBeforeElection
-                                && originalMaster.node().getId().equals(observedState.nodes().getMasterNodeId())) {
-                                l.onResponse(null);
-                                return;
-                            }
-                            usurpCurrentMaster(originalMaster);
-                        }
-                        deterministicTaskQueue.scheduleAt(deterministicTaskQueue.getCurrentTimeMillis() + 100L, this);
-                    }
-                }.run();
+                usurpCurrentMaster(originalMaster);
+                ClusterServiceUtils.addTemporaryStateListener(
+                    observerClusterService,
+                    cs -> cs.term() > termBeforeElection && originalMaster.node().getId().equals(cs.nodes().getMasterNodeId())
+                ).addListener(l);
             })
 
             // No shard clone should have been left permanently blocked by the aborted one
@@ -2210,21 +2200,19 @@ public class SnapshotResiliencyTests extends ESTestCase {
             deterministicTaskQueue.advanceTime();
             deterministicTaskQueue.runAllRunnableTasks();
         }
-        runUntil(this::clusterIsStable, TimeUnit.MINUTES.toMillis(1L));
-    }
-
-    private boolean clusterIsStable() {
-        final Collection<ClusterState> clusterStates = testClusterNodes.nodes()
-            .values()
-            .stream()
-            .map(node -> node.clusterService().state())
-            .toList();
-        final Set<String> masterNodeIds = clusterStates.stream()
-            .map(clusterState -> clusterState.nodes().getMasterNodeId())
-            .collect(Collectors.toSet());
-        final Set<Long> terms = clusterStates.stream().map(ClusterState::term).collect(Collectors.toSet());
-        final List<Long> versions = clusterStates.stream().map(ClusterState::version).distinct().toList();
-        return versions.size() == 1 && masterNodeIds.size() == 1 && masterNodeIds.contains(null) == false && terms.size() == 1;
+        runUntil(() -> {
+            final Collection<ClusterState> clusterStates = testClusterNodes.nodes()
+                .values()
+                .stream()
+                .map(node -> node.clusterService().state())
+                .toList();
+            final Set<String> masterNodeIds = clusterStates.stream()
+                .map(clusterState -> clusterState.nodes().getMasterNodeId())
+                .collect(Collectors.toSet());
+            final Set<Long> terms = clusterStates.stream().map(ClusterState::term).collect(Collectors.toSet());
+            final List<Long> versions = clusterStates.stream().map(ClusterState::version).distinct().toList();
+            return versions.size() == 1 && masterNodeIds.size() == 1 && masterNodeIds.contains(null) == false && terms.size() == 1;
+        }, TimeUnit.MINUTES.toMillis(1L));
     }
 
     protected void runUntil(Supplier<Boolean> fulfilled, long timeout) {
