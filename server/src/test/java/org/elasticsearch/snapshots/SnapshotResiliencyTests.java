@@ -423,12 +423,10 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     ).addListener(settledListener);
 
                     // The delete may legitimately fail, e.g. if the clone completed or failed in the meantime, so ignore its outcome.
-                    scheduleNow(
-                        () -> client.admin()
-                            .cluster()
-                            .prepareDeleteSnapshot(TEST_REQUEST_TIMEOUT, repoName, cloneName)
-                            .execute(ActionListener.noop())
-                    );
+                    client.admin()
+                        .cluster()
+                        .prepareDeleteSnapshot(TEST_REQUEST_TIMEOUT, repoName, cloneName)
+                        .execute(ActionListener.noop());
                 }).addListener(l);
             })
 
