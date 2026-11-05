@@ -60,7 +60,6 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.cluster.routing.allocation.command.AllocateEmptyPrimaryAllocationCommand;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
@@ -429,7 +428,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
             // Trigger a master failover and concurrently abort the clone; and wait for it to go
             .<Void>andThen(l -> {
-                usurpCurrentMaster(newMaster, observerClusterService);
+                usurpCurrentMaster(newMaster);
 
                 client.admin()
                     .cluster()
@@ -448,7 +447,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
         assertTrue(cloneFinishedListener.isDone());
         safeAwait(cloneFinishedListener); // shouldn't throw
 
-        usurpCurrentMaster(originalMaster, observerClusterService).addListener(null);
+        usurpCurrentMaster(originalMaster);
         deterministicTaskQueue.runAllRunnableTasks();
 
         // No shard clone should have been left permanently blocked by the aborted one
@@ -2115,53 +2114,26 @@ public class SnapshotResiliencyTests extends ESTestCase {
         }
     }
 
-    /**
-     * Forces a failover to {@code newMaster} by sending every master-eligible node (including the master being deposed, so that it votes
-     * for {@code newMaster} too) a {@link StartJoinRequest} in a new term, so that {@code newMaster} wins a genuine election.
-     * <p>
-     * A voter will not vote for a candidate whose cluster state is older than its own, so {@code newMaster} cannot win unless its state is at
-     * least as recent as that of every other master-eligible node. Therefore this first waits for {@code newMaster} to catch up with the most
-     * recent state accepted by any master-eligible node at the time of the call, which may include a publication that is still in flight.
-     * <p>
-     * The new term is one more than the highest current term of any master-eligible node.
-     *
-     * @param observerClusterService the cluster service whose state determines when the failover has completed.
-     * @return a listener which completes once the state of {@code observerClusterService} shows {@code newMaster} as the elected master.
-     */
-    private SubscribableListener<Void> usurpCurrentMaster(
-        TestClusterNodes.TestClusterNode newMaster,
-        ClusterService observerClusterService
-    ) {
+    private void usurpCurrentMaster(TestClusterNodes.TestClusterNode newMaster) {
         final var masterNodes = testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList();
-        final long freshStateVersion = masterNodes.stream()
-            .mapToLong(n -> n.coordinator().getLastAcceptedState().version())
-            .max()
-            .orElseThrow();
+        final var startJoinRequest = new StartJoinRequest(
+            newMaster.node(),
+            1 + masterNodes.stream()
+                .mapToLong(n -> n.coordinator().getClusterFormationState().clusterFormationClusterStateView().currentTerm())
+                .max()
+                .orElseThrow()
+        );
 
-        return ClusterServiceUtils.addTemporaryStateListener(newMaster.clusterService(), cs -> cs.version() >= freshStateVersion)
-            .<Void>andThen(l -> {
-                final var startJoinRequest = new StartJoinRequest(
-                    newMaster.node(),
-                    1 + masterNodes.stream()
-                        .mapToLong(n -> n.coordinator().getClusterFormationState().clusterFormationClusterStateView().currentTerm())
-                        .max()
-                        .orElseThrow()
+        logger.info("--> usurping current master with [{}]", startJoinRequest);
+        for (final var masterNode : masterNodes) {
+            newMaster.transportService()
+                .sendRequest(
+                    masterNode.node(),
+                    JoinHelper.START_JOIN_ACTION_NAME,
+                    startJoinRequest,
+                    TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, ActionListener.noop())
                 );
-                logger.info("--> usurping current master with [{}]", startJoinRequest);
-                for (final var masterNode : masterNodes) {
-                    newMaster.transportService()
-                        .sendRequest(
-                            masterNode.node(),
-                            JoinHelper.START_JOIN_ACTION_NAME,
-                            startJoinRequest,
-                            TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, ActionListener.noop())
-                        );
-                }
-                ClusterServiceUtils.addTemporaryStateListener(
-                    observerClusterService,
-                    cs -> newMaster.node().getId().equals(cs.nodes().getMasterNodeId())
-                ).addListener(l);
-            });
+        }
     }
 
     protected void disconnectOrRestartMasterNode() {
