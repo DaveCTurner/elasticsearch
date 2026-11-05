@@ -365,19 +365,12 @@ public class SnapshotResiliencyTests extends ESTestCase {
         }
     }
 
-    /**
-     * Starts a clone concurrently with a master failover and then aborts it by deleting it as soon as it appears in the cluster state, which
-     * may leave a deposed master acting on stale cluster state. Then fails over again and checks that a clone of the same shards can still
-     * complete.
-     */
     public void testCloneAbortedByMasterFailover() {
-        final int masterNodes = randomFrom(3, 5);
-        setupTestCluster(masterNodes, randomIntBetween(1, 3));
+        setupTestCluster(randomFrom(3, 5), randomIntBetween(1, 3));
 
-        final String repoName = "repo";
-        final String index = "test";
-        final String sourceSnapshotName = "source-snapshot";
-        final String cloneName = "clone";
+        final String repoName = randomRepoName();
+        final String index = randomIndexName();
+        final String sourceSnapshotName = randomSnapshotName();
 
         // Observe the cluster state from a node which is never master, so that the observation is unaffected by failovers.
         final var observerNode = testClusterNodes.randomDataNodeSafe();
@@ -399,9 +392,9 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
             // Start a failover and a clone concurrently, abort the clone as soon as it appears in the cluster state, and wait for it to go
             .<Void>andThen(l -> {
-                // Either of these may fail or be abandoned if it races with the other, and the clone is expected to be aborted by the
-                // delete below anyway, so we do not check the outcome of the clone request.
                 scheduleNow(this::forceMasterFailover);
+
+                final String cloneName = randomIdentifier("clone-");
                 scheduleNow(
                     () -> client.admin()
                         .cluster()
@@ -410,24 +403,31 @@ public class SnapshotResiliencyTests extends ESTestCase {
                         .execute(ActionListener.noop())
                 );
 
-                ClusterServiceUtils.addTemporaryStateListener(
-                    observerClusterService,
-                    cs -> SnapshotsInProgress.get(cs)
-                        .asStream()
-                        .anyMatch(e -> e.isClone() && e.snapshot().getSnapshotId().getName().equals(cloneName))
-                ).<Void>andThen(settledListener -> {
-                    // Wait for everything to settle down, however the clone and the delete end up resolving.
-                    ClusterServiceUtils.addTemporaryStateListener(
-                        observerClusterService,
-                        cs -> SnapshotsInProgress.get(cs).isEmpty() && SnapshotDeletionsInProgress.get(cs).getEntries().isEmpty()
-                    ).addListener(settledListener);
+                ClusterServiceUtils
 
-                    // The delete may legitimately fail, e.g. if the clone completed or failed in the meantime, so ignore its outcome.
-                    client.admin()
-                        .cluster()
-                        .prepareDeleteSnapshot(TEST_REQUEST_TIMEOUT, repoName, cloneName)
-                        .execute(ActionListener.noop());
-                }).addListener(l);
+                    .addTemporaryStateListener(
+                        observerClusterService,
+                        cs -> SnapshotsInProgress.get(cs)
+                            .asStream()
+                            .anyMatch(e -> e.isClone() && e.snapshot().getSnapshotId().getName().equals(cloneName))
+                    )
+                    .<Void>andThen(settledListener -> {
+                        client.admin()
+                            .cluster()
+                            .prepareDeleteSnapshot(TEST_REQUEST_TIMEOUT, repoName, cloneName)
+                            // The delete may legitimately fail, so ignore the result
+                            .execute(ActionListener.noop());
+
+                        ClusterServiceUtils
+                            // Wait for the snapshots/deletions to be removed from the cluster state
+                            .addTemporaryStateListener(
+                                observerClusterService,
+                                cs -> SnapshotsInProgress.get(cs).isEmpty() && SnapshotDeletionsInProgress.get(cs).getEntries().isEmpty()
+                            )
+                            .addListener(settledListener);
+
+                    })
+                    .addListener(l);
             })
 
             // Fail over again, and then no shard clone should have been left permanently blocked by the aborted one
