@@ -427,11 +427,10 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 ).addListener(l);
             })
 
-            // Fail over to a different master and wait for it to take over
-            .<Void>andThen(l -> usurpCurrentMaster(newMaster, observerClusterService).addListener(l))
-
-            // Abort the clone and wait for it to go
+            // Trigger a master failover and concurrently abort the clone; and wait for it to go
             .<Void>andThen(l -> {
+                usurpCurrentMaster(newMaster, observerClusterService);
+
                 client.admin()
                     .cluster()
                     .prepareDeleteSnapshot(TEST_REQUEST_TIMEOUT, repoName, cloneName)
