@@ -396,13 +396,13 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     .execute(l.map(v -> null))
             )
 
-            // Start a failover and a clone concurrently, abort the clone as soon as it appears in the cluster state, and wait for it to go
+            // Start a clone, and as soon as it appears in the cluster state fail over to a different master. Once that has taken over,
+            // abort the clone and wait for it to go.
             .<Void>andThen(l -> {
                 final var newMaster = randomValueOtherThan(
                     originalMaster,
                     () -> randomFrom(testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList())
                 );
-                scheduleNow(() -> usurpCurrentMaster(newMaster));
 
                 final String cloneName = randomIdentifier("clone-");
                 client.admin()
@@ -412,13 +412,24 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     .execute(ActionListener.noop());
 
                 ClusterServiceUtils
-
+                    // Wait for the clone to appear in the cluster state
                     .addTemporaryStateListener(
                         observerClusterService,
                         cs -> SnapshotsInProgress.get(cs)
                             .asStream()
                             .anyMatch(e -> e.isClone() && e.snapshot().getSnapshotId().getName().equals(cloneName))
                     )
+                    .<Void>andThen(failedOverListener -> {
+                        usurpCurrentMaster(newMaster);
+
+                        ClusterServiceUtils
+                            // Wait for the new master to take over
+                            .addTemporaryStateListener(
+                                observerClusterService,
+                                cs -> newMaster.node().getId().equals(cs.nodes().getMasterNodeId())
+                            )
+                            .addListener(failedOverListener);
+                    })
                     .<Void>andThen(settledListener -> {
                         client.admin()
                             .cluster()
@@ -427,15 +438,12 @@ public class SnapshotResiliencyTests extends ESTestCase {
                             .execute(ActionListener.noop());
 
                         ClusterServiceUtils
-                            // Wait for the new master to take over and for the snapshots/deletions to be removed from the cluster state
+                            // Wait for the snapshots/deletions to be removed from the cluster state
                             .addTemporaryStateListener(
                                 observerClusterService,
-                                cs -> newMaster.node().getId().equals(cs.nodes().getMasterNodeId())
-                                    && SnapshotsInProgress.get(cs).isEmpty()
-                                    && SnapshotDeletionsInProgress.get(cs).getEntries().isEmpty()
+                                cs -> SnapshotsInProgress.get(cs).isEmpty() && SnapshotDeletionsInProgress.get(cs).getEntries().isEmpty()
                             )
                             .addListener(settledListener);
-
                     })
                     .addListener(l);
             })
