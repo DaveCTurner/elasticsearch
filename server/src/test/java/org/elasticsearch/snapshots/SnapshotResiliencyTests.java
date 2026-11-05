@@ -404,7 +404,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
             });
             // Let the failover happen, and then let the clone make some progress under it, before healing the cluster
             runUntil(failedOver::get, TimeUnit.MINUTES.toMillis(1L));
-            runUntil(() -> randomIntBetween(0, 20) == 0, TimeUnit.MINUTES.toMillis(1L));
+            final long healTime = deterministicTaskQueue.getCurrentTimeMillis() + randomLongBetween(0, 5000L);
+            runUntil(() -> deterministicTaskQueue.getCurrentTimeMillis() >= healTime, TimeUnit.MINUTES.toMillis(1L));
             clearDisruptionsAndAwaitSync();
             runUntil(
                 () -> testClusterNodes.randomMasterNode()
