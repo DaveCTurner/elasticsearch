@@ -60,6 +60,7 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.cluster.routing.allocation.command.AllocateEmptyPrimaryAllocationCommand;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
@@ -419,14 +420,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
             })
 
             // Fail over to a different master and wait for it to take over
-            .<Void>andThen(l -> {
-                usurpCurrentMaster(newMaster);
-
-                ClusterServiceUtils.addTemporaryStateListener(
-                    observerClusterService,
-                    cs -> newMaster.node().getId().equals(cs.nodes().getMasterNodeId())
-                ).addListener(l);
-            })
+            .<Void>andThen(l -> usurpCurrentMaster(newMaster, observerClusterService).addListener(l))
 
             // Abort the clone and wait for it to go
             .<Void>andThen(l -> {
@@ -444,13 +438,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
             // Elect the original master again and wait for it to take over. The whole election happens without the clock advancing, so
             // there is no chance of a competing election.
-            .<Void>andThen(l -> {
-                usurpCurrentMaster(originalMaster);
-                ClusterServiceUtils.addTemporaryStateListener(
-                    observerClusterService,
-                    cs -> originalMaster.node().getId().equals(cs.nodes().getMasterNodeId())
-                ).addListener(l);
-            })
+            .<Void>andThen(l -> usurpCurrentMaster(originalMaster, observerClusterService).addListener(l))
 
             // No shard clone should have been left permanently blocked by the aborted one
             .<Void>andThen(
@@ -2111,8 +2099,14 @@ public class SnapshotResiliencyTests extends ESTestCase {
      * <p>
      * The new term is one more than the highest current term of any master-eligible node, so as long as no other election is in progress it
      * is the term in which {@code newMaster} is eventually elected.
+     *
+     * @param observerClusterService the cluster service whose state determines when the failover has completed.
+     * @return a listener which completes once the state of {@code observerClusterService} shows {@code newMaster} as the elected master.
      */
-    private void usurpCurrentMaster(TestClusterNodes.TestClusterNode newMaster) {
+    private SubscribableListener<Void> usurpCurrentMaster(
+        TestClusterNodes.TestClusterNode newMaster,
+        ClusterService observerClusterService
+    ) {
         final var masterNodes = testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList();
         final var startJoinRequest = new StartJoinRequest(
             newMaster.node(),
@@ -2133,6 +2127,10 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, ActionListener.noop())
                 );
         }
+        return ClusterServiceUtils.addTemporaryStateListener(
+            observerClusterService,
+            cs -> newMaster.node().getId().equals(cs.nodes().getMasterNodeId())
+        );
     }
 
     protected void disconnectOrRestartMasterNode() {
