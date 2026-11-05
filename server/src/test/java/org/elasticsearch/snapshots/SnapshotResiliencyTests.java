@@ -370,6 +370,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
         }
     }
 
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE")
     public void testCloneAbortedByMasterFailover() {
         setupTestCluster(randomFrom(3, 5), randomIntBetween(1, 3));
 
