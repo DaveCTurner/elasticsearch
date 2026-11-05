@@ -371,12 +371,11 @@ public class SnapshotResiliencyTests extends ESTestCase {
      * can still complete.
      */
     public void testCloneAbortedByMasterFailovers() {
-        final int masterNodes = randomFrom(3, 5);
-        setupTestCluster(masterNodes, randomIntBetween(1, 3));
+        setupTestCluster(randomFrom(3, 5), randomIntBetween(1, 3));
 
-        final String repoName = "repo";
-        final String index = "test";
-        final String sourceSnapshotName = "source-snapshot";
+        final String repoName = randomRepoName();
+        final String index = randomIndexName();
+        final String sourceSnapshotName = randomSnapshotName();
 
         var testListener = SubscribableListener
             // Create the repo and index
