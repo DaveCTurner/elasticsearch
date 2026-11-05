@@ -3370,6 +3370,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
      */
     public boolean assertAllListenersResolved() {
         final DiscoveryNode localNode = clusterService.localNode();
+        assert runningShardClones.isEmpty() : "Found leaked running shard clones " + runningShardClones + " on [" + localNode + "]";
         assert endingSnapshots.isEmpty() : "Found leaked ending snapshots " + endingSnapshots + " on [" + localNode + "]";
         assert snapshotFinalizationListeners.isEmpty()
             : "Found leaked snapshot finalization listeners " + snapshotFinalizationListeners + " on [" + localNode + "]";
@@ -3378,7 +3379,6 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
         assert snapshotDeletionListeners.isEmpty()
             : "Found leaked snapshot delete listeners " + snapshotDeletionListeners + " on [" + localNode + "]";
         assert repositoryOperations.isEmpty() : "Found leaked snapshots to finalize " + repositoryOperations + " on [" + localNode + "]";
-        assert runningShardClones.isEmpty() : "Found leaked running shard clones " + runningShardClones + " on [" + localNode + "]";
         return true;
     }
 }
