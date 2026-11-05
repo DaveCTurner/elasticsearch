@@ -365,6 +365,59 @@ public class SnapshotResiliencyTests extends ESTestCase {
         }
     }
 
+    /**
+     * Starts clones while the master repeatedly fails over, which may leave a deposed master acting on stale cluster state, and then checks
+     * that every node is still able to run a clone of the same shards once things have settled down.
+     */
+    public void testCloneWithRepeatedMasterFailovers() {
+        final int masterNodes = randomFrom(3, 5);
+        setupTestCluster(masterNodes, randomIntBetween(1, 3));
+
+        final String repoName = "repo";
+        final String index = "test";
+        final String sourceSnapshotName = "source-snapshot";
+
+        final SubscribableListener<Void> setupListener = SubscribableListener
+            .<CreateIndexResponse>newForked(l -> createRepoAndIndex(repoName, index, randomIntBetween(1, 5)).addListener(l))
+            .<Void>andThen(
+                (l, ignored) -> client().admin()
+                    .cluster()
+                    .prepareCreateSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName)
+                    .setWaitForCompletion(true)
+                    .execute(l.map(v -> null))
+            );
+        runUntil(setupListener::isDone, TimeUnit.MINUTES.toMillis(1L));
+        safeAwait(setupListener);
+
+        final int rounds = between(1, 5);
+        for (int round = 0; round < rounds; round++) {
+            // Clones may legitimately fail if the master they were sent to fails over, so ignore the outcome here.
+            client().admin()
+                .cluster()
+                .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, "clone-" + round)
+                .setIndices(index)
+                .execute(ActionListener.noop());
+            scheduleSoon(this::disconnectOrRestartMasterNode);
+            scheduleSoon(() -> testClusterNodes.clearNetworkDisruptions());
+            clearDisruptionsAndAwaitSync();
+            runUntil(
+                () -> testClusterNodes.randomMasterNode()
+                    .map(master -> SnapshotsInProgress.get(master.clusterService().state()).isEmpty())
+                    .orElse(false),
+                TimeUnit.MINUTES.toMillis(1L)
+            );
+        }
+
+        final SubscribableListener<AcknowledgedResponse> finalCloneListener = new SubscribableListener<>();
+        client().admin()
+            .cluster()
+            .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, "final-clone")
+            .setIndices(index)
+            .execute(finalCloneListener);
+        runUntil(finalCloneListener::isDone, TimeUnit.MINUTES.toMillis(1L));
+        safeAwait(finalCloneListener);
+    }
+
     public void testSnapshotDeleteWithMasterFailover() {
         final int dataNodes = randomIntBetween(2, 10);
         final int masterNodes = randomFrom(3, 5);
