@@ -52,6 +52,8 @@ import org.elasticsearch.cluster.SnapshotDeletionsInProgress;
 import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.cluster.coordination.AbstractCoordinatorTestCase;
 import org.elasticsearch.cluster.coordination.CoordinationMetadata.VotingConfiguration;
+import org.elasticsearch.cluster.coordination.JoinHelper;
+import org.elasticsearch.cluster.coordination.StartJoinRequest;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -62,6 +64,7 @@ import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThrottledTaskRunner;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.TimeValue;
@@ -85,6 +88,7 @@ import org.elasticsearch.transport.TransportInterceptor;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestHandler;
 import org.elasticsearch.transport.TransportResponse;
+import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
 import org.junit.After;
 import org.junit.Before;
@@ -368,7 +372,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
     public void testCloneAbortedByMasterFailover() {
         setupTestCluster(randomFrom(3, 5), randomIntBetween(1, 3));
 
-        final String repoName = randomRepoName();
+        // verifyReposThenStopServices expects the repository to be called "repo"
+        final String repoName = "repo";
         final String index = randomIndexName();
         final String sourceSnapshotName = randomSnapshotName();
 
@@ -376,6 +381,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
         final var observerNode = testClusterNodes.randomDataNodeSafe();
         final var observerClusterService = observerNode.clusterService();
         final var client = observerNode.client();
+
+        final var originalMaster = testClusterNodes.randomMasterNodeSafe();
 
         final var testListener = SubscribableListener
             // Create the repo and index
@@ -430,9 +437,39 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     .addListener(l);
             })
 
-            // Fail over again, and then no shard clone should have been left permanently blocked by the aborted one
+            // Wait for the cluster to stabilise after the first failover
+            .<Void>andThen(l -> new Runnable() {
+                @Override
+                public void run() {
+                    if (clusterIsStable()) {
+                        l.onResponse(null);
+                    } else {
+                        deterministicTaskQueue.scheduleAt(deterministicTaskQueue.getCurrentTimeMillis() + 100L, this);
+                    }
+                }
+            }.run())
+
+            // Elect the original master again, and then no shard clone should have been left permanently blocked by the aborted one
             .<Void>andThen(l -> {
-                scheduleNow(this::forceMasterFailover);
+                scheduleNow(() -> {
+                    final var masterNodes = testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList();
+                    final var startJoinRequest = new StartJoinRequest(
+                        originalMaster.node(),
+                        1 + masterNodes.stream()
+                            .mapToLong(n -> n.coordinator().getClusterFormationState().clusterFormationClusterStateView().currentTerm())
+                            .max()
+                            .orElseThrow()
+                    );
+                    for (final var masterNode : masterNodes) {
+                        originalMaster.transportService()
+                            .sendRequest(
+                                masterNode.node(),
+                                JoinHelper.START_JOIN_ACTION_NAME,
+                                startJoinRequest,
+                                TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, ActionListener.noop())
+                            );
+                    }
+                });
                 scheduleNow(
                     () -> client.admin()
                         .cluster()
@@ -2163,19 +2200,21 @@ public class SnapshotResiliencyTests extends ESTestCase {
             deterministicTaskQueue.advanceTime();
             deterministicTaskQueue.runAllRunnableTasks();
         }
-        runUntil(() -> {
-            final Collection<ClusterState> clusterStates = testClusterNodes.nodes()
-                .values()
-                .stream()
-                .map(node -> node.clusterService().state())
-                .toList();
-            final Set<String> masterNodeIds = clusterStates.stream()
-                .map(clusterState -> clusterState.nodes().getMasterNodeId())
-                .collect(Collectors.toSet());
-            final Set<Long> terms = clusterStates.stream().map(ClusterState::term).collect(Collectors.toSet());
-            final List<Long> versions = clusterStates.stream().map(ClusterState::version).distinct().toList();
-            return versions.size() == 1 && masterNodeIds.size() == 1 && masterNodeIds.contains(null) == false && terms.size() == 1;
-        }, TimeUnit.MINUTES.toMillis(1L));
+        runUntil(this::clusterIsStable, TimeUnit.MINUTES.toMillis(1L));
+    }
+
+    private boolean clusterIsStable() {
+        final Collection<ClusterState> clusterStates = testClusterNodes.nodes()
+            .values()
+            .stream()
+            .map(node -> node.clusterService().state())
+            .toList();
+        final Set<String> masterNodeIds = clusterStates.stream()
+            .map(clusterState -> clusterState.nodes().getMasterNodeId())
+            .collect(Collectors.toSet());
+        final Set<Long> terms = clusterStates.stream().map(ClusterState::term).collect(Collectors.toSet());
+        final List<Long> versions = clusterStates.stream().map(ClusterState::version).distinct().toList();
+        return versions.size() == 1 && masterNodeIds.size() == 1 && masterNodeIds.contains(null) == false && terms.size() == 1;
     }
 
     protected void runUntil(Supplier<Boolean> fulfilled, long timeout) {
