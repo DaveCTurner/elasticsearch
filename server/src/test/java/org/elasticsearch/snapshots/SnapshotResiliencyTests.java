@@ -84,10 +84,13 @@ import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.MockLog;
 import org.elasticsearch.test.junit.annotations.TestLogging;
+import org.elasticsearch.transport.ConnectTransportException;
 import org.elasticsearch.transport.TestTransportChannel;
+import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportInterceptor;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestHandler;
+import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
@@ -109,6 +112,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -132,6 +136,12 @@ import static org.hamcrest.Matchers.notNullValue;
 public class SnapshotResiliencyTests extends ESTestCase {
 
     protected DeterministicTaskQueue deterministicTaskQueue;
+
+    /**
+     * If set, the only node permitted to win an election: every other node's election broadcast is suppressed by the interceptor in
+     * {@link #testCloneAbortedByMasterFailover} (see {@link #usurpCurrentMaster}).
+     */
+    private final AtomicReference<DiscoveryNode> permittedElectionWinner = new AtomicReference<>();
 
     protected TestClusterNodes testClusterNodes;
 
@@ -380,7 +390,38 @@ public class SnapshotResiliencyTests extends ESTestCase {
             + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
     )
     public void testCloneAbortedByMasterFailover() {
-        setupTestCluster(randomFrom(3, 5), randomIntBetween(1, 3));
+        // A leader which learns of a higher term immediately starts its own election, without waiting for the election scheduler. Suppress
+        // these so that the election started by usurpCurrentMaster is the only one, and so completes without the clock advancing.
+        final var electionSuppressingInterceptor = new TransportInterceptor() {
+            @Override
+            public AsyncSender interceptSender(AsyncSender sender) {
+                return new AsyncSender() {
+                    @Override
+                    public <T extends TransportResponse> void sendRequest(
+                        Transport.Connection connection,
+                        String action,
+                        TransportRequest request,
+                        TransportRequestOptions options,
+                        TransportResponseHandler<T> handler
+                    ) {
+                        final var permittedWinner = permittedElectionWinner.get();
+                        if (permittedWinner != null
+                            && action.equals(JoinHelper.START_JOIN_ACTION_NAME)
+                            && permittedWinner.equals(((StartJoinRequest) request).getMasterCandidateNode()) == false) {
+                            handler.executor()
+                                .execute(
+                                    () -> handler.handleException(
+                                        new ConnectTransportException(connection.getNode(), "simulated failure of " + action)
+                                    )
+                                );
+                        } else {
+                            sender.sendRequest(connection, action, request, options, handler);
+                        }
+                    }
+                };
+            }
+        };
+        setupTestCluster(randomFrom(3, 5), randomIntBetween(1, 3), ignored -> electionSuppressingInterceptor);
 
         final var repoName = "repo";
         final var index = randomIndexName();
@@ -2105,13 +2146,11 @@ public class SnapshotResiliencyTests extends ESTestCase {
     }
 
     /**
-     * Forces a failover to {@code newMaster} by sending it, and every other master-eligible node, a {@link StartJoinRequest} in a new term,
-     * so that {@code newMaster} wins a genuine election. The elected master being deposed (if it is not {@code newMaster}) is deliberately
-     * left out, so it remains connected and unaware that it has lost the election until it receives the new master's cluster state, and it
-     * may carry on acting as master (e.g. completing in-flight publications) on stale state in the meantime.
+     * Forces a failover to {@code newMaster} by sending every master-eligible node (including the master being deposed, so that it votes
+     * for {@code newMaster} too) a {@link StartJoinRequest} in a new term, so that {@code newMaster} wins a genuine election.
      * <p>
-     * The new term is one more than the highest current term of any master-eligible node, so as long as no other election is in progress it
-     * is the term in which {@code newMaster} is eventually elected.
+     * The new term is one more than the highest current term of any master-eligible node. The caller must also arrange (see
+     * {@link #permittedElectionWinner}) that no other node can start a competing election in the meantime.
      *
      * @param observerClusterService the cluster service whose state determines when the failover has completed.
      * @return a listener which completes once the state of {@code observerClusterService} shows {@code newMaster} as the elected master.
@@ -2120,6 +2159,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
         TestClusterNodes.TestClusterNode newMaster,
         ClusterService observerClusterService
     ) {
+        permittedElectionWinner.set(newMaster.node());
         final var masterNodes = testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList();
         final var startJoinRequest = new StartJoinRequest(
             newMaster.node(),
@@ -2128,10 +2168,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 .max()
                 .orElseThrow()
         );
+        logger.info("--> usurping current master with [{}]", startJoinRequest);
         for (final var masterNode : masterNodes) {
-            if (masterNode != newMaster && masterNode.clusterService().state().nodes().isLocalNodeElectedMaster()) {
-                continue;
-            }
             newMaster.transportService()
                 .sendRequest(
                     masterNode.node(),
