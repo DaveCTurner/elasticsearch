@@ -372,7 +372,6 @@ public class SnapshotResiliencyTests extends ESTestCase {
     public void testCloneAbortedByMasterFailover() {
         setupTestCluster(randomFrom(3, 5), randomIntBetween(1, 3));
 
-        // verifyReposThenStopServices expects the repository to be called "repo"
         final String repoName = "repo";
         final String index = randomIndexName();
         final String sourceSnapshotName = randomSnapshotName();
@@ -449,7 +448,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 }
             }.run())
 
-            // Elect the original master again, and then no shard clone should have been left permanently blocked by the aborted one
+            // Elect the original master again and wait for it to take over
             .<Void>andThen(l -> {
                 scheduleNow(() -> {
                     final var masterNodes = testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList();
@@ -470,6 +469,17 @@ public class SnapshotResiliencyTests extends ESTestCase {
                             );
                     }
                 });
+
+                // The original master may already be the master, so also wait for the term to advance.
+                final long termBeforeElection = observerClusterService.state().term();
+                ClusterServiceUtils.addTemporaryStateListener(
+                    observerClusterService,
+                    cs -> cs.term() > termBeforeElection && originalMaster.node().getId().equals(cs.nodes().getMasterNodeId())
+                ).addListener(l);
+            })
+
+            // No shard clone should have been left permanently blocked by the aborted one
+            .<Void>andThen(l -> {
                 scheduleNow(
                     () -> client.admin()
                         .cluster()
