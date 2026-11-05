@@ -366,10 +366,11 @@ public class SnapshotResiliencyTests extends ESTestCase {
     }
 
     /**
-     * Starts clones while the master repeatedly fails over, which may leave a deposed master acting on stale cluster state, and then checks
-     * that every node is still able to run a clone of the same shards once things have settled down.
+     * Starts a clone concurrently with a master failover and then aborts it by deleting it as soon as it appears in the cluster state, which
+     * may leave a deposed master acting on stale cluster state. Repeats this a few times, and then checks that a clone of the same shards
+     * can still complete.
      */
-    public void testCloneWithRepeatedMasterFailovers() {
+    public void testCloneAbortedByMasterFailovers() {
         final int masterNodes = randomFrom(3, 5);
         setupTestCluster(masterNodes, randomIntBetween(1, 3));
 
@@ -377,8 +378,10 @@ public class SnapshotResiliencyTests extends ESTestCase {
         final String index = "test";
         final String sourceSnapshotName = "source-snapshot";
 
-        final SubscribableListener<Void> setupListener = SubscribableListener
+        var testListener = SubscribableListener
+            // Create the repo and index
             .<CreateIndexResponse>newForked(l -> createRepoAndIndex(repoName, index, randomIntBetween(1, 5)).addListener(l))
+            // Take a full snapshot for use as the source for the clones
             .<Void>andThen(
                 (l, ignored) -> client().admin()
                     .cluster()
@@ -386,35 +389,64 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     .setWaitForCompletion(true)
                     .execute(l.map(v -> null))
             );
-        runUntil(setupListener::isDone, TimeUnit.MINUTES.toMillis(1L));
-        safeAwait(setupListener);
 
         final int rounds = between(1, 5);
         for (int round = 0; round < rounds; round++) {
-            // Clones may legitimately fail if the master they were sent to fails over, so ignore the outcome here.
-            client().admin()
-                .cluster()
-                .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, "clone-" + round)
-                .setIndices(index)
-                .execute(ActionListener.noop());
-            scheduleSoon(this::forceMasterFailover);
-            stabilize();
-            runUntil(
-                () -> testClusterNodes.randomMasterNode()
-                    .map(master -> SnapshotsInProgress.get(master.clusterService().state()).isEmpty())
-                    .orElse(false),
-                TimeUnit.MINUTES.toMillis(1L)
-            );
+            final String cloneName = "clone-" + round;
+            testListener = testListener.<Void>andThen(stepListener -> {
+                // Observe the cluster state from a node which is never master, so that the observation is unaffected by failovers.
+                final var observerNode = testClusterNodes.randomDataNodeSafe();
+                final var observerClusterService = observerNode.clusterService();
+                final var client = observerNode.client();
+
+                // Start the failover and the clone concurrently. Either of these may fail or be abandoned if it races with the other, and
+                // the clone is expected to be aborted by the delete below anyway, so we do not check the outcome of the clone request.
+                scheduleNow(this::forceMasterFailover);
+                scheduleNow(
+                    () -> client.admin()
+                        .cluster()
+                        .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, cloneName)
+                        .setIndices(index)
+                        .execute(ActionListener.noop())
+                );
+
+                // As soon as the clone appears in the cluster state, try to abort it, and then wait for everything to settle down.
+                ClusterServiceUtils.addTemporaryStateListener(
+                    observerClusterService,
+                    cs -> SnapshotsInProgress.get(cs)
+                        .asStream()
+                        .anyMatch(e -> e.isClone() && e.snapshot().getSnapshotId().getName().equals(cloneName))
+                ).addListener(stepListener.delegateFailureAndWrap((l1, ignored1) -> scheduleNow(() -> {
+                    // The delete may legitimately fail, e.g. if the clone completed or failed in the meantime.
+                    client.admin()
+                        .cluster()
+                        .prepareDeleteSnapshot(TEST_REQUEST_TIMEOUT, repoName, cloneName)
+                        .execute(
+                            ActionListener.running(
+                                () -> ClusterServiceUtils.addTemporaryStateListener(
+                                    observerClusterService,
+                                    cs -> SnapshotsInProgress.get(cs).isEmpty()
+                                        && SnapshotDeletionsInProgress.get(cs).getEntries().isEmpty()
+                                ).addListener(l1)
+                            )
+                        );
+                })));
+            });
         }
 
-        final SubscribableListener<AcknowledgedResponse> finalCloneListener = new SubscribableListener<>();
-        client().admin()
-            .cluster()
-            .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, "final-clone")
-            .setIndices(index)
-            .execute(finalCloneListener);
-        runUntil(finalCloneListener::isDone, TimeUnit.MINUTES.toMillis(1L));
-        safeAwait(finalCloneListener);
+        // Finally, no shard clone should have been left permanently blocked by the aborted ones.
+        testListener = testListener.<Void>andThen(
+            stepListener -> testClusterNodes.randomDataNodeSafe()
+                .client()
+                .admin()
+                .cluster()
+                .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, "final-clone")
+                .setIndices(index)
+                .execute(stepListener.map(r -> null))
+        );
+
+        runUntil(testListener::isDone, TimeUnit.MINUTES.toMillis(10L));
+        safeAwait(testListener); // shouldn't throw
     }
 
     public void testSnapshotDeleteWithMasterFailover() {
