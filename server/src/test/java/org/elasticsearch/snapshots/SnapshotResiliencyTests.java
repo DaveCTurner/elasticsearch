@@ -2124,6 +2124,10 @@ public class SnapshotResiliencyTests extends ESTestCase {
      * Forces a failover to {@code newMaster} by sending every master-eligible node (including the master being deposed, so that it votes
      * for {@code newMaster} too) a {@link StartJoinRequest} in a new term, so that {@code newMaster} wins a genuine election.
      * <p>
+     * A voter will not vote for a candidate whose cluster state is older than its own, so {@code newMaster} cannot win unless its state is at
+     * least as recent as that of every other master-eligible node. Therefore this first waits for {@code newMaster} to catch up with the most
+     * recent state accepted by any master-eligible node at the time of the call, which may include a publication that is still in flight.
+     * <p>
      * The new term is one more than the highest current term of any master-eligible node.
      *
      * @param observerClusterService the cluster service whose state determines when the failover has completed.
@@ -2134,27 +2138,35 @@ public class SnapshotResiliencyTests extends ESTestCase {
         ClusterService observerClusterService
     ) {
         final var masterNodes = testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList();
-        final var startJoinRequest = new StartJoinRequest(
-            newMaster.node(),
-            1 + masterNodes.stream()
-                .mapToLong(n -> n.coordinator().getClusterFormationState().clusterFormationClusterStateView().currentTerm())
-                .max()
-                .orElseThrow()
-        );
-        logger.info("--> usurping current master with [{}]", startJoinRequest);
-        for (final var masterNode : masterNodes) {
-            newMaster.transportService()
-                .sendRequest(
-                    masterNode.node(),
-                    JoinHelper.START_JOIN_ACTION_NAME,
-                    startJoinRequest,
-                    TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, ActionListener.noop())
+        final long freshStateVersion = masterNodes.stream()
+            .mapToLong(n -> n.coordinator().getLastAcceptedState().version())
+            .max()
+            .orElseThrow();
+
+        return ClusterServiceUtils.addTemporaryStateListener(newMaster.clusterService(), cs -> cs.version() >= freshStateVersion)
+            .<Void>andThen(l -> {
+                final var startJoinRequest = new StartJoinRequest(
+                    newMaster.node(),
+                    1 + masterNodes.stream()
+                        .mapToLong(n -> n.coordinator().getClusterFormationState().clusterFormationClusterStateView().currentTerm())
+                        .max()
+                        .orElseThrow()
                 );
-        }
-        return ClusterServiceUtils.addTemporaryStateListener(
-            observerClusterService,
-            cs -> newMaster.node().getId().equals(cs.nodes().getMasterNodeId())
-        );
+                logger.info("--> usurping current master with [{}]", startJoinRequest);
+                for (final var masterNode : masterNodes) {
+                    newMaster.transportService()
+                        .sendRequest(
+                            masterNode.node(),
+                            JoinHelper.START_JOIN_ACTION_NAME,
+                            startJoinRequest,
+                            TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, ActionListener.noop())
+                        );
+                }
+                ClusterServiceUtils.addTemporaryStateListener(
+                    observerClusterService,
+                    cs -> newMaster.node().getId().equals(cs.nodes().getMasterNodeId())
+                ).addListener(l);
+            });
     }
 
     protected void disconnectOrRestartMasterNode() {
