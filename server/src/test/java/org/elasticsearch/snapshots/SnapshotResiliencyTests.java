@@ -457,7 +457,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 .cluster()
                 .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, "final-clone")
                 .setIndices(index)
-                .execute(l.map(r -> null))
+                .execute(l.map(ignored -> null))
         );
 
         deterministicTaskQueue.runAllRunnableTasks();
