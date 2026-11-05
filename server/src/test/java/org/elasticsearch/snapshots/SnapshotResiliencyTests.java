@@ -450,25 +450,23 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
             // Elect the original master again and wait for it to take over
             .<Void>andThen(l -> {
-                scheduleNow(() -> {
-                    final var masterNodes = testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList();
-                    final var startJoinRequest = new StartJoinRequest(
-                        originalMaster.node(),
-                        1 + masterNodes.stream()
-                            .mapToLong(n -> n.coordinator().getClusterFormationState().clusterFormationClusterStateView().currentTerm())
-                            .max()
-                            .orElseThrow()
-                    );
-                    for (final var masterNode : masterNodes) {
-                        originalMaster.transportService()
-                            .sendRequest(
-                                masterNode.node(),
-                                JoinHelper.START_JOIN_ACTION_NAME,
-                                startJoinRequest,
-                                TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, ActionListener.noop())
-                            );
-                    }
-                });
+                final var masterNodes = testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList();
+                final var startJoinRequest = new StartJoinRequest(
+                    originalMaster.node(),
+                    1 + masterNodes.stream()
+                        .mapToLong(n -> n.coordinator().getClusterFormationState().clusterFormationClusterStateView().currentTerm())
+                        .max()
+                        .orElseThrow()
+                );
+                for (final var masterNode : masterNodes) {
+                    originalMaster.transportService()
+                        .sendRequest(
+                            masterNode.node(),
+                            JoinHelper.START_JOIN_ACTION_NAME,
+                            startJoinRequest,
+                            TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, ActionListener.noop())
+                        );
+                }
 
                 // The original master may already be the master, so also wait for the term to advance.
                 final long termBeforeElection = observerClusterService.state().term();
@@ -479,15 +477,13 @@ public class SnapshotResiliencyTests extends ESTestCase {
             })
 
             // No shard clone should have been left permanently blocked by the aborted one
-            .<Void>andThen(l -> {
-                scheduleNow(
-                    () -> client.admin()
-                        .cluster()
-                        .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, "final-clone")
-                        .setIndices(index)
-                        .execute(l.map(r -> null))
-                );
-            });
+            .<Void>andThen(
+                l -> client.admin()
+                    .cluster()
+                    .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, "final-clone")
+                    .setIndices(index)
+                    .execute(l.map(r -> null))
+            );
 
         runUntil(testListener::isDone, TimeUnit.MINUTES.toMillis(10L));
         safeAwait(testListener); // shouldn't throw
