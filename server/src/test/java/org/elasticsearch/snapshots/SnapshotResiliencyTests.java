@@ -442,13 +442,13 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 ).addListener(l);
             });
 
-        runAllRunnableTasksWithElectedMaster();
+        runAllRunnableTasksAndElectMaster();
         testClusterNodes.nodes().values().forEach(n -> assertTrue(n.snapshotsService().assertAllListenersResolved()));
         assertTrue(cloneAndAbortFinishedListener.isDone());
         safeAwait(cloneAndAbortFinishedListener); // shouldn't throw
 
         usurpCurrentMaster(originalMaster);
-        runAllRunnableTasksWithElectedMaster();
+        runAllRunnableTasksAndElectMaster();
 
         // No shard clone should have been left permanently blocked by the aborted one
         final var finalCloneListener = SubscribableListener.<Void>newForked(
@@ -459,7 +459,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 .execute(l.map(ignored -> null))
         );
 
-        runAllRunnableTasksWithElectedMaster();
+        deterministicTaskQueue.runAllRunnableTasks();
         for (final var testClusterNode : testClusterNodes.nodes().values()) {
             final var nodeState = testClusterNode.clusterService().state();
             logger.info(
@@ -2114,22 +2114,21 @@ public class SnapshotResiliencyTests extends ESTestCase {
         }
     }
 
-    /**
-     * Runs all runnable tasks and then, if no node is the elected master, forces one: a failed or competing election leaves every master-eligible
-     * node as a candidate waiting for an election timer, which will not fire because no time passes while running only runnable tasks.
-     * The node to usurp is one with the most recent accepted cluster state, since voters will not vote for a candidate with an older state than
-     * their own. With every node a candidate and nothing in flight, that election cannot be disrupted and must succeed.
-     */
-    private void runAllRunnableTasksWithElectedMaster() {
+    private void runAllRunnableTasksAndElectMaster() {
         deterministicTaskQueue.runAllRunnableTasks();
         if (hasElectedMaster() == false) {
-            final var masterNodes = testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList();
-            final Comparator<TestClusterNodes.TestClusterNode> acceptedStateAge = Comparator.<
-                TestClusterNodes.TestClusterNode>comparingLong(n -> n.coordinator().getLastAcceptedState().term())
-                .thenComparingLong(n -> n.coordinator().getLastAcceptedState().version());
-            final var freshestNode = masterNodes.stream().max(acceptedStateAge).orElseThrow();
-            final var freshestNodes = masterNodes.stream().filter(n -> acceptedStateAge.compare(n, freshestNode) == 0).toList();
-            final var newMaster = randomFrom(freshestNodes);
+            final var newMaster = testClusterNodes.nodes()
+                .values()
+                .stream()
+                .filter(n1 -> n1.node().isMasterNode())
+                .toList()
+                .stream()
+                .max(
+                    // pick the freshest version in the freshest term
+                    Comparator.<TestClusterNodes.TestClusterNode>comparingLong(n -> n.coordinator().getLastAcceptedState().term())
+                        .thenComparingLong(n -> n.coordinator().getLastAcceptedState().version())
+                )
+                .orElseThrow();
             logger.info("--> no elected master after running all runnable tasks, usurping with [{}]", newMaster.node());
             usurpCurrentMaster(newMaster);
             deterministicTaskQueue.runAllRunnableTasks();
