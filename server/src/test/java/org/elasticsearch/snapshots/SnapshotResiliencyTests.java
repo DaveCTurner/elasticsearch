@@ -430,11 +430,16 @@ public class SnapshotResiliencyTests extends ESTestCase {
             .<Void>andThen(l -> {
                 usurpCurrentMaster(newMaster);
 
-                client.admin()
-                    .cluster()
-                    .prepareDeleteSnapshot(TEST_REQUEST_TIMEOUT, repoName, cloneName)
-                    // The delete may legitimately fail, so ignore the result
-                    .execute(ActionListener.noop());
+                // Delay the delete by a random number of steps so that it sometimes only reaches the cluster after the failover has
+                // completed
+                scheduleNowAfterHops(
+                    between(0, 10),
+                    () -> client.admin()
+                        .cluster()
+                        .prepareDeleteSnapshot(TEST_REQUEST_TIMEOUT, repoName, cloneName)
+                        // The delete may legitimately fail, so ignore the result
+                        .execute(ActionListener.noop())
+                );
 
                 ClusterServiceUtils.addTemporaryStateListener(
                     observerClusterService,
@@ -2294,6 +2299,27 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
     protected void scheduleNow(Runnable runnable) {
         deterministicTaskQueue.scheduleNow(runnable);
+    }
+
+    /**
+     * Runs the given {@link Runnable} after passing it through {@link #scheduleNow} the given number of times (immediately if zero), so that
+     * other runnable tasks are likely to run before it does. Since time does not pass while running only runnable tasks this is the way to
+     * delay a task relative to others.
+     */
+    private void scheduleNowAfterHops(int hops, Runnable runnable) {
+        new Runnable() {
+            private int hopsRemaining = hops;
+
+            @Override
+            public void run() {
+                if (hopsRemaining == 0) {
+                    runnable.run();
+                } else {
+                    hopsRemaining -= 1;
+                    scheduleNow(this);
+                }
+            }
+        }.run();
     }
 
     protected Settings defaultIndexSettings(int shards) {
