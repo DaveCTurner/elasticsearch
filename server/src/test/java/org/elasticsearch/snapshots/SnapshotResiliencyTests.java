@@ -398,17 +398,17 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
         final var cloneName = randomIdentifier("clone-");
 
-        final var testListener = SubscribableListener
+        final var cloneFinishedListener = SubscribableListener
             // Create the repo and index
             .<CreateIndexResponse>newForked(l -> createRepoAndIndex(repoName, index, randomIntBetween(1, 5)).addListener(l))
 
             // Take a full snapshot for use as the source for the clones
             .<Void>andThen(
-                (l, ignored) -> client.admin()
+                l -> client.admin()
                     .cluster()
                     .prepareCreateSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName)
                     .setWaitForCompletion(true)
-                    .execute(l.map(v -> null))
+                    .execute(l.map(ignored -> null))
             )
 
             // Start a clone and wait for it to appear in the cluster state
@@ -442,44 +442,40 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     observerClusterService,
                     cs -> SnapshotsInProgress.get(cs).isEmpty() && SnapshotDeletionsInProgress.get(cs).getEntries().isEmpty()
                 ).addListener(l);
-            })
-
-            // Elect the original master again and wait for it to take over. The whole election happens without the clock advancing, so
-            // there is no chance of a competing election.
-            .<Void>andThen(l -> usurpCurrentMaster(originalMaster, observerClusterService).addListener(l))
-
-            // No shard clone should have been left permanently blocked by the aborted one
-            .<Void>andThen(l -> {
-                client.admin()
-                    .cluster()
-                    .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, "final-clone")
-                    .setIndices(index)
-                    .execute(l.map(r -> null));
             });
 
         deterministicTaskQueue.runAllRunnableTasks();
-
-        // A shard clone which failed synchronously, e.g. because the clone was aborted by a new master, must not remain registered as
-        // running
         testClusterNodes.nodes().values().forEach(n -> assertTrue(n.snapshotsService().assertAllListenersResolved()));
+        assertTrue(cloneFinishedListener.isDone());
+        safeAwait(cloneFinishedListener); // shouldn't throw
 
-        if (testListener.isDone() == false) {
-            // A final clone whose shards are stuck in INIT on the current master indicates that a shard clone was left blocked.
-            fail(
-                "executed all runnable tasks but test steps are still incomplete:\n" + testClusterNodes.nodes().values().stream().map(n -> {
-                    final var state = n.clusterService().state();
-                    return Strings.format(
-                        "[%s] master=[%s] term=[%d] version=[%d] snapshots=%s",
-                        n.node().getName(),
-                        state.nodes().getMasterNodeId(),
-                        state.term(),
-                        state.version(),
-                        Strings.toTruncatedString(SnapshotsInProgress.get(state), true, true)
-                    );
-                }).collect(Collectors.joining("\n"))
+        usurpCurrentMaster(originalMaster, observerClusterService).addListener(null);
+        deterministicTaskQueue.runAllRunnableTasks();
+
+        // No shard clone should have been left permanently blocked by the aborted one
+        final var finalCloneListener = SubscribableListener.<Void>newForked(
+            l -> client.admin()
+                .cluster()
+                .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, "final-clone")
+                .setIndices(index)
+                .execute(l.map(r -> null))
+        );
+
+        deterministicTaskQueue.runAllRunnableTasks();
+        for (final var testClusterNode : testClusterNodes.nodes().values()) {
+            final var nodeState = testClusterNode.clusterService().state();
+            logger.info(
+                "--> at end [{}] master=[{}] term=[{}] version=[{}] snapshots={}",
+                testClusterNode.node().descriptionWithoutAttributes(),
+                nodeState.nodes().getMasterNodeId(),
+                nodeState.term(),
+                nodeState.version(),
+                Strings.toTruncatedString(SnapshotsInProgress.get(nodeState), true, true)
             );
+            assertTrue(testClusterNode.snapshotsService().assertAllListenersResolved());
         }
-        safeAwait(testListener); // shouldn't throw
+        assertTrue(finalCloneListener.isDone());
+        safeAwait(finalCloneListener); // shouldn't throw
     }
 
     public void testSnapshotDeleteWithMasterFailover() {
