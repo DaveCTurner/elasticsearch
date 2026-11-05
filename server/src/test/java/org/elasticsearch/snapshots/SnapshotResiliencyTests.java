@@ -439,15 +439,21 @@ public class SnapshotResiliencyTests extends ESTestCase {
             .<Void>andThen(l -> usurpCurrentMaster(originalMaster, observerClusterService).addListener(l))
 
             // No shard clone should have been left permanently blocked by the aborted one
-            .<Void>andThen(
-                l -> client.admin()
+            .<Void>andThen(l -> {
+                logger.info("--> trigger final clone");
+                client.admin()
                     .cluster()
                     .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, "final-clone")
                     .setIndices(index)
-                    .execute(l.map(r -> null))
-            );
+                    .execute(l.map(r -> {
+                        logger.info("--> completed final clone");
+                        return null;
+                    }));
+            });
 
+        logger.info("--> before runAllRunnableTasks");
         deterministicTaskQueue.runAllRunnableTasks();
+        logger.info("--> after runAllRunnableTasks; testListener.isDone()={}", testListener.isDone());
         assertTrue("executed all runnable tasks but test steps are still incomplete", testListener.isDone());
         safeAwait(testListener); // shouldn't throw
     }
