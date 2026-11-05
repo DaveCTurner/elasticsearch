@@ -382,6 +382,12 @@ public class SnapshotResiliencyTests extends ESTestCase {
         final var client = observerNode.client();
 
         final var originalMaster = testClusterNodes.randomMasterNodeSafe();
+        final var newMaster = randomValueOtherThan(
+            originalMaster,
+            () -> randomFrom(testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList())
+        );
+
+        final String cloneName = randomIdentifier("clone-");
 
         final var testListener = SubscribableListener
             // Create the repo and index
@@ -396,56 +402,44 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     .execute(l.map(v -> null))
             )
 
-            // Start a clone, and as soon as it appears in the cluster state fail over to a different master. Once that has taken over,
-            // abort the clone and wait for it to go.
+            // Start a clone and wait for it to appear in the cluster state
             .<Void>andThen(l -> {
-                final var newMaster = randomValueOtherThan(
-                    originalMaster,
-                    () -> randomFrom(testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList())
-                );
-
-                final String cloneName = randomIdentifier("clone-");
                 client.admin()
                     .cluster()
                     .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, cloneName)
                     .setIndices(index)
                     .execute(ActionListener.noop());
 
-                ClusterServiceUtils
-                    // Wait for the clone to appear in the cluster state
-                    .addTemporaryStateListener(
-                        observerClusterService,
-                        cs -> SnapshotsInProgress.get(cs)
-                            .asStream()
-                            .anyMatch(e -> e.isClone() && e.snapshot().getSnapshotId().getName().equals(cloneName))
-                    )
-                    .<Void>andThen(failedOverListener -> {
-                        usurpCurrentMaster(newMaster);
+                ClusterServiceUtils.addTemporaryStateListener(
+                    observerClusterService,
+                    cs -> SnapshotsInProgress.get(cs)
+                        .asStream()
+                        .anyMatch(e -> e.isClone() && e.snapshot().getSnapshotId().getName().equals(cloneName))
+                ).addListener(l);
+            })
 
-                        ClusterServiceUtils
-                            // Wait for the new master to take over
-                            .addTemporaryStateListener(
-                                observerClusterService,
-                                cs -> newMaster.node().getId().equals(cs.nodes().getMasterNodeId())
-                            )
-                            .addListener(failedOverListener);
-                    })
-                    .<Void>andThen(settledListener -> {
-                        client.admin()
-                            .cluster()
-                            .prepareDeleteSnapshot(TEST_REQUEST_TIMEOUT, repoName, cloneName)
-                            // The delete may legitimately fail, so ignore the result
-                            .execute(ActionListener.noop());
+            // Fail over to a different master and wait for it to take over
+            .<Void>andThen(l -> {
+                usurpCurrentMaster(newMaster);
 
-                        ClusterServiceUtils
-                            // Wait for the snapshots/deletions to be removed from the cluster state
-                            .addTemporaryStateListener(
-                                observerClusterService,
-                                cs -> SnapshotsInProgress.get(cs).isEmpty() && SnapshotDeletionsInProgress.get(cs).getEntries().isEmpty()
-                            )
-                            .addListener(settledListener);
-                    })
-                    .addListener(l);
+                ClusterServiceUtils.addTemporaryStateListener(
+                    observerClusterService,
+                    cs -> newMaster.node().getId().equals(cs.nodes().getMasterNodeId())
+                ).addListener(l);
+            })
+
+            // Abort the clone and wait for it to go
+            .<Void>andThen(l -> {
+                client.admin()
+                    .cluster()
+                    .prepareDeleteSnapshot(TEST_REQUEST_TIMEOUT, repoName, cloneName)
+                    // The delete may legitimately fail, so ignore the result
+                    .execute(ActionListener.noop());
+
+                ClusterServiceUtils.addTemporaryStateListener(
+                    observerClusterService,
+                    cs -> SnapshotsInProgress.get(cs).isEmpty() && SnapshotDeletionsInProgress.get(cs).getEntries().isEmpty()
+                ).addListener(l);
             })
 
             // Elect the original master again and wait for it to take over. The whole election happens without the clock advancing, so
