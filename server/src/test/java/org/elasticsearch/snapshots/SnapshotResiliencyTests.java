@@ -429,10 +429,12 @@ public class SnapshotResiliencyTests extends ESTestCase {
                             .execute(ActionListener.noop());
 
                         ClusterServiceUtils
-                            // Wait for the snapshots/deletions to be removed from the cluster state
+                            // Wait for the new master to take over and for the snapshots/deletions to be removed from the cluster state
                             .addTemporaryStateListener(
                                 observerClusterService,
-                                cs -> SnapshotsInProgress.get(cs).isEmpty() && SnapshotDeletionsInProgress.get(cs).getEntries().isEmpty()
+                                cs -> newMaster.node().getId().equals(cs.nodes().getMasterNodeId())
+                                    && SnapshotsInProgress.get(cs).isEmpty()
+                                    && SnapshotDeletionsInProgress.get(cs).getEntries().isEmpty()
                             )
                             .addListener(settledListener);
 
@@ -443,11 +445,10 @@ public class SnapshotResiliencyTests extends ESTestCase {
             // Elect the original master again and wait for it to take over. The whole election happens without the clock advancing, so
             // there is no chance of a competing election.
             .<Void>andThen(l -> {
-                final long termBeforeElection = observerClusterService.state().term();
                 usurpCurrentMaster(originalMaster);
                 ClusterServiceUtils.addTemporaryStateListener(
                     observerClusterService,
-                    cs -> cs.term() > termBeforeElection && originalMaster.node().getId().equals(cs.nodes().getMasterNodeId())
+                    cs -> originalMaster.node().getId().equals(cs.nodes().getMasterNodeId())
                 ).addListener(l);
             })
 
