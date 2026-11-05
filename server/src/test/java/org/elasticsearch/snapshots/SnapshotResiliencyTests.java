@@ -402,7 +402,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     originalMaster,
                     () -> randomFrom(testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList())
                 );
-                scheduleNow(() -> failOverMaster(newMaster));
+                scheduleNow(() -> usurpCurrentMaster(newMaster));
 
                 final String cloneName = randomIdentifier("clone-");
                 scheduleNow(
@@ -454,7 +454,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                 l.onResponse(null);
                                 return;
                             }
-                            failOverMaster(originalMaster);
+                            usurpCurrentMaster(originalMaster);
                         }
                         deterministicTaskQueue.scheduleAt(deterministicTaskQueue.getCurrentTimeMillis() + 100L, this);
                     }
@@ -2121,7 +2121,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
      * The new term is one more than the highest current term of any master-eligible node, so as long as no other election is in progress it
      * is the term in which {@code newMaster} is eventually elected.
      */
-    private void failOverMaster(TestClusterNodes.TestClusterNode newMaster) {
+    private void usurpCurrentMaster(TestClusterNodes.TestClusterNode newMaster) {
         final var masterNodes = testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList();
         final var startJoinRequest = new StartJoinRequest(
             newMaster.node(),
