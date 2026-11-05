@@ -398,7 +398,11 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
             // Start a failover and a clone concurrently, abort the clone as soon as it appears in the cluster state, and wait for it to go
             .<Void>andThen(l -> {
-                scheduleNow(this::forceMasterFailover);
+                final var newMaster = randomValueOtherThan(
+                    originalMaster,
+                    () -> randomFrom(testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList())
+                );
+                scheduleNow(() -> failOverMaster(newMaster));
 
                 final String cloneName = randomIdentifier("clone-");
                 scheduleNow(
@@ -450,29 +454,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                 l.onResponse(null);
                                 return;
                             }
-                            final var masterNodes = testClusterNodes.nodes()
-                                .values()
-                                .stream()
-                                .filter(n -> n.node().isMasterNode())
-                                .toList();
-                            final var startJoinRequest = new StartJoinRequest(
-                                originalMaster.node(),
-                                1 + masterNodes.stream()
-                                    .mapToLong(
-                                        n -> n.coordinator().getClusterFormationState().clusterFormationClusterStateView().currentTerm()
-                                    )
-                                    .max()
-                                    .orElseThrow()
-                            );
-                            for (final var masterNode : masterNodes) {
-                                originalMaster.transportService()
-                                    .sendRequest(
-                                        masterNode.node(),
-                                        JoinHelper.START_JOIN_ACTION_NAME,
-                                        startJoinRequest,
-                                        TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, ActionListener.noop())
-                                    );
-                            }
+                            failOverMaster(originalMaster);
                         }
                         deterministicTaskQueue.scheduleAt(deterministicTaskQueue.getCurrentTimeMillis() + 100L, this);
                     }
@@ -2131,16 +2113,35 @@ public class SnapshotResiliencyTests extends ESTestCase {
     }
 
     /**
-     * Triggers an election by forcing every master-eligible node other than the elected master into candidate mode. Unlike
-     * {@link #disconnectOrRestartMasterNode} this leaves the old master connected and unaware that it has lost the election until it
-     * receives the new master's cluster state, so it may carry on acting as master (e.g. completing in-flight publications) on stale state.
+     * Forces a failover to {@code newMaster} by sending it, and every other master-eligible node, a {@link StartJoinRequest} in a new term,
+     * so that {@code newMaster} wins a genuine election. The elected master being deposed (if it is not {@code newMaster}) is deliberately
+     * left out, so it remains connected and unaware that it has lost the election until it receives the new master's cluster state, and it
+     * may carry on acting as master (e.g. completing in-flight publications) on stale state in the meantime.
+     * <p>
+     * The new term is one more than the highest current term of any master-eligible node, so as long as no other election is in progress it
+     * is the term in which {@code newMaster} is eventually elected.
      */
-    private void forceMasterFailover() {
-        testClusterNodes.nodes()
-            .values()
-            .stream()
-            .filter(n -> n.node().isMasterNode() && n.clusterService().state().nodes().isLocalNodeElectedMaster() == false)
-            .forEach(n -> AbstractCoordinatorTestCase.becomeCandidate(n.coordinator(), "forceMasterFailover"));
+    private void failOverMaster(TestClusterNodes.TestClusterNode newMaster) {
+        final var masterNodes = testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList();
+        final var startJoinRequest = new StartJoinRequest(
+            newMaster.node(),
+            1 + masterNodes.stream()
+                .mapToLong(n -> n.coordinator().getClusterFormationState().clusterFormationClusterStateView().currentTerm())
+                .max()
+                .orElseThrow()
+        );
+        for (final var masterNode : masterNodes) {
+            if (masterNode != newMaster && masterNode.clusterService().state().nodes().isLocalNodeElectedMaster()) {
+                continue;
+            }
+            newMaster.transportService()
+                .sendRequest(
+                    masterNode.node(),
+                    JoinHelper.START_JOIN_ACTION_NAME,
+                    startJoinRequest,
+                    TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, ActionListener.noop())
+                );
+        }
     }
 
     protected void disconnectOrRestartMasterNode() {
