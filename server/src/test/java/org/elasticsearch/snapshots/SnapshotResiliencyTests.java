@@ -446,7 +446,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     .execute(l.map(r -> null))
             );
 
-        runUntil(testListener::isDone, TimeUnit.MINUTES.toMillis(10L));
+        deterministicTaskQueue.runAllRunnableTasks();
+        assertTrue("executed all runnable tasks but test steps are still incomplete", testListener.isDone());
         safeAwait(testListener); // shouldn't throw
     }
 
