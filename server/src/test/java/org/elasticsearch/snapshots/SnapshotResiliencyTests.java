@@ -397,8 +397,14 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, "clone-" + round)
                 .setIndices(index)
                 .execute(ActionListener.noop());
-            scheduleSoon(this::disconnectOrRestartMasterNode);
-            scheduleSoon(() -> testClusterNodes.clearNetworkDisruptions());
+            final AtomicBoolean failedOver = new AtomicBoolean();
+            scheduleSoon(() -> {
+                disconnectOrRestartMasterNode();
+                failedOver.set(true);
+            });
+            // Let the failover happen, and then let the clone make some progress under it, before healing the cluster
+            runUntil(failedOver::get, TimeUnit.MINUTES.toMillis(1L));
+            runUntil(() -> randomIntBetween(0, 20) == 0, TimeUnit.MINUTES.toMillis(1L));
             clearDisruptionsAndAwaitSync();
             runUntil(
                 () -> testClusterNodes.randomMasterNode()
