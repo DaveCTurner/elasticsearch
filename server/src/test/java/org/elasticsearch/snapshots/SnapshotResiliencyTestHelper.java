@@ -1277,6 +1277,10 @@ public class SnapshotResiliencyTestHelper {
                 return repositoriesService;
             }
 
+            public SnapshotsService snapshotsService() {
+                return snapshotsService;
+            }
+
             public ClusterService clusterService() {
                 return clusterService;
             }

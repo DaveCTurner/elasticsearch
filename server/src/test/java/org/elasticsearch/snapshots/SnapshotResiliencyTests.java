@@ -451,6 +451,11 @@ public class SnapshotResiliencyTests extends ESTestCase {
             });
 
         deterministicTaskQueue.runAllRunnableTasks();
+
+        // A shard clone which failed synchronously, e.g. because the clone was aborted by a new master, must not remain registered as
+        // running
+        testClusterNodes.nodes().values().forEach(n -> assertTrue(n.snapshotsService().assertAllListenersResolved()));
+
         if (testListener.isDone() == false) {
             // A final clone whose shards are stuck in INIT on the current master indicates that a shard clone was left blocked.
             fail(
