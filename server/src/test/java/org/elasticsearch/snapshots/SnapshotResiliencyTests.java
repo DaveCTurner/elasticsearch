@@ -405,13 +405,11 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 scheduleNow(() -> usurpCurrentMaster(newMaster));
 
                 final String cloneName = randomIdentifier("clone-");
-                scheduleNow(
-                    () -> client.admin()
-                        .cluster()
-                        .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, cloneName)
-                        .setIndices(index)
-                        .execute(ActionListener.noop())
-                );
+                client.admin()
+                    .cluster()
+                    .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, cloneName)
+                    .setIndices(index)
+                    .execute(ActionListener.noop());
 
                 ClusterServiceUtils
 
