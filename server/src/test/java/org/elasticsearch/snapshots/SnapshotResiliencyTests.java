@@ -415,21 +415,21 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     cs -> SnapshotsInProgress.get(cs)
                         .asStream()
                         .anyMatch(e -> e.isClone() && e.snapshot().getSnapshotId().getName().equals(cloneName))
-                ).addListener(l.delegateFailureAndWrap((l1, ignored) -> scheduleNow(() -> {
-                    // The delete may legitimately fail, e.g. if the clone completed or failed in the meantime.
-                    client.admin()
-                        .cluster()
-                        .prepareDeleteSnapshot(TEST_REQUEST_TIMEOUT, repoName, cloneName)
-                        .execute(
-                            ActionListener.running(
-                                () -> ClusterServiceUtils.addTemporaryStateListener(
-                                    observerClusterService,
-                                    cs -> SnapshotsInProgress.get(cs).isEmpty()
-                                        && SnapshotDeletionsInProgress.get(cs).getEntries().isEmpty()
-                                ).addListener(l1)
-                            )
-                        );
-                })));
+                ).<Void>andThen(settledListener -> {
+                    // Wait for everything to settle down, however the clone and the delete end up resolving.
+                    ClusterServiceUtils.addTemporaryStateListener(
+                        observerClusterService,
+                        cs -> SnapshotsInProgress.get(cs).isEmpty() && SnapshotDeletionsInProgress.get(cs).getEntries().isEmpty()
+                    ).addListener(settledListener);
+
+                    // The delete may legitimately fail, e.g. if the clone completed or failed in the meantime, so ignore its outcome.
+                    scheduleNow(
+                        () -> client.admin()
+                            .cluster()
+                            .prepareDeleteSnapshot(TEST_REQUEST_TIMEOUT, repoName, cloneName)
+                            .execute(ActionListener.noop())
+                    );
+                }).addListener(l);
             })
 
             // Fail over again, and then no shard clone should have been left permanently blocked by the aborted one
