@@ -373,9 +373,9 @@ public class SnapshotResiliencyTests extends ESTestCase {
     public void testCloneAbortedByMasterFailover() {
         setupTestCluster(randomFrom(3, 5), randomIntBetween(1, 3));
 
-        final String repoName = "repo";
-        final String index = randomIndexName();
-        final String sourceSnapshotName = randomSnapshotName();
+        final var repoName = "repo";
+        final var index = randomIndexName();
+        final var sourceSnapshotName = randomSnapshotName();
 
         // Observe the cluster state from a node which is never master, so that the observation is unaffected by failovers.
         final var observerNode = testClusterNodes.randomDataNodeSafe();
@@ -385,7 +385,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
         final var originalMaster = testClusterNodes.randomMasterNodeSafe();
         final var newMaster = randomValueOtherThan(originalMaster, testClusterNodes::randomMasterNodeSafe);
 
-        final String cloneName = randomIdentifier("clone-");
+        final var cloneName = randomIdentifier("clone-");
 
         final var testListener = SubscribableListener
             // Create the repo and index
