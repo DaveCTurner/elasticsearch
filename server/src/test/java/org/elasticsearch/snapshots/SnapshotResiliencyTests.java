@@ -371,13 +371,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
     }
 
     @TestLogging(
-        reason = "nocommit",
-        value = "org.elasticsearch.cluster.service.MasterService:TRACE"
-            + ",org.elasticsearch.cluster.coordination:TRACE"
-            + ",org.elasticsearch.discovery:TRACE"
-            + ",org.elasticsearch.transport.DisruptableMockTransport:TRACE"
-            + ",org.elasticsearch.test.transport.MockTransport:TRACE"
-            + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+        reason = "a stuck final clone is diagnosed from the abort/clone logging in these classes",
+        value = "org.elasticsearch.snapshots.SnapshotsService:DEBUG,org.elasticsearch.repositories.blobstore.BlobStoreRepository:DEBUG"
     )
     public void testCloneAbortedByMasterFailover() {
         setupTestCluster(randomFrom(3, 5), randomIntBetween(1, 3));
@@ -448,21 +443,30 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
             // No shard clone should have been left permanently blocked by the aborted one
             .<Void>andThen(l -> {
-                logger.info("--> trigger final clone");
                 client.admin()
                     .cluster()
                     .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, "final-clone")
                     .setIndices(index)
-                    .execute(l.map(r -> {
-                        logger.info("--> completed final clone");
-                        return null;
-                    }));
+                    .execute(l.map(r -> null));
             });
 
-        logger.info("--> before runAllRunnableTasks");
         deterministicTaskQueue.runAllRunnableTasks();
-        logger.info("--> after runAllRunnableTasks; testListener.isDone()={}", testListener.isDone());
-        assertTrue("executed all runnable tasks but test steps are still incomplete", testListener.isDone());
+        if (testListener.isDone() == false) {
+            // A final clone whose shards are stuck in INIT on the current master indicates that a shard clone was left blocked.
+            fail(
+                "executed all runnable tasks but test steps are still incomplete:\n" + testClusterNodes.nodes().values().stream().map(n -> {
+                    final var state = n.clusterService().state();
+                    return Strings.format(
+                        "[%s] master=[%s] term=[%d] version=[%d] snapshots=%s",
+                        n.node().getName(),
+                        state.nodes().getMasterNodeId(),
+                        state.term(),
+                        state.version(),
+                        Strings.toTruncatedString(SnapshotsInProgress.get(state), true, true)
+                    );
+                }).collect(Collectors.joining("\n"))
+            );
+        }
         safeAwait(testListener); // shouldn't throw
     }
 
