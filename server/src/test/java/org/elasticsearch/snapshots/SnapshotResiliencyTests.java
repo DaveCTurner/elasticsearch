@@ -436,44 +436,47 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     .addListener(l);
             })
 
-            // Wait for the cluster to stabilise after the first failover
-            .<Void>andThen(l -> new Runnable() {
-                @Override
-                public void run() {
-                    if (clusterIsStable()) {
-                        l.onResponse(null);
-                    } else {
+            // Once the cluster has stabilised after the first failover, elect the original master again. Other nodes may still win a
+            // competing election, so keep going until the original master is stable in its new term.
+            .<Void>andThen(l -> {
+                final long termBeforeElection = observerClusterService.state().term();
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        if (clusterIsStable()) {
+                            final var observedState = observerClusterService.state();
+                            if (observedState.term() > termBeforeElection
+                                && originalMaster.node().getId().equals(observedState.nodes().getMasterNodeId())) {
+                                l.onResponse(null);
+                                return;
+                            }
+                            final var masterNodes = testClusterNodes.nodes()
+                                .values()
+                                .stream()
+                                .filter(n -> n.node().isMasterNode())
+                                .toList();
+                            final var startJoinRequest = new StartJoinRequest(
+                                originalMaster.node(),
+                                1 + masterNodes.stream()
+                                    .mapToLong(
+                                        n -> n.coordinator().getClusterFormationState().clusterFormationClusterStateView().currentTerm()
+                                    )
+                                    .max()
+                                    .orElseThrow()
+                            );
+                            for (final var masterNode : masterNodes) {
+                                originalMaster.transportService()
+                                    .sendRequest(
+                                        masterNode.node(),
+                                        JoinHelper.START_JOIN_ACTION_NAME,
+                                        startJoinRequest,
+                                        TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, ActionListener.noop())
+                                    );
+                            }
+                        }
                         deterministicTaskQueue.scheduleAt(deterministicTaskQueue.getCurrentTimeMillis() + 100L, this);
                     }
-                }
-            }.run())
-
-            // Elect the original master again and wait for it to take over
-            .<Void>andThen(l -> {
-                final var masterNodes = testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList();
-                final var startJoinRequest = new StartJoinRequest(
-                    originalMaster.node(),
-                    1 + masterNodes.stream()
-                        .mapToLong(n -> n.coordinator().getClusterFormationState().clusterFormationClusterStateView().currentTerm())
-                        .max()
-                        .orElseThrow()
-                );
-                for (final var masterNode : masterNodes) {
-                    originalMaster.transportService()
-                        .sendRequest(
-                            masterNode.node(),
-                            JoinHelper.START_JOIN_ACTION_NAME,
-                            startJoinRequest,
-                            TransportResponseHandler.empty(EsExecutors.DIRECT_EXECUTOR_SERVICE, ActionListener.noop())
-                        );
-                }
-
-                // The original master may already be the master, so also wait for the term to advance.
-                final long termBeforeElection = observerClusterService.state().term();
-                ClusterServiceUtils.addTemporaryStateListener(
-                    observerClusterService,
-                    cs -> cs.term() > termBeforeElection && originalMaster.node().getId().equals(cs.nodes().getMasterNodeId())
-                ).addListener(l);
+                }.run();
             })
 
             // No shard clone should have been left permanently blocked by the aborted one
