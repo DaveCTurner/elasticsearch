@@ -245,6 +245,16 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             + DEFAULT_CLUSTER_STATE_UPDATE_DELAY;
 
     /**
+     * Forces the given coordinator back into candidate mode, as if it had lost contact with its leader, without touching the network. In
+     * particular this does not stop the current elected master from believing that it is still the master.
+     */
+    public static void becomeCandidate(Coordinator coordinator, String reason) {
+        synchronized (coordinator.mutex) {
+            coordinator.becomeCandidate(reason);
+        }
+    }
+
+    /**
      * An estimate for the max time needed to stabilize a cluster. Takes into account delays for various communications involved in
      * leader elections.
      * */

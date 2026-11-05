@@ -397,16 +397,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 .prepareCloneSnapshot(TEST_REQUEST_TIMEOUT, repoName, sourceSnapshotName, "clone-" + round)
                 .setIndices(index)
                 .execute(ActionListener.noop());
-            final AtomicBoolean failedOver = new AtomicBoolean();
-            scheduleSoon(() -> {
-                disconnectOrRestartMasterNode();
-                failedOver.set(true);
-            });
-            // Let the failover happen, and then let the clone make some progress under it, before healing the cluster
-            runUntil(failedOver::get, TimeUnit.MINUTES.toMillis(1L));
-            final long healTime = deterministicTaskQueue.getCurrentTimeMillis() + randomLongBetween(0, 5000L);
-            runUntil(() -> deterministicTaskQueue.getCurrentTimeMillis() >= healTime, TimeUnit.MINUTES.toMillis(1L));
-            clearDisruptionsAndAwaitSync();
+            scheduleSoon(this::forceMasterFailover);
+            stabilize();
             runUntil(
                 () -> testClusterNodes.randomMasterNode()
                     .map(master -> SnapshotsInProgress.get(master.clusterService().state()).isEmpty())
@@ -2061,6 +2053,19 @@ public class SnapshotResiliencyTests extends ESTestCase {
         } else {
             testClusterNodes.randomDataNode().ifPresent(TestClusterNodes.TestClusterNode::restart);
         }
+    }
+
+    /**
+     * Triggers an election by forcing every master-eligible node other than the elected master into candidate mode. Unlike
+     * {@link #disconnectOrRestartMasterNode} this leaves the old master connected and unaware that it has lost the election until it
+     * receives the new master's cluster state, so it may carry on acting as master (e.g. completing in-flight publications) on stale state.
+     */
+    private void forceMasterFailover() {
+        testClusterNodes.nodes()
+            .values()
+            .stream()
+            .filter(n -> n.node().isMasterNode() && n.clusterService().state().nodes().isLocalNodeElectedMaster() == false)
+            .forEach(n -> AbstractCoordinatorTestCase.becomeCandidate(n.coordinator(), "forceMasterFailover"));
     }
 
     protected void disconnectOrRestartMasterNode() {
