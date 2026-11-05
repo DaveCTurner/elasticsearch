@@ -3378,6 +3378,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
         assert snapshotDeletionListeners.isEmpty()
             : "Found leaked snapshot delete listeners " + snapshotDeletionListeners + " on [" + localNode + "]";
         assert repositoryOperations.isEmpty() : "Found leaked snapshots to finalize " + repositoryOperations + " on [" + localNode + "]";
+        assert runningShardClones.isEmpty() : "Found leaked running shard clones " + runningShardClones + " on [" + localNode + "]";
         return true;
     }
 }
