@@ -375,7 +375,9 @@ public class SnapshotResiliencyTests extends ESTestCase {
         value = "org.elasticsearch.snapshots.SnapshotsService:DEBUG,org.elasticsearch.repositories.blobstore.BlobStoreRepository:DEBUG"
     )
     public void testCloneAbortedByMasterFailover() {
-        setupTestCluster(randomFrom(3, 5), randomIntBetween(1, 3));
+        // Snapshot finalization may be delayed to keep end times monotonic, which would need the clock to advance, but this test only runs
+        // runnable tasks.
+        setupTestCluster(randomFrom(3, 5), randomIntBetween(1, 3), ignored -> TransportService.NOOP_TRANSPORT_INTERCEPTOR, false);
 
         final var repoName = "repo";
         final var index = randomIndexName();
@@ -386,7 +388,12 @@ public class SnapshotResiliencyTests extends ESTestCase {
         final var observerClusterService = observerNode.clusterService();
         final var client = observerNode.client();
 
-        final var originalMaster = testClusterNodes.randomMasterNodeSafe();
+        final var originalMaster = testClusterNodes.nodes()
+            .values()
+            .stream()
+            .filter(n -> n.clusterService().state().nodes().isLocalNodeElectedMaster())
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("expected an elected master"));
         final var newMaster = randomValueOtherThan(originalMaster, testClusterNodes::randomMasterNodeSafe);
 
         final var cloneName = randomIdentifier("clone-");
