@@ -397,7 +397,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
         final var cloneName = randomIdentifier("clone-");
 
-        final var cloneFinishedListener = SubscribableListener
+        final var cloneAndAbortFinishedListener = SubscribableListener
             // Create the repo and index
             .<CreateIndexResponse>newForked(l -> createRepoAndIndex(repoName, index, randomIntBetween(1, 5)).addListener(l))
 
@@ -444,8 +444,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
         deterministicTaskQueue.runAllRunnableTasks();
         testClusterNodes.nodes().values().forEach(n -> assertTrue(n.snapshotsService().assertAllListenersResolved()));
-        assertTrue(cloneFinishedListener.isDone());
-        safeAwait(cloneFinishedListener); // shouldn't throw
+        assertTrue(cloneAndAbortFinishedListener.isDone());
+        safeAwait(cloneAndAbortFinishedListener); // shouldn't throw
 
         usurpCurrentMaster(originalMaster);
         deterministicTaskQueue.runAllRunnableTasks();
