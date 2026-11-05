@@ -383,10 +383,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
         final var client = observerNode.client();
 
         final var originalMaster = testClusterNodes.randomMasterNodeSafe();
-        final var newMaster = randomValueOtherThan(
-            originalMaster,
-            () -> randomFrom(testClusterNodes.nodes().values().stream().filter(n -> n.node().isMasterNode()).toList())
-        );
+        final var newMaster = randomValueOtherThan(originalMaster, testClusterNodes::randomMasterNodeSafe);
 
         final String cloneName = randomIdentifier("clone-");
 
