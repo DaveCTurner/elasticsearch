@@ -410,7 +410,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     .execute(l.map(ignored -> null))
             )
 
-            // Start a clone and wait for it to appear in the cluster state
+            // Start a clone and wait until a shard is assigned (INIT). runReadyShardClone is called from the publication-completion
+            // task of that state update, which is scheduled only after the state is applied.
             .<Void>andThen(l -> {
                 client.admin()
                     .cluster()
@@ -422,7 +423,14 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     observerClusterService,
                     cs -> SnapshotsInProgress.get(cs)
                         .asStream()
-                        .anyMatch(e -> e.isClone() && e.snapshot().getSnapshotId().getName().equals(cloneName))
+                        .anyMatch(
+                            e -> e.isClone()
+                                && e.snapshot().getSnapshotId().getName().equals(cloneName)
+                                && e.shardSnapshotStatusByRepoShardId()
+                                    .values()
+                                    .stream()
+                                    .anyMatch(status -> status.state() == SnapshotsInProgress.ShardState.INIT)
+                        )
                 ).addListener(l);
             })
 
