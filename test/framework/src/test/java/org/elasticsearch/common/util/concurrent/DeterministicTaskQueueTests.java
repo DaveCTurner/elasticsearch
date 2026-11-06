@@ -60,6 +60,52 @@ public class DeterministicTaskQueueTests extends ESTestCase {
         assertFalse(taskQueue.hasRunnableTasks());
     }
 
+    public void testRunOnlyWhenLast() {
+        final DeterministicTaskQueue taskQueue = new DeterministicTaskQueue(new Random(0));
+        final List<String> order = new ArrayList<>();
+
+        taskQueue.scheduleNow(new Runnable() {
+            @Override
+            public void run() {
+                order.add("completion-1");
+                taskQueue.scheduleNow(() -> order.add("spawned-by-completion"));
+            }
+
+            @Override
+            public String toString() {
+                return "publication completion listener for version [1]";
+            }
+        });
+        taskQueue.scheduleNow(new Runnable() {
+            @Override
+            public void run() {
+                order.add("completion-2");
+            }
+
+            @Override
+            public String toString() {
+                return "publication completion listener for version [2]";
+            }
+        });
+        taskQueue.scheduleNow(() -> {
+            order.add("other");
+            taskQueue.scheduleNow(() -> order.add("spawned-by-other"));
+        });
+
+        taskQueue.runAllRunnableTasks();
+
+        assertThat(order.get(0), equalTo("other"));
+        assertThat(order.get(1), equalTo("spawned-by-other"));
+        assertThat(order.subList(2, 3), contains(oneOf("completion-1", "completion-2")));
+        if (order.get(2).equals("completion-1")) {
+            assertThat(order, contains("other", "spawned-by-other", "completion-1", "spawned-by-completion", "completion-2"));
+        } else {
+            assertThat(order, contains("other", "spawned-by-other", "completion-2", "completion-1", "spawned-by-completion"));
+        }
+        assertFalse(taskQueue.hasRunnableTasks());
+        assertFalse(taskQueue.hasImmediatelyRunnableTasks());
+    }
+
     public void testRunRandomTaskVariesOrder() {
         final List<String> strings1 = getResultsOfRunningRandomly(new Random(4520795446362137264L));
         final List<String> strings2 = getResultsOfRunningRandomly(new Random(266504691902226821L));

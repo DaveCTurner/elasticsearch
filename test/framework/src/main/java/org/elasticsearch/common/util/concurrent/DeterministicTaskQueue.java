@@ -53,7 +53,11 @@ public class DeterministicTaskQueue {
 
     public static final String NODE_ID_LOG_CONTEXT_KEY = "nodeId";
 
+    private static final String PUBLICATION_COMPLETION_LISTENER = "publication completion listener";
+
     private final List<Runnable> runnableTasks = new ArrayList<>();
+    // TODO NOCOMMIT remove this hack
+    private final List<Runnable> runLastTasks = new ArrayList<>();
     private final Random random;
     private List<DeferredTask> deferredTasks = new ArrayList<>();
     private long currentTimeMillis;
@@ -121,7 +125,7 @@ public class DeterministicTaskQueue {
      * @return whether there are any runnable tasks.
      */
     public boolean hasRunnableTasks() {
-        return runnableTasks.isEmpty() == false;
+        return runnableTasks.isEmpty() == false || runLastTasks.isEmpty() == false;
     }
 
     /**
@@ -146,17 +150,34 @@ public class DeterministicTaskQueue {
     }
 
     /**
-     * Runs an arbitrary runnable task.
+     * @return whether any runnable task may run while publication-completion listeners are waiting.
+     */
+    public boolean hasImmediatelyRunnableTasks() {
+        return runnableTasks.isEmpty() == false;
+    }
+
+    /**
+     * Runs an arbitrary runnable task. Tasks in {@link #runnableTasks} are preferred over {@link #runLastTasks}.
      */
     public void runRandomTask() {
         assert hasRunnableTasks();
-        runTask(RandomNumbers.randomIntBetween(random, 0, runnableTasks.size() - 1));
+        final List<Runnable> candidates = runnableTasks.isEmpty() ? runLastTasks : runnableTasks;
+        final Runnable task = candidates.remove(RandomNumbers.randomIntBetween(random, 0, candidates.size() - 1));
+        logger.trace(
+            "running task, {} immediately-runnable and {} run-last remaining: {}",
+            runnableTasks.size(),
+            runLastTasks.size(),
+            task
+        );
+        task.run();
     }
 
-    private void runTask(final int index) {
-        final Runnable task = runnableTasks.remove(index);
-        logger.trace("running task {} of {}: {}", index, runnableTasks.size() + 1, task);
-        task.run();
+    private void addRunnableTask(Runnable task) {
+        if (task.toString().contains(PUBLICATION_COMPLETION_LISTENER)) {
+            runLastTasks.add(task);
+        } else {
+            runnableTasks.add(task);
+        }
     }
 
     /**
@@ -170,7 +191,7 @@ public class DeterministicTaskQueue {
             scheduleDeferredTask(deferredTask);
         } else {
             logger.trace("scheduleNow: adding runnable {}", task);
-            runnableTasks.add(task);
+            addRunnableTask(task);
         }
     }
 
@@ -182,7 +203,7 @@ public class DeterministicTaskQueue {
         final long actualExecutionTimeMillis = executionTimeMillis + extraDelayMillis;
         if (actualExecutionTimeMillis <= currentTimeMillis) {
             logger.trace("scheduleAt: [{}ms] is not in the future, adding runnable {}", executionTimeMillis, task);
-            runnableTasks.add(task);
+            addRunnableTask(task);
         } else {
             final DeferredTask deferredTask = new DeferredTask(actualExecutionTimeMillis, task);
             logger.trace("scheduleAt: adding {} with extra delay of [{}ms]", deferredTask, extraDelayMillis);
@@ -221,7 +242,7 @@ public class DeterministicTaskQueue {
             assert currentTimeMillis <= deferredTask.executionTimeMillis();
             if (deferredTask.executionTimeMillis() == currentTimeMillis) {
                 logger.trace("advanceTime: no longer deferred: {}", deferredTask);
-                runnableTasks.add(deferredTask.task());
+                addRunnableTask(deferredTask.task());
             } else {
                 remainingDeferredTasks.add(deferredTask);
                 nextDeferredTaskExecutionTimeMillis = Math.min(nextDeferredTaskExecutionTimeMillis, deferredTask.executionTimeMillis());
