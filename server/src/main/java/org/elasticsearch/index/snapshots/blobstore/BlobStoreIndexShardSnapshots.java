@@ -10,6 +10,7 @@
 package org.elasticsearch.index.snapshots.blobstore;
 
 import org.elasticsearch.common.util.CollectionUtils;
+import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.common.xcontent.XContentParserUtils;
 import org.elasticsearch.core.Tuple;
@@ -25,7 +26,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -147,40 +147,38 @@ public class BlobStoreIndexShardSnapshots implements Iterable<SnapshotFiles>, To
         return this.shardSnapshots;
     }
 
-    // index of Lucene file name to collection of file info in the repository
-    // lazy computed because building this is map is rather expensive and only needed for the snapshot create operation
-    private Map<String, Collection<FileInfo>> physicalFiles;
+    /**
+     * The result of {@link #getPhysicalFileMatches}: every target file is either matched by a file that is already snapshotted
+     * ({@code existing}) or not ({@code missing}).
+     *
+     * @param existing the already-snapshotted files that match a target file, in no particular order
+     * @param missing  the target files that no already-snapshotted file matches, in the order they were passed in; a view of a map that
+     *                 is private to the call, so it must be treated as read-only
+     */
+    public record PhysicalFileMatches(Collection<FileInfo> existing, Collection<StoreFileMetadata> missing) {}
 
     /**
-     * Finds reference to a snapshotted file by its {@link StoreFileMetadata}
-     *
-     * @param storeFileMetadata store file metadata to find file info for
-     * @return the file info that matches the specified physical file or null if the file is not present in any of snapshots
+     * Finds the already-snapshotted files that match the given store files, for reuse (deduplication) when creating new shard snapshots.
      */
-    public FileInfo findPhysicalIndexFile(StoreFileMetadata storeFileMetadata) {
-        var p = this.physicalFiles;
-        if (p == null) {
-            p = new HashMap<>();
-            for (SnapshotFiles snapshot : shardSnapshots) {
-                for (FileInfo fileInfo : snapshot.indexFiles()) {
-                    // we use identity hash set since we lookup all instances from the same map and thus equality == instance equality
-                    // and we don't want to add the same file to the map multiple times
-                    p.computeIfAbsent(fileInfo.physicalName(), k -> Collections.newSetFromMap(new IdentityHashMap<>()))
-                        .add(files.get(fileInfo.name()));
-                }
-            }
-            physicalFiles = p;
-        }
-        final var found = p.get(storeFileMetadata.name());
-        if (found == null) {
-            return null;
-        }
-        for (FileInfo fileInfo : found) {
-            if (fileInfo.isSame(storeFileMetadata)) {
-                return fileInfo;
+    public PhysicalFileMatches getPhysicalFileMatches(int sizeHint, Iterator<StoreFileMetadata> targetFiles) {
+        final Map<String, StoreFileMetadata> targetsByName = Maps.newLinkedHashMapWithExpectedSize(sizeHint);
+        while (targetFiles.hasNext()) {
+            final var storeFile = targetFiles.next();
+            if (targetsByName.put(storeFile.name(), storeFile) != null) {
+                throw new IllegalStateException("duplicate store file name [" + storeFile.name() + "]");
             }
         }
-        return null;
+        final List<FileInfo> existing = new ArrayList<>();
+        for (final var fileInfo : files.values()) {
+            if (targetsByName.isEmpty()) {
+                break;
+            }
+            final var storeFile = targetsByName.get(fileInfo.physicalName());
+            if (storeFile != null && fileInfo.isSame(storeFile) && targetsByName.remove(storeFile.name()) != null) {
+                existing.add(fileInfo);
+            }
+        }
+        return new PhysicalFileMatches(existing, targetsByName.values());
     }
 
     /**

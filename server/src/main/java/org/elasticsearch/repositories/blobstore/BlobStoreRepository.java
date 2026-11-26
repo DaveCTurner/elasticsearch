@@ -3617,17 +3617,26 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 // If we did not find a set of files that is equal to the current commit we determine the files to upload by comparing files
                 // in the commit with files already in the repository
                 indexCommitPointFiles = new ArrayList<>();
-                final Collection<String> fileNames;
-                final Store.MetadataSnapshot metadataFromStore;
                 // TODO apparently we don't use the MetadataSnapshot#.recoveryDiff(...) here but we should
-                metadataFromStore = context.metadataSnapshot();
-                fileNames = context.fileNames();
-                for (String fileName : fileNames) {
-                    ensureNotAborted(shardId, snapshotId, snapshotStatus, fileName);
+                final var metadataFromStore = context.metadataSnapshot();
 
-                    logger.trace("[{}] [{}] Processing [{}]", shardId, snapshotId, fileName);
-                    final StoreFileMetadata md = metadataFromStore.get(fileName);
-                    BlobStoreIndexShardSnapshot.FileInfo existingFileInfo = snapshots.findPhysicalIndexFile(md);
+                final var fileNames = context.fileNames();
+                final var physicalFileMatches = snapshots.getPhysicalFileMatches(
+                    fileNames.size(),
+                    Iterators.map(fileNames.iterator(), metadataFromStore::get)
+                );
+
+                for (final var existingFileInfo : physicalFileMatches.existing()) {
+                    ensureNotAborted(shardId, snapshotId, snapshotStatus, existingFileInfo.physicalName());
+                    logger.trace("[{}] [{}] Processing [{}] (already in repo)", shardId, snapshotId, existingFileInfo.physicalName());
+                    indexTotalFileSize += existingFileInfo.length();
+                    indexTotalNumberOfFiles++;
+                    indexCommitPointFiles.add(existingFileInfo);
+                }
+
+                for (final var md : physicalFileMatches.missing()) {
+                    ensureNotAborted(shardId, snapshotId, snapshotStatus, md.name());
+                    logger.trace("[{}] [{}] Processing [{}] (not yet in repo)", shardId, snapshotId, md.name());
 
                     // We can skip writing blobs where the metadata hash is equal to the blob's contents because we store the hash/contents
                     // directly in the shard level metadata in this case
@@ -3635,27 +3644,21 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     indexTotalFileSize += md.length();
                     indexTotalNumberOfFiles++;
 
-                    if (existingFileInfo == null) {
-                        indexIncrementalFileCount++;
-                        indexIncrementalSize += md.length();
-                        // create a new FileInfo
-                        BlobStoreIndexShardSnapshot.FileInfo snapshotFileInfo = new BlobStoreIndexShardSnapshot.FileInfo(
-                            (needsWrite ? UPLOADED_DATA_BLOB_PREFIX : VIRTUAL_DATA_BLOB_PREFIX) + UUIDs.randomBase64UUID(),
-                            md,
-                            chunkSize()
-                        );
-                        indexCommitPointFiles.add(snapshotFileInfo);
-                        if (needsWrite) {
-                            filesToSnapshot.add(snapshotFileInfo);
-                        } else {
-                            assert context.assertFileContentsMatchHash(snapshotFileInfo);
-                            filesInShardMetadataCount += 1;
-                            filesInShardMetadataSize += md.length();
-                        }
+                    indexIncrementalFileCount++;
+                    indexIncrementalSize += md.length();
+                    // create a new FileInfo
+                    BlobStoreIndexShardSnapshot.FileInfo snapshotFileInfo = new BlobStoreIndexShardSnapshot.FileInfo(
+                        (needsWrite ? UPLOADED_DATA_BLOB_PREFIX : VIRTUAL_DATA_BLOB_PREFIX) + UUIDs.randomBase64UUID(),
+                        md,
+                        chunkSize()
+                    );
+                    indexCommitPointFiles.add(snapshotFileInfo);
+                    if (needsWrite) {
+                        filesToSnapshot.add(snapshotFileInfo);
                     } else {
-                        // a commit point file with the same name, size and checksum was already copied to repository
-                        // we will reuse it for this snapshot
-                        indexCommitPointFiles.add(existingFileInfo);
+                        assert context.assertFileContentsMatchHash(snapshotFileInfo);
+                        filesInShardMetadataCount += 1;
+                        filesInShardMetadataSize += md.length();
                     }
                 }
             } else {

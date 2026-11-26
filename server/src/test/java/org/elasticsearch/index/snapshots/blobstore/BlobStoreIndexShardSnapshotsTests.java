@@ -26,18 +26,26 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
 import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentType;
+import org.hamcrest.Matcher;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import static org.elasticsearch.index.store.StoreFileMetadata.UNAVAILABLE_WRITER_UUID;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.sameInstance;
 
 public class BlobStoreIndexShardSnapshotsTests extends ESTestCase {
 
@@ -85,12 +93,158 @@ public class BlobStoreIndexShardSnapshotsTests extends ESTestCase {
         assertTrue(actual.isSame(expected));
     }
 
-    private static FileInfo fileInfo(String name, String physicalName) {
-        return new FileInfo(
-            name,
-            new StoreFileMetadata(physicalName, 100L, "checksum", Version.LATEST.toString()),
-            ByteSizeValue.ofBytes(100)
+    /**
+     * The same physical name can correspond to several snapshotted files that differ in content (e.g. a recycled {@code segments_N}), so
+     * the lookup must select the one that {@code isSame} the store file, and must not match on name alone.
+     */
+    public void testGetPhysicalFileMatchesSelectsMatchingFileAmongCollidingNames() {
+        final FileInfo v1 = fileInfo("__v1", "segments_1", 100L, "checksum-1");
+        final FileInfo v2 = fileInfo("__v2", "segments_1", 100L, "checksum-2");
+        final FileInfo v3 = fileInfo("__v3", "segments_1", 200L, "checksum-1");
+        final FileInfo unique = fileInfo("__u", "_0.cfs", 100L, "checksum-1");
+        final var history = BlobStoreIndexShardSnapshots.EMPTY.withAddedSnapshot(new SnapshotFiles("snap-1", List.of(v1, unique), null))
+            .withAddedSnapshot(new SnapshotFiles("snap-2", List.of(v2, unique), null))
+            .withAddedSnapshot(new SnapshotFiles("snap-3", List.of(v3), null));
+
+        final var matches = physicalFileMatches(
+            history,
+            List.of(storeFile("segments_1", 100L, "checksum-2"), storeFile("_0.cfs", 100L, "checksum-1"))
         );
+        assertThat(matches.existing(), containsInAnyOrder(sameInstance(v2), sameInstance(unique)));
+        assertThat(matches.missing(), empty());
+
+        assertOnlyExisting(history, storeFile("segments_1", 100L, "checksum-1"), sameInstance(v1));
+        assertOnlyExisting(history, storeFile("segments_1", 200L, "checksum-1"), sameInstance(v3));
+    }
+
+    /**
+     * Several snapshotted files can be equivalent to the same store file, e.g. the same content uploaded twice under different blob names.
+     * The store file must then be matched exactly once, and must not also be reported as missing.
+     */
+    public void testGetPhysicalFileMatchesMatchesEachTargetOnce() {
+        final FileInfo copy1 = fileInfo("__copy1", "_0.cfs", 100L, "checksum-1");
+        final FileInfo copy2 = fileInfo("__copy2", "_0.cfs", 100L, "checksum-1");
+        final var history = BlobStoreIndexShardSnapshots.EMPTY.withAddedSnapshot(new SnapshotFiles("snap-1", List.of(copy1), null))
+            .withAddedSnapshot(new SnapshotFiles("snap-2", List.of(copy2), null));
+
+        // which copy wins depends on iteration order, but either is a valid file to reuse
+        assertOnlyExisting(history, storeFile("_0.cfs", 100L, "checksum-1"), anyOf(sameInstance(copy1), sameInstance(copy2)));
+    }
+
+    public void testGetPhysicalFileMatchesReportsNonMatchesAsMissing() {
+        final var history = BlobStoreIndexShardSnapshots.EMPTY.withAddedSnapshot(
+            new SnapshotFiles("snap-1", List.of(fileInfo("__0", "_0.cfs", 100L, "checksum-1")), null)
+        );
+        for (StoreFileMetadata unmatched : List.of(
+            storeFile("_1.cfs", 100L, "checksum-1"), // unknown name
+            storeFile("_0.cfs", 101L, "checksum-1"), // known name, different length
+            storeFile("_0.cfs", 100L, "other") // known name, different checksum
+        )) {
+            final var matches = physicalFileMatches(history, List.of(unmatched));
+            assertThat(matches.existing(), empty());
+            assertThat(matches.missing(), contains(sameInstance(unmatched)));
+        }
+    }
+
+    public void testGetPhysicalFileMatchesWithNoTargetsOrNoHistory() {
+        final var history = BlobStoreIndexShardSnapshots.EMPTY.withAddedSnapshot(
+            new SnapshotFiles("snap-1", List.of(fileInfo("__0", "_0.cfs", 100L, "checksum-1")), null)
+        );
+        final var noTargets = physicalFileMatches(history, List.of());
+        assertThat(noTargets.existing(), empty());
+        assertThat(noTargets.missing(), empty());
+
+        final var target = storeFile("_0.cfs", 100L, "checksum-1");
+        final var noHistory = physicalFileMatches(BlobStoreIndexShardSnapshots.EMPTY, List.of(target));
+        assertThat(noHistory.existing(), empty());
+        assertThat(noHistory.missing(), contains(sameInstance(target)));
+    }
+
+    /** Matched and unmatched files partition the targets, and the unmatched ones keep the order they were passed in. */
+    public void testGetPhysicalFileMatchesPartitionsTargets() {
+        final FileInfo known1 = fileInfo("__1", "_1.cfs", 100L, "checksum-1");
+        final FileInfo known2 = fileInfo("__2", "_2.cfs", 100L, "checksum-2");
+        final var history = BlobStoreIndexShardSnapshots.EMPTY.withAddedSnapshot(
+            new SnapshotFiles("snap-1", List.of(known1, known2), null)
+        );
+
+        final StoreFileMetadata matched1 = storeFile("_1.cfs", 100L, "checksum-1");
+        final StoreFileMetadata matched2 = storeFile("_2.cfs", 100L, "checksum-2");
+        final StoreFileMetadata missingA = storeFile("_a.cfs", 1L, "a");
+        final StoreFileMetadata missingB = storeFile("_b.cfs", 2L, "b");
+        final StoreFileMetadata missingC = storeFile("_c.cfs", 3L, "c");
+
+        final var matches = physicalFileMatches(history, List.of(matched1, missingA, matched2, missingB, missingC));
+        assertThat(matches.existing(), containsInAnyOrder(sameInstance(known1), sameInstance(known2)));
+        assertThat(matches.missing(), contains(sameInstance(missingA), sameInstance(missingB), sameInstance(missingC)));
+    }
+
+    /** A file whose contents are inlined in the metadata is the same only if the contents are, so a matching name is not enough. */
+    public void testGetPhysicalFileMatchesDoesNotMatchInlinedFilesOnNameAlone() throws IOException {
+        final FileInfo known = inlinedFile("x");
+        FileInfo differentContents;
+        do {
+            differentContents = inlinedFile("x");
+        } while (differentContents.metadata().hash().equals(known.metadata().hash()));
+        assertThat(differentContents.physicalName(), equalTo(known.physicalName()));
+
+        final var history = BlobStoreIndexShardSnapshots.EMPTY.withAddedSnapshot(new SnapshotFiles("snap-1", List.of(known), null));
+        assertOnlyExisting(history, known.metadata(), sameInstance(known));
+
+        final var matches = physicalFileMatches(history, List.of(differentContents.metadata()));
+        assertThat(matches.existing(), empty());
+        assertThat(matches.missing(), contains(sameInstance(differentContents.metadata())));
+    }
+
+    public void testGetPhysicalFileMatchesRejectsDuplicateStoreFileNames() {
+        final var history = BlobStoreIndexShardSnapshots.EMPTY.withAddedSnapshot(
+            new SnapshotFiles("snap-1", List.of(fileInfo("__0", "_0.cfs", 100L, "checksum-1")), null)
+        );
+        final var e = expectThrows(
+            IllegalStateException.class,
+            () -> physicalFileMatches(history, List.of(storeFile("_0.cfs", 100L, "checksum-1"), storeFile("_0.cfs", 100L, "checksum-2")))
+        );
+        assertThat(e.getMessage(), containsString("_0.cfs"));
+    }
+
+    /**
+     * Many distinct physical names, as in a long-lived churny shard: exactly the targets that some snapshot references are matched, to
+     * their own files, and all the others are missing.
+     */
+    public void testGetPhysicalFileMatchesWithManyUniqueNames() {
+        final int fileCount = between(100, 1000);
+        final List<FileInfo> all = new ArrayList<>();
+        for (int i = 0; i < fileCount; i++) {
+            all.add(fileInfo("__" + i, "_" + i + ".fnm", 10L + i, "checksum-" + i));
+        }
+        var history = BlobStoreIndexShardSnapshots.EMPTY;
+        for (int i = 0; i < between(1, 5); i++) {
+            history = history.withAddedSnapshot(new SnapshotFiles("snap-" + i, randomSubsetOf(all), null));
+        }
+        final Set<FileInfo> referenced = identitySet();
+        for (SnapshotFiles snapshot : history.snapshots()) {
+            referenced.addAll(snapshot.indexFiles());
+        }
+
+        final List<FileInfo> wanted = randomSubsetOf(between(1, 20), all);
+        final Set<FileInfo> expectedExisting = identitySet();
+        final Set<StoreFileMetadata> expectedMissing = identitySet();
+        for (FileInfo file : wanted) {
+            if (referenced.contains(file)) {
+                expectedExisting.add(file);
+            } else {
+                expectedMissing.add(file.metadata());
+            }
+        }
+
+        final var matches = physicalFileMatches(history, wanted.stream().map(FileInfo::metadata).toList());
+        final Set<FileInfo> actualExisting = identitySet();
+        actualExisting.addAll(matches.existing());
+        final Set<StoreFileMetadata> actualMissing = identitySet();
+        actualMissing.addAll(matches.missing());
+        assertThat(matches.existing().size() + matches.missing().size(), equalTo(wanted.size()));
+        assertThat(actualExisting, equalTo(expectedExisting));
+        assertThat(actualMissing, equalTo(expectedMissing));
     }
 
     public void testEmptyRetainsNothing() {
@@ -185,5 +339,41 @@ public class BlobStoreIndexShardSnapshotsTests extends ESTestCase {
             UNAVAILABLE_WRITER_UUID
         );
         return new FileInfo(name, metadata, null);
+    }
+
+    private static <T> Set<T> identitySet() {
+        return Collections.newSetFromMap(new IdentityHashMap<>());
+    }
+
+    private static FileInfo fileInfo(String name, String physicalName) {
+        return fileInfo(name, physicalName, 100L, "checksum");
+    }
+
+    private static FileInfo fileInfo(String name, String physicalName, long length, String checksum) {
+        return new FileInfo(name, storeFile(physicalName, length, checksum), ByteSizeValue.ofBytes(100));
+    }
+
+    private static StoreFileMetadata storeFile(String physicalName, long length, String checksum) {
+        return new StoreFileMetadata(physicalName, length, checksum, Version.LATEST.toString());
+    }
+
+    /** Adapts a list of target files to the iterator-based API, as the snapshot-create path does. */
+    private static BlobStoreIndexShardSnapshots.PhysicalFileMatches physicalFileMatches(
+        BlobStoreIndexShardSnapshots history,
+        List<StoreFileMetadata> targets
+    ) {
+        // the size hint only affects allocation, so any value (including a wrong one) must give the same result
+        return history.getPhysicalFileMatches(randomIntBetween(0, 2 * targets.size()), targets.iterator());
+    }
+
+    /** Asserts that the single target is matched by exactly one existing file, which satisfies the matcher, and nothing is missing. */
+    private static void assertOnlyExisting(
+        BlobStoreIndexShardSnapshots history,
+        StoreFileMetadata target,
+        Matcher<? super FileInfo> expected
+    ) {
+        final var matches = physicalFileMatches(history, List.of(target));
+        assertThat(matches.existing(), contains(expected));
+        assertThat(matches.missing(), empty());
     }
 }
